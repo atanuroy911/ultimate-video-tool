@@ -1,0 +1,24 @@
+Layers on the timeline
+  ok   a project starts with no extra tracks
+  ok   adding text makes a track and a clip
+  ok   the clip shows in a lane of its own
+  ok   the inspector offers the text
+  ok   the new words are saved
+  ok   the preview shows the text at its time
+  ok   while dragging, the clip follows the pointer
+  ok   the new place is saved
+  ok   dragging the end makes the clip longer
+  ok   two texts can exist and none overlap on a track
+  ok   a fade is saved
+  ok   Ctrl+Z undoes the last layers edit
+  ok   and Ctrl+Shift+Z brings it back
+  ok   Ctrl+C then Ctrl+V pastes a copy of the clip
+  ok   and the copy never overlaps another clip
+  ok   a motion can be chosen for a picture or text layer
+  ok   Delete removes the selected clip
+  ok   a track can be hidden
+  ok   a hidden track is not drawn
+  ok   deleting a track removes its clips
+
+20 passed, 0 failed
+ERRORS: none

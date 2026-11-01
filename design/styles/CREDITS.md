@@ -1,0 +1,1 @@
+The style bibles in this folder are adapted from lemo-opuscar (https://github.com/lemomo-ai/lemo-opuscar), MIT License, Copyright (c) 2026 LemoLab. The themes in design/themes/style-* are derived from them.

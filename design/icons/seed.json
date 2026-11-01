@@ -1,0 +1,961 @@
+{
+ "_comment": "Hand-picked visuals for high-frequency concepts (English). [line icon, sticker]; either may be null. Overrides the automatic dictionary. Bangla equivalents are listed in seed_bn.json.",
+ "money": [
+  "lucide:banknote",
+  "emoji:1f4b5"
+ ],
+ "cash": [
+  "lucide:banknote",
+  "emoji:1f4b5"
+ ],
+ "dollar": [
+  "lucide:circle-dollar-sign",
+  "emoji:1f4b2"
+ ],
+ "coin": [
+  "lucide:coins",
+  "emoji:1fa99"
+ ],
+ "price": [
+  "lucide:tag",
+  "emoji:1f3f7"
+ ],
+ "cost": [
+  "lucide:receipt",
+  "emoji:1f4b8"
+ ],
+ "expense": [
+  "lucide:receipt",
+  "emoji:1f4b8"
+ ],
+ "profit": [
+  "lucide:trending-up",
+  "emoji:1f4c8"
+ ],
+ "loss": [
+  "lucide:trending-down",
+  "emoji:1f4c9"
+ ],
+ "income": [
+  "lucide:wallet",
+  "emoji:1f4b0"
+ ],
+ "salary": [
+  "lucide:wallet",
+  "emoji:1f4b0"
+ ],
+ "earn": [
+  "lucide:hand-coins",
+  "emoji:1f4b0"
+ ],
+ "pay": [
+  "lucide:credit-card",
+  "emoji:1f4b3"
+ ],
+ "payment": [
+  "lucide:credit-card",
+  "emoji:1f4b3"
+ ],
+ "buy": [
+  "lucide:shopping-cart",
+  "emoji:1f6d2"
+ ],
+ "sell": [
+  "lucide:store",
+  "emoji:1f3ea"
+ ],
+ "shop": [
+  "lucide:store",
+  "emoji:1f3ea"
+ ],
+ "market": [
+  "lucide:store",
+  "emoji:1f3ea"
+ ],
+ "save": [
+  "lucide:piggy-bank",
+  "emoji:1f437"
+ ],
+ "saving": [
+  "lucide:piggy-bank",
+  "emoji:1f437"
+ ],
+ "savings": [
+  "lucide:piggy-bank",
+  "emoji:1f437"
+ ],
+ "invest": [
+  "lucide:chart-line",
+  "emoji:1f4c8"
+ ],
+ "investment": [
+  "lucide:chart-line",
+  "emoji:1f4c8"
+ ],
+ "bank": [
+  "lucide:landmark",
+  "emoji:1f3e6"
+ ],
+ "loan": [
+  "lucide:hand-coins",
+  "emoji:1f91d"
+ ],
+ "debt": [
+  "lucide:scale",
+  "emoji:1f4b8"
+ ],
+ "interest": [
+  "lucide:percent",
+  "emoji:1f4b9"
+ ],
+ "tax": [
+  "lucide:receipt",
+  "emoji:1f9fe"
+ ],
+ "rent": [
+  "lucide:key-round",
+  "emoji:1f3e0"
+ ],
+ "yield": [
+  "lucide:percent",
+  "emoji:1f4b9"
+ ],
+ "budget": [
+  "lucide:calculator",
+  "emoji:1f9ee"
+ ],
+ "business": [
+  "lucide:briefcase-business",
+  "emoji:1f4bc"
+ ],
+ "company": [
+  "lucide:building-2",
+  "emoji:1f3e2"
+ ],
+ "office": [
+  "lucide:building-2",
+  "emoji:1f3e2"
+ ],
+ "work": [
+  "lucide:briefcase",
+  "emoji:1f4bc"
+ ],
+ "job": [
+  "lucide:briefcase",
+  "emoji:1f4bc"
+ ],
+ "customer": [
+  "lucide:users",
+  "emoji:1f9d1-200d-1f4bc"
+ ],
+ "team": [
+  "lucide:users",
+  "emoji:1f46b"
+ ],
+ "growth": [
+  "lucide:trending-up",
+  "emoji:1f4c8"
+ ],
+ "grow": [
+  "lucide:sprout",
+  "emoji:1f331"
+ ],
+ "risk": [
+  "lucide:triangle-alert",
+  "emoji:26a0"
+ ],
+ "safe": [
+  "lucide:shield-check",
+  "emoji:1f6e1"
+ ],
+ "secret": [
+  "lucide:lock",
+  "emoji:1f92b"
+ ],
+ "house": [
+  "lucide:house",
+  "emoji:1f3e0"
+ ],
+ "home": [
+  "lucide:house",
+  "emoji:1f3e0"
+ ],
+ "flat": [
+  "lucide:building-2",
+  "emoji:1f3e2"
+ ],
+ "apartment": [
+  "lucide:building-2",
+  "emoji:1f3e2"
+ ],
+ "land": [
+  "lucide:map",
+  "emoji:1f5fa"
+ ],
+ "city": [
+  "lucide:building",
+  "emoji:1f3d9"
+ ],
+ "village": [
+  "lucide:tent-tree",
+  "emoji:1f3d8"
+ ],
+ "school": [
+  "lucide:school",
+  "emoji:1f3eb"
+ ],
+ "student": [
+  "lucide:graduation-cap",
+  "emoji:1f9d1-200d-1f393"
+ ],
+ "teacher": [
+  "lucide:presentation",
+  "emoji:1f9d1-200d-1f3eb"
+ ],
+ "learn": [
+  "lucide:book-open",
+  "emoji:1f4d6"
+ ],
+ "study": [
+  "lucide:book-open",
+  "emoji:1f4da"
+ ],
+ "book": [
+  "lucide:book-open",
+  "emoji:1f4d6"
+ ],
+ "exam": [
+  "lucide:clipboard-check",
+  "emoji:1f4dd"
+ ],
+ "knowledge": [
+  "lucide:lightbulb",
+  "emoji:1f4a1"
+ ],
+ "idea": [
+  "lucide:lightbulb",
+  "emoji:1f4a1"
+ ],
+ "think": [
+  "lucide:brain",
+  "emoji:1f914"
+ ],
+ "mind": [
+  "lucide:brain",
+  "emoji:1f9e0"
+ ],
+ "brain": [
+  "lucide:brain",
+  "emoji:1f9e0"
+ ],
+ "father": [
+  "lucide:user",
+  "emoji:1f468"
+ ],
+ "dad": [
+  "lucide:user",
+  "emoji:1f468"
+ ],
+ "mother": [
+  "lucide:user-round",
+  "emoji:1f469"
+ ],
+ "mom": [
+  "lucide:user-round",
+  "emoji:1f469"
+ ],
+ "child": [
+  "lucide:baby",
+  "emoji:1f9d2"
+ ],
+ "boy": [
+  "lucide:user",
+  "emoji:1f466"
+ ],
+ "girl": [
+  "lucide:user-round",
+  "emoji:1f467"
+ ],
+ "baby": [
+  "lucide:baby",
+  "emoji:1f476"
+ ],
+ "family": [
+  "lucide:users",
+  "emoji:1f46a"
+ ],
+ "friend": [
+  "lucide:handshake",
+  "emoji:1f91d"
+ ],
+ "woman": [
+  "lucide:user-round",
+  "emoji:1f469"
+ ],
+ "man": [
+  "lucide:user",
+  "emoji:1f468"
+ ],
+ "old": [
+  "lucide:hourglass",
+  "emoji:1f474"
+ ],
+ "love": [
+  "lucide:heart",
+  "emoji:2764"
+ ],
+ "happy": [
+  "lucide:smile",
+  "emoji:1f60a"
+ ],
+ "sad": [
+  "lucide:frown",
+  "emoji:1f622"
+ ],
+ "angry": [
+  "lucide:angry",
+  "emoji:1f620"
+ ],
+ "surprise": [
+  "lucide:sparkles",
+  "emoji:1f632"
+ ],
+ "laugh": [
+  "lucide:laugh",
+  "emoji:1f602"
+ ],
+ "smile": [
+  "lucide:smile",
+  "emoji:1f604"
+ ],
+ "cry": [
+  "lucide:frown",
+  "emoji:1f62d"
+ ],
+ "time": [
+  "lucide:clock",
+  "emoji:23f0"
+ ],
+ "clock": [
+  "lucide:clock",
+  "emoji:23f0"
+ ],
+ "year": [
+  "lucide:calendar",
+  "emoji:1f4c5"
+ ],
+ "month": [
+  "lucide:calendar-days",
+  "emoji:1f4c6"
+ ],
+ "day": [
+  "lucide:sun",
+  "emoji:2600"
+ ],
+ "night": [
+  "lucide:moon",
+  "emoji:1f319"
+ ],
+ "morning": [
+  "lucide:sunrise",
+  "emoji:1f305"
+ ],
+ "wait": [
+  "lucide:hourglass",
+  "emoji:23f3"
+ ],
+ "fast": [
+  "lucide:zap",
+  "emoji:26a1"
+ ],
+ "slow": [
+  "lucide:turtle",
+  "emoji:1f422"
+ ],
+ "goal": [
+  "lucide:target",
+  "emoji:1f3af"
+ ],
+ "target": [
+  "lucide:target",
+  "emoji:1f3af"
+ ],
+ "win": [
+  "lucide:trophy",
+  "emoji:1f3c6"
+ ],
+ "winner": [
+  "lucide:trophy",
+  "emoji:1f3c6"
+ ],
+ "lose": [
+  "lucide:circle-x",
+  "emoji:1f622"
+ ],
+ "success": [
+  "lucide:badge-check",
+  "emoji:1f389"
+ ],
+ "fail": [
+  "lucide:circle-x",
+  "emoji:274c"
+ ],
+ "mistake": [
+  "lucide:circle-x",
+  "emoji:274c"
+ ],
+ "right": [
+  "lucide:circle-check",
+  "emoji:2705"
+ ],
+ "wrong": [
+  "lucide:circle-x",
+  "emoji:274c"
+ ],
+ "problem": [
+  "lucide:triangle-alert",
+  "emoji:26a0"
+ ],
+ "solution": [
+  "lucide:lightbulb",
+  "emoji:1f4a1"
+ ],
+ "question": [
+  "lucide:circle-help",
+  "emoji:2753"
+ ],
+ "answer": [
+  "lucide:message-circle-more",
+  "emoji:1f4ac"
+ ],
+ "tip": [
+  "lucide:lightbulb",
+  "emoji:1f4a1"
+ ],
+ "trick": [
+  "lucide:wand-sparkles",
+  "emoji:1fa84"
+ ],
+ "key": [
+  "lucide:key-round",
+  "emoji:1f511"
+ ],
+ "lock": [
+  "lucide:lock",
+  "emoji:1f512"
+ ],
+ "plan": [
+  "lucide:map",
+  "emoji:1f5fa"
+ ],
+ "step": [
+  "lucide:footprints",
+  "emoji:1f463"
+ ],
+ "start": [
+  "lucide:play",
+  "emoji:25b6"
+ ],
+ "stop": [
+  "lucide:octagon-x",
+  "emoji:1f6d1"
+ ],
+ "end": [
+  "lucide:flag",
+  "emoji:1f3c1"
+ ],
+ "change": [
+  "lucide:refresh-cw",
+  "emoji:1f504"
+ ],
+ "compare": [
+  "lucide:scale",
+  "emoji:2696"
+ ],
+ "choose": [
+  "lucide:mouse-pointer-click",
+  "emoji:1f446"
+ ],
+ "choice": [
+  "lucide:split",
+  "emoji:1f500"
+ ],
+ "phone": [
+  "lucide:smartphone",
+  "emoji:1f4f1"
+ ],
+ "mobile": [
+  "lucide:smartphone",
+  "emoji:1f4f1"
+ ],
+ "computer": [
+  "lucide:laptop",
+  "emoji:1f4bb"
+ ],
+ "internet": [
+  "lucide:globe",
+  "emoji:1f310"
+ ],
+ "online": [
+  "lucide:wifi",
+  "emoji:1f310"
+ ],
+ "video": [
+  "lucide:video",
+  "emoji:1f3ac"
+ ],
+ "camera": [
+  "lucide:camera",
+  "emoji:1f4f7"
+ ],
+ "photo": [
+  "lucide:image",
+  "emoji:1f5bc"
+ ],
+ "music": [
+  "lucide:music",
+  "emoji:1f3b5"
+ ],
+ "message": [
+  "lucide:message-circle",
+  "emoji:1f4ac"
+ ],
+ "email": [
+  "lucide:mail",
+  "emoji:2709"
+ ],
+ "call": [
+  "lucide:phone",
+  "emoji:1f4de"
+ ],
+ "talk": [
+  "lucide:message-circle",
+  "emoji:1f5e3"
+ ],
+ "speak": [
+  "lucide:mic",
+  "emoji:1f5e3"
+ ],
+ "listen": [
+  "lucide:ear",
+  "emoji:1f442"
+ ],
+ "see": [
+  "lucide:eye",
+  "emoji:1f440"
+ ],
+ "look": [
+  "lucide:eye",
+  "emoji:1f440"
+ ],
+ "watch": [
+  "lucide:watch",
+  "emoji:231a"
+ ],
+ "read": [
+  "lucide:book-open",
+  "emoji:1f4d6"
+ ],
+ "write": [
+  "lucide:pencil",
+  "emoji:270f"
+ ],
+ "food": [
+  "lucide:utensils",
+  "emoji:1f35b"
+ ],
+ "eat": [
+  "lucide:utensils",
+  "emoji:1f37d"
+ ],
+ "rice": [
+  "lucide:wheat",
+  "emoji:1f35a"
+ ],
+ "water": [
+  "lucide:droplet",
+  "emoji:1f4a7"
+ ],
+ "tea": [
+  "lucide:coffee",
+  "emoji:1f375"
+ ],
+ "fruit": [
+  "lucide:apple",
+  "emoji:1f34e"
+ ],
+ "fish": [
+  "lucide:fish",
+  "emoji:1f41f"
+ ],
+ "dog": [
+  "lucide:dog",
+  "emoji:1f415"
+ ],
+ "cat": [
+  "lucide:cat",
+  "emoji:1f408"
+ ],
+ "bird": [
+  "lucide:bird",
+  "emoji:1f426"
+ ],
+ "tree": [
+  "lucide:tree-pine",
+  "emoji:1f333"
+ ],
+ "flower": [
+  "lucide:flower",
+  "emoji:1f33a"
+ ],
+ "sun": [
+  "lucide:sun",
+  "emoji:2600"
+ ],
+ "moon": [
+  "lucide:moon",
+  "emoji:1f319"
+ ],
+ "rain": [
+  "lucide:cloud-rain",
+  "emoji:1f327"
+ ],
+ "fire": [
+  "lucide:flame",
+  "emoji:1f525"
+ ],
+ "earth": [
+  "lucide:globe",
+  "emoji:1f30d"
+ ],
+ "world": [
+  "lucide:globe",
+  "emoji:1f30d"
+ ],
+ "country": [
+  "lucide:flag",
+  "emoji:1f3f4"
+ ],
+ "road": [
+  "lucide:route",
+  "emoji:1f6e3"
+ ],
+ "car": [
+  "lucide:car",
+  "emoji:1f697"
+ ],
+ "bus": [
+  "lucide:bus",
+  "emoji:1f68c"
+ ],
+ "train": [
+  "lucide:train-front",
+  "emoji:1f686"
+ ],
+ "plane": [
+  "lucide:plane",
+  "emoji:2708"
+ ],
+ "ship": [
+  "lucide:ship",
+  "emoji:1f6a2"
+ ],
+ "doctor": [
+  "lucide:stethoscope",
+  "emoji:1f9d1-200d-2695"
+ ],
+ "health": [
+  "lucide:heart-pulse",
+  "emoji:2764"
+ ],
+ "medicine": [
+  "lucide:pill",
+  "emoji:1f48a"
+ ],
+ "hospital": [
+  "lucide:hospital",
+  "emoji:1f3e5"
+ ],
+ "sick": [
+  "lucide:thermometer",
+  "emoji:1f912"
+ ],
+ "strong": [
+  "lucide:dumbbell",
+  "emoji:1f4aa"
+ ],
+ "power": [
+  "lucide:zap",
+  "emoji:26a1"
+ ],
+ "energy": [
+  "lucide:zap",
+  "emoji:26a1"
+ ],
+ "light": [
+  "lucide:lightbulb",
+  "emoji:1f4a1"
+ ],
+ "stone": [
+  "lucide:mountain",
+  "emoji:1faa8"
+ ],
+ "rock": [
+  "lucide:mountain",
+  "emoji:1faa8"
+ ],
+ "gold": [
+  "lucide:medal",
+  "emoji:1f947"
+ ],
+ "diamond": [
+  "lucide:gem",
+  "emoji:1f48e"
+ ],
+ "gift": [
+  "lucide:gift",
+  "emoji:1f381"
+ ],
+ "number": [
+  "lucide:hash",
+  "emoji:1f522"
+ ],
+ "count": [
+  "lucide:calculator",
+  "emoji:1f522"
+ ],
+ "chart": [
+  "lucide:chart-bar",
+  "emoji:1f4ca"
+ ],
+ "data": [
+  "lucide:database",
+  "emoji:1f4ca"
+ ],
+ "news": [
+  "lucide:newspaper",
+  "emoji:1f4f0"
+ ],
+ "law": [
+  "lucide:scale",
+  "emoji:2696"
+ ],
+ "god": [
+  "lucide:sparkles",
+  "emoji:1f64f"
+ ],
+ "pray": [
+  "lucide:hand-heart",
+  "emoji:1f64f"
+ ],
+ "war": [
+  "lucide:swords",
+  "emoji:2694"
+ ],
+ "help": [
+  "lucide:life-buoy",
+  "emoji:1f91d"
+ ],
+ "finger": [
+  "tabler:hand-finger",
+  "emoji:261d"
+ ],
+ "hand": [
+  "lucide:hand",
+  "emoji:270b"
+ ],
+ "fingers": [
+  "tabler:hand-two-fingers",
+  "emoji:270c"
+ ],
+ "two": [
+  "lucide:hash",
+  "emoji:270c"
+ ],
+ "peace": [
+  "lucide:handshake",
+  "emoji:262e"
+ ],
+ "wristwatch": [
+  "lucide:watch",
+  "emoji:231a"
+ ],
+ "moment": [
+  "lucide:timer",
+  "emoji:23f1"
+ ],
+ "lazy": [
+  "lucide:armchair",
+  "emoji:1f9a5"
+ ],
+ "careless": [
+  "lucide:triangle-alert",
+  "emoji:1f937"
+ ],
+ "wallet": [
+  "lucide:wallet",
+  "emoji:1f45b"
+ ],
+ "purse": [
+  "lucide:wallet",
+  "emoji:1f45b"
+ ],
+ "grapes": [
+  null,
+  "emoji:1f347"
+ ],
+ "grape": [
+  null,
+  "emoji:1f347"
+ ],
+ "ball": [
+  null,
+  "emoji:26bd"
+ ],
+ "bulb": [
+  "lucide:lightbulb",
+  "emoji:1f4a1"
+ ],
+ "fox": [
+  null,
+  "emoji:1f98a"
+ ],
+ "crow": [
+  null,
+  "emoji:1f426-200d-2b1b"
+ ],
+ "umbrella": [
+  "lucide:umbrella",
+  "emoji:2602"
+ ],
+ "keys": [
+  "lucide:key",
+  "emoji:1f511"
+ ],
+ "apple": [
+  null,
+  "emoji:1f34e"
+ ],
+ "apples": [
+  null,
+  "emoji:1f34e"
+ ],
+ "bread": [
+  null,
+  "emoji:1f35e"
+ ],
+ "bag": [
+  null,
+  "emoji:1f45c"
+ ],
+ "letter": [
+  "lucide:mail",
+  "emoji:2709"
+ ],
+ "coins": [
+  "lucide:coins",
+  "emoji:1fa99"
+ ],
+ "screen": [
+  "lucide:smartphone",
+  "emoji:1f4f1"
+ ],
+ "screens": [
+  "lucide:smartphone",
+  "emoji:1f4f1"
+ ],
+ "focus": [
+  "lucide:target",
+  "emoji:1f3af"
+ ],
+ "wash": [
+  "lucide:droplets",
+  "emoji:1f9fc"
+ ],
+ "waste": [
+  "lucide:trash-2",
+  "emoji:1f5d1"
+ ],
+ "sleep": [
+  "lucide:bed",
+  "emoji:1f634"
+ ],
+ "sugar": [
+  "lucide:candy",
+  "emoji:1f36c"
+ ],
+ "bedtime": [
+  "lucide:bed-double",
+  "emoji:1f6cf"
+ ],
+ "napkin": [
+  "lucide:sticky-note",
+  "emoji:1f4dd"
+ ],
+ "shops": [
+  "lucide:store",
+  "emoji:1f3ea"
+ ],
+ "battery": [
+  "lucide:battery-charging",
+  "emoji:1f50b"
+ ],
+ "cable": [
+  "lucide:cable",
+  "emoji:1f50c"
+ ],
+ "clothing": [
+  "lucide:shirt",
+  "emoji:1f455"
+ ],
+ "export": [
+  "lucide:ship",
+  "emoji:1f6a2"
+ ],
+ "exports": [
+  "lucide:ship",
+  "emoji:1f6a2"
+ ],
+ "homework": [
+  "lucide:notebook-pen",
+  "emoji:1f4dd"
+ ],
+ "students": [
+  "lucide:graduation-cap",
+  "emoji:1f9d1-200d-1f393"
+ ],
+ "_no_picture": [
+  "built",
+  "came",
+  "come",
+  "even",
+  "get",
+  "go",
+  "got",
+  "just",
+  "keep",
+  "kept",
+  "let",
+  "lost",
+  "made",
+  "make",
+  "most",
+  "one",
+  "put",
+  "said",
+  "same",
+  "sat",
+  "say",
+  "seem",
+  "seems",
+  "sit",
+  "skip",
+  "still",
+  "take",
+  "think",
+  "thinks",
+  "took",
+  "went"
+ ],
+ "_comment_no_picture": "Words that never get a picture: common verbs and quantifiers whose dictionary hits mislead ('sat' -> a Saturday clock). They can still appear as typed words."
+}

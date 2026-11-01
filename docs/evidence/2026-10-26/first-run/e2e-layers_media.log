@@ -1,0 +1,21 @@
+$ node e2e/layers_media.mjs
+# cwd C:\Users\atanu\Desktop\Video Tool\studio
+# started 2026-10-26 20:40:19
+
+Layers from the media bin
+  ok   the picture is in the media bin
+  ok   Add to timeline puts the picture on a picture track
+  ok   and shows it in the timeline
+  ok   the inspector offers place and opacity
+  ok   the sound is in the bin
+  ok   Add to timeline puts the sound on a sound track
+  ok   below the voice, in its own lane
+  ok   the sound is as long as the file (about 2 s)
+  ok   trimming the start moves where in the file it plays from
+  ok   volume is saved
+  ok   a sound that is used cannot be removed
+
+11 passed, 0 failed
+ERRORS: none
+
+# exit 0 in 19 s

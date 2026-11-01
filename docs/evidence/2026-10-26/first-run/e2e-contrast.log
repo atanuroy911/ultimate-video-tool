@@ -1,0 +1,23 @@
+$ node e2e/contrast.mjs
+# cwd C:\Users\atanu\Desktop\Video Tool\studio
+# started 2026-10-26 20:44:43
+
+Text contrast in the preview, all themes
+  ok   auto-026-10-22-ui-upload-test: all text is at least 3:1
+  ok   auto-026-10-23-bengali-sample: all text is at least 3:1
+  ok   auto-2026-10-22-ai: all text is at least 3:1
+  ok   auto-2026-10-22-inflation: all text is at least 3:1
+  ok   auto-2026-10-22-schools: all text is at least 3:1
+  ok   auto-2026-10-22-the-watch: all text is at least 3:1
+  ok   auto-2026-10-22-videopro: all text is at least 3:1
+  ok   auto-2026-10-23-hello: all text is at least 3:1
+  ok   auto-2026-10-23-test: all text is at least 3:1
+  ok   auto-2026-10-23-untitled: all text is at least 3:1
+  ok   auto-2026-10-24-video: all text is at least 3:1
+  ok   auto-2026-10-24-video-10: all text is at least 3:1
+  ok   auto-2026-10-24-video-11: all text is at least 3:1
+  ok   auto-2026-10-24-video-12: all text is at least 3:1
+
+14 passed, 0 failed
+
+# exit 0 in 58 s

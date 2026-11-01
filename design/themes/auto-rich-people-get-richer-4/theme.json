@@ -1,0 +1,76 @@
+{
+  "name": "auto-rich-people-get-richer-4",
+  "label": "Clean · Lemon",
+  "color": {
+    "bg": "#fffbe6",
+    "bg2": "#fff1a8",
+    "ink": "#222200",
+    "muted": "#858468",
+    "accent": "#e0a800",
+    "accent2": "#ff5a36",
+    "card": "#ffffff",
+    "card_border": "#222200",
+    "caption_bg": "#fffbe6",
+    "caption_ink": "#222200",
+    "highlight_bg": "#e0a800",
+    "highlight_ink": "#111111",
+    "tag_bg": "#ff5a36",
+    "tag_ink": "#111111",
+    "arc": "rgba(34,34,0,0.09)"
+  },
+  "font": {
+    "headline": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "body": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "numeral": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "caption": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "headline_weight": 700
+  },
+  "shape": {
+    "radius": 18.0,
+    "stroke": 1.5,
+    "shadow": {
+      "x": 0.0,
+      "y": 0.0,
+      "color": "#222200",
+      "blur": 0.0
+    },
+    "card_tilt": 0.0
+  },
+  "background": {
+    "kind": "flat",
+    "grain": 0.0,
+    "arcs": false,
+    "pattern": 0.5,
+    "animated": false
+  },
+  "motion": {
+    "preset": "smooth"
+  },
+  "caption": {
+    "style": "underline",
+    "reveal": "line",
+    "weight": 700,
+    "size": 58,
+    "words_per_line": 6,
+    "safe_bottom": {
+      "portrait": 300,
+      "landscape": 64
+    }
+  },
+  "currency": "৳",
+  "sfx": "pop",
+  "style": "clean",
+  "palette": "lemon"
+}

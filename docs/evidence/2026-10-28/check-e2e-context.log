@@ -1,0 +1,10 @@
+Context panel on reference
+  ok   reading the video works as a job
+  ok   and gives a topic and sentences
+  ok   the panel shows the topic
+  ok   a corrected topic is saved and kept
+  skip: this project has no named things
+  ok   the panel says the words changed
+
+5 passed, 0 failed
+ERRORS: none

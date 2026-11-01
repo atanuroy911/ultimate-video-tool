@@ -1,0 +1,775 @@
+[
+  {
+    "id": "ia-buddy-dml-trench-kid",
+    "kind": "audio",
+    "role": "music",
+    "title": "Buddy DML Trench Kid",
+    "source": "archive.org",
+    "page_url": "https://archive.org/details/buddy-dml-trench-kid",
+    "url": "https://archive.org/download/buddy-dml-trench-kid/Buddy DML - Try.mp3",
+    "licence": "CC0 / Public domain",
+    "licence_url": "https://creativecommons.org/publicdomain/mark/1.0/",
+    "creator": "Buddy DML",
+    "attribution": "“Buddy DML Trench Kid” by Buddy DML, via the Internet Archive (CC0 / Public domain)",
+    "tags": [
+      "music"
+    ],
+    "validated_at": "2026-10-22T16:18:09+06:00",
+    "format": {
+      "container": "mp3",
+      "duration": 106.32,
+      "bytes": 2889644,
+      "video": {
+        "codec": "mjpeg",
+        "width": 3000,
+        "height": 3000,
+        "fps": 90000.0
+      },
+      "audio": {
+        "codec": "mp3",
+        "sample_rate": 44100,
+        "channels": 2
+      }
+    },
+    "bytes": 2889644,
+    "status": "ok",
+    "error": ""
+  },
+  {
+    "id": "ia-gabry-l-your-eyes-come-back-2-me",
+    "kind": "audio",
+    "role": "music",
+    "title": "Gabry L Your Eyes ( Come Back 2 Me)",
+    "source": "archive.org",
+    "page_url": "https://archive.org/details/gabry-l-your-eyes-come-back-2-me",
+    "url": "https://archive.org/download/gabry-l-your-eyes-come-back-2-me/Gabry-L - Your Eyes (Come Back 2 Me).mp3",
+    "licence": "CC0 / Public domain",
+    "licence_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "creator": "Unknown",
+    "attribution": "“Gabry L Your Eyes ( Come Back 2 Me)” by Unknown, via the Internet Archive (CC0 / Public domain)",
+    "tags": [
+      "music"
+    ],
+    "validated_at": "2026-10-22T16:18:14+06:00",
+    "format": {
+      "container": "mp3",
+      "duration": 253.75,
+      "bytes": 6091474,
+      "video": null,
+      "audio": {
+        "codec": "mp3",
+        "sample_rate": 44100,
+        "channels": 2
+      }
+    },
+    "bytes": 6091474,
+    "status": "ok",
+    "error": ""
+  },
+  {
+    "id": "ia-modest-by-default-raw-practices-vol-3",
+    "kind": "audio",
+    "role": "music",
+    "title": "RAW PRACTICES VOL. III",
+    "source": "archive.org",
+    "page_url": "https://archive.org/details/modest-by-default-raw-practices-vol-3",
+    "url": "https://archive.org/download/modest-by-default-raw-practices-vol-3/modest by default - RAW PRACTICES VOL. III (لا يرتشي) - 10 照亮道路.mp3",
+    "licence": "CC0 / Public domain",
+    "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "creator": "modest by default",
+    "attribution": "“RAW PRACTICES VOL. III” by modest by default, via the Internet Archive (CC0 / Public domain)",
+    "tags": [
+      "music"
+    ],
+    "validated_at": "2026-10-22T16:18:27+06:00",
+    "format": {
+      "container": "mp3",
+      "duration": 214.01,
+      "bytes": 5207874,
+      "video": null,
+      "audio": {
+        "codec": "mp3",
+        "sample_rate": 48000,
+        "channels": 2
+      }
+    },
+    "bytes": 5207874,
+    "status": "ok",
+    "error": ""
+  },
+  {
+    "id": "ia-moth-chieftains-improved-song",
+    "kind": "audio",
+    "role": "music",
+    "title": "Moth Chieftain's Improved Song",
+    "source": "archive.org",
+    "page_url": "https://archive.org/details/moth-chieftains-Improved-Song",
+    "url": "https://archive.org/download/moth-chieftains-Improved-Song/das Lied der Häuptlingin.mp3",
+    "licence": "CC0 / Public domain",
+    "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "creator": "Kostya Veldyaksov Dmitrivich",
+    "attribution": "“Moth Chieftain's Improved Song” by Kostya Veldyaksov Dmitrivich, via the Internet Archive (CC0 / Public domain)",
+    "tags": [
+      "music"
+    ],
+    "validated_at": "2026-10-22T16:18:21+06:00",
+    "format": {
+      "container": "mp3",
+      "duration": 174.84,
+      "bytes": 4223714,
+      "video": {
+        "codec": "mjpeg",
+        "width": 1024,
+        "height": 1024,
+        "fps": 90000.0
+      },
+      "audio": {
+        "codec": "mp3",
+        "sample_rate": 48000,
+        "channels": 2
+      }
+    },
+    "bytes": 4223714,
+    "status": "ok",
+    "error": ""
+  },
+  {
+    "id": "wc-alex-productions-deep-dark-ambient-background-musi",
+    "kind": "audio",
+    "role": "music",
+    "title": "Alex-Productions - Deep (Dark Ambient Background music)",
+    "source": "commons.wikimedia.org",
+    "page_url": "https://commons.wikimedia.org/wiki/File:Alex-Productions_-_Deep_(Dark_Ambient_Background_music).oga",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/3/3e/Alex-Productions_-_Deep_%28Dark_Ambient_Background_music%29.oga?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+    "licence": "CC BY 3.0",
+    "licence_url": "https://creativecommons.org/licenses/by/3.0",
+    "creator": "Alex- Productions ( No Copyright Music )",
+    "attribution": "“Alex-Productions - Deep (Dark Ambient Background music)” by Alex- Productions ( No Copyright Music ), via Wikimedia Commons (CC BY 3.0)",
+    "tags": [
+      "music"
+    ],
+    "validated_at": "2026-10-22T16:18:48+06:00",
+    "format": {
+      "container": "ogg",
+      "duration": 268.8,
+      "bytes": 2228231,
+      "video": null,
+      "audio": {
+        "codec": "opus",
+        "sample_rate": 48000,
+        "channels": 2
+      }
+    },
+    "bytes": 2228231,
+    "status": "ok",
+    "error": ""
+  },
+  {
+    "id": "wc-ambient-music-test-yamaha-ck61",
+    "kind": "audio",
+    "role": "music",
+    "title": "Ambient music test, Yamaha CK61",
+    "source": "commons.wikimedia.org",
+    "page_url": "https://commons.wikimedia.org/wiki/File:Ambient_music_test,_Yamaha_CK61.flac",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/4/49/Ambient_music_test%2C_Yamaha_CK61.flac?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+    "licence": "CC0",
+    "licence_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "creator": "Wilfredor",
+    "attribution": "“Ambient music test, Yamaha CK61” by Wilfredor, via Wikimedia Commons (CC0)",
+    "tags": [
+      "music"
+    ],
+    "validated_at": "2026-10-22T16:18:50+06:00",
+    "format": {
+      "container": "flac",
+      "duration": 197.75,
+      "bytes": 10185435,
+      "video": null,
+      "audio": {
+        "codec": "flac",
+        "sample_rate": 48000,
+        "channels": 2
+      }
+    },
+    "bytes": 10185435,
+    "status": "ok",
+    "error": ""
+  },
+  {
+    "id": "wc-terminus-void-inception-dystopian-cyberpunk-space",
+    "kind": "audio",
+    "role": "music",
+    "title": "Terminus Void - Inception (Dystopian Cyberpunk Space Ambient Music similar to Blade Runner",
+    "source": "commons.wikimedia.org",
+    "page_url": "https://commons.wikimedia.org/wiki/File:Terminus_Void_-_Inception_(Dystopian_Cyberpunk_Space_Ambient_Music_similar_to_Blade_Runner_soundtrack_music).opus",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/d/db/Terminus_Void_-_Inception_%28Dystopian_Cyberpunk_Space_Ambient_Music_similar_to_Blade_Runner_soundtrack_music%29.opus?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+    "licence": "CC BY 3.0",
+    "licence_url": "https://creativecommons.org/licenses/by/3.0",
+    "creator": "Terminus Void",
+    "attribution": "“Terminus Void - Inception (Dystopian Cyberpunk Space Ambient Music similar to Blade Runner” by Terminus Void, via Wikimedia Commons (CC BY 3.0)",
+    "tags": [
+      "music"
+    ],
+    "validated_at": "2026-10-22T16:18:53+06:00",
+    "format": {
+      "container": "ogg",
+      "duration": 580.03,
+      "bytes": 9288803,
+      "video": null,
+      "audio": {
+        "codec": "opus",
+        "sample_rate": 48000,
+        "channels": 2
+      }
+    },
+    "bytes": 9288803,
+    "status": "ok",
+    "error": ""
+  },
+  {
+    "id": "wc-achievement-unlocked-sound-effect-video-game",
+    "kind": "audio",
+    "role": "sfx",
+    "title": "Achievement unlocked sound effect video game",
+    "source": "commons.wikimedia.org",
+    "page_url": "https://commons.wikimedia.org/wiki/File:Achievement_unlocked_sound_effect_video_game.wav",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/8/85/Achievement_unlocked_sound_effect_video_game.wav?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+    "licence": "CC BY 3.0",
+    "licence_url": "https://creativecommons.org/licenses/by/3.0",
+    "creator": "rhodesmas",
+    "attribution": "“Achievement unlocked sound effect video game” by rhodesmas, via Wikimedia Commons (CC BY 3.0)",
+    "tags": [
+      "sfx"
+    ],
+    "validated_at": "2026-10-22T16:18:57+06:00",
+    "format": {
+      "container": "wav",
+      "duration": 1.1,
+      "bytes": 202702,
+      "video": null,
+      "audio": {
+        "codec": "pcm_s16le",
+        "sample_rate": 44100,
+        "channels": 2
+      }
+    },
+    "bytes": 202702,
+    "status": "ok",
+    "error": ""
+  },
+  {
+    "id": "wc-mini-acerto-aten-o",
+    "kind": "audio",
+    "role": "sfx",
+    "title": "Mini Acerto - Atenção",
+    "source": "commons.wikimedia.org",
+    "page_url": "https://commons.wikimedia.org/wiki/File:Mini_Acerto_-_Aten%C3%A7%C3%A3o.ogg",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/f/f4/Mini_Acerto_-_Aten%C3%A7%C3%A3o.ogg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+    "licence": "CC0",
+    "licence_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "creator": "Rafael Tavares Juliani",
+    "attribution": "“Mini Acerto - Atenção” by Rafael Tavares Juliani, via Wikimedia Commons (CC0)",
+    "tags": [
+      "sfx"
+    ],
+    "validated_at": "2026-10-22T16:18:58+06:00",
+    "format": {
+      "container": "ogg",
+      "duration": 1.15,
+      "bytes": 35103,
+      "video": null,
+      "audio": {
+        "codec": "vorbis",
+        "sample_rate": 48000,
+        "channels": 2
+      }
+    },
+    "bytes": 35103,
+    "status": "ok",
+    "error": ""
+  },
+  {
+    "id": "ia-evelina-0812-librivox",
+    "kind": "audio",
+    "role": "speech",
+    "title": "Evelina",
+    "source": "archive.org",
+    "page_url": "https://archive.org/details/evelina_0812_librivox",
+    "url": "https://archive.org/download/evelina_0812_librivox/evelina_84_burney_64kb.mp3",
+    "licence": "CC0 / Public domain",
+    "licence_url": "http://creativecommons.org/licenses/publicdomain/",
+    "creator": "Fanny Burney",
+    "attribution": "“Evelina” by Fanny Burney, via the Internet Archive (CC0 / Public domain)",
+    "tags": [
+      "speech"
+    ],
+    "validated_at": "2026-10-22T16:12:20+06:00",
+    "format": {
+      "container": "mp3",
+      "duration": 66.19,
+      "bytes": 530651,
+      "video": null,
+      "audio": {
+        "codec": "mp3",
+        "sample_rate": 22050,
+        "channels": 1
+      }
+    },
+    "bytes": 530651,
+    "status": "ok",
+    "error": ""
+  },
+  {
+    "id": "ia-eyebright-1402-librivox",
+    "kind": "audio",
+    "role": "speech",
+    "title": "Eyebright",
+    "source": "archive.org",
+    "page_url": "https://archive.org/details/eyebright_1402_librivox",
+    "url": "https://archive.org/download/eyebright_1402_librivox/eyebright_01_coolidge_64kb.mp3",
+    "licence": "CC0 / Public domain",
+    "licence_url": "http://creativecommons.org/publicdomain/mark/1.0/",
+    "creator": "Susan Coolidge",
+    "attribution": "“Eyebright” by Susan Coolidge, via the Internet Archive (CC0 / Public domain)",
+    "tags": [
+      "speech"
+    ],
+    "validated_at": "2026-10-22T16:12:24+06:00",
+    "format": {
+      "container": "mp3",
+      "duration": 1201.09,
+      "bytes": 9610240,
+      "video": null,
+      "audio": {
+        "codec": "mp3",
+        "sample_rate": 22050,
+        "channels": 1
+      }
+    },
+    "bytes": 9610240,
+    "status": "ok",
+    "error": ""
+  },
+  {
+    "id": "ia-thegreenodyssey-1911-librivox",
+    "kind": "audio",
+    "role": "speech",
+    "title": "The Green Odyssey (version 2)",
+    "source": "archive.org",
+    "page_url": "https://archive.org/details/thegreenodyssey_1911_librivox",
+    "url": "https://archive.org/download/thegreenodyssey_1911_librivox/greenodyssey_16_farmer_64kb.mp3",
+    "licence": "CC0 / Public domain",
+    "licence_url": "http://creativecommons.org/publicdomain/mark/1.0/",
+    "creator": "Philip Jose Farmer",
+    "attribution": "“The Green Odyssey (version 2)” by Philip Jose Farmer, via the Internet Archive (CC0 / Public domain)",
+    "tags": [
+      "speech"
+    ],
+    "validated_at": "2026-10-22T16:18:04+06:00",
+    "format": {
+      "container": "mp3",
+      "duration": 526.13,
+      "bytes": 4215136,
+      "video": null,
+      "audio": {
+        "codec": "mp3",
+        "sample_rate": 22050,
+        "channels": 1
+      }
+    },
+    "bytes": 4215136,
+    "status": "ok",
+    "error": ""
+  },
+  {
+    "id": "ia-vie-des-abeilles-2002-librivox",
+    "kind": "audio",
+    "role": "speech",
+    "title": "La vie des abeilles",
+    "source": "archive.org",
+    "page_url": "https://archive.org/details/vie_des_abeilles_2002_librivox",
+    "url": "https://archive.org/download/vie_des_abeilles_2002_librivox/viedesabeilles_08_maeterlinck_64kb.mp3",
+    "licence": "CC0 / Public domain",
+    "licence_url": "http://creativecommons.org/publicdomain/mark/1.0/",
+    "creator": "Maurice Maeterlinck",
+    "attribution": "“La vie des abeilles” by Maurice Maeterlinck, via the Internet Archive (CC0 / Public domain)",
+    "tags": [
+      "speech"
+    ],
+    "validated_at": "2026-10-22T16:12:13+06:00",
+    "format": {
+      "container": "mp3",
+      "duration": 704.88,
+      "bytes": 5646644,
+      "video": null,
+      "audio": {
+        "codec": "mp3",
+        "sample_rate": 22050,
+        "channels": 1
+      }
+    },
+    "bytes": 5646644,
+    "status": "ok",
+    "error": ""
+  },
+  {
+    "id": "ia-american1956-3",
+    "kind": "video",
+    "role": "clip",
+    "title": "American Engineer (Part III)",
+    "source": "archive.org",
+    "page_url": "https://archive.org/details/American1956_3",
+    "url": "https://archive.org/download/American1956_3/American1956_3_512kb.mp4",
+    "licence": "CC0 / Public domain",
+    "licence_url": "http://creativecommons.org/licenses/publicdomain/",
+    "creator": "Handy (Jam) Organization",
+    "attribution": "“American Engineer (Part III)” by Handy (Jam) Organization, via the Internet Archive (CC0 / Public domain)",
+    "tags": [
+      "clip"
+    ],
+    "validated_at": "2026-10-22T16:10:30+06:00",
+    "format": {
+      "container": "mov",
+      "duration": 529.6,
+      "bytes": 37487126,
+      "video": {
+        "codec": "h264",
+        "width": 320,
+        "height": 240,
+        "fps": 29.97
+      },
+      "audio": {
+        "codec": "aac",
+        "sample_rate": 44100,
+        "channels": 2
+      }
+    },
+    "bytes": 37487126,
+    "status": "ok",
+    "error": ""
+  },
+  {
+    "id": "ia-beginnin1951",
+    "kind": "video",
+    "role": "clip",
+    "title": "Beginning Responsibility: Taking Care of Things",
+    "source": "archive.org",
+    "page_url": "https://archive.org/details/Beginnin1951",
+    "url": "https://archive.org/download/Beginnin1951/Beginnin1951_512kb.mp4",
+    "licence": "CC0 / Public domain",
+    "licence_url": "http://creativecommons.org/licenses/publicdomain/",
+    "creator": "Coronet Instructional Films",
+    "attribution": "“Beginning Responsibility: Taking Care of Things” by Coronet Instructional Films, via the Internet Archive (CC0 / Public domain)",
+    "tags": [
+      "clip"
+    ],
+    "validated_at": "2026-10-22T16:11:24+06:00",
+    "format": {
+      "container": "mov",
+      "duration": 559.49,
+      "bytes": 39778176,
+      "video": {
+        "codec": "h264",
+        "width": 320,
+        "height": 240,
+        "fps": 29.97
+      },
+      "audio": {
+        "codec": "aac",
+        "sample_rate": 44100,
+        "channels": 2
+      }
+    },
+    "bytes": 39778176,
+    "status": "ok",
+    "error": ""
+  },
+  {
+    "id": "ia-bflogggx1963",
+    "kind": "video",
+    "role": "clip",
+    "title": "#Bfl O {ggGX = STwWcfl x 2s4 (Calvin Workshop)",
+    "source": "archive.org",
+    "page_url": "https://archive.org/details/BflOggGX1963",
+    "url": "https://archive.org/download/BflOggGX1963/BflOggGX1963_512kb.mp4",
+    "licence": "CC0 / Public domain",
+    "licence_url": "http://creativecommons.org/licenses/publicdomain/",
+    "creator": "Calvin Company",
+    "attribution": "“#Bfl O {ggGX = STwWcfl x 2s4 (Calvin Workshop)” by Calvin Company, via the Internet Archive (CC0 / Public domain)",
+    "tags": [
+      "clip"
+    ],
+    "validated_at": "2026-10-22T16:11:06+06:00",
+    "format": {
+      "container": "mov",
+      "duration": 396.0,
+      "bytes": 28459710,
+      "video": {
+        "codec": "h264",
+        "width": 320,
+        "height": 240,
+        "fps": 29.97
+      },
+      "audio": {
+        "codec": "aac",
+        "sample_rate": 44100,
+        "channels": 2
+      }
+    },
+    "bytes": 28459710,
+    "status": "ok",
+    "error": ""
+  },
+  {
+    "id": "ia-crew-dragon-port-relocation-april-5-2021-202104",
+    "kind": "video",
+    "role": "clip",
+    "title": "Crew-Dragon-Port-Relocation_April-5-2021",
+    "source": "archive.org",
+    "page_url": "https://archive.org/details/crew-dragon-port-relocation_april-5-2021_202104",
+    "url": "https://archive.org/download/crew-dragon-port-relocation_april-5-2021_202104/Crew-Dragon-Port-Relocation_HD-DL-6_2021_095_1026_21031_1461793.ia.mp4",
+    "licence": "CC0 / Public domain",
+    "licence_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "creator": "john.l.stoll@nasa.gov",
+    "attribution": "“Crew-Dragon-Port-Relocation_April-5-2021” by john.l.stoll@nasa.gov, via the Internet Archive (CC0 / Public domain)",
+    "tags": [
+      "clip"
+    ],
+    "validated_at": "2026-10-22T16:11:48+06:00",
+    "format": {
+      "container": "mov",
+      "duration": 372.69,
+      "bytes": 33376572,
+      "video": {
+        "codec": "h264",
+        "width": 854,
+        "height": 480,
+        "fps": 59.94
+      },
+      "audio": {
+        "codec": "aac",
+        "sample_rate": 48000,
+        "channels": 2
+      }
+    },
+    "bytes": 33376572,
+    "status": "ok",
+    "error": ""
+  },
+  {
+    "id": "ia-e32pre-flightbriefingssupportingmaterials",
+    "kind": "video",
+    "role": "clip",
+    "title": "E32 Pre-Flight Briefings Supporting Materials",
+    "source": "archive.org",
+    "page_url": "https://archive.org/details/E32Pre-flightBriefingsSupportingMaterials",
+    "url": "https://archive.org/download/E32Pre-flightBriefingsSupportingMaterials/120320_Contella_04_720p.mp4",
+    "licence": "CC0 / Public domain",
+    "licence_url": "http://creativecommons.org/publicdomain/mark/1.0/",
+    "creator": "NASA",
+    "attribution": "“E32 Pre-Flight Briefings Supporting Materials” by NASA, via the Internet Archive (CC0 / Public domain)",
+    "tags": [
+      "clip"
+    ],
+    "validated_at": "2026-10-22T16:12:06+06:00",
+    "format": {
+      "container": "mov",
+      "duration": 55.91,
+      "bytes": 4729282,
+      "video": {
+        "codec": "h264",
+        "width": 640,
+        "height": 360,
+        "fps": 59.94
+      },
+      "audio": {
+        "codec": "aac",
+        "sample_rate": 44100,
+        "channels": 2
+      }
+    },
+    "bytes": 4729282,
+    "status": "ok",
+    "error": ""
+  },
+  {
+    "id": "ia-tadano-le-dice-linda-a-komi-san-komi-san-komyshou-",
+    "kind": "video",
+    "role": "clip",
+    "title": "Tadano Le Dice Linda A Komi San Komi San Komyshou Desu Sub Español 1080p HD",
+    "source": "archive.org",
+    "page_url": "https://archive.org/details/tadano-le-dice-linda-a-komi-san-komi-san-komyshou-desu-sub-espanol-1080p-hd",
+    "url": "https://archive.org/download/tadano-le-dice-linda-a-komi-san-komi-san-komyshou-desu-sub-espanol-1080p-hd/Tadano le dice linda a Komi-San  Komi-San Komyshou desu  Sub Español  1080p HD.mp4",
+    "licence": "CC0 / Public domain",
+    "licence_url": "https://creativecommons.org/publicdomain/mark/1.0/",
+    "creator": "maxi c",
+    "attribution": "“Tadano Le Dice Linda A Komi San Komi San Komyshou Desu Sub Español 1080p HD” by maxi c, via the Internet Archive (CC0 / Public domain)",
+    "tags": [
+      "clip"
+    ],
+    "validated_at": "2026-10-22T16:17:54+06:00",
+    "format": {
+      "container": "mov",
+      "duration": 24.96,
+      "bytes": 6492640,
+      "video": {
+        "codec": "h264",
+        "width": 1920,
+        "height": 1080,
+        "fps": 29.97
+      },
+      "audio": {
+        "codec": "aac",
+        "sample_rate": 44100,
+        "channels": 2
+      }
+    },
+    "bytes": 6492640,
+    "status": "ok",
+    "error": ""
+  },
+  {
+    "id": "ia-tillithe1959",
+    "kind": "video",
+    "role": "clip",
+    "title": "'Till It Helps!",
+    "source": "archive.org",
+    "page_url": "https://archive.org/details/TillItHe1959",
+    "url": "https://archive.org/download/TillItHe1959/TillItHe1959_512kb.mp4",
+    "licence": "CC0 / Public domain",
+    "licence_url": "http://creativecommons.org/licenses/publicdomain/",
+    "creator": "Premier Film & Recording Studio",
+    "attribution": "“'Till It Helps!” by Premier Film & Recording Studio, via the Internet Archive (CC0 / Public domain)",
+    "tags": [
+      "clip"
+    ],
+    "validated_at": "2026-10-22T16:10:48+06:00",
+    "format": {
+      "container": "mov",
+      "duration": 403.47,
+      "bytes": 28376335,
+      "video": {
+        "codec": "h264",
+        "width": 320,
+        "height": 240,
+        "fps": 29.97
+      },
+      "audio": {
+        "codec": "aac",
+        "sample_rate": 44100,
+        "channels": 2
+      }
+    },
+    "bytes": 28376335,
+    "status": "ok",
+    "error": ""
+  },
+  {
+    "id": "ia-videoplayback-22-20260326",
+    "kind": "video",
+    "role": "clip",
+    "title": "i-Mobile i-Tab Fun 7008 - On (with Animation)",
+    "source": "archive.org",
+    "page_url": "https://archive.org/details/videoplayback-22_20260326",
+    "url": "https://archive.org/download/videoplayback-22_20260326/videoplayback (22).mp4",
+    "licence": "CC0 / Public domain",
+    "licence_url": "https://creativecommons.org/publicdomain/mark/1.0/",
+    "creator": "S.M Hasnain",
+    "attribution": "“i-Mobile i-Tab Fun 7008 - On (with Animation)” by S.M Hasnain, via the Internet Archive (CC0 / Public domain)",
+    "tags": [
+      "clip"
+    ],
+    "validated_at": "2026-10-22T16:18:01+06:00",
+    "format": {
+      "container": "mov",
+      "duration": 13.19,
+      "bytes": 136562,
+      "video": {
+        "codec": "h264",
+        "width": 360,
+        "height": 640,
+        "fps": 30.0
+      },
+      "audio": {
+        "codec": "aac",
+        "sample_rate": 44100,
+        "channels": 2
+      }
+    },
+    "bytes": 136562,
+    "status": "ok",
+    "error": ""
+  },
+  {
+    "id": "wc-d-polluer-l-environnement-partie-1-avec-voix",
+    "kind": "video",
+    "role": "clip",
+    "title": "Dépolluer l’environnement (Partie 1 avec voix)",
+    "source": "commons.wikimedia.org",
+    "page_url": "https://commons.wikimedia.org/wiki/File:D%C3%A9polluer_l%E2%80%99environnement_(Partie_1_avec_voix).webm",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/c/c4/D%C3%A9polluer_l%E2%80%99environnement_%28Partie_1_avec_voix%29.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+    "licence": "CC BY 4.0",
+    "licence_url": "https://creativecommons.org/licenses/by/4.0",
+    "creator": "Graineahumus",
+    "attribution": "“Dépolluer l’environnement (Partie 1 avec voix)” by Graineahumus, via Wikimedia Commons (CC BY 4.0)",
+    "tags": [
+      "clip"
+    ],
+    "validated_at": "2026-10-22T16:18:38+06:00",
+    "format": {
+      "container": "matroska",
+      "duration": 347.96,
+      "bytes": 12615490,
+      "video": {
+        "codec": "vp9",
+        "width": 1920,
+        "height": 1080,
+        "fps": 25.0
+      },
+      "audio": {
+        "codec": "opus",
+        "sample_rate": 48000,
+        "channels": 2
+      }
+    },
+    "bytes": 12615490,
+    "status": "ok",
+    "error": ""
+  },
+  {
+    "id": "wc-joy-heron-animated-cgi-spot-by-passion-pictures",
+    "kind": "video",
+    "role": "clip",
+    "title": "Joy & Heron - Animated CGI Spot by Passion Pictures",
+    "source": "commons.wikimedia.org",
+    "page_url": "https://commons.wikimedia.org/wiki/File:Joy_%26_Heron_-_Animated_CGI_Spot_by_Passion_Pictures.webm",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/1/1c/Joy_%26_Heron_-_Animated_CGI_Spot_by_Passion_Pictures.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+    "licence": "CC BY 4.0",
+    "licence_url": "https://creativecommons.org/licenses/by/4.0",
+    "creator": "Client: JD.com\nAgency: 180.ai\nDirectors: Kyra &amp; Constantin\nChief Creative Of",
+    "attribution": "“Joy & Heron - Animated CGI Spot by Passion Pictures” by Client: JD.com\nAgency: 180.ai\nDirectors: Kyra &amp; Constantin\nChief Creative Of, via Wikimedia Commons (CC BY 4.0)",
+    "tags": [
+      "clip"
+    ],
+    "validated_at": "2026-10-22T16:18:41+06:00",
+    "format": {
+      "container": "matroska",
+      "duration": 243.9,
+      "bytes": 41126379,
+      "video": {
+        "codec": "vp9",
+        "width": 1920,
+        "height": 1080,
+        "fps": 25.0
+      },
+      "audio": {
+        "codec": "opus",
+        "sample_rate": 48000,
+        "channels": 2
+      }
+    },
+    "bytes": 41126379,
+    "status": "ok",
+    "error": ""
+  }
+]

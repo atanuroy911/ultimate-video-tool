@@ -1,0 +1,70 @@
+{
+  "id": "discussion",
+  "label": "Discussion",
+  "about": "Two or more voices: speaker cards, key points, pros and cons, quotes and a takeaway.",
+  "pace": {
+    "scene_min": 3.0,
+    "scene_target": 5.0,
+    "scene_max": 9.0
+  },
+  "weights": {
+    "speaker": 3.0,
+    "quote_card": 1.6,
+    "pros_cons": 1.8,
+    "checklist": 1.2,
+    "question": 1.2,
+    "picture": 0.6,
+    "title_card": 0.8,
+    "hero_number": 1.0,
+    "ring": 0.8,
+    "stat_row": 0.8,
+    "bar_compare": 1.0,
+    "line_trend": 0.6,
+    "definition": 0.8,
+    "steps": 0.5,
+    "media_frame": 0.6,
+    "media_hero": 0.8,
+    "cartoon": 0.2,
+    "feature_grid": 0.2,
+    "price_cta": 0.0,
+    "device": 0.0,
+    "timeline": 0.6,
+    "flow": 0.8,
+    "cycle": 0.6,
+    "hierarchy": 0.8,
+    "venn": 1.6,
+    "funnel": 0.5,
+    "pyramid": 0.8,
+    "matrix": 1.4,
+    "pictogram": 1.1,
+    "gauge": 0.8
+  },
+  "first_role": "question",
+  "last_role": "recap",
+  "looks": {
+    "styles": [
+      "editorial",
+      "clean",
+      "blueprint",
+      "soft",
+      "calm"
+    ],
+    "palettes": [
+      "graphite",
+      "mono",
+      "sky",
+      "plum",
+      "sand",
+      "ocean"
+    ]
+  },
+  "motion": "smooth",
+  "transitions": [
+    "fade",
+    "slide_left",
+    "cut"
+  ],
+  "sfx_level": "subtle",
+  "music_mood": "calm",
+  "cast_chance": 0.1
+}

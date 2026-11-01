@@ -1,0 +1,15 @@
+$ node e2e/comfy.mjs C:\Users\atanu\Desktop\Video Tool\docs\evidence\2026-10-26\shots
+# cwd C:\Users\atanu\Desktop\Video Tool\studio
+# started 2026-10-26 20:38:00
+
+PASS Settings shows the server connected 
+PASS Settings names the V100 and its queue 
+PASS both engines are listed and installed 
+PASS the media bin offers Generate motion clip 
+PASS the Make the clip button waits for a picture and words 
+PASS the request carries the subject point the person clicked 
+PASS and the picture, words, engine, shape and length 
+PASS no page errors 
+all passed
+
+# exit 0 in 36 s

@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "video-tool": {
+      "command": ".venv/Scripts/python.exe",
+      "args": ["-m", "vt.mcp.server"],
+      "env": { "PYTHONIOENCODING": "utf-8" }
+    }
+  }
+}

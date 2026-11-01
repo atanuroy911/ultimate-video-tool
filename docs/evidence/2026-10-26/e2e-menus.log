@@ -1,0 +1,11 @@
+$ node e2e/menus.mjs C:\Users\atanu\Desktop\Video Tool\docs\evidence\2026-10-26\shots
+# cwd C:\Users\atanu\Desktop\Video Tool\studio
+# started 2026-10-26 20:37:52
+
+PASS 1280px card 1: the whole menu is visible 
+PASS 1280px card 3: the whole menu is visible 
+PASS 390px card 1: the whole menu is visible 
+PASS 390px card 3: the whole menu is visible 
+all passed
+
+# exit 0 in 3 s

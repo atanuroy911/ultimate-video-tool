@@ -1,0 +1,614 @@
+"""MCP server: lets Codex, Claude and other assistants plan, edit and render videos. Register with:
+
+    claude mcp add video-tool -- <path-to-.venv>/Scripts/python.exe -m vt.mcp.server
+
+The Studio queues requests; the connected assistant fetches a task (get_planning_task) and returns scenes (submit_scenes).
+Never print to stdout here: stdout carries the MCP protocol.
+"""
+from __future__ import annotations
+
+import functools
+import os
+import threading
+import time
+import traceback
+import uuid
+from pathlib import Path
+from typing import Any, Optional
+
+from mcp.server.mcpserver import Image, MCPServer
+
+from .. import paths, planning, scene_ops
+from ..compose import FORMATS, scene_timing
+from ..pipeline import Pipeline, compose_all, export
+from ..planner.catalogue import catalogue_summary
+from ..project import Project, list_themes, load_theme
+from ..schema import ScenesFile, Theme, validate_scenes
+from ..util import now_iso, read_json, write_json
+
+server = MCPServer(
+    "video-tool",
+    instructions=(
+        "Tools for a local voice-to-video app. Typical flow: list_pending_requests -> get_planning_task -> submit_scenes "
+        "(fix any returned errors and resubmit). You can also create_project from an audio file, run the pipeline, "
+        "fix transcript words, edit scenes, change themes, preview a frame and render. Word ids look like 'w17'; "
+        "scene ids like 's3'; beat ids like 'b5'."
+    ),
+)
+
+_BG: dict[str, dict] = {}  # background jobs started from here: id -> status
+
+
+def tool(fn):
+    """Register a tool and record a heartbeat for the assistant using it."""
+
+    @functools.wraps(fn)
+    def wrapper(*a, **kw):
+        try:
+            client = os.environ.get("VT_MCP_CLIENT", "assistant").strip().lower() or "assistant"
+            seen = {"at": now_iso(), "tool": fn.__name__, "client": client}
+            write_json(paths.mcp_seen_path(), seen)
+            clients_path = paths.PROJECTS / ".mcp_clients.json"
+            clients = read_json(clients_path, {}) or {}
+            clients[client] = seen
+            write_json(clients_path, clients)
+        except Exception:
+            pass
+        return fn(*a, **kw)
+
+    server.tool(name=fn.__name__.removesuffix("_tool"))(wrapper)
+    return wrapper
+
+
+def _proj(pid: str) -> Project:
+    p = Project(pid)
+    if Path(pid).name != pid or not p.dir.resolve().is_relative_to(paths.PROJECTS.resolve()):
+        raise ValueError("invalid project id")
+    if not p.exists():
+        raise ValueError(f"project '{pid}' not found. Use list_projects.")
+    return p
+
+
+@tool
+def module_catalog_tool() -> list[dict]:
+    """List callable director modules with one-line descriptions and expected cost."""
+    from ..modules.defs import load
+    from ..modules.registry import list_modules
+
+    load()
+    return [{"id": spec.id, "summary": spec.summary, "cost": spec.cost.kind} for spec in list_modules()]
+
+
+@tool
+def module_describe_tool(module_id: str) -> dict:
+    """Get the input schema, examples and prerequisites for one director module."""
+    from ..modules.defs import load
+    from ..modules.registry import get_module
+
+    load()
+    try:
+        spec = get_module(module_id)
+    except KeyError:
+        return {"error": f"unknown module: {module_id}"}
+    return {"id": spec.id, "summary": spec.summary, "when_to_use": spec.when_to_use,
+            "when_not_to_use": spec.when_not_to_use, "inputs": spec.inputs.model_json_schema(),
+            "outputs": spec.outputs.model_json_schema(), "requires": spec.requires,
+            "produces": spec.produces, "examples": [example.__dict__ for example in spec.examples]}
+
+
+@tool
+def module_call_tool(project_id: str, module_id: str, inputs: dict | None = None,
+                     why: str = "", force: bool = False) -> dict:
+    """Call a director module on a project, with validated inputs and a recorded reason."""
+    from ..modules.executor import Executor
+
+    project = _proj(project_id)
+    try:
+        return Executor(project.dir).call(module_id, inputs or {},
+                                          caller=os.environ.get("VT_MCP_CLIENT", "assistant"),
+                                          why=why, force=force).model_dump(mode="json")
+    except KeyError:
+        return {"ok": False, "status": "failed", "fix": f"unknown module: {module_id}"}
+
+
+def _bg(kind: str, pid: str, fn) -> str:
+    jid = uuid.uuid4().hex[:8]
+    st = {"id": jid, "kind": kind, "project": pid, "status": "running", "stage": "", "progress": 0.0, "message": "", "result": None, "error": None}
+    _BG[jid] = st
+
+    def progress(stage, frac, msg=""):
+        st.update(stage=stage, progress=round(float(frac), 3), message=str(msg)[:120])
+
+    def work():
+        try:
+            st["result"] = fn(progress)
+            st["status"] = "done"
+        except Exception as e:  # noqa: BLE001
+            st["status"], st["error"] = "error", f"{e}\n{traceback.format_exc(limit=2)}"
+
+    threading.Thread(target=work, daemon=True).start()
+    return jid
+
+
+# ------------------------------------------------------------------ planning (the main job)
+@tool
+def list_pending_requests() -> list[dict]:
+    """Planning requests waiting for an assistant, across all projects."""
+    return planning.pending()
+
+
+@tool
+def get_planning_task(project: str, request_id: str) -> dict:
+    """Everything needed to plan: rules, timed beats with word ids, the component catalogue, and the current draft. Read `instructions` first."""
+    return planning.planning_task(_proj(project), request_id)
+
+
+@tool
+def submit_scenes(project: str, request_id: str, scenes: list[dict[str, Any]]) -> dict:
+    """Submit the plan (a list of scene objects) for a request. Returns {ok, errors}; if errors, fix them and call again.
+    For a 'scene' request submit one scene object (or several as alternatives) for that scene."""
+    return planning.submit(_proj(project), request_id, scenes)
+
+
+# ------------------------------------------------------------------ projects
+@tool
+def list_projects() -> list[dict]:
+    """All projects with status, duration and scene count."""
+    out = []
+    for p in Project.list_all():
+        m = p.meta()
+        sf = p.scenes()
+        cuts = p.cuts()
+        out.append({"id": m.id, "title": m.title, "status": m.status, "aspect": m.aspect, "theme": m.theme,
+                    "scenes": len(sf.scenes) if sf else 0, "planner": sf.planner if sf else None,
+                    "seconds": round(cuts.output_duration, 1) if cuts else None,
+                    "pending_requests": len([r for r in p.requests() if r.status == "queued"])})
+    return out
+
+
+@tool
+def create_project(audio_path: str, title: str, language: str = "bn", aspect: str = "9:16", theme: str = "paper",
+                   pace: str = "normal", music: Optional[str] = None, remove_fillers: bool = True) -> dict:
+    """Create a project from an audio or video file. audio_path is a path on the server computer, or 'upload:<id>' for a file sent with
+    prepare_upload (when you run on another computer than the server). Then call run_pipeline."""
+    from ..server.uploads import resolve
+
+    f = resolve(audio_path).expanduser()
+    if not f.is_file():
+        raise ValueError(f"file not found: {audio_path}. On another computer than the server, send it first: prepare_upload.")
+    p = Project.create(title, f, language=language, aspect=aspect, theme=theme, pace=pace,
+                       options={"music": music, "remove_fillers": remove_fillers})
+    return {"project": p.id, "next": "run_pipeline"}
+
+
+@tool
+def import_link(url: str, language: str = "en", title: str = "", aspect: str = "9:16", use_subtitles: str = "auto", run: bool = True) -> dict:
+    """Make a project from a link (YouTube or a direct audio/video file): downloads the audio and, when the page has them, the subtitles (their words
+    replace speech recognition). Only for material the user may reuse. Runs in the background; poll job_status(job). The finished job's result names
+    the project, and with run=true the pipeline has been run too."""
+    from .. import ingest
+
+    ingest.check_url(url)
+
+    def work(cb):
+        p = ingest.create_project(url, language=language, title=title, use_subs=use_subtitles, progress=lambda f, m: cb("download", f, m), aspect=aspect)
+        if run:
+            Pipeline(p, cb).run(None, None, False)
+        return {"project": p.id, "origin": p.meta().origin}
+
+    return {"job": _bg("import", "", work), "note": "poll job_status(job); the result has the project id"}
+
+
+@tool
+def run_pipeline(project: str, from_stage: Optional[str] = None, force: bool = False) -> dict:
+    """Clean audio, cut silences, transcribe, build beats and a draft plan. Runs in the background; poll project_status.
+    Stages in order: preprocess, silence, asr, cuts, words, plan, compose. from_stage re-runs from that stage."""
+    p = _proj(project)
+    jid = _bg("pipeline", project, lambda cb: (Pipeline(p, cb).run(from_stage, None, force), {"ok": True})[1])
+    return {"job": jid, "note": "poll project_status(project) or job_status(job)"}
+
+
+@tool
+def job_status(job: str) -> dict:
+    """Status of a background job started by run_pipeline or render."""
+    return _BG.get(job) or {"error": "unknown job"}
+
+
+@tool
+def project_status(project: str) -> dict:
+    """Stage status, counts, background jobs, and queued requests for a project."""
+    p = _proj(project)
+    m = p.meta()
+    jobs = [j for j in _BG.values() if j["project"] == project][-3:]
+    return {"id": m.id, "title": m.title, "status": m.status, "stages": {k: v.get("done_at") for k, v in m.stages.items()},
+            "words": len(p.transcript().words), "beats": len(p.beats().beats),
+            "scenes": len(p.scenes().scenes) if p.scenes() else 0,
+            "requests": [r.model_dump() for r in p.requests() if r.status == "queued"], "jobs": jobs}
+
+
+# ------------------------------------------------------------------ transcript + scenes
+@tool
+def get_transcript(project: str) -> dict:
+    """Beats with timed word ids ('w17:থাকবে@15.82') plus words flagged for review (low confidence)."""
+    p = _proj(project)
+    tr = p.transcript()
+    words = tr.by_id()
+    return {"language": tr.language,
+            "beats": [{"id": b.id, "text": b.text, "start": round(b.start, 2), "end": round(b.end, 2),
+                       "words": [f"{w}:{words[w].text}@{words[w].start:.2f}" for w in b.word_ids if w in words]} for b in p.beats().beats],
+            "review": [{"id": w.id, "text": w.text, "conf": w.conf} for w in tr.words if w.flag == "review"]}
+
+
+@tool
+def fix_word(project: str, word_id: str, text: Optional[str] = None, cut: Optional[bool] = None) -> dict:
+    """Correct a word's spelling (text) or remove/restore it (cut). Captions update everywhere."""
+    p = _proj(project)
+    path = p.dir / "edits.json"
+    edits = read_json(path, {"words": {}}) or {"words": {}}
+    cur = edits["words"].get(word_id, {})
+    if text is not None:
+        cur["text"] = text.strip()
+    if cut is not None:
+        cur["cut"] = cut
+    edits["words"][word_id] = cur
+    write_json(path, edits)
+    pl = Pipeline(p)
+    pl.stage_words()
+    pl.stage_plan()
+    compose_all(p)
+    return {"ok": True, "edits": edits["words"][word_id]}
+
+
+@tool
+def add_glossary_term(project: str, term: str, replacement: str) -> dict:
+    """Always replace `term` with `replacement` in this project's transcript (e.g. 'ইয়েল্ড' for 'yield')."""
+    p = _proj(project)
+    g = read_json(p.glossary_path, {}) or {}
+    g[term.strip()] = replacement.strip()
+    write_json(p.glossary_path, g)
+    pl = Pipeline(p)
+    pl.stage_words()
+    pl.stage_plan()
+    compose_all(p)
+    return {"glossary": p.glossary()}
+
+
+@tool
+def get_scenes(project: str) -> dict:
+    """The current plan (scenes.json) with each scene's time range."""
+    p = _proj(project)
+    sf = p.scenes()
+    if not sf:
+        raise ValueError("no plan yet; run_pipeline first")
+    cuts = p.cuts()
+    dur = cuts.output_duration if cuts else max((w.end for w in p.transcript().kept()), default=1.0) + 0.5
+    times = {s["id"]: (s["start"], s["end"]) for s in scene_timing(sf, p.beats(), dur)}
+    plan = sf.model_dump(exclude_none=True)
+    for s in plan["scenes"]:
+        if s["id"] in times:
+            s["time"] = list(times[s["id"]])
+    return plan
+
+
+@tool
+def update_scene(project: str, scene_id: str, patch: dict[str, Any]) -> dict:
+    """Change a scene directly: patch may contain layout, transition_in, elements (full replacement list), caption."""
+    p = _proj(project)
+    sf = p.scenes()
+    if not sf:
+        raise ValueError("no plan yet")
+    new = scene_ops.patch_scene(sf, scene_id, patch)
+    errs = validate_scenes(new, p.transcript(), p.beats(), None)
+    if errs:
+        return {"ok": False, "errors": errs[:10]}
+    write_json(p.dir / "scenes.prev.json", sf.model_dump(exclude_none=True))
+    p.save_scenes(new.model_copy(update={"planner": "manual" if new.planner == "rules" else new.planner}))
+    compose_all(p)
+    return {"ok": True}
+
+
+@tool
+def list_media(project: str) -> list[dict]:
+    """The project's media bin (pictures, GIFs, clips): id, kind, caption, size. Use these ids in device / media_frame elements or scene backdrops."""
+    p = _proj(project)
+    return [{"id": m.id, "kind": m.kind, "caption": m.caption, "width": m.width, "height": m.height, "duration": m.duration, "source": m.source} for m in p.meta().media]
+
+
+@tool
+def prepare_upload(filename: str, size_bytes: int) -> dict:
+    """Send a file from YOUR computer to the Video Tool server (needed when you run on another computer than the server; harmless otherwise).
+    Run the returned `command` in your shell (it sends the file with a one-time ticket; no key needed), then pass `ref` ('upload:<id>') as
+    audio_path to create_project or file_path to add_media."""
+    from ..engines import hub
+    from ..server import serve
+    from ..server.uploads import new_ticketed
+
+    up = new_ticketed(Path(filename).name, int(size_bytes))
+    port = serve.STATE.get("port")
+    if not port:
+        return {"ref": f"upload:{up['id']}", "note": "This server runs on your computer: pass the file's own path instead (no upload needed)."}
+    base = hub.address_hints(int(port))[0]
+    url = f"{base}/api/uploads/{up['id']}/file?ticket={up['ticket']}"
+    return {"ref": f"upload:{up['id']}", "url": url,
+            "command": f'curl -sS --fail -T "{filename}" "{url}"',
+            "windows_powershell": f'Invoke-WebRequest -Method Put -InFile "{filename}" -Uri "{url}"',
+            "then": "When the command finishes, use ref as audio_path (create_project) or file_path (add_media)."}
+
+
+@tool
+def add_media(project: str, file_path: str, caption: str = "") -> dict:
+    """Add a picture, GIF or video clip to the project's media bin: a path on the server computer, or 'upload:<id>' from prepare_upload.
+    Give a caption with words from the sentence it belongs to."""
+    from ..director import media as M
+    from ..server.uploads import resolve
+
+    p = _proj(project)
+    try:
+        item = M.add_media(p, resolve(file_path), caption=caption)
+    except M.MediaError as e:
+        return {"ok": False, "error": str(e)}
+    return {"ok": True, "id": item.id, "kind": item.kind}
+
+
+@tool
+def list_scene_types(project: str, scene_id: str) -> list[dict]:
+    """The kinds of scene this scene's sentences can be shown as (chart, steps, cartoon, picture...), best fit first. Only possible types are listed."""
+    from ..director.plan import options_for_scene
+
+    p = _proj(project)
+    sf = p.scenes()
+    sc = next((s for s in (sf.scenes if sf else []) if s.id == scene_id), None)
+    if not sc:
+        raise ValueError(f"scene '{scene_id}' not found")
+    return options_for_scene(p.transcript(), p.beats(), sc, **planning.director_args(p))
+
+
+@tool
+def show_scene_as(project: str, scene_id: str, scene_type: str, media: Optional[str] = None) -> dict:
+    """Rebuild one scene as another kind (e.g. 'line_trend', 'steps', 'cartoon', 'media_hero') from what was said. For the picture types pass a media id."""
+    from ..director.contrast import decide_for_media
+    from ..director.plan import reshow
+
+    p = _proj(project)
+    sf = p.scenes()
+    if not sf:
+        raise ValueError("no plan yet")
+    sc = next((s for s in sf.scenes if s.id == scene_id), None)
+    if not sc:
+        raise ValueError(f"scene '{scene_id}' not found")
+    try:
+        new = reshow(p.transcript(), p.beats(), sc, scene_type, aspect=p.meta().aspect, media_id=media, scrim_fn=lambda m, a, l, t0, t1: decide_for_media(p, m, a, l, t0, t1),
+                     **planning.director_args(p))
+    except ValueError as e:
+        return {"ok": False, "error": str(e)}
+    out = sf.model_copy(update={"scenes": [new if s.id == scene_id else s for s in sf.scenes], "planner": "manual" if sf.planner == "rules" else sf.planner})
+    write_json(p.dir / "scenes.prev.json", sf.model_dump(exclude_none=True))
+    p.save_scenes(out)
+    compose_all(p)
+    return {"ok": True, "scene": new.model_dump(exclude_none=True)}
+
+
+@tool
+def request_regenerate(project: str, scene_id: str, hint: str = "", alternatives: int = 1) -> dict:
+    """Queue a re-plan of one scene. Returns the request id for get_planning_task."""
+    r = planning.create_request(_proj(project), "scene", scene_id, hint, alternatives)
+    return {"request_id": r.id}
+
+
+# ------------------------------------------------------------------ design
+@tool
+def search_icons(query: str, kind: Optional[str] = None, limit: int = 10) -> list[dict]:
+    """Find icons/stickers by meaning, in English or Bangla (e.g. 'পাথর', 'savings', 'old woman'). kind: 'icon' (line icons, ids like
+    'lucide:coins'), 'sticker' (colour emoji, use the hex) or omit for both. Searches 8,000 visuals; offensive emoji are never returned."""
+    from ..visuals.search import search
+
+    return search(query, kind, max(1, min(limit, 30)))
+
+
+@tool
+def list_components() -> dict:
+    """Component catalogue: element types with fields, limits and examples; layouts, transitions, icon names."""
+    return catalogue_summary()
+
+
+@tool
+def list_themes_tool() -> list[dict]:
+    """Available themes (name, label, key colours, caption style)."""
+    return [{"name": t.name, "label": t.label, "accent": t.color.accent, "bg": t.color.bg, "caption": t.caption.style,
+             "motion": t.motion.preset} for t in list_themes()]
+
+
+@tool
+def get_theme(name: str) -> dict:
+    """Full theme JSON."""
+    return load_theme(name).model_dump(exclude_none=True)
+
+
+def _merge(a: dict, b: dict) -> dict:
+    out = dict(a)
+    for k, v in b.items():
+        out[k] = _merge(out[k], v) if isinstance(v, dict) and isinstance(out.get(k), dict) else v
+    return out
+
+
+@tool
+def update_theme(name: str, patch: dict[str, Any], save_as: Optional[str] = None) -> dict:
+    """Deep-merge `patch` into a theme (e.g. {"color": {"accent": "#0a84ff"}}). Built-in themes (paper, dark-neon, minimal)
+    must be saved under a new name with save_as."""
+    base = load_theme(name).model_dump(exclude_none=True)
+    target = save_as or name
+    if target in ("paper", "dark-neon", "minimal"):
+        return {"ok": False, "errors": ["built-in themes are read-only; pass save_as='my-theme'"]}
+    merged = _merge(base, patch)
+    merged["name"] = target
+    t = Theme.model_validate(merged)
+    write_json(paths.THEMES / target / "theme.json", t.model_dump(exclude_none=True))
+    for p in Project.list_all():
+        sf = p.scenes()
+        if sf and sf.theme == target:
+            compose_all(p)
+    return {"ok": True, "theme": target}
+
+
+# ------------------------------------------------------------------ preview + render
+@tool
+def get_preview_frame(project: str, time_seconds: float, aspect: Optional[str] = None) -> Image:
+    """A PNG of the video at a given time so you can look at the result and adjust. Takes a few seconds."""
+    from ..render.hyperframes import snapshot
+
+    p = _proj(project)
+    a = aspect or p.meta().aspect
+    compose_all(p)
+    out = p.dir / "snapshots"
+    files = snapshot(p.comp_dir / FORMATS[a]["tag"], out, [float(time_seconds)])
+    if not files:
+        raise RuntimeError("could not capture a frame")
+    return Image(path=str(files[0]))
+
+
+@tool
+def render(project: str, aspect: Optional[str] = None, quality: str = "looks") -> dict:
+    """Render the final MP4 (+ .srt) in the background. quality: draft | looks | delivery. Poll job_status."""
+    p = _proj(project)
+    a = aspect or p.meta().aspect
+    jid = _bg("render", project, lambda cb: export(p, a, quality=quality, progress=cb))
+    return {"job": jid}
+
+
+# ------------------------------------------------------------------ Video Script (any assistant: Claude, ChatGPT, ...)
+@tool
+def get_script_task(project: str, kind: str = "", hint: str = "") -> dict:
+    """Everything needed to direct a whole video in ONE call: instructions, the timed transcript, the catalogue, 3 worked examples and the JSON
+    schema. kind: stick | emoji | explainer | infographic | cartoon | mixed (empty = the project's kind). Then call submit_script."""
+    from ..script import service
+
+    p = _proj(project)
+    if kind and kind not in ("stick", "emoji", "explainer", "infographic", "cartoon", "mixed"):
+        raise ValueError("kind must be stick, explainer, infographic, cartoon or mixed")
+    if kind:
+        service.set_script_kind(p, kind)
+    return service.script_task(p, kind or None, hint)
+
+
+@tool
+def submit_script(project: str, script: dict[str, Any]) -> dict:
+    """Submit the Video Script (the JSON object from get_script_task). It is repaired where safe, validated and compiled into the plan.
+    Returns {ok, errors}; if errors, fix exactly those and submit again."""
+    from ..script import service
+
+    p = _proj(project)
+    res = service.apply_script(p, script, planner="assistant" if os.environ.get("VT_MCP_CLIENT") == "codex" else "claude")
+    if res.get("ok"):                                          # the editor's verdict comes back with every accepted script
+        res["director_notes"] = get_director_notes(project)
+    return res
+
+
+@tool
+def get_current_script(project: str) -> dict:
+    """Return the current Video Script for a project so an assistant can revise and resubmit it."""
+    from ..script.service import current_script
+
+    script = current_script(_proj(project))
+    if script is None:
+        raise ValueError("no Video Script yet; call get_script_task, then submit_script")
+    return script
+
+
+@tool
+def get_director_notes(project: str) -> dict:
+    """An editor's review of the current Video Script: a score (0-100), metrics (longest still stretch, talk share, verbs, cast and places
+    used, camera moves) and scene-by-scene notes with a suggested fix. Fix the notes and submit_script again until there are none."""
+    from ..script.critic import review
+    from ..script.models import VideoScript
+    from ..script.service import current_script
+
+    p = _proj(project)
+    data = current_script(p)
+    if not data:
+        raise ValueError("no Video Script yet; call get_script_task, then submit_script")
+    return review(VideoScript.model_validate(data), p.transcript(), p.beats())
+
+
+@tool
+def preview_frames(project: str, times: list[float], aspect: Optional[str] = None) -> list[Image]:
+    """PNG frames at several moments (seconds). A-roll frames come from a fresh render so the speaker is visible. Max 6."""
+    from ..render.hyperframes import snapshot
+
+    p = _proj(project)
+    a = aspect or p.meta().aspect
+    if any(s.backdrop and s.backdrop.media == "aroll" for s in (p.scenes().scenes if p.scenes() else [])):
+        from ..util import find_tool, run
+
+        tag = FORMATS[a]["tag"]
+        exports = sorted(p.exports_dir.glob(f"*-{tag}-*.mp4"), key=lambda f: f.stat().st_mtime, reverse=True)
+        if not exports or exports[0].stat().st_mtime < p.scenes_path.stat().st_mtime:
+            raise ValueError("A-roll snapshots omit video frames. Render this plan first, then call preview_frames to inspect the finished MP4.")
+        out_dir = p.dir / "snapshots"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        files = []
+        for i, at in enumerate(times[:6]):
+            frame = out_dir / f"rendered-{i:02d}-at-{float(at):.2f}s.png"
+            run([find_tool("ffmpeg"), "-y", "-v", "error", "-ss", str(float(at)), "-i", str(exports[0]), "-frames:v", "1", str(frame)])
+            files.append(frame)
+        return [Image(path=str(f)) for f in files]
+    compose_all(p)
+    files = snapshot(p.comp_dir / FORMATS[a]["tag"], p.dir / "snapshots", [float(t) for t in times[:6]])
+    return [Image(path=str(f)) for f in files]
+
+
+@server.prompt(name="plan_this_video", description="Plan every pending video request")
+def plan_this_video() -> str:
+    return ("Plan all pending Video Tool requests: call list_pending_requests; for each, get_planning_task, then submit_scenes (fix returned errors "
+            "and resubmit); then check two or three frames with preview_frames and fix problems with update_scene.")
+
+
+@server.prompt(name="make_stick_figure_video", description="Direct a stick-figure video for a project")
+def make_stick_figure_video(project: str) -> str:
+    return (f"Make project '{project}' a stick-figure video: call get_script_task(project='{project}', kind='stick'), write the Video Script it asks for, "
+            "call submit_script and fix any errors, then check frames with preview_frames.")
+
+
+@server.prompt(name="direct_whole_video", description="Direct and render a complete video with Codex, Claude or another MCP assistant")
+def direct_whole_video(project: str, brief: str = "") -> str:
+    return (f"Direct the whole Video Tool project '{project}'. First call project_status and get_script_task(project='{project}', hint={brief!r}). "
+            "Read the timed transcript and schema, write a complete Video Script covering every beat, then call submit_script. "
+            "Fix any returned errors and resubmit. Call get_director_notes and improve the script until there are no serious issues. "
+            "Call render and poll job_status, then check representative frames with preview_frames. Adjust and rerender if needed. "
+            "Tell the user which export was made and any factual points that need their review.")
+
+
+@server.prompt(name="improve_scene", description="Improve one scene of a project")
+def improve_scene(project: str, scene_id: str) -> str:
+    return (f"Look at scene {scene_id} of project '{project}' (get_scenes, preview_frames). Improve it: use list_scene_types / show_scene_as or "
+            "update_scene so the picture fits what is said. Do not invent facts.")
+
+
+@server.resource("vt://catalogue", name="catalogue", description="Component catalogue (element types, fields, limits, examples)", mime_type="application/json")
+def res_catalogue() -> str:
+    import json
+
+    return json.dumps(catalogue_summary(), ensure_ascii=False)
+
+
+@server.resource("vt://script-schema", name="script-schema", description="JSON Schema of the Video Script", mime_type="application/json")
+def res_script_schema() -> str:
+    import json
+
+    from ..script import to_json_schema
+
+    return json.dumps(to_json_schema(), ensure_ascii=False)
+
+
+def main() -> None:
+    import sys
+
+    if "--http" in sys.argv:
+        from .http import run_http
+
+        run_http(server, port=int(sys.argv[sys.argv.index("--port") + 1]) if "--port" in sys.argv else 8766)
+        return
+    server.run("stdio")
+
+
+if __name__ == "__main__":
+    main()

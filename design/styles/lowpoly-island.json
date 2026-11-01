@@ -1,0 +1,86 @@
+{
+ "slug": "lowpoly-island",
+ "name": "Low-poly Isometric Island",
+ "category": "Materials & 3D",
+ "uses": [
+  "Game trailers",
+  "World building",
+  "Calm content"
+ ],
+ "summary": "A tiny faceted world seen through an orthographic isometric lens: everything is a geometric block, and everything that appears arrives with a bounce and a note.",
+ "demo_film": "The Island That Grew",
+ "demo_line": "An island and its village grow tile by tile from an empty sea, each tile a note, into a starry night.",
+ "essence": [],
+ "materials": [
+  "Geometry (world unit = one hex tile's circumradius): pointy-top hexagonal columns (`CylinderGeometry(r, r, h, 6)`), axial → world `x = √3(q + r/2)`, `z = 1.5 r`. Terrain height encodes material (sand low, grass, hills, rock highest). A thin separate top cap sits over a darker side colour; sink the side column's top below the cap or it z-fights. Leave a small gap between tiles so AO draws the seams.",
+  "Props are primitive assemblies: boxes, prisms, low-segment cylinders and cones, icosahedra at detail 0, pinched boxes. Emissive parts (windows, lamps) get their own material per object so they can light individually.",
+  "Materials: `MeshStandardMaterial({ flatShading: true, roughness ≈ .9 })`, no textures. Jitter each tile's lightness a few percent so the ground isn't a spreadsheet.",
+  "Water (if any): a dense non-indexed plane displaced by summed sines in the shader, flat-shaded so each triangle glints on its own (not too low a roughness or facets flash white); a coarse plane below for zoom-outs; a shallow map redrawn per frame where land exists, mixing deep → shallow colour with a faint foam rim; a thin transparent ring at each tile's water line for surf.",
+  "Sky without a horizon: in post, linearise the orthographic depth and blend distant pixels into a vertical screen gradient; set haze start/end as fractions of frustum height × cot(elevation) so the horizon band stays in the top third at any zoom. Stars (hash grid, twinkle) only where haze is thick.",
+  "Post: MSAA + depth → GTAO (mandatory: it draws the seams between tiles and under roofs) → sky/haze composite → a very light tilt-shift at the frame edges → bloom (stronger at night) → pastel grade → Neutral tone mapping. Supersample 2×.",
+  "Light beams (searchlight, projector, torch): a camera-facing ribbon with a Gaussian profile, bright at the root and fading with distance, plus a wider faint halo copy; light the surface under it in its own shader."
+ ],
+ "colour": [
+  "Pastel, low contrast, a handful of hues: one ground family (sand/grass/earth or its equivalent), one neutral rock, and a small set of wall and roof colours repeated across buildings.",
+  "Time of day is a keyframed set of colours (zenith, horizon, deep, shallow, sun colour, intensity, elevation, azimuth), interpolated. Day is airy and cool; dusk warms the horizon; night desaturates everything toward blue-violet.",
+  "At night, warm emissives are the only bright things (windows, lamps, a beam). Keep the sun sideways to the camera in key shots (low sun behind the target turns faceted water into glare); water receives no shadows.",
+  "No outlines, no black; shadows and AO are the only darks."
+ ],
+ "type": [
+  "Geometric OFL sans faces: a rounded one for subtitles (e.g. Quicksand 600), a geometric caps face with wide tracking for titles (e.g. Josefin Sans).",
+  "Subtitles: no box; warm white with a soft dark-blue drop shadow, centred low; a small flat-shaded tile icon beside them whose top colour follows the time of day. Hold ≥ max(1.8 s, speech + 0.6 s), never overlapping the next line or a title.",
+  "Titles behave like tiles: letters rise one by one from under a water line, overshoot and settle.",
+  "A text card over the world leaves a gap where the world stays visible."
+ ],
+ "motion": [
+  "On ones (24 fps), smooth. The charm is in the arrival curves, not stepping.",
+  "Rise from below: a short cubic ease up, then a damped-sine overshoot; a splash ring and spray the moment it breaks the surface. The event time is when it settles.",
+  "Drop and stack (floors, roofs, rings): a fast ease-in fall, a damped bounce, and volume-preserving squash-and-stretch on landing.",
+  "Pop (trees, lamps, details): scale `1 − e^(−k s)·cos(ω s)`, about 25 % overshoot.",
+  "Life: mills turn, smoke puffs, birds circle, boats bob with the same wave function as the water (evaluated on the CPU).",
+  "Schedule growth on the music grid: at most one piece per smallest slot, so every event keeps its own note; accelerate by density (halves → quarters → eighths), not by tempo.",
+  "Never moves: the projection (no perspective, no fov change)."
+ ],
+ "camera": [
+  "Turntable (azimuth sweep) — the thing seen from every side — building; inspecting; a product assembled",
+  "Pure orthographic zoom (frustum change) — scale without perspective — a detail in context; smallness; a world among worlds",
+  "Elevation change — low (≈20–25°) widens the sky band; high (≈50°) reads as a map — night and stars; a sweep across the whole world; a plan",
+  "Locked 3/4 wide — the world lives on its own — lights coming on; time-lapse; waiting",
+  "Tight close-up on one arrival — the bounce and the splash — a key piece; a milestone; a gag",
+  "Side angle trailing a mover — travel across the frame, never at the lens — a delivery; a departure; a route",
+  "Lateral truck along a row of tiles — a list, a sequence — steps of a process; a timeline",
+  "Time-lapse sun sweep, camera still — light is the time machine — a day; a season; history"
+ ],
+ "sound": [
+  "Music can be event-driven: growth events carry a note, and the score synthesizes each one at its exact time, so the picture writes the tune. Pitched percussion suits the facets: marimba, kalimba, woodblock, bells, vibraphone, celesta, steel drum; underneath, a soft pad, a gentle ostinato, light shaker or soft kick. Pentatonic or modal material keeps any order of notes consonant. No piano, no strings.",
+  "A single note can be a motif: one sound owned by the world (a bell, a chime, a horn) that returns changed.",
+  "Foley follows material, all synthesizable: bubble sweep + splash with droplet ticks for rising tiles (bigger = lower); wooden knock plus a quieter bounce knock for floors; ceramic clack for roofs; hollow plank knock; heavy stone thunk; glass tink; a low whump with electric hum for anything switching on.",
+  "Beds: low-passed brown-noise water with swells, birds as downward-gliding FM chirps, creaking wood, crickets or wind at night.",
+  "Silence: drop to a low drone and a bed; a moment of digital zero on the music bus before a big downbeat. Options: thin the ostinato to one voice instead of stopping it; let the world's own events carry the rhythm for a passage.",
+  "Voice: clear and gentle, few short lines; avoid words that collide with the film's subject (a film about baking: \"flour\" heard as \"flower\").",
+  "Mix: voice compressed and well above the music, music ducked under it, −14 LUFS; grain 0 (flat colour shimmers with grain)."
+ ],
+ "native_moves": [
+  "Building is composing: every piece that lands plays a note; a later sweep can replay them in spatial order as a finished melody. *Fits content like:* a skyline whose floors are notes; a team assembling a product; a garden whose flowers form a chord.",
+  "Procedural growth: tiles rise, floors stack, trees pop. *Fits content like:* a startup's first year; a coral reef recovering; a neighbourhood being planned.",
+  "Scale by pure zoom: one object fills the frame, then the world becomes a speck (or the reverse). *Fits content like:* one user among millions; a village on a continent; a data centre inside a network.",
+  "Turntable: a continuous rotation around the thing being made. *Fits content like:* a machine being assembled; a museum object; a house renovation.",
+  "Light as clock: shadows sweep and facets re-colour. *Fits content like:* a day of a shop; a year of a farm; a shift at a hospital.",
+  "Emissive blocks in the dark: lights coming on one by one, a beam sweeping like a clock hand. *Fits content like:* a network going live; a town at nightfall; volunteers joining a cause."
+ ],
+ "pitfalls": [
+  "`perspectiveDepthToViewZ` in shared post code is wrong for an orthographic camera → `orthographicDepthToViewZ`.",
+  "GTAO renders sprites and transparent objects as solid quads → hide them during the AO pass; set `visible = false` at zero opacity.",
+  "Side column and top cap sharing one plane → z-fighting → sink the column.",
+  "A double-sided additive cone reads as two white lines → a camera-facing Gaussian ribbon + halo.",
+  "Camera too close for its frustum → the frame bottom shows below the sea → distance ≥ 3 × frustum height.",
+  "Two pieces landing in one grid slot muddy the melody → one piece per slot.",
+  "`half` is a reserved word in GLSL."
+ ],
+ "variation": [
+  "Structures: erosion (a finished world loses pieces one by one, each removal a falling note, until only the essential piece remains); two worlds side by side trading pieces across a gap until they join; a year in four seasons on one fixed world, the palette keyframes carrying the story.",
+  "Openings: mid-construction (a busy half-built world, many pieces already dropping); from above (a top-down map that tilts down into isometric); the full world first, then a push into one tile where the story lives.",
+  "Endings: a close-up on one final piece landing, no pull-back; the world packed away (pieces fly up and stack into a box); daylight (dawn floods the world and the music resolves on the first sunlit facet)."
+ ],
+ "source": "lemo-opuscar styles/lowpoly-island/STYLE.md (MIT, LemoLab), github.com/lemomo-ai/lemo-opuscar"
+}

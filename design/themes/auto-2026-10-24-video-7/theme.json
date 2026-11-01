@@ -1,0 +1,76 @@
+{
+  "name": "auto-2026-10-24-video-7",
+  "label": "Sticker pop · Coral",
+  "color": {
+    "bg": "#fff3ee",
+    "bg2": "#ffd9cc",
+    "ink": "#33150d",
+    "muted": "#8f7972",
+    "accent": "#ff5a3c",
+    "accent2": "#16a6a0",
+    "card": "#ffffff",
+    "card_border": "#33150d",
+    "caption_bg": "#ffffff",
+    "caption_ink": "#33150d",
+    "highlight_bg": "#ff5a3c",
+    "highlight_ink": "#111111",
+    "tag_bg": "#16a6a0",
+    "tag_ink": "#111111",
+    "arc": "rgba(51,21,13,0.09)"
+  },
+  "font": {
+    "headline": [
+      "Baloo 2",
+      "Baloo Da 2"
+    ],
+    "body": [
+      "Baloo 2",
+      "Hind Siliguri"
+    ],
+    "numeral": [
+      "Baloo 2",
+      "Baloo Da 2"
+    ],
+    "caption": [
+      "Baloo 2",
+      "Hind Siliguri"
+    ],
+    "headline_weight": 800
+  },
+  "shape": {
+    "radius": 40.0,
+    "stroke": 6.0,
+    "shadow": {
+      "x": 10.0,
+      "y": 10.0,
+      "color": "#33150d",
+      "blur": 0.0
+    },
+    "card_tilt": 4.0
+  },
+  "background": {
+    "kind": "dots",
+    "grain": 0.0,
+    "arcs": false,
+    "pattern": 0.5,
+    "animated": true
+  },
+  "motion": {
+    "preset": "bouncy"
+  },
+  "caption": {
+    "style": "box",
+    "reveal": "words",
+    "weight": 700,
+    "size": 58,
+    "words_per_line": 6,
+    "safe_bottom": {
+      "portrait": 300,
+      "landscape": 64
+    }
+  },
+  "currency": "৳",
+  "sfx": "pop",
+  "style": "sticker",
+  "palette": "coral"
+}

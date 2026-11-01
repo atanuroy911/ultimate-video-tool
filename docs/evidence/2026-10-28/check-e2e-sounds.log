@@ -1,0 +1,9 @@
+Sounds lane
+  ok   the API says whether the listener is available
+  ok   a new project has not been listened to
+  ok   the Sounds lane offers to listen
+  ok   after listening the lane reports what it found
+  ok   and the result is stored
+
+5 passed, 0 failed
+ERRORS: none

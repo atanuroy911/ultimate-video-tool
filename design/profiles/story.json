@@ -1,0 +1,73 @@
+{
+  "id": "story",
+  "label": "Storytelling",
+  "about": "Characters on illustrated sets, speech bubbles, places, turning points and a moral.",
+  "pace": {
+    "scene_min": 3.2,
+    "scene_target": 5.5,
+    "scene_max": 8.5
+  },
+  "weights": {
+    "picture": 0.8,
+    "title_card": 0.8,
+    "cartoon": 3.2,
+    "quote_card": 1.4,
+    "media_hero": 1.4,
+    "media_frame": 1.0,
+    "timeline": 1.2,
+    "definition": 0.3,
+    "hero_number": 1.1,
+    "ring": 0.5,
+    "stat_row": 0.5,
+    "checklist": 0.5,
+    "question": 0.8,
+    "pros_cons": 0.4,
+    "steps": 0.3,
+    "feature_grid": 0.1,
+    "price_cta": 0.0,
+    "device": 0.0,
+    "bar_compare": 0.6,
+    "line_trend": 0.4,
+    "speaker": 0.0,
+    "flow": 0.3,
+    "cycle": 0.4,
+    "hierarchy": 0.2,
+    "venn": 0.2,
+    "funnel": 0.1,
+    "pyramid": 0.2,
+    "matrix": 0.1,
+    "pictogram": 0.6,
+    "gauge": 0.2
+  },
+  "first_role": "hook",
+  "last_role": "moral",
+  "looks": {
+    "styles": [
+      "sticker",
+      "soft",
+      "calm",
+      "brutalist",
+      "retro"
+    ],
+    "palettes": [
+      "marigold",
+      "coral",
+      "sand",
+      "lemon",
+      "mint",
+      "rose",
+      "lavender",
+      "sunset"
+    ]
+  },
+  "motion": "smooth",
+  "transitions": [
+    "fade",
+    "slide_left",
+    "zoom",
+    "slide_up"
+  ],
+  "sfx_level": "normal",
+  "music_mood": "ambient",
+  "cast_chance": 0.85
+}

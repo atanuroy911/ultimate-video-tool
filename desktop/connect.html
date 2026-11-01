@@ -1,0 +1,79 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Video Tool</title>
+<style>
+  :root { color-scheme: light dark; --bg:#f5f5f7; --text:#1d1d1f; --muted:#6e6e73; --accent:#f26a1f; --panel:#fff; --line:rgba(128,128,128,.28); }
+  @media (prefers-color-scheme: dark) { :root { --bg:#1c1c1e; --text:#f5f5f7; --muted:#98989d; --panel:#2c2c2e; } }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; display:grid; place-items:center; background:var(--bg); color:var(--text); font:14px/1.45 -apple-system,"Segoe UI",system-ui,sans-serif; }
+  main { width:min(520px,90vw); padding:24px 0; }
+  .logo { width:56px; height:56px; margin:0 0 14px; border-radius:14px; background:var(--accent); display:grid; place-items:center; }
+  .logo i { width:0; height:0; border-left:17px solid #fff; border-top:11px solid transparent; border-bottom:11px solid transparent; margin-left:5px; }
+  h1 { margin:0 0 4px; font-size:22px; letter-spacing:-.01em; }
+  p { margin:0 0 16px; color:var(--muted); }
+  h2 { margin:20px 0 8px; font-size:13px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+  .list { display:flex; flex-direction:column; gap:8px; }
+  .opt { display:flex; align-items:center; gap:12px; width:100%; text-align:left; padding:12px 14px; border:0; border-radius:12px; background:var(--panel); color:var(--text); font:inherit; cursor:pointer; box-shadow:0 0 0 1px var(--line) inset; }
+  .opt:hover, .opt:focus-visible { box-shadow:0 0 0 2px var(--accent) inset; outline:none; }
+  .opt b { display:block; }
+  .opt small { color:var(--muted); }
+  .opt .go { margin-left:auto; color:var(--accent); font-weight:600; }
+  .row { display:flex; gap:8px; }
+  input { flex:1; min-width:0; padding:10px 12px; border-radius:10px; border:1px solid var(--line); background:var(--panel); color:var(--text); font:inherit; }
+  button.main { padding:10px 18px; border:0; border-radius:99px; font:inherit; font-weight:600; background:var(--accent); color:#fff; cursor:pointer; }
+  button.main:disabled { opacity:.5; cursor:default; }
+  .note { margin-top:8px; font-size:13px; color:var(--muted); min-height:1.4em; }
+  .note.err { color:#d70015; }
+  .link { background:none; border:0; color:var(--accent); font:inherit; cursor:pointer; padding:0; }
+</style></head>
+<body><main>
+  <div class="logo"><i></i></div>
+  <h1>Where should Video Tool run?</h1>
+  <p>The heavy work (voices, pictures, rendering) happens on a server: this computer, or a stronger one on your network. You can change this later in the File menu.</p>
+
+  <div class="list">
+    <button class="opt" id="here"><span><b>This computer</b><small>Sets up and runs everything here.</small></span><span class="go">Use</span></button>
+  </div>
+
+  <h2>On your network <button class="link" id="again" title="Look again">look again</button></h2>
+  <div class="list" id="found"><div class="note" id="looking">Looking…</div></div>
+
+  <h2>Type an address</h2>
+  <form class="row" id="typed">
+    <input id="addr" placeholder="192.168.1.20:8765" spellcheck="false" autocomplete="off" aria-label="Server address">
+    <button class="main" id="go" type="submit">Connect</button>
+  </form>
+  <div class="note" id="msg" role="status"></div>
+</main>
+<script>
+  const $ = (i) => document.getElementById(i);
+  const D = window.vtDesktop;
+  $("here").onclick = () => D.useThisComputer();
+  function row(s) {
+    const b = document.createElement("button");
+    b.className = "opt";
+    b.innerHTML = "<span><b></b><small></small></span><span class='go'>Connect</span>";
+    b.querySelector("b").textContent = s.name;
+    b.querySelector("small").textContent = s.url.replace(/^https?:\/\//, "") + (s.needs_pairing ? " · asks for a pairing code once" : "");
+    b.onclick = () => D.connect(s.url);
+    return b;
+  }
+  async function look() {
+    $("found").innerHTML = "<div class='note'>Looking…</div>";
+    const list = await D.find();
+    $("found").innerHTML = "";
+    if (!list.length) $("found").innerHTML = "<div class='note'>No server answered. Type its address below; it is shown where the server runs (Engines, This server).</div>";
+    for (const s of list) $("found").appendChild(row(s));
+  }
+  $("again").onclick = look;
+  $("typed").onsubmit = async (e) => {
+    e.preventDefault();
+    $("go").disabled = true;
+    $("msg").className = "note";
+    $("msg").textContent = "Checking…";
+    const r = await D.connect($("addr").value);
+    $("go").disabled = false;
+    if (r && r.error) { $("msg").className = "note err"; $("msg").textContent = r.error; }
+  };
+  look();
+</script>
+</body></html>

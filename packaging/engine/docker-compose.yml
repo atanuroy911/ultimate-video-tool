@@ -1,0 +1,23 @@
+# Video Tool Engine: `docker compose up -d`, then `docker compose logs engine` for the address and the pairing code.
+# Needs Docker with the NVIDIA container toolkit on a computer with an NVIDIA card. Without a card it runs on the CPU (very slow pictures).
+services:
+  engine:
+    image: ghcr.io/${VT_IMAGE_OWNER:-video-tool}/video-tool-engine:${VT_VERSION:-latest}
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8790:8790"            # the only port that is opened; Ollama and ComfyUI stay inside the container
+    volumes:
+      - vt-engine:/data        # the key, Ollama, ComfyUI and every model: survives updates
+    environment:
+      VT_ENGINES: "ollama,comfy"
+      VT_BUNDLES: "pictures"   # add ",clips" for short video clips (about 40 GB more)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+volumes:
+  vt-engine:

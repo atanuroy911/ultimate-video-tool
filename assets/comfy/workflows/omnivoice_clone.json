@@ -1,0 +1,106 @@
+{
+ "id": "omnivoice_clone",
+ "label": "OmniVoice: a voice cloned from a recording (600+ languages, Bangla included)",
+ "notes": "Verified 2026-10-28 on the V100 (fp16): Bangla cloned from a 3.6 s recording, 4.6 s of speech in 5.6 s; the first words were recognised correctly by the Bangla recogniser.",
+ "kind": "audio",
+ "version": 1,
+ "status": "verified",
+ "frame_rule": {
+  "fps": 24000,
+  "step": 1,
+  "offset": 0
+ },
+ "sizes": {},
+ "output": "4",
+ "manifest": {
+  "text": [
+   [
+    "3",
+    "text"
+   ]
+  ],
+  "seed": [
+   [
+    "3",
+    "seed"
+   ]
+  ],
+  "prefix": [
+   [
+    "4",
+    "filename_prefix"
+   ]
+  ],
+  "duration": [
+   [
+    "3",
+    "duration"
+   ]
+  ],
+  "ref_audio": [
+   [
+    "2",
+    "audio"
+   ]
+  ],
+  "ref_text": [
+   [
+    "3",
+    "ref_text"
+   ]
+  ],
+  "instruction": [
+   [
+    "3",
+    "instruct"
+   ]
+  ]
+ },
+ "graph": {
+  "2": {
+   "class_type": "LoadAudio",
+   "inputs": {
+    "audio": "reference.wav"
+   }
+  },
+  "3": {
+   "class_type": "OmniVoiceVoiceCloneTTS",
+   "inputs": {
+    "model": "OmniVoice (auto download)",
+    "steps": 32,
+    "guidance_scale": 2.0,
+    "t_shift": 0.1,
+    "speed": 1.0,
+    "duration": 0.0,
+    "device": "auto",
+    "dtype": "fp16",
+    "attention": "auto",
+    "seed": 1,
+    "position_temperature": 5.0,
+    "class_temperature": 0.0,
+    "layer_penalty_factor": 5.0,
+    "denoise": true,
+    "postprocess_output": true,
+    "keep_model_loaded": true,
+    "text": "Hello.",
+    "ref_audio": [
+     "2",
+     0
+    ],
+    "ref_text": "",
+    "preprocess_prompt": true,
+    "instruct": ""
+   }
+  },
+  "4": {
+   "class_type": "SaveAudio",
+   "inputs": {
+    "audio": [
+     "3",
+     0
+    ],
+    "filename_prefix": "video_tool/voice"
+   }
+  }
+ }
+}

@@ -1,0 +1,13 @@
+Engines settings
+  ok   one card for each engine
+  ok   each says where it runs in words
+  ok   no port numbers or JSON on the cards
+  ok   the key is never shown
+  ok   Change opens a step sheet
+  ok   step 2 asks for the address and the key
+  ok   the key field is a password field
+  ok   a wrong address is reported in words, not as an error page
+  ok   Cancel changes nothing
+
+9 passed, 0 failed
+ERRORS: none

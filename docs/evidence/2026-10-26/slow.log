@@ -1,0 +1,7 @@
+$ C:\Users\atanu\Desktop\Video Tool\.venv\Scripts\python.exe -m pytest -q -p no:warnings -m slow --junitxml=C:\Users\atanu\Desktop\Video Tool\docs\evidence\2026-10-26\slow.xml
+# cwd C:\Users\atanu\Desktop\Video Tool
+# started 2026-10-26 20:25:48
+
+.................................................................        [100%]
+
+# exit 0 in 658 s

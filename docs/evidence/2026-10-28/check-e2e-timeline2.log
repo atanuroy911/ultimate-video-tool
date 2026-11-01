@@ -1,0 +1,11 @@
+Timeline smoothness and layout
+  ok   no two element chips overlap (8 chips)
+  ok   no two element chips overlap (8 chips, zoomed out)
+  ok   while dragging, scene 1 grows as the pointer moves
+  ok   the growth is gradual (more than a couple of distinct sizes)
+  ok   on drop the clip settles on its sentence and does not jump back
+  ok   the plan really moved the boundary
+  ok   and the final clip matches what was dropped
+
+7 passed, 0 failed
+ERRORS: none

@@ -1,0 +1,49 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Video Tool</title>
+<style>
+  :root { color-scheme: light dark; --bg:#f5f5f7; --text:#1d1d1f; --muted:#6e6e73; --accent:#f26a1f; --panel:#fff; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#1c1c1e; --text:#f5f5f7; --muted:#98989d; --panel:#2c2c2e; } }
+  * { box-sizing: border-box; }
+  body { margin:0; height:100vh; display:grid; place-items:center; background:var(--bg); color:var(--text); font:14px/1.45 -apple-system,"Segoe UI",system-ui,sans-serif; -webkit-user-select:none; }
+  main { width:min(520px,88vw); text-align:center; }
+  .logo { width:72px; height:72px; margin:0 auto 18px; border-radius:18px; background:var(--accent); display:grid; place-items:center; box-shadow:0 8px 24px rgba(242,106,31,.35); }
+  .logo i { width:0; height:0; border-left:22px solid #fff; border-top:14px solid transparent; border-bottom:14px solid transparent; margin-left:6px; }
+  h1 { margin:0 0 6px; font-size:22px; letter-spacing:-.01em; }
+  p { margin:0 0 18px; color:var(--muted); }
+  .bar { height:6px; border-radius:99px; background:rgba(128,128,128,.25); overflow:hidden; }
+  .bar b { display:block; height:100%; width:30%; background:var(--accent); border-radius:99px; transition:width .4s cubic-bezier(.4,0,.2,1); }
+  .bar.busy b { animation: slide 1.4s ease-in-out infinite; }
+  @keyframes slide { 0% { margin-left:-30%; } 100% { margin-left:100%; } }
+  #step { margin-top:14px; font-weight:600; }
+  #log { margin-top:12px; height:96px; overflow:auto; text-align:left; font:11.5px/1.5 ui-monospace,Consolas,monospace; color:var(--muted); background:var(--panel); border-radius:12px; padding:8px 10px; white-space:pre-wrap; }
+  .err #step { color:#d70015; }
+  button { margin:14px 6px 0; padding:8px 18px; border:0; border-radius:99px; font:inherit; font-weight:600; background:var(--accent); color:#fff; cursor:pointer; }
+  button.ghost { background:transparent; color:var(--text); box-shadow:0 0 0 1px rgba(128,128,128,.4) inset; }
+  #actions { display:none; }
+  .err #actions { display:block; }
+  @media (prefers-reduced-motion: reduce) { .bar.busy b { animation:none; width:60%; } .bar b { transition:none; } }
+</style></head>
+<body><main id="m">
+  <div class="logo"><i></i></div>
+  <h1 id="title">Video Tool</h1>
+  <p id="sub">Getting ready…</p>
+  <div class="bar busy" id="bar"><b id="fill"></b></div>
+  <div id="step"></div>
+  <div id="log" aria-live="polite"></div>
+  <div id="actions"><button id="retry">Try again</button><button class="ghost" id="open">Open log</button><button class="ghost" id="quit">Quit</button></div>
+</main>
+<script>
+  const $ = (i) => document.getElementById(i);
+  window.vtDesktop.onStatus((s) => {
+    if (s.title) $("title").textContent = s.title;
+    if (s.sub != null) $("sub").textContent = s.sub;
+    if (s.step != null) $("step").textContent = s.step;
+    if (s.progress != null) { $("bar").classList.remove("busy"); $("fill").style.width = Math.round(s.progress * 100) + "%"; }
+    if (s.busy) $("bar").classList.add("busy");
+    if (s.line) { const l = $("log"); l.textContent += s.line + "\n"; l.scrollTop = l.scrollHeight; }
+    $("m").classList.toggle("err", !!s.error);
+  });
+  $("retry").onclick = () => { $("log").textContent = ""; window.vtDesktop.retry(); };
+  $("open").onclick = () => window.vtDesktop.openLog();
+  $("quit").onclick = () => window.vtDesktop.quit();
+</script></body></html>

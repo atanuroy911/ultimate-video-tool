@@ -1,0 +1,86 @@
+{
+ "slug": "cel-anime-80s",
+ "name": "80s Cel Anime",
+ "category": "Cartoon & Anime",
+ "uses": [
+  "Music videos",
+  "Game trailers",
+  "Nostalgia"
+ ],
+ "summary": "Hand-painted cel animation from the golden age of Japanese OVAs, re-created in code: flat two-tone cels over airbrushed backgrounds, backlit neon, limited-animation timing, played back as a late-80s videotape on a CRT television.",
+ "demo_film": "City Lights, 1987",
+ "demo_line": "A courier girl rides through a rain-soaked neon city to deliver a tape before the dawn launch.",
+ "essence": [
+  "Background painting: soft airbrushed gradients, glowing windows, wet reflections; painted once at load (colour + emissive pair), then only slid.",
+  "Cel (characters, vehicles, props): flat fills, hard-edged shadow and highlight shapes, coloured outlines, never pure black; stepped at 12 or 8 fps.",
+  "Light: backlit cel (透過光): signs, lamps, title letters glowing *through* the frame; flares, halation.",
+  "Playback: videotape on a CRT: chroma bleed, scanlines, grille, phosphor glow, darkened corners, faint noise."
+ ],
+ "materials": [],
+ "colour": [
+  "Painted plates carry gradients and atmosphere; cels are flat, few-colour, saturated. Each time of day gets its own colour model, never a filter over the frame.",
+  "The protagonist has one accent colour that pops in every lighting set. Line colours are dark versions of their fill.",
+  "Skin gets its own colour in every set; multiplying daylight skin by a tint turns faces pink under neon.",
+  "Examples: night city (indigo, violet, neon magenta, cyan, window gold); seaside noon (cobalt, white cumulus, sand, coral); classroom dusk (amber, chalk green, brown wood, purple shadows)."
+ ],
+ "type": [
+  "Subtitles live on the tape, composited inside the CRT pass: a semi-condensed sans (e.g. Barlow Semi Condensed 600, ~50–56 px), cream-yellow with a thick dark outline and soft shadow, ~96 px above the bottom; a second speaker may take a second colour and a small boxed tag. Hold ≥ max(1.8 s, speech + 0.6 s); a line yields to the next.",
+  "Titles: heavy italic Latin in a chrome gradient (sky → white horizon line → violet → pink → gold), dark + neon outlines, optional katakana line (e.g. Dela Gothic One), glowing through the emissive layer, flickering on at 12 fps with a light sweep and a star glint."
+ ],
+ "motion": [
+  "Characters on twos (12 fps); performance beats (blinks, eye openings, lip flaps, gestures) on threes (8 fps). Camera, light sweeps, flares and rain on ones (24 fps); a stepped camera judders.",
+  "Cycles: hair and cloth as ribbons driven by a travelling sine, 4-drawing cycle (6 when calm); bounce = a 12 fps jitter of a few px.",
+  "Move light, not drawings: coloured bands sweeping across a held cel (`source-atop`).",
+  "Impact frames: 2 frames of an inverted or monochrome silhouette over radial lines, then the result.",
+  "Hold the peak: a painted still with a slow pan, only cycles moving.",
+  "Fast blinks (one 8 fps closed drawing); eye openings in three drawings; lip flaps of 3–4 shapes at 8 fps ending on a held expression."
+ ],
+ "camera": [
+  "Multiplane crane over a tall plate — a world revealed layer by layer — arriving; descending into a place; rising above it",
+  "Side tracking, 3–4 parallax layers — steady momentum — a journey; a chase; progress",
+  "Rear view into a pseudo-3D canyon — speed, pressure ahead — a race; a tunnel; a countdown",
+  "Held bust with light bands — speed or tension without animation — a drive; waiting; a decision",
+  "Insert with bokeh and a sliding highlight — this object matters — a letter; a key; a ticket",
+  "Extreme close-up on eyes — resolve, recognition — a choice; a promise",
+  "Slow pan across a painted still — awe, a held breath — a peak; a memory; a landscape",
+  "Radial speed lines + one-beat freeze — the instant before impact — a leap; a collision; a goal",
+  "Truck-in through a window or screen — entering another world — a flashback; a broadcast; a dream",
+  "Locked two-shot with lip flaps — conversation — banter; a confession; an argument",
+  "An earlier composition repainted — what changed — after a storm; years later"
+ ],
+ "sound": [
+  "Instruments (city pop, synth funk, anime-opening pop): saxophone or synth-brass lead, FM electric piano with a bell transient, slap bass, chorus-y 16th guitar chanks, gated-reverb snare and big toms, drum machine, arpeggiated analog synth, string pad, FM bell sparkle. Extended jazz-pop harmony (maj7, 9ths).",
+  "Techniques, as options: band-pass the score to cassette/AM when a diegetic source plays, then open it; a brass hit on a title; a drum fill left open for an effect; one beat of true silence before a peak; a semitone lift for a last chorus.",
+  "Foley (synthesized): engines from an RPM curve, rain, tire hiss, wind, bells, radio squelch, impacts, sparks, cassette clicks, crowd murmur, door buzzers, footsteps on wet pavement; tape accents get their own thunk, whine, hiss.",
+  "Voice: an English-dub feel, short lines; a second voice through a phone/radio band-pass (~380–2800 Hz). Verify every line with whisper.",
+  "Mix: limit then compress TTS, voices ~10 dB over ducked music (duck ~9 dB), beds ducked ~3 dB, choruses louder than intros, two-pass loudnorm to −14 LUFS."
+ ],
+ "native_moves": [
+  "Small flat hero in a huge painted world. *Fits content like:* a first day in a big company; a child in a museum hall; a lone researcher at an observatory.",
+  "Stillness as drama (held close-up or harmony still). *Fits content like:* an exam result; a goodbye at a gate; an unveiling.",
+  "Backlit light. *Fits content like:* a lantern festival; a screen full of code; a lighthouse; stage lights.",
+  "Speed grammar (speed lines, looping plates, impact frames). *Fits content like:* a sprint final; a data packet crossing the world; a kitchen rush.",
+  "Light-band sweep on a held cel. *Fits content like:* a night train; a scanner reading a page; a heartbeat quickening.",
+  "A song as an object (tape, radio, jukebox changes the score). *Fits content like:* a band's origin; a family memory; a call-in show.",
+  "Tape artefacts as punctuation. *Fits content like:* found home video; a rewind to the past; an interrupted broadcast.",
+  "Colour-model change (one place, another hour). *Fits content like:* a day in a shop; a farm's seasons; before/after a renovation."
+ ],
+ "pitfalls": [
+  "White cels bloom pink → bloom from the emissive canvas; weak, high-threshold bloom on colour.",
+  "Neon bleeds through characters → silhouettes stamped into the emissive canvas.",
+  "Black holes in highlights → clamp before S-curves.",
+  "Thick rim light swallows thin shapes → 2–4 px offsets.",
+  "Hair like tentacles, a face like a paper mask, moe eyes, uniform black lines → the drawing rules in §2.",
+  "Pink faces under coloured light → skin gets its own colour per set; weaker light sweeps on faces.",
+  "Front views are the hardest drawing → hide them behind a visor, a windscreen or backlight when you can.",
+  "Pseudo-3D points behind the camera flip into the sky → clamp z to the near plane.",
+  "Canvas silently falls back to a serif → `document.fonts.load` every weight before painting.",
+  "CRT detail inflates files → noise in the shader, only `noise=c0s=2:allf=t` in ffmpeg, CRF ≈ 23; loudnorm in two passes with `linear=true`; don't let a limiter flatten the dynamics."
+ ],
+ "variation": [
+  "Structures: slice of life in four seasons (one place, four colour models, a small change each time); two-hander dialogue (a locked two-shot comedy that breaks into one fantasy sequence); the mock opening credits (a character roster introduced one by one, each with a pose and a name card).",
+  "Openings: in the middle of a conversation (lip flaps already moving, no establishing shot); a TV being switched on to an in-world broadcast; a close-up of a drawing hand in a classroom, then cut to the world it draws.",
+  "Endings: a freeze-frame on a laugh with a \"to be continued\" card; the tape runs out into blue screen; a slow pan up to a starry sky from a quiet rooftop, no dialogue."
+ ],
+ "source": "lemo-opuscar styles/cel-anime-80s/STYLE.md (MIT, LemoLab), github.com/lemomo-ai/lemo-opuscar"
+}

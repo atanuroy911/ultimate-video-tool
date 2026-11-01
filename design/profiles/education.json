@@ -1,0 +1,72 @@
+{
+  "id": "education",
+  "label": "Education",
+  "about": "A question, the concept, a definition, steps, an example, a chart and a recap.",
+  "pace": {
+    "scene_min": 2.8,
+    "scene_target": 5.0,
+    "scene_max": 8.0
+  },
+  "weights": {
+    "definition": 2.4,
+    "steps": 2.4,
+    "question": 1.8,
+    "checklist": 1.8,
+    "line_trend": 1.7,
+    "bar_compare": 1.7,
+    "ring": 1.5,
+    "timeline": 1.7,
+    "pros_cons": 1.3,
+    "stat_row": 1.2,
+    "hero_number": 1.3,
+    "picture": 0.9,
+    "title_card": 1.0,
+    "quote_card": 0.8,
+    "media_frame": 1.3,
+    "media_hero": 0.9,
+    "cartoon": 0.6,
+    "feature_grid": 0.6,
+    "price_cta": 0.0,
+    "device": 0.3,
+    "speaker": 0.0,
+    "flow": 1.8,
+    "cycle": 1.4,
+    "hierarchy": 1.4,
+    "venn": 1.3,
+    "funnel": 1.0,
+    "pyramid": 1.3,
+    "matrix": 1.0,
+    "pictogram": 1.7,
+    "gauge": 1.3
+  },
+  "first_role": "question",
+  "last_role": "recap",
+  "looks": {
+    "styles": [
+      "blueprint",
+      "clean",
+      "soft",
+      "editorial",
+      "sticker"
+    ],
+    "palettes": [
+      "sky",
+      "lavender",
+      "mint",
+      "lemon",
+      "bubblegum",
+      "ocean",
+      "graphite"
+    ]
+  },
+  "motion": "snappy",
+  "transitions": [
+    "slide_up",
+    "fade",
+    "slide_left",
+    "wipe"
+  ],
+  "sfx_level": "normal",
+  "music_mood": "light",
+  "cast_chance": 0.3
+}

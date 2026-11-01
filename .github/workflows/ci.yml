@@ -1,0 +1,86 @@
+# Every push and pull request: the Python tests, the Studio build, the docs check, and a real install of the Engine package on Windows and Linux.
+# The release workflow runs this same file first (workflow_call), so a release is never built from code that fails it.
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Python tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with: { enable-cache: true }
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Packages (the locked set)
+        run: uv sync --frozen --extra dev --python 3.11
+      - name: Generated assets (fonts, icons, texture, sounds)
+        run: |
+          cd renderer && npm install --no-audit --no-fund && node scripts/build-fonts.mjs && node scripts/build-icons.mjs && cd ..
+          uv run python scripts/make_texture.py
+          uv run python scripts/make_assets.py
+      - name: Studio build (a few tests and the doctor look for studio/dist)
+        run: cd studio && npm ci --no-audit --no-fund && npm run build
+      - name: Tests (the slow ones need a GPU machine and are skipped)
+        run: uv run pytest -m "not slow"
+
+  studio:
+    name: Studio (types and build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm, cache-dependency-path: studio/package-lock.json }
+      - run: cd studio && npm ci --no-audit --no-fund && npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: studio-dist
+          path: studio/dist
+          retention-days: 3
+
+  docs:
+    name: Docs check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: python scripts/check_docs.py
+
+  engine-package:
+    name: Engine package installs and starts (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: Build the package
+        run: python scripts/make_engine_package.py --out dist
+      - name: Unpack it somewhere else, as a user would
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/unpacked"
+          python -c "import sys,zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" dist/video-tool-engine-*.zip "$RUNNER_TEMP/unpacked"
+      - name: Install (uv, Python 3.11, the locked packages) and prove the engine answers
+        if: runner.os == 'Linux'
+        run: bash "$RUNNER_TEMP/unpacked/video-tool-engine/install-engine.sh" --check --dir "$RUNNER_TEMP/engine" --port 8790
+      - name: Install (uv, Python 3.11, the locked packages) and prove the engine answers
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./install-engine.ps1 -Check -Dir "$env:RUNNER_TEMP/engine" -Port 8790
+        working-directory: ${{ runner.temp }}/unpacked/video-tool-engine

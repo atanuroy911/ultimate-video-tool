@@ -1,0 +1,23 @@
+$ node e2e/timeline3.mjs
+# cwd C:\Users\atanu\Desktop\Video Tool\studio
+# started 2026-10-26 20:39:33
+
+Edge dragging
+  ok   scene end stays under the pointer on every frame
+  ok   a marker shows the sentence it will settle on
+  ok   Escape cancels: the scene is back where it was
+  ok   and nothing was changed in the plan
+  ok   scene 2 has a start handle
+  ok   the voice clip's end follows the pointer while trimming
+  ok   the clip is visibly shorter during the drag
+  ok   a label shows how much is being cut
+  ok   Escape puts the voice clip back
+  ok   and no cut was made
+  ok   dragging out where nothing was cut explains why nothing happens
+  ok   a trim released outside the timeline still applies
+  ok   and undo brings it back
+
+13 passed, 0 failed
+ERRORS: none
+
+# exit 0 in 12 s

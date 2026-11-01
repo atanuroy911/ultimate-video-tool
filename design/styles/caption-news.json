@@ -1,0 +1,57 @@
+{
+ "slug": "caption-news",
+ "name": "Caption News",
+ "category": "Edit & Documentary",
+ "uses": [
+  "Social news",
+  "Report explainers",
+  "Data shorts"
+ ],
+ "summary": "Social-video news that reads with the sound off. Real footage, photos and the source document are the ground; huge captions are the lead actor, slammed in a chunk at a time with one keyword on a yellow block. Hard cuts on a music grid, numbers that roll, a source tag that slides in whenever a figure appears, and the original document highlighted on screen before its number is believed. 16:9, built for a feed.",
+ "demo_film": "The Bee Ledger",
+ "demo_line": "America lost 1.3 million bee colonies, yet the count rose 6 %: a news short that works with the sound off.",
+ "essence": [],
+ "materials": [
+  "Wikimedia Commons (video and photos): read the licence on each file page. Fine: CC0, public domain, CC BY (credit author, title, licence on screen and in `CREDITS`). Not used: CC BY-SA, \"no known restrictions\", unclear licences, YouTube re-uploads, colourised or \"restored\" versions.",
+  "U.S. federal agencies (USDA, USGS, NASA, NOAA, NARA): works of federal employees are public domain; check that the page does not credit a contractor or a third party. NASA: https://images.nasa.gov. NARA: https://catalog.archives.gov.",
+  "Internet Archive: only items whose own page states public domain or a CC0/CC BY licence; U.S. works published before 1931 are public domain.",
+  "Library of Congress: read each item's rights statement; \"no known restrictions\" is not enough.",
+  "Official documents and data (reports, statistics, court filings) from the agency's own site: the source of every fact; keep `FACTS.md` (claim, URL, quoted wording, derived sums with their arithmetic).",
+  "Map geometry: Natural Earth (public domain). Its default borders are not usable for China: DIRECTOR.md §13."
+ ],
+ "colour": [],
+ "type": [],
+ "motion": [],
+ "camera": [
+  "Cuts on a 120 BPM half-beat grid (every cut at a multiple of 0.5 s). Footage shots 1.5–3 s; data cards and documents 3–4.5 s; a shot that holds a comparison stays until every item has been fully on screen ≥ 2.5 s.",
+  "Captions cross cuts. A caption can run over two shots (picture changes, words don't); captions change at most every ~2.5 s even when shots change every 1.5 s. Reading time, not shot length, sets the caption clock.",
+  "The order of a fact: footage (feeling) → the number on a card → the document line that says it → the consequence. Never a number without its source tag in the same shot.",
+  "Transitions are few and fixed: hard cut (default); a 1–2-frame white flash on the turn and on the freeze; a card sliding in from the right with speed streaks (0.18 s); a split screen opening from its divider; grid panels rising staggered (0.1 s apart); a punch-in (0.3 s ease-out to ~1.25×) on the culprit; a mask transition where a photo grows out of a map shape. No dissolves, no page turns, no 3D flips.",
+  "Pace: a strong action within 0.5 s of every shot; no frame flat for more than 1 s (rolling counters, line drawing, highlighter sweeps, slow pushes keep it alive); one held breath (2–3 s) after the turn; two real silences."
+ ],
+ "sound": [
+  "Layer — What — Level",
+  "Voice — one brisk narrator (Kokoro, speed 1.1–1.17), numbers spelled out in the TTS text — compressed, ≈ 8 dB over the music",
+  "Music — 120 BPM pulse in sampled instruments: kit (kick on the beat, hats on off-beats), eighth-note electric bass, a sixteenth-note marimba ostinato, vibraphone off-beat chords, glockenspiel accents, staccato brass stabs on the big numbers, timpani and suspended cymbal for turns — ducked ~45 % under the voice",
+  "Structure — the hook hit on frame 4; a hard stop into silence before the turn (only natural sound and the question); the turn lands on a major-key brass hit; half-time and low strings for the threat; a snare build into the spike; a second short silence before the verdict; a major chord with bells on the verdict",
+  "Foley — every graphic action has a sound: chunk slam (click + thump), counter rattle (a tick every 45 ms), whoosh into each card, highlighter squeak, camera shutter on the freeze, stamp thump on a big number, pops for labels, ticks as map states fill, a riser into the map push",
+  "Natural sound — the subject's own location sound (here a swarm), J-cut 0.3 s before the freeze, bed under the ending — not ducked below audibility"
+ ],
+ "native_moves": [],
+ "pitfalls": [
+  "Text that can't be read in its shot. Chart titles ≤ 6 Chinese characters; ornamental stamps (datelines) must recur readably elsewhere; a label that changes text (a counter) is reported to `TEXTS` with its final value. Run `readcheck.mjs`.",
+  "Two-line Chinese captions in 16:9 read as a slide. Split the sentence instead.",
+  "The voice running to the cut: lines that end on the cut feel rushed; speed the TTS (≤ 1.17 — faster, Kokoro starts to mangle names: \"varroa\" became \"Veroa\") or shorten the line.",
+  "Homophones in ASR: \"requeen the weak\" was heard as \"week\"; \"varroa mite\" as \"might\". Rewrite the line (\"give old ones a new queen\", \"varroa mites\").",
+  "Words stronger than the source: the report says \"stressor\", not \"killer\"; quarterly losses summed are not \"annual net loss\". Write what the source says.",
+  "Footage from elsewhere: illustrative footage (here Dutch hives) never carries a place label it doesn't have; dates on photos (an almond orchard in 2014) are stated in the credit.",
+  "Blank first frames on transitions: start split/grid/sting animations 0.1–0.15 s before the cut so frame 1 already has picture.",
+  "Station logos: crop them out; never park a caption over a logo."
+ ],
+ "variation": [
+  "Three structures: the inverted pyramid with a mid-film turn (bad number → \"really?\" → the document says otherwise → why); a list of three that turns on the third; a countdown of numbers that ends on the one that matters.",
+  "Three openings: the biggest number on frame 4; the document headline highlighted in the first second; a freeze on the event with a question.",
+  "Three endings: a two-part verdict caption on footage with music returning after a silence; back to the hook's number, now re-read; the last data card's key point becoming the closing caption."
+ ],
+ "source": "lemo-opuscar styles/caption-news/STYLE.md (MIT, LemoLab), github.com/lemomo-ai/lemo-opuscar"
+}

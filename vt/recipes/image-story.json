@@ -1,0 +1,99 @@
+{
+ "version": 1,
+ "name": "image-story",
+ "goal": "@goal",
+ "style": "one look for the whole video, a picture drawn for each stretch of speech",
+ "checkpoints": [
+  "after_direction",
+  "after_fill"
+ ],
+ "calls": [
+  {
+   "id": "read",
+   "module": "understand.read_script",
+   "inputs": {
+    "use_ai": true
+   },
+   "after": [],
+   "why": "Read the script like a director: its kind, the hook, what each sentence shows, the look."
+  },
+  {
+   "id": "slots",
+   "module": "cut.reel_slots",
+   "inputs": {},
+   "after": [
+    "read"
+   ],
+   "why": "Group the sentences into pictures; nothing holds over three seconds."
+  },
+  {
+   "id": "hook",
+   "module": "direct.improve_hook",
+   "inputs": {
+    "use_ai": false
+   },
+   "after": [
+    "read"
+   ],
+   "why": "Check the opening: a weak first line gets better ones to choose from; nothing is changed by itself."
+  },
+  {
+   "id": "plan",
+   "module": "plan.make",
+   "inputs": {
+    "use_ai": false,
+    "pace": "balanced"
+   },
+   "after": [
+    "slots"
+   ],
+   "why": "Write the plan the person will look at: no picture is drawn yet."
+  },
+  {
+   "id": "ask",
+   "module": "meta.ask_human",
+   "inputs": {
+    "question": "Here is the plan. Change anything, then press Start.",
+    "kind": "plan_review"
+   },
+   "after": [
+    "plan"
+   ],
+   "why": "Nothing expensive starts until the person has seen the plan, if the setting says so."
+  },
+  {
+   "id": "wait",
+   "module": "plan.wait",
+   "inputs": {
+    "timeout_seconds": 600,
+    "on_timeout": "stop"
+   },
+   "after": [
+    "ask"
+   ],
+   "why": "Wait for the person; an unanswered plan stops, it never spends."
+  },
+  {
+   "id": "start",
+   "module": "plan.start",
+   "inputs": {
+    "run": true
+   },
+   "after": [
+    "wait"
+   ],
+   "why": "Draw the pictures and put the video together, exactly as approved."
+  },
+  {
+   "id": "done",
+   "module": "meta.finish",
+   "inputs": {
+    "summary": "The video was made from the approved plan."
+   },
+   "after": [
+    "start"
+   ],
+   "why": "Close the run."
+  }
+ ]
+}

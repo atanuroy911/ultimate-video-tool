@@ -1,0 +1,31 @@
+{
+ "duration": 21.337732,
+ "width": 720,
+ "height": 1280,
+ "has_audio": true,
+ "name": "reel 8.mp4",
+ "cuts": [
+  17.97
+ ],
+ "cut_count": 1,
+ "first_change": 17.97,
+ "shots": 2,
+ "median_shot": 10.67,
+ "mean_shot": 10.67,
+ "longest_shot": 17.97,
+ "cuts_per_min": 2.8,
+ "lufs": "-14.3",
+ "lra": "4.6",
+ "change": {
+  "swap_events": [
+   18.0
+  ],
+  "swaps": 1,
+  "longest_still_s": 2.2,
+  "moving_share": 0.48,
+  "median_change": 1.14
+ },
+ "speech": {
+  "words": 0
+ }
+}

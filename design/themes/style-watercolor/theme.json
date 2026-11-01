@@ -1,0 +1,74 @@
+{
+  "name": "style-watercolor",
+  "label": "Watercolor Brush",
+  "color": {
+    "bg": "#F3E2C8",
+    "bg2": "#DDD0B5",
+    "ink": "#39502C",
+    "muted": "#5A6A48",
+    "accent": "#A34A22",
+    "accent2": "#B43D26",
+    "card": "#E6D8BD",
+    "card_border": "#39502C",
+    "caption_bg": "#E6D8BD",
+    "caption_ink": "#39502C",
+    "highlight_bg": "#A34A22",
+    "highlight_ink": "#FFFFFF",
+    "tag_bg": "#B43D26",
+    "tag_ink": "#FFFFFF",
+    "arc": "rgba(57,80,44,0.08)"
+  },
+  "font": {
+    "headline": [
+      "Cormorant Garamond",
+      "Anek Bangla"
+    ],
+    "body": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "numeral": [
+      "Cormorant Garamond",
+      "Anek Bangla"
+    ],
+    "caption": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "headline_weight": 700
+  },
+  "shape": {
+    "radius": 18,
+    "stroke": 3,
+    "shadow": {
+      "x": 0,
+      "y": 8,
+      "color": "rgba(0,0,0,0.18)",
+      "blur": 24
+    },
+    "card_tilt": 0
+  },
+  "background": {
+    "kind": "paper",
+    "grain": 0.25,
+    "arcs": false,
+    "pattern": 0.35,
+    "animated": false
+  },
+  "motion": {
+    "preset": "smooth"
+  },
+  "caption": {
+    "style": "box",
+    "reveal": "line",
+    "weight": 800,
+    "size": 60,
+    "words_per_line": 3,
+    "safe_bottom": {
+      "portrait": 380,
+      "landscape": 64
+    }
+  },
+  "style": "lemo:watercolor",
+  "picture": "emoji"
+}

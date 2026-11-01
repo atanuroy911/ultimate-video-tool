@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "name": "classic",
+  "calls": [
+    {"id": "voice", "module": "pipeline.voice", "after": []},
+    {"id": "preprocess", "module": "pipeline.preprocess", "after": ["voice"]},
+    {"id": "silence", "module": "pipeline.silence", "after": ["preprocess"]},
+    {"id": "asr", "module": "pipeline.asr", "after": ["silence"]},
+    {"id": "cuts", "module": "pipeline.cuts", "after": ["asr"]},
+    {"id": "sounds", "module": "pipeline.sounds", "after": ["cuts"]},
+    {"id": "aroll", "module": "pipeline.aroll", "after": ["sounds"]},
+    {"id": "words", "module": "pipeline.words", "after": ["aroll"]},
+    {"id": "context", "module": "pipeline.context", "after": ["words"]},
+    {"id": "tighten", "module": "pipeline.tighten", "after": ["context"]},
+    {"id": "plan", "module": "pipeline.plan", "after": ["tighten"]},
+    {"id": "compose", "module": "pipeline.compose", "after": ["plan"]}
+  ]
+}

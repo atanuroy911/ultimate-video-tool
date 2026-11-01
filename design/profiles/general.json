@@ -1,0 +1,59 @@
+{
+  "id": "general",
+  "label": "General",
+  "about": "The original picture-per-sentence style: stressed word, sticker or keyword, number cards.",
+  "pace": {
+    "scene_min": 3.0,
+    "scene_target": 5.0,
+    "scene_max": 10.0
+  },
+  "weights": {
+    "picture": 3.0,
+    "hero_number": 1.5,
+    "ring": 0.4,
+    "stat_row": 0.4,
+    "bar_compare": 0.6,
+    "title_card": 0.3,
+    "definition": 0.4,
+    "checklist": 0.3,
+    "question": 0.3,
+    "quote_card": 0.4,
+    "cartoon": 0.0,
+    "feature_grid": 0.0,
+    "price_cta": 0.0,
+    "device": 0.0,
+    "steps": 0.3,
+    "timeline": 0.3,
+    "line_trend": 0.3,
+    "pros_cons": 0.2,
+    "media_hero": 1.2,
+    "media_frame": 0.8,
+    "speaker": 0.0,
+    "flow": 0.6,
+    "cycle": 0.5,
+    "hierarchy": 0.5,
+    "venn": 0.5,
+    "funnel": 0.4,
+    "pyramid": 0.4,
+    "matrix": 0.4,
+    "pictogram": 0.9,
+    "gauge": 0.5
+  },
+  "first_role": "hook",
+  "last_role": "recap",
+  "looks": {
+    "styles": [],
+    "palettes": []
+  },
+  "motion": "snappy",
+  "transitions": [
+    "slide_up",
+    "fade",
+    "zoom",
+    "slide_left",
+    "wipe"
+  ],
+  "sfx_level": "normal",
+  "music_mood": "light",
+  "cast_chance": 0.0
+}

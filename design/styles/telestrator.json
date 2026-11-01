@@ -1,0 +1,83 @@
+{
+ "slug": "telestrator",
+ "name": "Sports Telestrator",
+ "category": "Edit & Documentary",
+ "uses": [
+  "Sports analysis",
+  "Match recaps",
+  "Coaching"
+ ],
+ "summary": "The TV football analysis segment: play the clip at full speed, rewind, freeze it, and draw on the broadcast picture — rings under players' feet, marker arrows for the ball, a red patch for the space nobody covered — then play on, switch angles, count the frames, and flatten the pitch into a board. Real match footage is the ground; every line is drawn on top of it and moves with it. A studio show's packaging (sting, corner bug, score bar, a yellow wipe) holds it together. 16:9.",
+ "demo_film": "Freeze Frame",
+ "demo_line": "Down 3–0 at half-time, Fenerbahçe scored three in 12 minutes: freeze, draw, split screen, shot map.",
+ "essence": [],
+ "materials": [
+  "Wikimedia Commons (search \"goal\", the match, the player): many clips are cut from broadcasters' own YouTube uploads under CC BY. Fine: CC0, public domain, CC BY. Not used: CC BY-SA, \"no known restrictions\", unclear licences.",
+  "A broadcaster's or club's own YouTube channel when its video page says *Creative Commons Attribution license (reuse allowed)*: check that the channel is the rights holder's official, verified channel (not a re-upload or a fan mirror), save the evidence (channel id, verification, licence field, date checked), and download the native resolution, not an AI-upscaled stream. Third-party re-uploads, fan mirrors, colourised or \"restored\" versions are never used.",
+  "Facts (scores, minutes, how a goal was scored): the league's or broadcaster's own match page or video description, then established newspapers; quote them in `FACTS.md`. When sources disagree, use the official list and leave the disputed detail out.",
+  "Photos of players: Commons (CC BY / CC0); state the year when the photo isn't from the match."
+ ],
+ "colour": [
+  "Role — Colour",
+  "The team/player we follow, the ball, main marker lines — `#FFD400` fluorescent yellow",
+  "Opponents (rings, block arrows, link lines) — `#3FD8FF` cyan",
+  "Space (a patch nobody covers) — `#FF3B30` red, fill 0.34–0.38 + dashed edge",
+  "Pitch lines traced, neutral marks, stamps — `#F4F1E8` chalk",
+  "Show board — `#0C1411` ink green-black",
+  "Label / bug background — `rgba(8,12,14,0.9)`; opaque `#080C0E` where it covers a logo"
+ ],
+ "type": [
+  "Labels: Noto Sans SC 900, 40 px (30 px for a name), English line Barlow Condensed 600, 21 px, letter-spacing 2 px, in the role colour.",
+  "Packaging numbers (score, minute, stopwatch, big data): Barlow Condensed 800 Italic.",
+  "Clock / frame numbers: IBM Plex Mono 500, 24 px.",
+  "Board pages: title Noto Sans SC 900 60–64 px, rows Noto Sans SC 700 34–42 px with a grey note under each, numbers Barlow Condensed 800 Italic 64–150 px in yellow; text appears left to right with a clip reveal.",
+  "No handwriting fonts anywhere: printed type on a dark card belongs to the same packaging; handwriting reads as a school notebook.",
+  "Subtitles: Chinese line (Noto Sans SC 500, 38 px) above an English line (Barlow Condensed 600, 32 px), black bar 0.64 with a 4 px yellow edge; one line per language, never wrapped — shorten the line instead of shrinking it.",
+  "All fonts OFL from Google Fonts, subset to the characters used (`demo/tools/fonts.py`)."
+ ],
+ "motion": [
+  "Freeze entry: white flash 0.1 s (0.55) + punch 1.035 → 1.0 in 0.35 s (ease-out) + desaturate 42 % + a cool cast + heavier vignette; then a slow 1.2 % creep. Overlays use the same transform as the picture, or they slide off the players.",
+  "Spotlight: everything outside a focus ellipse darkens to 0.42 (even-odd hole), 0.3 s fade.",
+  "Marker line: dark outline (w + 6, black 0.55) + coloured core with glow 18 + thin white highlight (w × 0.28); drawn along its length; an arrowhead pops in over the last 10 %; deterministic small wobble at the vertices so it feels hand-drawn. Dashed for intended or future paths (a cross, a run), solid for what happened.",
+  "Ring: perspective ellipse (ry = 0.36 r) under the feet, drawn clockwise, outer dashed ring rotating at 60 px/s; a vertical light beam while the player moves.",
+  "Draw order inside a freeze: ring (who) → area or link (what happened) → label (the one-line finding), 0.3–0.6 s apart.",
+  "Slow motion: source frames at 0.6–0.85×, neighbours cross-blended (no stutter).",
+  "Rewind: the clip reversed in 0.6 s (ease-in-out), ±13 px horizontal jitter, four white tracking bars, a big ◀◀ and the word REWIND.",
+  "Trails: in screen space keep only the last ~0.6 s (ball 0.24 s) — the camera pans, so long trails land in the wrong place.",
+  "Stamp (e.g. a VAR decision): a framed card that drops from 1.7× to 1× with overshoot, slightly rotated, with a small flash — once per film.",
+  "Perspective flatten: see Native moves 7."
+ ],
+ "camera": [
+  "Order inside one piece of action: live at 1× (original sound) → rewind (0.6 s, reversed with tracking bars and ◀◀) → freeze ① → slow play (0.6–0.85×, frame-blended) → freeze ② → slow play with a stopwatch → freeze ③ → ball flight with a comet trail → another angle (replay), possibly one more freeze.",
+  "Lighter variants for secondary pieces of action, so the deep breakdown stays special:",
+  "Freeze-in-play: no rewind; play at 1× up to the decisive pass, freeze, draw, then play on to the goal.",
+  "Dual-angle freeze: both angles play side by side and each arrives at the same instant (each at its own speed) where both freeze together; the same player is ringed in both.",
+  "Freeze length 1.8–2.4 s; a freeze longer than ~2.5 s needs a second action inside it. Two to four freezes per piece of action; more than four, split with a replay.",
+  "Cuts between segments: only the packaging wipe — a yellow slanted band with dark edges crossing the frame in 0.34 s. Inside a segment, hard cuts. No dissolves, no page turns.",
+  "Comparison frames (the shot map, the data card) are fully drawn early and held ≥ 2.5 s before the next cut."
+ ],
+ "sound": [
+  "Layers: English voice-over (one line per freeze, ≈2.5–3 s) → match sound (commentary + crowd at full level in live play; under freezes only a low-passed crowd bed, looped; the goal roar on the goal frame) → score → foley. Voice ducks everything else to 0.55.",
+  "Score: sampled band (drum kit, electric bass, staccato trumpet and trombone, timpani, horn, cellos, glockenspiel), about 120 BPM. The groove restarts at the head of each played segment, so cuts don't need a global bar grid. On a freeze the drums stop: one brass stab + timpani + low thump + camera shutter, then only closed hi-hat — the music freezes with the picture. Goals: a big brass chord with crash and glockenspiel on the score-bar flip.",
+  "Foley: marker squeak (2–5 kHz band-passed noise with flutter) for each line, pops for rings, a tick per landed label, whoosh on every wipe, tape-motor whine on a rewind, a stopwatch tick every 0.2 s, a thump for the stamp, a long whoosh and a timpani roll under the flatten.",
+  "Mix limited before `mux.sh` normalises to −14 LUFS."
+ ],
+ "native_moves": [],
+ "pitfalls": [
+  "Wrong tracking points are the biggest risk: reading coordinates off a scaled contact sheet is easily 20–50 px off. Read them on full-resolution crops with a pixel ruler, then check with `?dbg=1`.",
+  "Overlays not under the punch transform slide off the players during a freeze.",
+  "Balls vanish: long shots are a few pixels with motion blur; colour tracking loses them; frames where the ball is invisible are interpolated and the number says \"≈\".",
+  "Numbers the footage can't support (ball speed, distance run) are not written. Distances only from a homography fitted to visible markings, each shot in its own frame (the camera zooms and pans between shots).",
+  "Packaging late by one frame shows the logo: bugs never fade in over footage.",
+  "Split-screen windows sliding in reveal what's outside them (a logo, a URL): clip each window to its slice in source coordinates, not only to the screen half.",
+  "Score state must match the moment: before the 67th-minute goal it is 3–2, not 3–3.",
+  "Names in TTS: spell them phonetically for the voice (\"Zayits\", \"Saduk\") and keep the real spelling in subtitles; record the ASR result for proper names in `lines.json` (`asr`).",
+  "Freeze labels echo the subtitle and live only ~1 s; anything the viewer must read (scores, board rows, the data card) gets ≥ 2.5 s and goes into `TEXTS`."
+ ],
+ "variation": [
+  "Three structures: chronological build-up to the deep breakdown (secondary moments get light treatments, the decisive one the full rewind-and-freeze); one moment taken apart from three angles; a \"what went wrong\" defensive breakdown ending on the space map.",
+  "Three openings: the show sting into a match-record card; the goal frame frozen in the first second, then rewind; the stopwatch running over live play.",
+  "Three endings: the top-down board that sums up the moments; the data card with one number circled; the hero shot slowed with the minute and name."
+ ],
+ "source": "lemo-opuscar styles/telestrator/STYLE.md (MIT, LemoLab), github.com/lemomo-ai/lemo-opuscar"
+}

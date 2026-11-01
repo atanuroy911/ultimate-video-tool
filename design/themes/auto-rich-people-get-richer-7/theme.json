@@ -1,0 +1,76 @@
+{
+  "name": "auto-rich-people-get-richer-7",
+  "label": "Sticker pop · Sky",
+  "color": {
+    "bg": "#eaf2ff",
+    "bg2": "#cfe0ff",
+    "ink": "#10223f",
+    "muted": "#728095",
+    "accent": "#2d66f2",
+    "accent2": "#ffb703",
+    "card": "#ffffff",
+    "card_border": "#10223f",
+    "caption_bg": "#ffffff",
+    "caption_ink": "#10223f",
+    "highlight_bg": "#2d66f2",
+    "highlight_ink": "#ffffff",
+    "tag_bg": "#ffb703",
+    "tag_ink": "#111111",
+    "arc": "rgba(16,34,63,0.09)"
+  },
+  "font": {
+    "headline": [
+      "Baloo 2",
+      "Baloo Da 2"
+    ],
+    "body": [
+      "Baloo 2",
+      "Hind Siliguri"
+    ],
+    "numeral": [
+      "Baloo 2",
+      "Baloo Da 2"
+    ],
+    "caption": [
+      "Baloo 2",
+      "Hind Siliguri"
+    ],
+    "headline_weight": 800
+  },
+  "shape": {
+    "radius": 40.0,
+    "stroke": 6.0,
+    "shadow": {
+      "x": 10.0,
+      "y": 10.0,
+      "color": "#10223f",
+      "blur": 0.0
+    },
+    "card_tilt": 4.0
+  },
+  "background": {
+    "kind": "dots",
+    "grain": 0.0,
+    "arcs": false,
+    "pattern": 0.5,
+    "animated": true
+  },
+  "motion": {
+    "preset": "bouncy"
+  },
+  "caption": {
+    "style": "box",
+    "reveal": "words",
+    "weight": 700,
+    "size": 58,
+    "words_per_line": 6,
+    "safe_bottom": {
+      "portrait": 300,
+      "landscape": 64
+    }
+  },
+  "currency": "৳",
+  "sfx": "pop",
+  "style": "sticker",
+  "palette": "sky"
+}

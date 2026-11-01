@@ -1,0 +1,85 @@
+{
+ "id": "breeze_design",
+ "label": "Breeze TTS 2: a voice made from a description",
+ "kind": "audio",
+ "version": 1,
+ "status": "verified",
+ "frame_rule": {
+  "fps": 24000,
+  "step": 1,
+  "offset": 0
+ },
+ "sizes": {},
+ "output": "4",
+ "notes": "Verified 2026-10-28 on the RTX 3060 (bf16) through ComfyUI 8189: 4.3 s of clear English, every word recognised, 1,693 s the first time (it downloaded the 6.5 GB model) and a few seconds warm. English and Chinese.",
+ "graph": {
+  "1": {
+   "class_type": "BreezeTTS2LoadModel",
+   "inputs": {
+    "model": "bf16 (best quality)",
+    "dtype": "auto",
+    "device": "auto",
+    "attention": "auto",
+    "decode_mode": "eager",
+    "download_if_missing": true
+   }
+  },
+  "3": {
+   "class_type": "BreezeTTS2VoiceDesign",
+   "inputs": {
+    "breeze_model": [
+     "1",
+     0
+    ],
+    "text": "Hello.",
+    "instruction": "A warm, thoughtful young woman with a clear voice and a calm, reflective delivery.",
+    "cfg_scale": 4.0,
+    "max_new_tokens": 1500,
+    "temperature": 0.9,
+    "top_k": 50,
+    "top_p": 1.0,
+    "repetition_penalty": 1.1,
+    "depth_temperature": 0.9,
+    "depth_top_k": 50,
+    "depth_top_p": 1.0,
+    "seed": 42
+   }
+  },
+  "4": {
+   "class_type": "SaveAudio",
+   "inputs": {
+    "audio": [
+     "3",
+     0
+    ],
+    "filename_prefix": "video_tool/voice"
+   }
+  }
+ },
+ "manifest": {
+  "text": [
+   [
+    "3",
+    "text"
+   ]
+  ],
+  "seed": [
+   [
+    "3",
+    "seed"
+   ]
+  ],
+  "prefix": [
+   [
+    "4",
+    "filename_prefix"
+   ]
+  ],
+  "instruction": [
+   [
+    "3",
+    "instruction"
+   ]
+  ]
+ }
+}

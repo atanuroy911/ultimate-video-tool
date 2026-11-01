@@ -1,0 +1,50 @@
+# GPU server snapshot, 2026-10-26 20:22:50 (this PC's clock), host 192.168.123.47
+# Read-only commands; no credentials are stored or printed.
+
+ 20:22:49 up  3:38,  2 users,  load average: 0.21, 0.29, 0.27
+
+active
+active
+active
+
+ollama version is 0.40.11
+
+open-webui | ghcr.io/open-webui/open-webui:main | Up 3 hours (healthy)
+
+0, Tesla V100-PCIE-16GB, 7.0, 16384 MiB, 449 MiB
+1, NVIDIA GeForce RTX 3060, 8.6, 12288 MiB, 93 MiB
+
+               total        used        free      shared  buff/cache   available
+Mem:            45Gi       6.6Gi        35Gi        27Mi       4.0Gi        39Gi
+Swap:          8.0Gi       3.7Gi       4.3Gi
+
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda2       452G  381G   50G  89% /
+/dev/sdb2       818G  622G  155G  81% /mnt/bigdata
+
+venv torch 2.12.1+cu126 ['sm_50', 'sm_60', 'sm_70', 'sm_75', 'sm_80', 'sm_86', 'sm_90']
+
+v0.42.5
+483dae43
+
+964M	/mnt/bigdata/video-tool/backups
+117G	/mnt/bigdata/video-tool/comfyui
+8.0G	/mnt/bigdata/video-tool/comfy-venv
+208K	/mnt/bigdata/video-tool/logs
+2.3G	/mnt/bigdata/video-tool/pip-cache
+
+ComfyUI-AnimateDiff-Evolved-empty-shell
+comfy-venv-freeze-before.txt
+ollama-systemd-before.tgz
+open-webui-data-before.tgz
+open-webui.env
+
+10-video-tool.conf
+override.conf
+
+(failed units above: none expected)
+
+
+ComfyUI API: 0.42.5 torch 2.12.1+cu126 cuda:0 Tesla V100-PCIE-16GB : cudaMallocAsync
+{"version":"0.40.11"}
+{"version":"0.12.4","deployment_id":""}

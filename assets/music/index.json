@@ -1,0 +1,52 @@
+[
+  {
+    "id": "calm-01",
+    "title": "Soft Morning",
+    "mood": "calm",
+    "bpm": 72,
+    "seconds": 53.3,
+    "loop": true,
+    "file": "calm-01.mp3",
+    "license": "CC0 1.0 (synthesised for this project)"
+  },
+  {
+    "id": "upbeat-01",
+    "title": "Quick Start",
+    "mood": "upbeat",
+    "bpm": 112,
+    "seconds": 34.3,
+    "loop": true,
+    "file": "upbeat-01.mp3",
+    "license": "CC0 1.0 (synthesised for this project)"
+  },
+  {
+    "id": "lofi-01",
+    "title": "Late Notes",
+    "mood": "lofi",
+    "bpm": 80,
+    "seconds": 48.0,
+    "loop": true,
+    "file": "lofi-01.mp3",
+    "license": "CC0 1.0 (synthesised for this project)"
+  },
+  {
+    "id": "corporate-01",
+    "title": "Clear Plan",
+    "mood": "corporate",
+    "bpm": 100,
+    "seconds": 38.4,
+    "loop": true,
+    "file": "corporate-01.mp3",
+    "license": "CC0 1.0 (synthesised for this project)"
+  },
+  {
+    "id": "tense-01",
+    "title": "Open Question",
+    "mood": "tense",
+    "bpm": 90,
+    "seconds": 42.7,
+    "loop": true,
+    "file": "tense-01.mp3",
+    "license": "CC0 1.0 (synthesised for this project)"
+  }
+]

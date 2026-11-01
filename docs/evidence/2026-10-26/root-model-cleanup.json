@@ -1,0 +1,92 @@
+{
+  "at": "2026-10-26T16:13:22.108676+00:00",
+  "old_root": "/home/roy/ComfyUI_windows_portable_nvidia/ComfyUI_windows_portable/ComfyUI/models",
+  "new_root": "/mnt/bigdata/video-tool/comfyui/models",
+  "files": [
+    {
+      "path": "checkpoints/ltx-2.3-22b-distilled-fp8.safetensors",
+      "size": 29531884062
+    },
+    {
+      "path": "diffusion_models/acestep_v1.5_turbo.safetensors",
+      "size": 4787825604
+    },
+    {
+      "path": "diffusion_models/wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors",
+      "size": 14294742832
+    },
+    {
+      "path": "diffusion_models/wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors",
+      "size": 14294742832
+    },
+    {
+      "path": "diffusion_models/z_image_turbo_bf16.safetensors",
+      "size": 12309866400
+    },
+    {
+      "path": "latent_upscale_models/ltx-2-spatial-upscaler-x2-1.0.safetensors",
+      "size": 995765578
+    },
+    {
+      "path": "latent_upscale_models/ltx-2.3-spatial-upscaler-x2-1.1.safetensors",
+      "size": 995743560
+    },
+    {
+      "path": "loras/ltx-2.3-22b-distilled-lora-384.safetensors",
+      "size": 7605507256
+    },
+    {
+      "path": "loras/ltx-2.3-id-lora-talkvid-3k.safetensors",
+      "size": 1157884304
+    },
+    {
+      "path": "loras/wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors",
+      "size": 1226977424
+    },
+    {
+      "path": "loras/wan2.2_i2v_lightx2v_4steps_lora_v1_low_noise.safetensors",
+      "size": 1226977424
+    },
+    {
+      "path": "text_encoders/gemma_3_12B_it_fp4_mixed.safetensors",
+      "size": 9447702218
+    },
+    {
+      "path": "text_encoders/qwen_0.6b_ace15.safetensors",
+      "size": 1191588248
+    },
+    {
+      "path": "text_encoders/qwen_3_4b.safetensors",
+      "size": 8044982048
+    },
+    {
+      "path": "text_encoders/qwen_4b_ace15.safetensors",
+      "size": 8379154232
+    },
+    {
+      "path": "text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+      "size": 6735906897
+    },
+    {
+      "path": "vae/ace_1.5_vae.safetensors",
+      "size": 337431732
+    },
+    {
+      "path": "vae/ae.safetensors",
+      "size": 335304388
+    },
+    {
+      "path": "vae/wan2.2_vae.safetensors",
+      "size": 1409400960
+    },
+    {
+      "path": "vae/wan_2.1_vae.safetensors",
+      "size": 253815318
+    }
+  ],
+  "bytes_listed": 124563203317,
+  "root_free_before": 53085773824,
+  "root_free_after": 177649098752,
+  "service_comfyui_version": "0.42.5",
+  "service_pytorch_version": "2.12.1+cu126"
+}

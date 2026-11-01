@@ -1,0 +1,10 @@
+import { chromium } from "playwright-core";
+import { base, chromePath } from "./common.mjs";
+const b = await chromium.launch({ executablePath: chromePath() });
+const ctx = await b.newContext({ viewport: { width: 1440, height: 900 } });
+await ctx.addInitScript(() => localStorage.setItem("vt-lang", "bn"));
+const page = await ctx.newPage();
+await page.goto(base + "/p/reference", { waitUntil: "networkidle" });
+await page.waitForTimeout(800);
+await page.screenshot({ path: "e2e/out/ui/editor-bn.png" });
+await b.close();

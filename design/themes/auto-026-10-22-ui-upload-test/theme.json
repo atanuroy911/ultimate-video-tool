@@ -1,0 +1,76 @@
+{
+  "name": "auto-026-10-22-ui-upload-test",
+  "label": "Calm waves · Sunset",
+  "color": {
+    "bg": "#1d1030",
+    "bg2": "#6a1f4b",
+    "ink": "#fff1f5",
+    "muted": "#998c9c",
+    "accent": "#ff6b6b",
+    "accent2": "#ffd93d",
+    "card": "#2c1a45",
+    "card_border": "#fff1f5",
+    "caption_bg": "#2c1a45",
+    "caption_ink": "#fff1f5",
+    "highlight_bg": "#ff6b6b",
+    "highlight_ink": "#111111",
+    "tag_bg": "#ffd93d",
+    "tag_ink": "#111111",
+    "arc": "rgba(255,241,245,0.12)"
+  },
+  "font": {
+    "headline": [
+      "Inter",
+      "Noto Sans Bengali"
+    ],
+    "body": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "numeral": [
+      "Inter",
+      "Noto Sans Bengali"
+    ],
+    "caption": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "headline_weight": 700
+  },
+  "shape": {
+    "radius": 36.0,
+    "stroke": 0.0,
+    "shadow": {
+      "x": 0.0,
+      "y": 10.0,
+      "color": "rgba(0,0,0,0.55)",
+      "blur": 30.0
+    },
+    "card_tilt": 0.0
+  },
+  "background": {
+    "kind": "waves",
+    "grain": 0.0,
+    "arcs": false,
+    "pattern": 0.4,
+    "animated": true
+  },
+  "motion": {
+    "preset": "smooth"
+  },
+  "caption": {
+    "style": "pill",
+    "reveal": "line",
+    "weight": 700,
+    "size": 58,
+    "words_per_line": 6,
+    "safe_bottom": {
+      "portrait": 300,
+      "landscape": 64
+    }
+  },
+  "currency": "৳",
+  "sfx": "pop",
+  "style": "calm",
+  "palette": "sunset"
+}

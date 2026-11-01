@@ -1,0 +1,99 @@
+{
+ "passed": false,
+ "verdicts": [
+  {
+   "judge": "first_frame",
+   "passed": true,
+   "value": {
+    "detail": 32.2,
+    "first_word_s": 0.02
+   },
+   "limit": {
+    "detail_min": 6.0,
+    "first_word_max_s": 0.3
+   },
+   "says": "The first frame has a picture and the first word comes at 0.02 s.",
+   "where": []
+  },
+  {
+   "judge": "nothing_still",
+   "passed": true,
+   "value": 1.0,
+   "limit": 3.0,
+   "says": "The longest stretch with nothing new is 1.0 s (at 4.8 s).",
+   "where": []
+  },
+  {
+   "judge": "no_glitches",
+   "passed": true,
+   "value": 0,
+   "limit": 0,
+   "says": "No blank or colour-washed frame.",
+   "where": []
+  },
+  {
+   "judge": "duration",
+   "passed": false,
+   "value": 16.33,
+   "limit": 28,
+   "says": "The video is 16.3 s; the target was 28 s (42 % off, allowed 30 %).",
+   "where": []
+  },
+  {
+   "judge": "loudness",
+   "passed": true,
+   "value": {
+    "lufs": -13.7,
+    "true_peak": -2.2
+   },
+   "limit": {
+    "lufs": [
+     -16.0,
+     -12.0
+    ],
+    "true_peak_max": -1.0
+   },
+   "says": "Loudness -13.7 LUFS, true peak -2.2 dBTP is in range.",
+   "where": []
+  },
+  {
+   "judge": "change_on_word",
+   "passed": true,
+   "value": 1.0,
+   "limit": 0.75,
+   "says": "100 % of the 21 picture changes land on a spoken word (aim for 75 %).",
+   "where": []
+  },
+  {
+   "judge": "pictures_per_words",
+   "passed": false,
+   "value": 0.62,
+   "limit": {
+    "range": [
+     5,
+     12
+    ],
+    "share": 0.85
+   },
+   "says": "62 % of the 8 pictures carry 5 to 12 words.",
+   "where": [
+    0,
+    4,
+    6
+   ]
+  },
+  {
+   "judge": "same_design",
+   "passed": true,
+   "value": 0,
+   "limit": 0,
+   "says": "All 8 scenes use the same picture design.",
+   "where": []
+  }
+ ],
+ "failed": [
+  "duration",
+  "pictures_per_words"
+ ],
+ "skipped": []
+}

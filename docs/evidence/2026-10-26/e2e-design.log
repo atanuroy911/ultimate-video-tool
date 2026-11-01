@@ -1,0 +1,31 @@
+$ node e2e/design.mjs
+# cwd C:\Users\atanu\Desktop\Video Tool\studio
+# started 2026-10-26 20:42:10
+
+Design Studio
+  ok   navigation says Design Studio
+  ok   10 looks and 18 palettes are offered
+  ok   choosing Neon glow shows a moving aurora live
+  ok   choosing a palette recolours it
+  ok   Surprise me changes the look
+  ok   Undo returns to the previous look
+  ok   a dotted pattern background renders
+  ok   saved with its style and palette recorded
+Type a script
+  ok   the Make button waits for a script
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+locator.isDisabled: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for getByRole('button', { name: /Make my video/i })[22m
+
+    at C:\Users\atanu\Desktop\Video Tool\studio\e2e\design.mjs:66:98 {
+  log: [ "  - waiting for getByRole('button', { name: /Make my video/i })" ],
+  name: 'TimeoutError'
+}
+
+Node.js v22.20.0
+
+# exit 1 in 45 s

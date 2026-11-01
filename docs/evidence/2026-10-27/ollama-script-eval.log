@@ -1,0 +1,47 @@
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|██████████| 199/199 [00:00<00:00, 2320.73it/s]
+edu-gravity          valid:1.00/1.00 coverage:1.00/1.00 no_idle_gap:1.00/1.00 number_fidelity:1.00/1.00 variety:1.00/0.58 fit:1.00/1.00  wins=True
+edu-water            valid:1.00/1.00 coverage:1.00/1.00 no_idle_gap:1.00/1.00 number_fidelity:1.00/1.00 variety:0.88/0.92 fit:0.00/0.00  wins=False
+edu-money            valid:1.00/1.00 coverage:1.00/1.00 no_idle_gap:1.00/1.00 number_fidelity:1.00/1.00 variety:1.00/0.92 fit:1.00/1.00  wins=True
+story-wallet         valid:1.00/1.00 coverage:1.00/1.00 no_idle_gap:1.00/1.00 number_fidelity:1.00/1.00 variety:1.00/1.00 fit:1.00/0.00  wins=True
+story-fox            valid:1.00/1.00 coverage:1.00/1.00 no_idle_gap:1.00/1.00 number_fidelity:1.00/1.00 variety:0.88/0.75 fit:1.00/1.00  wins=True
+product-app          valid:1.00/1.00 coverage:1.00/1.00 no_idle_gap:1.00/1.00 number_fidelity:1.00/1.00 variety:0.75/0.75 fit:1.00/1.00  wins=False
+product-bike         valid:1.00/1.00 coverage:1.00/1.00 no_idle_gap:1.00/1.00 number_fidelity:1.00/1.00 variety:1.00/1.00 fit:0.50/1.00  wins=False
+discussion-remote    valid:1.00/1.00 coverage:1.00/1.00 no_idle_gap:1.00/1.00 number_fidelity:1.00/1.00 variety:0.67/0.67 fit:1.00/1.00  wins=False
+bn-yield             valid:1.00/1.00 coverage:1.00/1.00 no_idle_gap:1.00/1.00 number_fidelity:1.00/1.00 variety:0.96/0.90 fit:1.00/0.00  wins=True
+bn-story             valid:1.00/1.00 coverage:1.00/1.00 no_idle_gap:1.00/1.00 number_fidelity:1.00/1.00 variety:0.75/0.75 fit:1.00/1.00  wins=False
+F
+================================== FAILURES ===================================
+_________________________ test_real_model_beats_rules _________________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001E6D016D590>
+
+    @pytest.mark.skipif(os.environ.get("VT_EVAL_MODEL") != "1", reason="set VT_EVAL_MODEL=1 to run the real model")
+    def test_real_model_beats_rules(monkeypatch):
+        from vt import llm
+    
+        monkeypatch.setattr(llm, "settings", lambda: {"llm_mode": "auto", "ollama_url": os.environ.get("VT_OLLAMA", "http://192.168.123.47:11434"),
+                                                      "ollama_model": os.environ.get("VT_OLLAMA_MODEL", ""), "llm_auto_download": False})
+        if not llm.reachable():
+            pytest.skip("no Ollama server reachable")
+        wins = 0
+        for name, texts in SETS.items():
+            tr, beats = EX.make(texts)
+            lang = "bn" if name.startswith("bn") else "en"
+            sf = plan_rules(tr, beats, "paper", language=lang)
+            r = score(rules_script(tr, beats, sf, kind="stick"), tr, beats)
+            try:
+                a = score(ai_script(tr, beats, kind="stick", language=lang, draft=sf), tr, beats)
+            except ai.AIUnavailable as e:
+                print(f"{name:20s} AI failed: {str(e)[:200]}".encode("ascii", "replace").decode())
+                continue
+            cmp = compare(a, r)
+            wins += cmp["wins"]
+            print(f"{name:20s} " + " ".join(f"{m}:{a[m]:.2f}/{r[m]:.2f}" for m in METRICS) + f"  wins={cmp['wins']}")
+>       assert wins >= len(SETS) * 0.6
+E       AssertionError: assert 5 >= (10 * 0.6)
+E        +  where 10 = len({'edu-gravity': ['Hello everyone today we learn about gravity', 'Gravity is the pull between two masses', 'Drop a ball...t', 'He wondered what to do', 'Then he ran to the shop to return it', 'The owner was very happy and thanked him'], ...})
+
+tests\script_eval\test_eval.py:56: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/script_eval/test_eval.py::test_real_model_beats_rules - Assertio...

@@ -1,0 +1,12 @@
+Quality checks
+  ok   the card is there
+  ok   nothing is claimed before a video exists
+  ok   the ten questions are listed
+  ok   the answers are saved on the project
+  ok   they come back when it is opened again
+  ok   the caption looks are offered
+  ok   choosing one is saved on the project
+  ok   and shown as chosen
+  ok   music and sounds are in the Media tool
+  ok   no page errors
+10 passed, 0 failed

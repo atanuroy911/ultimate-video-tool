@@ -1,0 +1,3 @@
+settings :: HTTP 422 PUT :: /api/setup
+settings :: HTTP 409 POST :: /api/mcp/connect-codex
+review :: HTTP 409 GET :: /api/projects/reference/hook?ai=false

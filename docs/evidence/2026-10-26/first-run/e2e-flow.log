@@ -1,0 +1,7 @@
+$ node e2e/flow.mjs C:\Users\atanu\Desktop\Video Tool\docs\evidence\2026-10-26\shots
+# cwd C:\Users\atanu\Desktop\Video Tool\studio
+# started 2026-10-26 20:37:56
+
+{"questions":["What are we working with?","Pick a style.","Where will it be posted?","Choose a look.","Music and captions?","Who reads your script?","Ready."],"ready":true,"mode":null,"bangla":"কী দিয়ে বানাব?","overflow":false,"errors":[]}
+
+# exit 0 in 5 s

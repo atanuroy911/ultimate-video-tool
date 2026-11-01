@@ -1,0 +1,114 @@
+/* The everyday editor: a left tool rail, a panel, the preview, the selection's few controls, and a three-track timeline.
+   Uses the app's tokens, so it follows light and dark. */
+.ce { display: grid; height: calc(100vh - 52px); min-height: 560px; background: var(--bg);
+  grid-template-columns: 76px 300px minmax(300px, 1fr) 300px; grid-template-rows: 52px minmax(0, 1fr) 260px;
+  grid-template-areas: "top top top top" "rail panel stage props" "tl tl tl tl"; }
+.ce-top { grid-area: top; display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: 0.5px solid var(--border); background: var(--panel); }
+.ce-icon { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 10px; color: var(--text); }
+.ce-icon:hover { background: var(--fill); }
+.ce-title { width: min(360px, 34vw); font-size: 15px; font-weight: 600; background: transparent; border: 0; border-radius: 8px; padding: 6px 8px; color: var(--text); }
+.ce-title:hover, .ce-title:focus { background: var(--fill); outline: none; }
+
+.ce-rail { grid-area: rail; display: flex; flex-direction: column; gap: 4px; padding: 10px 6px; background: var(--panel); border-right: 0.5px solid var(--border); }
+.ce-rail button { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0; border: 0; border-radius: 12px; background: none; color: var(--muted); font-size: 12px; cursor: pointer; }
+.ce-rail button:hover { background: var(--fill); color: var(--text); }
+.ce-rail button.on { color: var(--accent-text); background: var(--accent-soft); }
+
+.ce-panel { grid-area: panel; overflow: auto; padding: 14px; background: var(--panel); border-right: 0.5px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+.ce-panel h2, .ce-props h2 { margin: 0; font-size: 17px; }
+.ce-panel h3, .ce-props h3 { margin: 12px 0 2px; font-size: 13px; color: var(--muted); font-weight: 600; }
+.ce-help { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.4; }
+.ce-scenes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ce-scenes button { display: flex; gap: 10px; align-items: center; width: 100%; padding: 6px; border: 1.5px solid transparent; border-radius: 12px; background: var(--panel-2); color: var(--text); text-align: left; cursor: pointer; }
+.ce-scenes button.on { border-color: var(--accent-text); background: var(--accent-soft); }
+.ce-thumb { flex: 0 0 44px; height: 64px; border-radius: 8px; overflow: hidden; background: var(--fill); display: grid; place-items: center; }
+.ce-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.ce-line { font-size: 13px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.ce-media { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.ce-media img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; }
+.ce-actions { display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
+.ce-words { display: flex; flex-wrap: wrap; gap: 6px; }
+.ce-words button { padding: 5px 9px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--panel-2); color: var(--text); font-size: 14px; cursor: pointer; }
+.ce-words button:hover { border-color: var(--accent); }
+.ce-words button.cut { opacity: 0.45; text-decoration: line-through; }
+.ce-words button.hl { background: #ffd60a; color: #1d1d1f; border-color: #ffd60a; font-weight: 700; }
+.ce-words input { padding: 5px 9px; border-radius: 999px; border: 1.5px solid var(--accent); background: var(--panel); color: var(--text); width: 120px; }
+
+.ce-stage { grid-area: stage; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--bg); padding: 10px; }
+.ce-stage .preview-stage { flex: 1 1 auto; min-height: 0; justify-content: center; }
+
+.ce-props { grid-area: props; overflow: auto; padding: 14px; background: var(--panel); border-left: 0.5px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+.ce-props-head { display: flex; justify-content: space-between; align-items: baseline; }
+.ce-quote { margin: 0; padding: 10px 12px; background: var(--panel-2); border-radius: 12px; font-size: 14px; line-height: 1.45; }
+.ce-layouts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.ce-layouts button { padding: 9px 8px; border: 1.5px solid var(--border-strong); border-radius: 10px; background: var(--panel-2); color: var(--text); font-size: 13px; cursor: pointer; }
+.ce-layouts button.on { border-color: var(--accent-text); background: var(--accent-soft); color: var(--accent-text); font-weight: 600; }
+.ce-select { width: 100%; padding: 9px 10px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--panel-2); color: var(--text); text-transform: capitalize; }
+.ce-props-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.ce-more { margin-top: auto; font-size: 13px; color: var(--accent); }
+
+/* timeline */
+.ce-timeline { grid-area: tl; min-height: 0; border-top: 0.5px solid var(--border); background: var(--panel); }
+.ce-tl { height: 100%; display: flex; flex-direction: column; }
+.ce-tools { display: flex; align-items: center; gap: 4px; padding: 6px 12px; border-bottom: 0.5px solid var(--border); }
+.ce-tool { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 0; border-radius: 9px; background: none; color: var(--text); font-size: 13px; cursor: pointer; }
+.ce-tool:hover:not(:disabled) { background: var(--fill); }
+.ce-tool:disabled { opacity: 0.35; cursor: default; }
+.ce-sep { width: 1px; height: 18px; background: var(--border-strong); margin: 0 6px; }
+.ce-clock { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; white-space: nowrap; }
+.ce-clock b { color: var(--text); }
+.ce-zoom { width: 110px !important; flex: 0 0 110px; }
+.ce-tracks { flex: 1; min-height: 0; display: flex; }
+.ce-gutter { flex: 0 0 56px; display: flex; flex-direction: column; border-right: 0.5px solid var(--border); }
+.ce-ruler-g { height: 24px; }
+.ce-g { height: 44px; display: grid; place-items: center; color: var(--muted); margin-top: 6px; }
+.ce-g.tall { height: 64px; }
+.ce-scroll { flex: 1; overflow-x: auto; overflow-y: hidden; }
+.ce-canvas { position: relative; height: 100%; min-width: 100%; }
+.ce-ruler { position: relative; height: 24px; border-bottom: 0.5px solid var(--border); cursor: pointer; }
+.ce-ruler span { position: absolute; top: 5px; padding-left: 4px; font-size: 11px; color: var(--muted); border-left: 1px solid var(--border-strong); height: 14px; line-height: 14px; font-variant-numeric: tabular-nums; }
+.ce-track { position: relative; height: 44px; margin-top: 6px; }
+.ce-track.tall { height: 64px; }
+.ce-clip { position: absolute; top: 0; height: 100%; padding: 0; border: 2px solid transparent; border-radius: 8px; overflow: hidden; background: var(--fill-2); cursor: pointer; display: flex; }
+.ce-clip { background-size: auto 100%; background-repeat: repeat-x; background-position: left center; }
+.ce-clip i { position: absolute; left: 4px; top: 3px; font-style: normal; font-size: 11px; font-weight: 700; padding: 0 5px; border-radius: 6px; background: rgb(0 0 0 / 0.55); color: #fff; }
+.ce-clip.sel { border-color: var(--accent); }
+.ce-chip { position: absolute; top: 4px; height: 36px; padding: 0 8px; border: 1.5px solid transparent; border-radius: 8px; background: var(--accent-soft); color: var(--text); font-size: 12px; text-align: left; overflow: hidden; cursor: pointer; }
+.ce-chip span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 33px; }
+.ce-chip.sel { border-color: var(--accent); }
+.ce-wave { display: block; color: var(--ok); }
+.ce-head { position: absolute; top: 0; bottom: 0; left: 0; width: 0; pointer-events: none; will-change: transform; }
+.ce-head i { position: absolute; left: -1px; top: 0; bottom: 0; width: 2px; background: var(--err); }
+.ce-head i::before { content: ""; position: absolute; top: 0; left: -5px; border: 6px solid transparent; border-top-color: var(--err); }
+
+@media (max-width: 1100px) {
+  .ce { grid-template-columns: 64px 240px minmax(240px, 1fr) 0; grid-template-areas: "top top top top" "rail panel stage stage" "tl tl tl tl"; }
+  .ce-props { display: none; }
+}
+@media (max-width: 760px) {
+  .ce { height: auto; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto auto auto 260px; grid-template-areas: "top" "stage" "props" "rail" "panel" "tl"; }
+  .ce > * { min-width: 0; }
+  .ce-top { flex-wrap: nowrap; padding: 8px 8px; height: auto; gap: 4px; }
+  .ce-top .grow { display: none; }
+  .ce-top .btn { padding-left: 10px; padding-right: 10px; flex: 0 0 auto; }
+  .ce-top .ce-title { flex: 1 1 0; width: auto; min-width: 0; }
+  .ce-top .ds-tip { display: none; }
+  .ce-top .btn:not(.primary) { font-size: 0; gap: 0; }   /* the Details button keeps its icon only */
+  .ce-top .seg { display: none; }
+  .ce-props { display: flex; border: 0; border-top: 0.5px solid var(--border); }
+  .ce-rail { flex-direction: row; justify-content: space-around; border-right: 0; border-top: 0.5px solid var(--border); padding: 4px; }
+  .ce-rail button { flex: 1; flex-direction: row; justify-content: center; gap: 6px; padding: 8px 0; }
+  .ce-stage { min-height: 440px; padding: 6px; }
+  .ce-panel { max-height: 300px; border-right: 0; }
+  .ce-clock { display: none; }
+  .ce-zoom { display: none; }
+}
+
+.ce-picture { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+.ce-tries { display: flex; gap: 6px; flex-wrap: wrap; }
+.ce-tries button, .ce-own { padding: 0; border: 2px solid var(--border-strong); border-radius: 10px; overflow: hidden; background: none; cursor: pointer; width: 48px; height: 72px; }
+.ce-tries button.on { border-color: var(--accent); }
+.ce-tries img, .ce-own img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.ce-edge { position: absolute; top: 4px; bottom: 4px; width: 12px; cursor: ew-resize; z-index: 5; border-radius: 6px; background: var(--accent); opacity: 0; transition: opacity .12s; touch-action: none; }
+.ce-track.tall:hover .ce-edge, .ce-edge:focus-visible, .ce-edge:active { opacity: .9; }

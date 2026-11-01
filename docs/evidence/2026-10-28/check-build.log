@@ -1,0 +1,50 @@
+
+> video-tool-studio@0.1.0 build
+> tsc --noEmit && vite build
+
+vite v8.3.5 building client environment for production...
+transforming...
+✓ 2004 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                               1.10 kB │ gzip:  0.48 kB
+dist/assets/EditorPage-Bnw55Mae.css           8.32 kB │ gzip:  2.15 kB
+dist/assets/index-B654O-II.css               67.55 kB │ gzip: 14.07 kB
+dist/assets/chevron-right-W7QNHRaA.js         0.17 kB │ gzip:  0.16 kB
+dist/assets/arrow-left-Dx60h2M7.js            0.20 kB │ gzip:  0.18 kB
+dist/assets/rotate-ccw-jI5ktHPA.js            0.24 kB │ gzip:  0.21 kB
+dist/assets/pause-DAH1aZtJ.js                 0.25 kB │ gzip:  0.19 kB
+dist/assets/upload-ChdFqqCN.js                0.27 kB │ gzip:  0.22 kB
+dist/assets/message-square-C2EO8UPe.js        0.27 kB │ gzip:  0.23 kB
+dist/assets/copy-DHvC33LY.js                  0.27 kB │ gzip:  0.23 kB
+dist/assets/video-BrsGdNL1.js                 0.28 kB │ gzip:  0.24 kB
+dist/assets/image-Cvz48GXw.js                 0.30 kB │ gzip:  0.24 kB
+dist/assets/refresh-cw-CX5GcRdl.js            0.36 kB │ gzip:  0.25 kB
+dist/assets/volume-x-DbDjM15v.js              0.39 kB │ gzip:  0.28 kB
+dist/assets/clapperboard-UXcAcm6e.js          0.40 kB │ gzip:  0.29 kB
+dist/assets/volume-2-BXBSfRFE.js              0.43 kB │ gzip:  0.30 kB
+dist/assets/dices-CFkFHm1I.js                 0.44 kB │ gzip:  0.29 kB
+dist/assets/scissors-B8JyEJq6.js              0.45 kB │ gzip:  0.29 kB
+dist/assets/sliders-horizontal-Bqul_4HB.js    0.46 kB │ gzip:  0.26 kB
+dist/assets/layers-ByLEp9Qd.js                0.48 kB │ gzip:  0.28 kB
+dist/assets/star-Cy1DEool.js                  0.51 kB │ gzip:  0.32 kB
+dist/assets/createLucideIcon-DKTHyrCE.js      3.08 kB │ gzip:  1.48 kB
+dist/assets/CatalogList-DEsVwfvc.js           3.26 kB │ gzip:  1.50 kB
+dist/assets/Progress-SPfSDLd-.js              4.38 kB │ gzip:  2.06 kB
+dist/assets/hooks-k5AUjNCR.js                 5.83 kB │ gzip:  2.51 kB
+dist/assets/SocialHub-CUbX_ikr.js             7.77 kB │ gzip:  2.26 kB
+dist/assets/DirectorLog-yyl26Um4.js           8.01 kB │ gzip:  3.14 kB
+dist/assets/Export-DDJhQFMd.js               13.71 kB │ gzip:  4.74 kB
+dist/assets/Result-OIRYcJ7e.js               18.63 kB │ gzip:  6.02 kB
+dist/assets/Themes-SQ06pCke.js               18.83 kB │ gzip:  5.97 kB
+dist/assets/ShortsExtractor-DAwqGQTd.js      19.62 kB │ gzip:  6.18 kB
+dist/assets/EditorPage-CPnGZxPh.js           25.56 kB │ gzip:  8.37 kB
+dist/assets/jsx-runtime-CY8G1uCt.js          35.41 kB │ gzip: 12.05 kB
+dist/assets/VideoInspector-CcuHEOQv.js       38.33 kB │ gzip: 12.26 kB
+dist/assets/Settings-qnjfpw-v.js             42.31 kB │ gzip: 11.95 kB
+dist/assets/New-CgqRG8EO.js                  45.49 kB │ gzip: 13.63 kB
+dist/assets/index-Dx6brV3n.js                75.43 kB │ gzip: 25.01 kB
+dist/assets/Review-Dg4wrtdV.js              128.93 kB │ gzip: 39.01 kB
+dist/assets/react-dom-BFiyBwzz.js           132.63 kB │ gzip: 43.04 kB
+
+✓ built in 1.04s

@@ -1,0 +1,131 @@
+"""Ask an AI (any provider) to write the Video Script; repair and validate it; fall back to the rule director."""
+from __future__ import annotations
+
+from typing import Callable, Optional
+
+from .. import ai
+from ..planner.catalogue import all_icon_names
+from ..schema import Beats, ScenesFile, Transcript
+from .compile import to_json_schema
+from .models import VideoScript
+from .prompt import build_prompt
+from .rules_stick import emoji_script, rules_script
+from .validate import repair_script, validate_script
+
+
+def ai_script(tr: Transcript, beats: Beats, *, kind: str = "stick", language: str = "en", aspect: str = "9:16", audience: str = "", tone: str = "",
+              draft: Optional[ScenesFile] = None, hint: str = "", media_ids: Optional[set[str]] = None, provider: Optional[ai.Provider] = None,
+              progress: Optional[Callable[[float, str], None]] = None) -> VideoScript:
+    """The AI's script, repaired. Raises ai.AIUnavailable when no valid script comes back (the caller then uses `rules_script`)."""
+    say = progress or (lambda f, m: None)
+    icons = all_icon_names()
+    schema = to_json_schema()
+    base = rules_script(tr, beats, draft, kind=kind, language=language, aspect=aspect).model_dump(by_alias=True, exclude_none=True) if draft else None
+    system, user = build_prompt(tr, beats, kind=kind, language=language, audience=audience, tone=tone, aspect=aspect, draft=base, hint=hint, schema=schema)
+    say(0.1, "Asking the AI to direct the video")
+    data = ai.complete_json(user, schema, system=system, provider=provider, max_tokens=8000, timeout=600, cache=True, retries=1,
+                            repair=lambda d: repair_script(d, tr, beats, kind),
+                            check=lambda d: validate_script(d, tr, beats, icons, media_ids))
+    script = VideoScript.model_validate(data)
+    script.kind = kind  # type: ignore[assignment]
+    if kind == "emoji" and draft is not None and any(not sc.overlays for sc in script.scenes):          # a scene the model left empty gets the rule director's emoji
+        from ..visuals.picker import pick_visuals
+
+        try:
+            fill = emoji_script(tr, beats, draft, pick_visuals(tr, beats, None), language=language, aspect=aspect)
+            by = {tuple(f.beats): f for f in fill.scenes}
+            for sc in script.scenes:
+                if not sc.overlays and tuple(sc.beats) in by:
+                    sc.overlays = by[tuple(sc.beats)].overlays
+        except Exception:
+            pass
+    who = (provider or ai.current_provider()).name
+    script.planner = "claude" if who in ("anthropic", "claude_cli") else "llm"
+    script = revise(script, tr, beats, system, schema, kind, icons, media_ids, provider, say)
+    say(1.0, "Script ready")
+    return script
+
+
+REVISE_ROUNDS = 2
+
+
+def revise(script: VideoScript, tr: Transcript, beats: Beats, system: str, schema: dict, kind: str, icons, media_ids, provider, say) -> VideoScript:
+    """The editor's notes go back to the director: the critic's scene-by-scene issues, at most REVISE_ROUNDS times, and a revision
+    is kept only when the critic likes it better. Any failure keeps the script we have (it is already valid)."""
+    import json
+
+    from .critic import review
+
+    best, rv = script, review(script, tr, beats)
+    for rnd in range(REVISE_ROUNDS):
+        if not rv["issues"]:
+            break
+        say(0.6 + 0.15 * rnd, f"Reviewing the cut: {len(rv['issues'])} note(s) for the director")
+        notes = "\n".join(f"- {i['scene']}: {i['problem']}. Fix: {i['fix']}." for i in rv["issues"][:12])
+        user = ("This is your Video Script:\n" + json.dumps(best.model_dump(by_alias=True, exclude_none=True), ensure_ascii=False)
+                + "\n\nAn experienced editor watched it and wrote these notes:\n" + notes
+                + "\n\nReturn the whole script as JSON with these notes fixed. Change only the scenes named in the notes; keep every beat, "
+                  "word id and the order of scenes exactly as they are. Do not invent facts that are not in the words.")
+        try:
+            data = ai.complete_json(user, schema, system=system, provider=provider, max_tokens=8000, timeout=600, cache=True, retries=1,
+                                    repair=lambda d: repair_script(d, tr, beats, kind),
+                                    check=lambda d: validate_script(d, tr, beats, icons, media_ids))
+            cand = VideoScript.model_validate(data)
+            cand.kind, cand.planner = best.kind, best.planner
+        except Exception:
+            break
+        rv2 = review(cand, tr, beats)
+        if rv2["score"] <= rv["score"]:
+            break
+        best, rv = cand, rv2
+    return best
+
+
+def plan_script(tr: Transcript, beats: Beats, *, draft: ScenesFile, use_ai: bool = True, **kw) -> tuple[VideoScript, str]:
+    """(script, how it was made): the AI's script when it works, otherwise the rule director's; either way the enricher then fills
+    any still stretch the critic finds (vt/script/critic.py)."""
+    from .critic import enrich
+
+    cartoon = kw.get("kind") == "cartoon"
+    if cartoon:                                                  # the cartoon style is directed like the stick style, then drawn with illustrated characters
+        kw["kind"] = "stick"
+    script, how = _plan_script(tr, beats, draft=draft, use_ai=use_ai, **kw)
+    script, n = enrich(script, tr, beats)
+    from .animals import animalize
+
+    script, _ = animalize(script)                                # an animal is never played by a person
+    if cartoon:
+        from ..art.toon import toonify
+
+        script = toonify(script)
+    return script, (f"{how} + {n} added" if n else how)
+
+
+def _plan_script(tr: Transcript, beats: Beats, *, draft: ScenesFile, use_ai: bool = True, **kw) -> tuple[VideoScript, str]:
+    ctx_kw = {k: kw.pop(k) for k in ("ctx",) if k in kw}
+    if use_ai:
+        try:
+            return ai_script(tr, beats, draft=draft, **kw), "ai"
+        except ai.AIUnavailable as e:
+            why = str(e)
+    else:
+        why = "AI not used"
+    kw.update(ctx_kw)
+    if kw.get("kind") == "emoji":
+        from ..visuals.picker import pick_visuals
+
+        try:
+            picks = pick_visuals(tr, beats, None)
+        except Exception:
+            picks = {}
+        from .rules_stick import emoji_script
+
+        return emoji_script(tr, beats, draft, picks, language=kw.get("language", "en"), aspect=kw.get("aspect", "9:16")), f"rules ({why})"
+    kw.pop("media_ids", None)
+    kw.pop("hint", None)
+    kw.pop("provider", None)
+    kw.pop("progress", None)
+    kw.pop("audience", None)
+    kw.pop("tone", None)
+    ctx = kw.pop("ctx", None)
+    return rules_script(tr, beats, draft, kind=kw.get("kind", "stick"), language=kw.get("language", "en"), aspect=kw.get("aspect", "9:16"), ctx=ctx), f"rules ({why})"

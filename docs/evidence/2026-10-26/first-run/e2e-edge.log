@@ -1,0 +1,31 @@
+$ node e2e/edge.mjs
+# cwd C:\Users\atanu\Desktop\Video Tool\studio
+# started 2026-10-26 20:41:35
+
+Edge cases
+  ok   there is no Make button until a script is typed
+  ok   a script of only spaces is not enough
+  ok   a link to this computer is refused by the server (400)
+  ok   a non-web link is refused (400)
+  ok   an empty script is refused by the server (400)
+  ok   a script over the limit is refused (400)
+  ok   an unknown drawing style is refused (400)
+  ok   an unknown project is a 404
+  ok   a path-like project id is refused
+  ok   an unknown shape in export is refused (400)
+  ok   an unknown quality is refused (400)
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+page.evaluate: TypeError: Cannot read properties of undefined (reading 'click')
+    at eval (eval at evaluate (:370:30), <anonymous>:1:112)
+    at UtilityScript.evaluate (<anonymous>:372:16)
+    at UtilityScript.<anonymous> (<anonymous>:1:44)
+    at C:\Users\atanu\Desktop\Video Tool\studio\e2e\edge.mjs:52:12 {
+  log: []
+}
+
+Node.js v22.20.0
+
+# exit 1 in 4 s

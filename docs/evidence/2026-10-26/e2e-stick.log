@@ -1,0 +1,19 @@
+$ node e2e/stick.mjs
+# cwd C:\Users\atanu\Desktop\Video Tool\studio
+# started 2026-10-26 20:37:32
+
+Stick figures in the editor
+  ok   the plan has stick-figure scenes
+  ok   the timeline has an Actions lane with chips
+  FAIL stick actions are listed in the inspector 
+  ok   changing the accessory is saved for the character
+  ok   the composition carries the new look
+  ok   undo restores the look
+  ok   dragging an action chip re-timed it to a later word
+  ok   undo puts the action back
+  ok   deleting an action from the list works
+
+8 passed, 1 failed
+ERRORS: none
+
+# exit 1 in 12 s

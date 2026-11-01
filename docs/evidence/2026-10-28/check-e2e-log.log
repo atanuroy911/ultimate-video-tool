@@ -1,0 +1,17 @@
+Director log
+  ok   the log is hidden until asked
+  ok   the button opens it
+  ok   it lists the recorded steps
+  ok   each row is a plain sentence
+  ok   a step that was told why shows it when opened
+  ok   secrets in the reason are removed
+  ok   search narrows the rows
+  ok   Decisions shows the steps that carry a reason
+  ok   technical output is off until switched on
+  ok   then it appears
+  ok   the download is a zip
+  ok   Escape closes it
+  ok   the L key opens it
+
+13 passed, 0 failed
+ERRORS: none

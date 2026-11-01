@@ -1,0 +1,76 @@
+{
+  "name": "auto-rich-people-get-richer-6",
+  "label": "Clean · Lavender",
+  "color": {
+    "bg": "#f3efff",
+    "bg2": "#dcd2ff",
+    "ink": "#241a4a",
+    "muted": "#817a9b",
+    "accent": "#7c4dff",
+    "accent2": "#ffcf4a",
+    "card": "#ffffff",
+    "card_border": "#241a4a",
+    "caption_bg": "#f3efff",
+    "caption_ink": "#241a4a",
+    "highlight_bg": "#7c4dff",
+    "highlight_ink": "#ffffff",
+    "tag_bg": "#ffcf4a",
+    "tag_ink": "#111111",
+    "arc": "rgba(36,26,74,0.09)"
+  },
+  "font": {
+    "headline": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "body": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "numeral": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "caption": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "headline_weight": 700
+  },
+  "shape": {
+    "radius": 18.0,
+    "stroke": 1.5,
+    "shadow": {
+      "x": 0.0,
+      "y": 0.0,
+      "color": "#241a4a",
+      "blur": 0.0
+    },
+    "card_tilt": 0.0
+  },
+  "background": {
+    "kind": "flat",
+    "grain": 0.0,
+    "arcs": false,
+    "pattern": 0.5,
+    "animated": false
+  },
+  "motion": {
+    "preset": "smooth"
+  },
+  "caption": {
+    "style": "underline",
+    "reveal": "line",
+    "weight": 700,
+    "size": 58,
+    "words_per_line": 6,
+    "safe_bottom": {
+      "portrait": 300,
+      "landscape": 64
+    }
+  },
+  "currency": "৳",
+  "sfx": "pop",
+  "style": "clean",
+  "palette": "lavender"
+}

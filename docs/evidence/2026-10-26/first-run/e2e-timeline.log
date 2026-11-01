@@ -1,0 +1,34 @@
+$ node e2e/timeline.mjs
+# cwd C:\Users\atanu\Desktop\Video Tool\studio
+# started 2026-10-26 20:38:36
+
+Timeline
+  ok   the voice is drawn as clips with a waveform
+  ok   ctrl+wheel zooms in smoothly
+  ok   the moment under the pointer stays under the pointer
+  ok   Fit brings the whole video back
+  ok   the playhead glides while playing
+  ok   dragging on the voice selects a range
+  ok   Delete cuts the range out and the gap closes
+  ok   a cut marker appears
+  FAIL scenes survive the cut 3
+  ok   clicking the cut marker brings the audio back
+  ok   undo goes back through voice edits
+  ok   and again to the original
+  ok   redo brings the cut back
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+locator.boundingBox: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for locator('.tl-aclip').nth(2)[22m
+
+    at C:\Users\atanu\Desktop\Video Tool\studio\e2e\timeline.mjs:92:23 {
+  log: [ "  - waiting for locator('.tl-aclip').nth(2)" ],
+  name: 'TimeoutError'
+}
+
+Node.js v22.20.0
+
+# exit 1 in 48 s

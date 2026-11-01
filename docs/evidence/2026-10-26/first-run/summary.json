@@ -1,0 +1,184 @@
+[
+ {
+  "suite": "pytest-fast",
+  "exit": 0,
+  "seconds": 451.18098998069763,
+  "log": "docs/evidence/2026-10-26/fast.log",
+  "tail": "........................................................................ [ 74%]\n........................................................................ [ 83%]\n........................................................................ [ 93%]\n.....................................................                    [100%]\n\n# exit 0 in 451 s"
+ },
+ {
+  "suite": "pytest-slow",
+  "exit": 0,
+  "seconds": 658.2199904918671,
+  "log": "docs/evidence/2026-10-26/slow.log",
+  "tail": "# cwd C:\\Users\\atanu\\Desktop\\Video Tool\n# started 2026-10-26 20:25:48\n\n.................................................................        [100%]\n\n# exit 0 in 658 s"
+ },
+ {
+  "suite": "e2e-editor",
+  "exit": 1,
+  "seconds": 22.96539306640625,
+  "log": "docs/evidence/2026-10-26/e2e-editor.log",
+  "tail": "  ok   Settings shows the AI provider and assistants\n\n23 passed, 1 failed\nERRORS: none\n\n# exit 1 in 23 s"
+ },
+ {
+  "suite": "e2e-stick",
+  "exit": 1,
+  "seconds": 12.295020818710327,
+  "log": "docs/evidence/2026-10-26/e2e-stick.log",
+  "tail": "  ok   deleting an action from the list works\n\n8 passed, 1 failed\nERRORS: none\n\n# exit 1 in 12 s"
+ },
+ {
+  "suite": "e2e-dashboard",
+  "exit": 1,
+  "seconds": 8.117842674255371,
+  "log": "docs/evidence/2026-10-26/e2e-dashboard.log",
+  "tail": "  ok   the n key starts a new video\n\n8 passed, 2 failed\nERRORS: none\n\n# exit 1 in 8 s"
+ },
+ {
+  "suite": "e2e-menus",
+  "exit": 0,
+  "seconds": 3.4757609367370605,
+  "log": "docs/evidence/2026-10-26/e2e-menus.log",
+  "tail": "PASS 1280px card 3: the whole menu is visible \nPASS 390px card 1: the whole menu is visible \nPASS 390px card 3: the whole menu is visible \nall passed\n\n# exit 0 in 3 s"
+ },
+ {
+  "suite": "e2e-flow",
+  "exit": 0,
+  "seconds": 4.689058065414429,
+  "log": "docs/evidence/2026-10-26/e2e-flow.log",
+  "tail": "# cwd C:\\Users\\atanu\\Desktop\\Video Tool\\studio\n# started 2026-10-26 20:37:56\n\n{\"questions\":[\"What are we working with?\",\"Pick a style.\",\"Where will it be posted?\",\"Choose a look.\",\"Music and captions?\",\"Who reads your script?\",\"Ready.\"],\"ready\":true,\"mode\":null,\"bangla\":\"কী দিয়ে বানাব?\",\"overflow\":false,\"errors\":[]}\n\n# exit 0 in 5 s"
+ },
+ {
+  "suite": "e2e-comfy",
+  "exit": 0,
+  "seconds": 35.97129273414612,
+  "log": "docs/evidence/2026-10-26/e2e-comfy.log",
+  "tail": "PASS the request carries the subject point the person clicked \nPASS and the picture, words, engine, shape and length \nPASS no page errors \nall passed\n\n# exit 0 in 36 s"
+ },
+ {
+  "suite": "e2e-timeline",
+  "exit": 1,
+  "seconds": 47.845762491226196,
+  "log": "docs/evidence/2026-10-26/e2e-timeline.log",
+  "tail": "  name: 'TimeoutError'\n}\n\nNode.js v22.20.0\n\n# exit 1 in 48 s"
+ },
+ {
+  "suite": "e2e-timeline2",
+  "exit": 0,
+  "seconds": 8.456324100494385,
+  "log": "docs/evidence/2026-10-26/e2e-timeline2.log",
+  "tail": "  ok   and the final clip matches what was dropped\n\n7 passed, 0 failed\nERRORS: none\n\n# exit 0 in 8 s"
+ },
+ {
+  "suite": "e2e-timeline3",
+  "exit": 0,
+  "seconds": 11.554884433746338,
+  "log": "docs/evidence/2026-10-26/e2e-timeline3.log",
+  "tail": "  ok   and undo brings it back\n\n13 passed, 0 failed\nERRORS: none\n\n# exit 0 in 12 s"
+ },
+ {
+  "suite": "e2e-layers",
+  "exit": 0,
+  "seconds": 34.64332699775696,
+  "log": "docs/evidence/2026-10-26/e2e-layers.log",
+  "tail": "  ok   deleting a track removes its clips\n\n20 passed, 0 failed\nERRORS: none\n\n# exit 0 in 35 s"
+ },
+ {
+  "suite": "e2e-layers_media",
+  "exit": 0,
+  "seconds": 18.59056782722473,
+  "log": "docs/evidence/2026-10-26/e2e-layers_media.log",
+  "tail": "  ok   a sound that is used cannot be removed\n\n11 passed, 0 failed\nERRORS: none\n\n# exit 0 in 19 s"
+ },
+ {
+  "suite": "e2e-script",
+  "exit": 0,
+  "seconds": 15.092871189117432,
+  "log": "docs/evidence/2026-10-26/e2e-script.log",
+  "tail": "  ok   clicking the time jumps the preview there\n\n11 passed, 0 failed\nERRORS: none\n\n# exit 0 in 15 s"
+ },
+ {
+  "suite": "e2e-scroll",
+  "exit": 0,
+  "seconds": 20.954007625579834,
+  "log": "docs/evidence/2026-10-26/e2e-scroll.log",
+  "tail": "  ok   manual scroll shows the Follow playback pill\n  ok   playing again resumes following (the pill goes away)\n\n8 passed, 0 failed\n\n# exit 0 in 21 s"
+ },
+ {
+  "suite": "e2e-sounds",
+  "exit": 0,
+  "seconds": 14.266742706298828,
+  "log": "docs/evidence/2026-10-26/e2e-sounds.log",
+  "tail": "  ok   and the result is stored\n\n5 passed, 0 failed\nERRORS: none\n\n# exit 0 in 14 s"
+ },
+ {
+  "suite": "e2e-context",
+  "exit": 0,
+  "seconds": 6.874881267547607,
+  "log": "docs/evidence/2026-10-26/e2e-context.log",
+  "tail": "  ok   the panel says the words changed\n\n5 passed, 0 failed\nERRORS: none\n\n# exit 0 in 7 s"
+ },
+ {
+  "suite": "e2e-edge",
+  "exit": 1,
+  "seconds": 3.5875866413116455,
+  "log": "docs/evidence/2026-10-26/e2e-edge.log",
+  "tail": "  log: []\n}\n\nNode.js v22.20.0\n\n# exit 1 in 4 s"
+ },
+ {
+  "suite": "e2e-link",
+  "exit": 1,
+  "seconds": 32.00104308128357,
+  "log": "docs/evidence/2026-10-26/e2e-link.log",
+  "tail": "  name: 'TimeoutError'\n}\n\nNode.js v22.20.0\n\n# exit 1 in 32 s"
+ },
+ {
+  "suite": "e2e-design",
+  "exit": 1,
+  "seconds": 44.89622402191162,
+  "log": "docs/evidence/2026-10-26/e2e-design.log",
+  "tail": "  name: 'TimeoutError'\n}\n\nNode.js v22.20.0\n\n# exit 1 in 45 s"
+ },
+ {
+  "suite": "e2e-phase2",
+  "exit": 1,
+  "seconds": 32.479270935058594,
+  "log": "docs/evidence/2026-10-26/e2e-phase2.log",
+  "tail": "  name: 'TimeoutError'\n}\n\nNode.js v22.20.0\n\n# exit 1 in 32 s"
+ },
+ {
+  "suite": "e2e-busy",
+  "exit": 1,
+  "seconds": 33.05439281463623,
+  "log": "docs/evidence/2026-10-26/e2e-busy.log",
+  "tail": "  name: 'TimeoutError'\n}\n\nNode.js v22.20.0\n\n# exit 1 in 33 s"
+ },
+ {
+  "suite": "e2e-flows",
+  "exit": 1,
+  "seconds": 42.09846067428589,
+  "log": "docs/evidence/2026-10-26/e2e-flows.log",
+  "tail": "  name: 'TimeoutError'\n}\n\nNode.js v22.20.0\n\n# exit 1 in 42 s"
+ },
+ {
+  "suite": "e2e-contrast",
+  "exit": 0,
+  "seconds": 57.91418385505676,
+  "log": "docs/evidence/2026-10-26/e2e-contrast.log",
+  "tail": "  ok   auto-2026-10-24-video-11: all text is at least 3:1\n  ok   auto-2026-10-24-video-12: all text is at least 3:1\n\n14 passed, 0 failed\n\n# exit 0 in 58 s"
+ },
+ {
+  "suite": "e2e-crawl",
+  "exit": 124,
+  "seconds": 600.0342237949371,
+  "log": "docs/evidence/2026-10-26/e2e-crawl.log",
+  "tail": "  new-script: 12 controls found\n  new-link: 12 controls found\n\n# TIMED OUT after 600 s\n\n# exit 124 in 600 s"
+ },
+ {
+  "suite": "e2e-shorts_swipe",
+  "exit": 0,
+  "seconds": 1.9349126815795898,
+  "log": "docs/evidence/2026-10-26/e2e-shorts_swipe.log",
+  "tail": "# cwd C:\\Users\\atanu\\Desktop\\Video Tool\\studio\n# started 2026-10-26 20:55:41\n\nShorts upload, video preview, next/previous, and batch selection controls passed\n\n# exit 0 in 2 s"
+ }
+]

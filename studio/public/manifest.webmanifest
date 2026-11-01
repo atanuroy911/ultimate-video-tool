@@ -1,0 +1,19 @@
+{
+  "name": "Video Tool Studio",
+  "short_name": "Video Tool",
+  "description": "Turn a voice recording or a typed script into a faceless explainer video.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f5f5f7",
+  "theme_color": "#f26a1f",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "New video", "url": "/new" },
+    { "name": "Design Studio", "url": "/themes" }
+  ]
+}

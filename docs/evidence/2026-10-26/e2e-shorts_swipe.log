@@ -1,0 +1,7 @@
+$ node e2e/shorts_swipe.mjs
+# cwd C:\Users\atanu\Desktop\Video Tool\studio
+# started 2026-10-26 20:55:41
+
+Shorts upload, video preview, next/previous, and batch selection controls passed
+
+# exit 0 in 2 s

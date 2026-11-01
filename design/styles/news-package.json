@@ -1,0 +1,76 @@
+{
+ "slug": "news-package",
+ "name": "Broadcast News Package",
+ "category": "Edit & Documentary",
+ "uses": [
+  "News round-ups",
+  "Bulletins",
+  "Market updates"
+ ],
+ "summary": "A television newsroom's on-air package, built entirely in code: a sting that becomes the channel bug, a rundown of today's stories that opens and closes the bulletin, a lower-third strap that never leaves the bottom of the frame, and full-frame graphics (split-flap price boards, a line breaking a threshold, explainer maps, documents flying out of a city, quote cards, spec cards with proportion bars, stamps) that carry the facts. The style is the **package system plus its cutting rules**, not a drawing style. 16:9, a clean frame: no burned-in subtitles, no news crawl.",
+ "demo_film": "The Week in AI",
+ "demo_line": "Four AI stories from one week in a full on-air package: rundown, headline strap, price board, spec card.",
+ "essence": [],
+ "materials": [
+  "Wikimedia Commons: CC0, public domain or CC BY (credit author, title, licence on the end card and in `CREDITS`). Not used: CC BY-SA, \"no known restrictions\", unclear licences, YouTube re-uploads, colourised or \"restored\" versions.",
+  "U.S. federal agencies (NASA, NOAA, NARA, USGS…): public domain; check the page does not credit a contractor or third party.",
+  "Internet Archive: only items whose page states public domain, CC0 or CC BY; U.S. works published before 1931 are public domain.",
+  "Library of Congress / national archives: read each rights statement; \"no known restrictions\" is not enough.",
+  "Institutions' audiovisual services (for example the European Commission's): read their reuse terms per item; many require attribution and forbid implying endorsement.",
+  "Maps: Natural Earth (public domain), via `world-atlas` TopoJSON. Its default borders are not usable for China: DIRECTOR.md §13."
+ ],
+ "colour": [
+  "Role — Value — Use",
+  "ink — `#121417` — backgrounds, panels, strap end block",
+  "ink2 / ink3 — `#1B1E23` / `#22262C` — cards, land on maps",
+  "accent (lemon) — `#F2CF1D` (light `#F8DE4A`, dark `#D8B30C`) — plate, tabs, band wipe, bars, stamps, the line that breaks",
+  "gold — `#D4B064` — thresholds, datelines, source lines, light fins, badges",
+  "paper — `#F4F1E8` — strap, documents, the chart line",
+  "breaking — `#FE6B3D` — only for BREAKING and LIVE. A weekly round-up has neither, so it never appears"
+ ],
+ "type": [
+  "Chinese: Noto Sans SC 900 (headlines, strap) / 700 (labels).",
+  "Latin: Barlow Condensed 800 (numbers, names, the plate), 600 (secondary lines, quotes), 600 italic (the end-card English title).",
+  "Mono: IBM Plex Mono 500 for datelines, sources, axis labels, all caps with 1–4 px tracking.",
+  "All OFL, subset from Google Fonts by `demo/tools/fonts.sh` (the character list is read from `main.js`; delete `fonts/*.woff2` after a text change). No handwriting faces in this style.",
+  "Every label is bilingual on one line each (Chinese first, English smaller); never wrap."
+ ],
+ "motion": [],
+ "camera": [
+  "120 BPM grid, beat 0 at the end of the sting (1.5 s). Every cut and wipe on a beat or half-beat.",
+  "Shot lengths: sting 1.5 s; rundown 4–5 s; story shots 3–7 s; a map long take (6–12 s) as the bulletin's breath; a comparison stays until every item has been fully on screen ≥ 2.5 s.",
+  "A package action every 0.5–1 s inside a shot (flip, count, stamp, tick, strap change, map light, line step). No frame flat for more than 1 s; a strong action within 0.5 s of every cut.",
+  "Date every story: a weekly bulletin's items happen on different days; the date sits in the rundown row, the eyebrow line, the readout or the document.",
+  "The order inside an item: what (the name or the number) → how big (the line, the bars, the price board) → who it hits or who said it (bars, documents, a quote) → the verdict stamp."
+ ],
+ "sound": [
+  "Layer — What — Level",
+  "Anchor voice — one narrator, one sentence per graphic, starting 0.1 s after the cut; HP 90 Hz, 3:1 compression. Default: the library's Kokoro (`core/tts/tts.py`, free, Apache 2.0) in English or Chinese. The user's own recording, or another TTS they have a key for (for example Doubao, as in the demo), replaces it — never required — music ducked ≈ −7 dB and its 1.2–5 kHz band thinned under speech",
+  "News theme — 120 BPM, minor key: spiccato violins in root–fifth–octave eighths, pizzicato bass on the beat, horn pads, a low-passed 16th-note saw pulse, kick on 1 and 3, snare on 2 and 4 — full under the rundown and the first story",
+  "Section moods — markets: violins down an octave, tremolo, four-on-the-floor kick (heartbeat); policy: pizzicato and horns only",
+  "Signature hits — sting tutti; glockenspiel notes as the rundown rows land; timpani on hard cuts and story changes; one beat of silence before the biggest break, then the heaviest hit of the film; a held drone after the verdict stamp; a major-key lift for the last story; tutti on the end card",
+  "Foley — whoosh on wipes, flap clicks on split-flaps, stamp thump + clack, trading-room ticks under market charts, map clicks per lit country, a sonar ping on a city, paper and typewriter ticks on documents, click + glockenspiel on ticks",
+  "Room — server-room hum under a tech plate, soft air under maps — very low"
+ ],
+ "native_moves": [],
+ "pitfalls": [
+  "Package left behind. If the strap, source line or tags are drawn once on top of everything, a wipe changes the picture under yesterday's headline and the strap catches up 0.3–0.5 s later. Draw them per picture, inside the wipe's clip.",
+  "Leftover layout. Removing subtitles or a crawl without moving the content down leaves a dead band above the strap.",
+  "Masked type peeking in. A push-in title clipped by a mask shows its top edge before it moves if the travel distance doesn't clear the mask; start it fully below and don't draw at progress 0.",
+  "Words stronger than the source. \"Request for information\" is not \"investigation\" or \"penalty\"; write \"no fine, no case opened\" or \"for the first time\" only if a source says so — and check the institution's own pages, which can contradict a report (\"first requests\" may have gone out months earlier).",
+  "Thresholds depend on the reference. \"Bear market\" = −20 % from *which* high? Name the reference on the axis; from a different peak the claim can be false.",
+  "Attribute what only a report says. When the official source does not name the companies, the graphic carries \"据… 报道 / reported by …\" and so does the voice.",
+  "A schematic posing as data. Rolling counters on a close price flash values that never existed; set the close with a mask push instead. Don't label axes the data doesn't support.",
+  "Source lines under the strap. Right-aligned mono 13 px: ≤ 36 characters.",
+  "Stamps over key words. A stamp hit can mask the voice (\"fines\"); take the brass off the stamp and low-pass its clack.",
+  "Gold on paper has too little contrast: use ink or dark olive.",
+  "Generated plates carry stray corner marks: crop them in `prep.py`.",
+  "Short preview text. Rundown rows are previews of the stories; `readcheck` flags them as short in the opening — they return in the recap and as straps, so accept the flag or leave them out of `TEXTS`."
+ ],
+ "variation": [
+  "Three structures: rundown → items → rundown ticked (round-up); one lead package with a correspondent two-box and a short \"also today\" grid; a countdown of items (election-night, sports results).",
+  "Three openings: sting → rundown; cold open on the biggest graphic, then the sting; sting straight into the first story with the rundown as a recap only.",
+  "Three endings: rundown ticked → end card; a \"coming up next week\" teaser card; the last stamp freezing into the end card."
+ ],
+ "source": "lemo-opuscar styles/news-package/STYLE.md (MIT, LemoLab), github.com/lemomo-ai/lemo-opuscar"
+}

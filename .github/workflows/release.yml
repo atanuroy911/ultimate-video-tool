@@ -1,0 +1,173 @@
+# Builds every download from one tag:
+#   Video Tool          the app (client + the ability to set the engines up on the same computer): .exe, .dmg, .AppImage, .deb
+#   Video Tool Engine   the server for a GPU computer: one .zip / .tar.gz for Windows, Linux and macOS, and a Docker image on ghcr.io
+# Run it by pushing a tag like v1.2.0, or by hand from the Actions tab (a manual run builds everything but publishes nothing).
+# Nothing is code-signed (see README, "Installing"). The version in the tag is written into every file by scripts/set_version.py.
+name: Release
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to build, e.g. 1.2.0 (a manual run publishes nothing)"
+        required: true
+        default: "0.0.0-test"
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      publish: ${{ steps.v.outputs.publish }}
+    steps:
+      - id: v
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then v="${GITHUB_REF_NAME#v}"; p=true; else v="${{ inputs.version }}"; p=false; fi
+          echo "version=${v#v}" >> "$GITHUB_OUTPUT"
+          echo "publish=$p" >> "$GITHUB_OUTPUT"
+
+  app:
+    name: App installer (${{ matrix.os }})
+    needs: [ci, version]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - name: Version
+        shell: bash
+        run: python scripts/set_version.py "${{ needs.version.outputs.version }}"
+      - name: Generated assets (fonts, icons, texture, sounds)
+        shell: bash
+        run: |
+          pip install pillow numpy soundfile
+          cd renderer && npm install --no-audit --no-fund && node scripts/build-fonts.mjs && node scripts/build-icons.mjs && cd ..
+          python scripts/make_texture.py
+          python scripts/make_assets.py
+          python scripts/make_icons.py
+      - name: Studio
+        shell: bash
+        run: cd studio && npm ci --no-audit --no-fund && npm run build
+      - name: Installer
+        shell: bash
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: cd desktop && npm install --no-audit --no-fund && npx electron-builder --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-${{ matrix.os }}
+          path: |
+            desktop/dist/*.exe
+            desktop/dist/*.dmg
+            desktop/dist/*.AppImage
+            desktop/dist/*.deb
+          if-no-files-found: error
+
+  engine:
+    name: Engine package
+    needs: [ci, version]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: python scripts/set_version.py "${{ needs.version.outputs.version }}"
+      - run: python scripts/make_engine_package.py --out dist --version "${{ needs.version.outputs.version }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: engine-package
+          path: dist/*
+          if-no-files-found: error
+
+  engine-smoke:
+    name: Install the released package (${{ matrix.os }})
+    needs: engine
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: engine-package, path: pkg }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: Unpack
+        shell: bash
+        run: python -c "import glob,zipfile; zipfile.ZipFile(glob.glob('pkg/video-tool-engine-*.zip')[0]).extractall('unpacked')"
+      - name: Install and prove the engine answers (Linux)
+        if: runner.os == 'Linux'
+        run: bash unpacked/video-tool-engine/install-engine.sh --check --dir "$RUNNER_TEMP/engine"
+      - name: Install and prove the engine answers (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./unpacked/video-tool-engine/install-engine.ps1 -Check -Dir "$env:RUNNER_TEMP/engine"
+
+  engine-image:
+    name: Engine Docker image
+    needs: [engine, version]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: engine-package, path: pkg }
+      - name: Unpack as the build context
+        run: python3 -c "import glob,zipfile; zipfile.ZipFile(glob.glob('pkg/video-tool-engine-*.zip')[0]).extractall('ctx')"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        if: needs.version.outputs.publish == 'true'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        run: echo "image=ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/video-tool-engine" >> "$GITHUB_OUTPUT"
+      - uses: docker/build-push-action@v6
+        with:
+          context: ctx/video-tool-engine
+          platforms: linux/amd64
+          push: ${{ needs.version.outputs.publish == 'true' }}
+          tags: |
+            ${{ steps.meta.outputs.image }}:${{ needs.version.outputs.version }}
+            ${{ steps.meta.outputs.image }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  publish:
+    name: Publish the release
+    if: needs.version.outputs.publish == 'true'
+    needs: [version, app, engine, engine-smoke, engine-image]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { pattern: "app-*", path: out, merge-multiple: true }
+      - uses: actions/download-artifact@v4
+        with: { name: engine-package, path: out }
+      - name: Checksums
+        run: |
+          cd out
+          rm -f SHA256SUMS-engine.txt
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: out/*
+          generate_release_notes: true
+          body: |
+            **Video Tool** (the app): `.exe` for Windows, `.dmg` for macOS, `.AppImage` or `.deb` for Linux.
+            **Video Tool Engine** (the server for a GPU computer): `video-tool-engine-*.zip` or `.tar.gz`, or `docker pull ghcr.io/${{ github.repository_owner }}/video-tool-engine:${{ needs.version.outputs.version }}`.
+            Both halves on one computer: install the app, then Settings, Engines, "Run setup". The engine on another computer: unpack the package there, run its install script, then pair (README-ENGINE.txt).
+            Nothing is code-signed: Windows and macOS will warn on first open.

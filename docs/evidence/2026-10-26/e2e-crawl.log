@@ -1,0 +1,12 @@
+$ node e2e/crawl.mjs
+# cwd C:\Users\atanu\Desktop\Video Tool\studio
+# started 2026-10-26 20:45:41
+
+  projects: 35 controls found
+  new: 12 controls found
+  new-script: 12 controls found
+  new-link: 12 controls found
+
+# TIMED OUT after 600 s
+
+# exit 124 in 600 s

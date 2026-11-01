@@ -1,0 +1,4 @@
+Lucide icons (lucide-static): ISC, https://lucide.dev/license
+Tabler Icons (@tabler/icons): MIT, https://github.com/tabler/tabler-icons
+Twemoji artwork (@twemoji/svg, maintained fork of Twitter's Twemoji): CC-BY 4.0, https://github.com/jdecked/twemoji — attribution required
+Emoji names, tags and Bengali annotations (emojibase-data): MIT; underlying CLDR data under the Unicode licence

@@ -1,0 +1,423 @@
+{
+ "id": "ltx23_i2v",
+ "label": "LTX-2.3 (22B distilled)",
+ "version": 1,
+ "status": "verified",
+ "notes": "Image to video, 8-step distilled fp8 checkpoint with the Gemma 3 12B encoder, 25 fps. Verified on a V100: 3 s vertical in 126 s warm, 527 s on the first run (loads 29.5 GB). The clip's own sound is discarded. Sharper than Wan 2.2.",
+ "frame_rule": {
+  "fps": 25,
+  "step": 8,
+  "offset": 1
+ },
+ "sizes": {
+  "9:16": [
+   320,
+   512
+  ],
+  "16:9": [
+   512,
+   320
+  ]
+ },
+ "manifest": {
+  "image": [
+   [
+    "201",
+    "image"
+   ]
+  ],
+  "prompt": [
+   [
+    "128",
+    "text"
+   ]
+  ],
+  "negative": [
+   [
+    "112",
+    "text"
+   ]
+  ],
+  "width": [
+   [
+    "124",
+    "width"
+   ]
+  ],
+  "height": [
+   [
+    "124",
+    "height"
+   ]
+  ],
+  "frames": [
+   [
+    "108",
+    "length"
+   ],
+   [
+    "101",
+    "frames_number"
+   ]
+  ],
+  "fps": [
+   [
+    "122",
+    "fps"
+   ],
+   [
+    "114",
+    "value"
+   ],
+   [
+    "109",
+    "frame_rate"
+   ]
+  ],
+  "seed": [
+   [
+    "100",
+    "noise_seed"
+   ]
+  ],
+  "prefix": [
+   [
+    "203",
+    "filename_prefix"
+   ]
+  ]
+ },
+ "output": "203",
+ "graph": {
+  "201": {
+   "class_type": "LoadImage",
+   "inputs": {
+    "image": "vt_ltx_first.png"
+   }
+  },
+  "203": {
+   "class_type": "SaveVideo",
+   "inputs": {
+    "video": [
+     "122",
+     0
+    ],
+    "filename_prefix": "video_tool/ltx23_test",
+    "format": "auto",
+    "codec": "auto"
+   }
+  },
+  "100": {
+   "class_type": "RandomNoise",
+   "inputs": {
+    "noise_seed": 42
+   }
+  },
+  "101": {
+   "class_type": "LTXVEmptyLatentAudio",
+   "inputs": {
+    "audio_vae": [
+     "126",
+     0
+    ],
+    "frames_number": 51,
+    "frame_rate": [
+     "114",
+     0
+    ],
+    "batch_size": 1
+   }
+  },
+  "102": {
+   "class_type": "PrimitiveInt",
+   "inputs": {
+    "value": 2
+   }
+  },
+  "104": {
+   "class_type": "LTXVPreprocess",
+   "inputs": {
+    "image": [
+     "124",
+     0
+    ],
+    "img_compression": 25
+   }
+  },
+  "106": {
+   "class_type": "LTXVCropGuides",
+   "inputs": {
+    "positive": [
+     "115",
+     0
+    ],
+    "negative": [
+     "115",
+     1
+    ],
+    "latent": [
+     "121",
+     0
+    ]
+   }
+  },
+  "108": {
+   "class_type": "EmptyLTXVLatentVideo",
+   "inputs": {
+    "width": [
+     "110",
+     0
+    ],
+    "height": [
+     "110",
+     1
+    ],
+    "length": 51,
+    "batch_size": 1
+   }
+  },
+  "109": {
+   "class_type": "LTXVConditioning",
+   "inputs": {
+    "positive": [
+     "128",
+     0
+    ],
+    "negative": [
+     "112",
+     0
+    ],
+    "frame_rate": 25
+   }
+  },
+  "110": {
+   "class_type": "GetImageSize",
+   "inputs": {
+    "image": [
+     "124",
+     0
+    ]
+   }
+  },
+  "114": {
+   "class_type": "PrimitiveInt",
+   "inputs": {
+    "value": 25
+   }
+  },
+  "115": {
+   "class_type": "LTXVAddGuide",
+   "inputs": {
+    "positive": [
+     "109",
+     0
+    ],
+    "negative": [
+     "109",
+     1
+    ],
+    "vae": [
+     "127",
+     2
+    ],
+    "latent": [
+     "108",
+     0
+    ],
+    "image": [
+     "104",
+     0
+    ],
+    "frame_idx": 0,
+    "strength": 0.7
+   }
+  },
+  "116": {
+   "class_type": "CFGGuider",
+   "inputs": {
+    "model": [
+     "127",
+     0
+    ],
+    "positive": [
+     "115",
+     0
+    ],
+    "negative": [
+     "115",
+     1
+    ],
+    "cfg": 1
+   }
+  },
+  "117": {
+   "class_type": "SamplerEulerAncestral",
+   "inputs": {
+    "eta": 0,
+    "s_noise": 1
+   }
+  },
+  "118": {
+   "class_type": "ManualSigmas",
+   "inputs": {
+    "sigmas": "1., 0.99375, 0.9875, 0.98125, 0.975, 0.909375, 0.725, 0.421875, 0.0"
+   }
+  },
+  "119": {
+   "class_type": "LTXVConcatAVLatent",
+   "inputs": {
+    "video_latent": [
+     "115",
+     2
+    ],
+    "audio_latent": [
+     "101",
+     0
+    ]
+   }
+  },
+  "120": {
+   "class_type": "SamplerCustomAdvanced",
+   "inputs": {
+    "noise": [
+     "100",
+     0
+    ],
+    "guider": [
+     "116",
+     0
+    ],
+    "sampler": [
+     "117",
+     0
+    ],
+    "sigmas": [
+     "118",
+     0
+    ],
+    "latent_image": [
+     "119",
+     0
+    ]
+   }
+  },
+  "124": {
+   "class_type": "ImageScale",
+   "inputs": {
+    "image": [
+     "201",
+     0
+    ],
+    "upscale_method": "lanczos",
+    "width": 512,
+    "height": 320,
+    "crop": "center"
+   }
+  },
+  "113": {
+   "class_type": "PrimitiveInt",
+   "inputs": {
+    "value": 512
+   }
+  },
+  "98": {
+   "class_type": "PrimitiveInt",
+   "inputs": {
+    "value": 320
+   }
+  },
+  "112": {
+   "class_type": "CLIPTextEncode",
+   "inputs": {
+    "clip": [
+     "103",
+     0
+    ],
+    "text": "blurry, out of focus, overexposed, underexposed, low contrast, washed out colors, excessive noise, grainy texture, poor lighting, flickering, motion blur, distorted proportions, unnatural skin tones, deformed facial features, asymmetrical face, missing facial features, extra limbs, disfigured hands, wrong hand count, artifacts around text, unreadable text on shirt or hat, incorrect lettering on cap (“PNTR”), incorrect t-shirt slogan (“JUST DO IT”), missing microphone, misplaced microphone, inconsistent perspective, camera shake, incorrect depth of field, background too sharp, background clutter, distracting reflections, harsh shadows, inconsistent lighting direction, color banding, cartoonish rendering, 3D CGI look, unrealistic materials, uncanny valley effect, incorrect ethnicity, wrong gender, exaggerated expressions, smiling, laughing, exaggerated sadness, wrong gaze direction, eyes looking at camera, mismatched lip sync, silent or muted audio, distorted voice, robotic voice, echo, background noise, off-sync audio, missing sniff sounds, incorrect dialogue, added dialogue, repetitive speech, jittery movement, awkward pauses, incorrect timing, unnatural transitions, inconsistent framing, tilted camera, missing door or shelves, missing shallow depth of field, flat lighting, inconsistent tone, cinematic oversaturation, stylized filters, or AI artifacts."
+   }
+  },
+  "122": {
+   "class_type": "CreateVideo",
+   "inputs": {
+    "images": [
+     "105",
+     0
+    ],
+    "audio": [
+     "107",
+     0
+    ],
+    "fps": 25
+   }
+  },
+  "105": {
+   "class_type": "VAEDecodeTiled",
+   "inputs": {
+    "samples": [
+     "106",
+     2
+    ],
+    "vae": [
+     "127",
+     2
+    ],
+    "tile_size": 768,
+    "overlap": 64,
+    "temporal_size": 4096,
+    "temporal_overlap": 64
+   }
+  },
+  "107": {
+   "class_type": "LTXVAudioVAEDecode",
+   "inputs": {
+    "samples": [
+     "121",
+     1
+    ],
+    "audio_vae": [
+     "126",
+     0
+    ]
+   }
+  },
+  "121": {
+   "class_type": "LTXVSeparateAVLatent",
+   "inputs": {
+    "av_latent": [
+     "120",
+     1
+    ]
+   }
+  },
+  "128": {
+   "class_type": "CLIPTextEncode",
+   "inputs": {
+    "clip": [
+     "103",
+     0
+    ],
+    "text": "A cinematic camera move from a high angle to a low angle around a dark blue classic car with an astronaut leaning against it. Blue studio background, glowing orange highlights, smooth continuous motion, consistent astronaut and car."
+   }
+  },
+  "127": {
+   "class_type": "CheckpointLoaderSimple",
+   "inputs": {
+    "ckpt_name": "ltx-2.3-22b-distilled-fp8.safetensors"
+   }
+  },
+  "126": {
+   "class_type": "LTXVAudioVAELoader",
+   "inputs": {
+    "ckpt_name": "ltx-2.3-22b-distilled-fp8.safetensors"
+   }
+  },
+  "103": {
+   "class_type": "LTXAVTextEncoderLoader",
+   "inputs": {
+    "text_encoder": "gemma_3_12B_it_fp4_mixed.safetensors",
+    "ckpt_name": "ltx-2.3-22b-distilled-fp8.safetensors",
+    "device": "default"
+   }
+  }
+ }
+}

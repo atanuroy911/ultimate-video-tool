@@ -1,0 +1,15 @@
+{
+  "note": "The acceptance corpus of docs/TEST-PLAN.md section 4. engine/voice are the defaults; scripts/run_acceptance.py --engine kokoro replaces them for a quick run.",
+  "items": [
+    {"id": "A1", "file": "A1-split-your-money.txt", "kind": "steps", "language": "en", "expected_seconds": 22, "engine": "kokoro", "voice": "af_heart"},
+    {"id": "A2", "file": "A2-stress-and-oxytocin.txt", "kind": "explanation", "language": "en", "expected_seconds": 35, "engine": "comfyvoice", "voice": "design:A calm, thoughtful woman with a clear voice and a gentle, reflective delivery."},
+    {"id": "A3", "file": "A3-twelve-days-lost.txt", "kind": "story", "language": "en", "expected_seconds": 40, "engine": "comfyvoice", "voice": "design:A deep, serious older man speaking slowly, like a documentary narrator."},
+    {"id": "A4", "file": "A4-attention-argument.txt", "kind": "argument", "language": "en", "expected_seconds": 30, "engine": "comfyvoice", "voice": "design:A warm, confident adult man with a clear voice and an even, friendly pace."},
+    {"id": "A5", "file": "A5-five-study-tips.txt", "kind": "list", "language": "en", "expected_seconds": 28, "engine": "edge", "voice": "en-US-AriaNeural"},
+    {"id": "A6", "file": "A6-bangla-story.txt", "kind": "story", "language": "bn", "expected_seconds": 35, "engine": "edge", "voice": "bn-BD-NabanitaNeural"},
+    {"id": "A7", "file": "A7-banglish-explainer.txt", "kind": "explanation", "language": "bn", "expected_seconds": 28, "engine": "edge", "voice": "bn-BD-NabanitaNeural"},
+    {"id": "A8", "file": "A8-hook-weak.txt", "kind": "explanation", "language": "en", "expected_seconds": 25, "engine": "kokoro", "voice": "am_michael"},
+    {"id": "A9", "file": "A9-very-short.txt", "kind": "opinion", "language": "en", "expected_seconds": 9, "engine": "kokoro", "voice": "af_bella"},
+    {"id": "A10", "file": "A10-lighthouse-five-minutes.txt", "kind": "story", "language": "en", "expected_seconds": 210, "engine": "kokoro", "voice": "am_adam"}
+  ]
+}

@@ -1,0 +1,52 @@
+{
+ "version": 1,
+ "name": "impact-explainer",
+ "goal": "@goal",
+ "style": "a spoken script; pictures change on the words that carry the most",
+ "checkpoints": [
+  "after_cutplan"
+ ],
+ "calls": [
+  {
+   "id": "impact",
+   "module": "understand.impact_map",
+   "inputs": {},
+   "after": [],
+   "why": "Candidate places for the picture to change, from the spoken words."
+  },
+  {
+   "id": "direction",
+   "module": "direct.set_direction",
+   "inputs": {
+    "goal": "@goal"
+   },
+   "after": [
+    "impact"
+   ],
+   "why": "Write down the goal and the pace."
+  },
+  {
+   "id": "cuts",
+   "module": "cut.propose",
+   "inputs": {
+    "duration": "@project.duration"
+   },
+   "after": [
+    "direction"
+   ],
+   "why": "Choose where the picture changes."
+  },
+  {
+   "id": "check",
+   "module": "cut.validate",
+   "inputs": {
+    "duration": "@project.duration",
+    "slots": "@cuts.slots"
+   },
+   "after": [
+    "cuts"
+   ],
+   "why": "Check the cut plan; filling it is the next step."
+  }
+ ]
+}

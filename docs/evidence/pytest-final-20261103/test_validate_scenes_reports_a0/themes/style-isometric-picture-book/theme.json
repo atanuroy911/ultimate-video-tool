@@ -1,0 +1,74 @@
+{
+  "name": "style-isometric-picture-book",
+  "label": "Isometric Picture Book",
+  "color": {
+    "bg": "#F1E8D8",
+    "bg2": "#D9D2C3",
+    "ink": "#2A2E29",
+    "muted": "#696960",
+    "accent": "#826421",
+    "accent2": "#AC4830",
+    "card": "#E3DBCC",
+    "card_border": "#2A2E29",
+    "caption_bg": "#E3DBCC",
+    "caption_ink": "#2A2E29",
+    "highlight_bg": "#826421",
+    "highlight_ink": "#FFFFFF",
+    "tag_bg": "#AC4830",
+    "tag_ink": "#FFFFFF",
+    "arc": "rgba(42,46,41,0.08)"
+  },
+  "font": {
+    "headline": [
+      "Cormorant Garamond",
+      "Anek Bangla"
+    ],
+    "body": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "numeral": [
+      "Cormorant Garamond",
+      "Anek Bangla"
+    ],
+    "caption": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "headline_weight": 700
+  },
+  "shape": {
+    "radius": 18,
+    "stroke": 3,
+    "shadow": {
+      "x": 0,
+      "y": 8,
+      "color": "rgba(0,0,0,0.18)",
+      "blur": 24
+    },
+    "card_tilt": 0
+  },
+  "background": {
+    "kind": "aurora",
+    "grain": 0.12,
+    "arcs": false,
+    "pattern": 0.35,
+    "animated": true
+  },
+  "motion": {
+    "preset": "smooth"
+  },
+  "caption": {
+    "style": "box",
+    "reveal": "line",
+    "weight": 800,
+    "size": 60,
+    "words_per_line": 3,
+    "safe_bottom": {
+      "portrait": 380,
+      "landscape": 64
+    }
+  },
+  "style": "lemo:isometric-picture-book",
+  "picture": "emoji"
+}

@@ -200,3 +200,7 @@ svg.bg-pat { overflow: visible; }
 .a169 .stage.upper { top: 70px; bottom: 520px; }
 .stage.upper { align-items: flex-start; }
 .stage.upper .grp { justify-content: flex-start; }
+/* Simple geometry uses the same scene timing, layout and motion as other elements. */
+.geometric-visual { display: flex; flex-direction: column; align-items: center; gap: 22px; }
+.geometric-visual svg { max-width: 100%; height: auto; }
+.geometric-label { font-size: 44px; font-weight: 700; text-align: center; }

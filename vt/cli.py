@@ -136,9 +136,10 @@ def new(title: str = typer.Argument(..., help="Video title"),
         pace: str = typer.Option("normal", "--pace", help="calm | normal | fast"),
         music: Optional[str] = typer.Option(None, "--music", help="bundled track id (see `vt music`)"),
         fillers: bool = typer.Option(True, "--fillers/--keep-fillers", help="remove um/uh and repeated words"),
-        model: str = typer.Option("bn-medium", "--asr", help="bn-medium | large-v3 | medium | small")) -> None:
+        model: str = typer.Option("bn-medium", "--asr", help="bn-medium | large-v3 | medium | small"),
+        director: str = typer.Option("best", "--director", help="best | local | claude-server | claude@DEVICE")) -> None:
     """Create a project from a recording."""
-    opts = {"remove_fillers": fillers, "asr_model": model, "music": music}
+    opts = {"remove_fillers": fillers, "asr_model": model, "music": music, "director": director}
     proj = Project.create(title, audio, language=language, aspect=aspect, theme=theme, pace=pace, options=opts)
     console.print(f"[green]Created[/green] {proj.id}\nNext: vt run {proj.id}")
 
@@ -147,13 +148,14 @@ def new(title: str = typer.Argument(..., help="Video title"),
 def from_link(url: str = typer.Argument(..., help="YouTube link or a direct link to an audio/video file (only material you may reuse)"),
               title: str = typer.Option("", "--title"), language: str = typer.Option("en", "--lang", help="language of the speech: bn or en"),
               aspect: str = typer.Option("9:16", "--aspect"), theme: str = typer.Option("paper", "--theme"),
-              subs: str = typer.Option("auto", "--subs", help="auto (the author's subtitles, and automatic ones for non-English) | any | off")) -> None:
+              subs: str = typer.Option("auto", "--subs", help="auto (the author's subtitles, and automatic ones for non-English) | any | off"),
+              director: str = typer.Option("best", "--director")) -> None:
     """Download the audio (and subtitles) from a link and create a project from it."""
     from . import ingest
 
     try:
         proj = ingest.create_project(url, language=language, title=title, use_subs=subs, aspect=aspect, theme=theme,
-                                     options={"use_subtitles": subs})
+                                     options={"use_subtitles": subs, "director": director})
     except ingest.IngestError as e:
         console.print(f"[red]{e}[/red]")
         raise typer.Exit(1)
@@ -171,15 +173,26 @@ def script(title: str = typer.Argument(..., help="Video title"),
            rate: float = typer.Option(1.0, "--speed", help="0.7 - 1.4"),
            language: str = typer.Option("en", "--lang", help="en or bn; the script's letters decide in the end"), aspect: str = typer.Option("9:16", "--aspect"),
            theme: str = typer.Option("paper", "--theme"), pace: str = typer.Option("normal", "--pace"),
-           music: Optional[str] = typer.Option(None, "--music")) -> None:
+           music: Optional[str] = typer.Option(None, "--music"), director: str = typer.Option("best", "--director")) -> None:
     """Create a project from typed text: the script is spoken by a voice, then everything else is automatic."""
     body = text if text is not None else (file.read_text(encoding="utf-8") if file else None)
     if not body or not body.strip():
         console.print("[red]Give the script with --text or --file.[/red]")
         raise typer.Exit(1)
     proj = Project.create_from_script(title, body, voice_engine=engine, voice=voice, rate=max(0.6, min(1.5, rate)), language=language,
-                                      aspect=aspect, theme=theme, pace=pace, options={"music": music} if music else None)
+                                      aspect=aspect, theme=theme, pace=pace, options={"music": music, "director": director})
     console.print(f"[green]Created[/green] {proj.id}\nNext: vt run {proj.id}")
+
+
+@app.command("directors")
+def list_directors() -> None:
+    """Show who can direct a video now and the fallback order."""
+    from .directors import listing
+
+    data = listing()
+    for d in data["directors"]:
+        console.print(f"[{'green' if d['available'] else 'yellow'}]{'ready' if d['available'] else 'not ready':<9}[/] {d['id']:<24} {d['label']} — {d['note']}")
+    console.print("Fallback: " + " → ".join(data["order"]))
 
 
 @app.command()

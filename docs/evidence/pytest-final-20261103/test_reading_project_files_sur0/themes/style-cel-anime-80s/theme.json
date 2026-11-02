@@ -1,0 +1,74 @@
+{
+  "name": "style-cel-anime-80s",
+  "label": "80s Cel Anime",
+  "color": {
+    "bg": "#030206",
+    "bg2": "#212023",
+    "ink": "#FEFEF9",
+    "muted": "#8D8D8C",
+    "accent": "#DD3170",
+    "accent2": "#EBCD64",
+    "card": "#151417",
+    "card_border": "#FEFEF9",
+    "caption_bg": "#020104",
+    "caption_ink": "#FEFEF9",
+    "highlight_bg": "#DD3170",
+    "highlight_ink": "#000000",
+    "tag_bg": "#EBCD64",
+    "tag_ink": "#000000",
+    "arc": "rgba(254,254,249,0.08)"
+  },
+  "font": {
+    "headline": [
+      "Dela Gothic One",
+      "Anek Bangla"
+    ],
+    "body": [
+      "Dela Gothic One",
+      "Hind Siliguri"
+    ],
+    "numeral": [
+      "Dela Gothic One",
+      "Anek Bangla"
+    ],
+    "caption": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "headline_weight": 800
+  },
+  "shape": {
+    "radius": 18,
+    "stroke": 3,
+    "shadow": {
+      "x": 6,
+      "y": 6,
+      "color": "#FEFEF9",
+      "blur": 0
+    },
+    "card_tilt": 0
+  },
+  "background": {
+    "kind": "stripes",
+    "grain": 0.12,
+    "arcs": false,
+    "pattern": 0.35,
+    "animated": false
+  },
+  "motion": {
+    "preset": "smooth"
+  },
+  "caption": {
+    "style": "pop",
+    "reveal": "line",
+    "weight": 800,
+    "size": 60,
+    "words_per_line": 3,
+    "safe_bottom": {
+      "portrait": 380,
+      "landscape": 64
+    }
+  },
+  "style": "lemo:cel-anime-80s",
+  "picture": "emoji"
+}

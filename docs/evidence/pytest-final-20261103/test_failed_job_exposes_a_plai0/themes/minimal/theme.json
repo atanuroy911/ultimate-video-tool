@@ -1,0 +1,33 @@
+{
+  "name": "minimal",
+  "label": "Clean Minimal",
+  "color": {
+    "bg": "#ffffff",
+    "ink": "#111827",
+    "muted": "#6b7280",
+    "accent": "#2563eb",
+    "accent2": "#dbeafe",
+    "card": "#f3f4f6",
+    "card_border": "#d1d5db",
+    "caption_bg": "#111827",
+    "caption_ink": "#ffffff",
+    "highlight_bg": "#2563eb",
+    "highlight_ink": "#ffffff",
+    "tag_bg": "#dbeafe",
+    "tag_ink": "#1e3a8a",
+    "arc": "rgba(17,24,39,0.05)"
+  },
+  "font": {
+    "headline": ["Inter", "Noto Sans Bengali"],
+    "body": ["Inter", "Noto Sans Bengali"],
+    "numeral": ["Inter", "Noto Sans Bengali"],
+    "caption": ["Inter", "Noto Sans Bengali"],
+    "headline_weight": 800
+  },
+  "shape": { "radius": 20, "stroke": 2, "shadow": { "x": 0, "y": 8, "color": "rgba(17,24,39,0.12)" }, "card_tilt": 0 },
+  "background": { "kind": "flat", "grain": 0, "arcs": false },
+  "motion": { "preset": "smooth" },
+  "caption": { "style": "box", "reveal": "line", "weight": 700, "size": 56, "words_per_line": 6, "safe_bottom": { "portrait": 300, "landscape": 64 } },
+  "currency": "৳",
+  "sfx": "pop"
+}

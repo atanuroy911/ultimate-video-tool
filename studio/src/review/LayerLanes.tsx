@@ -25,6 +25,7 @@ interface Props {
   menu: (x: number, y: number, items: MenuItem[]) => void;
   seek: (t: number) => void;
   peaks?: Map<string, number[]>;
+  tool?: "select" | "blade";
 }
 
 const ICON = { text: Type, image: ImageIcon, video: Film, audio: AudioLines } as const;
@@ -55,6 +56,12 @@ export default function LayerLanes(p: Props) {
     p.onSelect(c.id);
     const t = Ops.trackOf(doc, c.track);
     if (t?.locked) return;
+    if (p.tool === "blade") {
+      const at = p.tAt(e.clientX);
+      const result = Ops.split(doc, c.id, at);
+      if (result) { layers.commit(result.doc); p.onSelect(result.ids[1]); p.seek(at); }
+      return;
+    }
     const orig = doc;
     const grab = p.tAt(e.clientX) - c.start;
     layers.hold(true);                                                                       // a refetch must not overwrite the clip while it is dragged
@@ -84,9 +91,10 @@ export default function LayerLanes(p: Props) {
     if (Ops.trackOf(doc, c.track)?.locked) return;
     const orig = doc;
     const lim = limitOf(c);
+    const grabOffset = p.tAt(e.clientX) - (side === "start" ? c.start : c.start + c.dur);
     layers.hold(true);
     const go = (ev: PointerEvent) => {
-      const s = p.snapT(p.tAt(ev.clientX), ev.altKey, false);
+      const s = p.snapT(p.tAt(ev.clientX) - grabOffset, ev.altKey, false);
       p.setGuide(s.hit);
       layers.setLocal(Ops.trim(orig, c.id, side, s.t, p.total, lim));
     };
@@ -105,7 +113,7 @@ export default function LayerLanes(p: Props) {
       { label: t.locked ? "Unlock" : "Lock", run: () => set({ locked: !t.locked }) },
       { label: "Move up", run: () => layers.commit(Ops.moveTrack(doc, id, -1)) },
       { label: "Move down", run: () => layers.commit(Ops.moveTrack(doc, id, 1)) },
-      { label: "Delete the track and its clips", danger: true, run: () => layers.commit(Ops.removeTrack(doc, id)) },
+      ...(!t.locked ? [{ label: "Delete the track and its clips", danger: true, run: () => layers.commit(Ops.removeTrack(doc, id)) }] : []),
     ];
     p.menu(e.clientX, e.clientY, items);
   };
@@ -114,6 +122,10 @@ export default function LayerLanes(p: Props) {
     e.preventDefault();
     e.stopPropagation();
     p.onSelect(c.id);
+    if (Ops.trackOf(doc, c.track)?.locked) {
+      p.menu(e.clientX, e.clientY, [{ label: "Unlock track to edit", run: () => layers.commit(Ops.patchTrack(doc, c.track, { locked: false })) }]);
+      return;
+    }
     const t = p.tAt(e.clientX);
     p.menu(e.clientX, e.clientY, [
       { label: "Split here", run: () => { const r = Ops.split(layers.doc, c.id, t); if (r) layers.commit(r.doc); } },

@@ -1,7 +1,9 @@
+import { applyPreviewEdit } from "./previewEdits";
 import { Pause, Play, Volume2 } from "lucide-react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import { fmtTime } from "../api";
-import type { Aspect, SceneTime } from "../types";
+import { toast } from "../store";
+import type { Aspect, SceneTime, LClip } from "../types";
 
 export interface PlayerHandle {
   seek: (t: number) => void;
@@ -26,6 +28,7 @@ interface Props {
   selectedEl?: { scene: string; index: number } | null;
   showTimeline?: boolean;
   layerAudio?: LayerSound[];       // sounds on the layers' audio tracks, played in step with the voice
+  visualLayers?: (LClip & { end: number })[];
 }
 
 export interface LayerSound { id: string; url: string; start: number; dur: number; in: number; volume: number; fadeIn: number; fadeOut: number }
@@ -37,10 +40,17 @@ const CHROME_COMPACT = 64; // timeline + transport + caption lines under the pho
 
 const Preview = forwardRef<PlayerHandle, Props>(function Preview(p, ref) {
   const frame = useRef<HTMLIFrameElement>(null);
+  const composition = useRef<any>(null);
+  const visualLayersRef = useRef(p.visualLayers);
+  visualLayersRef.current = p.visualLayers;
   const audio = useRef<HTMLAudioElement>(null);
   const [ready, setReady] = useState(false);
   const [time, setTime] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const playingRef = useRef(false);
+  playingRef.current = playing;
+  const propsRef = useRef(p);
+  propsRef.current = p;
   const [rate, setRate] = useState(1);
   const [muted, setMuted] = useState(false);
   const [selRect, setSelRect] = useState<number[] | null>(null);
@@ -59,7 +69,9 @@ const Preview = forwardRef<PlayerHandle, Props>(function Preview(p, ref) {
     for (const [id, el] of els) if (!live.has(id)) { el.pause(); els.delete(id); }
     for (const c of layerRef.current) {
       let el = els.get(c.id);
-      if (!el) { el = new Audio(c.url); el.preload = "auto"; els.set(c.id, el); }
+      if (!el || el.getAttribute("src") !== c.url) {
+        el?.pause(); el = new Audio(c.url); el.preload = "auto"; els.set(c.id, el);
+      }
       const active = play && t >= c.start && t < c.start + c.dur;
       if (!active) { if (!el.paused) el.pause(); continue; }
       const into = t - c.start, left = c.start + c.dur - t;
@@ -86,8 +98,8 @@ const Preview = forwardRef<PlayerHandle, Props>(function Preview(p, ref) {
     return () => ro.disconnect();
   }, []);
   const base = SIZES[p.aspect];
-  const maxH = p.showTimeline === false ? Math.max(200, avail.h - CHROME_COMPACT - 28) : Math.max(220, avail.h * 0.62 - CHROME_H);
-  const box = Math.round(Math.max(150, Math.min(p.showTimeline === false ? 1200 : base.box, avail.w, (maxH * base.w) / base.h)));
+  const maxH = p.showTimeline === false ? Math.max(60, avail.h - CHROME_COMPACT - 28) : Math.max(100, avail.h * 0.62 - CHROME_H);
+  const box = Math.round(Math.max(32, Math.min(p.showTimeline === false ? 1200 : base.box, avail.w, (maxH * base.w) / base.h)));
   const sz = { ...base, box };
   const tag = TAGS[p.aspect];
   const scale = sz.box / sz.w;
@@ -102,6 +114,7 @@ const Preview = forwardRef<PlayerHandle, Props>(function Preview(p, ref) {
       timeRef.current = tt;
       if (audio.current) audio.current.currentTime = tt;
       post({ vt: "seek", t: tt });
+      syncLayers(tt, playingRef.current);
       setTime(tt);
       p.onTime(tt);
     },
@@ -115,8 +128,9 @@ const Preview = forwardRef<PlayerHandle, Props>(function Preview(p, ref) {
       timeRef.current = t;
       post({ vt: "seek", t });
       setTime(t);
-      p.onTime(t);
-      if (a.ended || t >= dur - 0.02) {
+      propsRef.current.onTime(t);
+      if (a.ended || t >= propsRef.current.duration - 0.02) {
+        a.pause();
         syncLayers(t, false);
         setPlaying(false);
         return;
@@ -135,7 +149,7 @@ const Preview = forwardRef<PlayerHandle, Props>(function Preview(p, ref) {
       setPlaying(true);
       cancelAnimationFrame(raf.current);
       raf.current = requestAnimationFrame(loop);
-    }).catch(() => {});
+    }).catch(() => { setPlaying(false); toast("The preview could not play. Try again once the audio finishes loading.", "err"); });
   }, [dur, loop, rate]);
 
   const pause = useCallback(() => {
@@ -161,18 +175,18 @@ const Preview = forwardRef<PlayerHandle, Props>(function Preview(p, ref) {
     return () => window.removeEventListener("message", on);
   }, [post]);
 
-  useEffect(() => setReady(false), [p.reloadKey, p.aspect]);
+  useEffect(() => { setReady(false); composition.current = null; }, [p.reloadKey, p.aspect, p.projectId]);
 
   // open on a poster frame: the first moment where something is on screen, instead of a blank first frame
   const poster = useRef(false);
   useEffect(() => {
     poster.current = false;
-  }, [p.reloadKey, p.aspect]);
+  }, [p.reloadKey, p.aspect, p.projectId]);
   useEffect(() => {
     if (!ready || poster.current) return;
     poster.current = true;
     fetch(`/media/${p.projectId}/composition/${tag}/data.json?v=poster`, { cache: "no-store" })
-      .then((r) => r.json())
+      .then((r) => { if (!r.ok) throw new Error("Preview data unavailable"); return r.json(); })
       .then((d) => {
         const first = Math.min(...d.scenes.flatMap((s: any) => s.elements.map((e: any) => e.at)).concat([d.duration]));
         if (timeRef.current === 0) seek(Math.min(d.duration, first + 1.1));
@@ -183,21 +197,52 @@ const Preview = forwardRef<PlayerHandle, Props>(function Preview(p, ref) {
 
   // hot-swap composition data after edits (no reload, no flicker)
   useEffect(() => {
-    if (!ready || p.rev === 0) return;
+    if (!ready) return;
     let cancelled = false;
-    fetch(`/media/${p.projectId}/composition/${tag}/data.json?v=${p.rev}`, { cache: "no-store" })
-      .then((r) => r.json())
+    const controller = new AbortController();
+    fetch(`/media/${p.projectId}/composition/${tag}/data.json?v=${p.rev}`, { cache: "no-store", signal: controller.signal })
+      .then((r) => { if (!r.ok) throw new Error(`Preview update failed (${r.status})`); return r.json(); })
       .then((data) => {
         if (!cancelled) {
-          post({ vt: "data", data });
-          post({ vt: "seek", t: timeRef.current });
+          composition.current = data;
+          post({ vt: "data", data: {...data, ...(visualLayersRef.current ? {layers: visualLayersRef.current} : {})} });
+          post({ vt: "seek", t: Math.min(timeRef.current, data.duration ?? timeRef.current) });
         }
       })
-      .catch(() => {});
+      .catch((error) => { if (!cancelled) toast(error.message || "Could not update the preview", "err"); });
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [p.rev, ready, tag, p.projectId, post]);
+
+  useEffect(() => {
+    if(!ready) return;
+    const draw = (data:any) => { post({vt:"data",data:{...data,layers:visualLayersRef.current ?? data.layers}}); post({vt:"seek",t:timeRef.current}); };
+    const edit = (event:Event) => { if(composition.current) draw(applyPreviewEdit(composition.current,(event as CustomEvent).detail)); };
+    const elements = (event:Event) => {
+      if(!composition.current) return;
+      const {scene,elements}=(event as CustomEvent).detail;
+      let data=composition.current;
+      elements.forEach((el:any,index:number)=>{data=applyPreviewEdit(data,{kind:"element",scene,index,patch:el});}); draw(data);
+    };
+    window.addEventListener("vt-preview-edit",edit); window.addEventListener("vt-preview-elements",elements);
+    return ()=>{window.removeEventListener("vt-preview-edit",edit);window.removeEventListener("vt-preview-elements",elements);};
+  },[ready,post]);
+
+  // Local layer edits follow the pointer/text field before the save completes.
+  useEffect(() => {
+    if (!ready || !composition.current || !p.visualLayers) return;
+    const id = requestAnimationFrame(() => {
+      post({vt:"data", data:{...composition.current, layers:visualLayersRef.current}});
+      post({vt:"seek", t:timeRef.current});
+    });
+    return () => cancelAnimationFrame(id);
+  }, [p.visualLayers, ready, post]);
+
+  useEffect(() => {
+    if (timeRef.current > dur) seek(dur);
+  }, [dur]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     rateRef.current = rate;
@@ -209,7 +254,11 @@ const Preview = forwardRef<PlayerHandle, Props>(function Preview(p, ref) {
   useEffect(() => {
     const a = audio.current;
     if (!a) return;
-    const back = () => { a.currentTime = Math.min(timeRef.current, a.duration || timeRef.current); };
+    const back = () => {
+      a.currentTime = Math.min(timeRef.current, a.duration || timeRef.current);
+      a.playbackRate = rateRef.current;
+      if (playingRef.current) a.play().catch(() => pause());
+    };
     a.addEventListener("loadedmetadata", back, { once: true });
     return () => a.removeEventListener("loadedmetadata", back);
   }, [p.audioUrl]);

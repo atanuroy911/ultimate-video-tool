@@ -1,0 +1,321 @@
+{
+  "theme": "paper",
+  "planner": "rules",
+  "scenes": [
+    {
+      "id": "s1",
+      "beats": [
+        "b1",
+        "b2",
+        "b3"
+      ],
+      "layout": "upper",
+      "transition_in": "cut",
+      "elements": [
+        {
+          "edited": false,
+          "scale": 1.0,
+          "rotation": 0.0,
+          "opacity": 1.0,
+          "at_word": "w7",
+          "type": "value_card",
+          "value": "৳১০০",
+          "label": "দাম"
+        },
+        {
+          "edited": false,
+          "scale": 1.0,
+          "rotation": 0.0,
+          "opacity": 1.0,
+          "at_word": "w12",
+          "type": "arrow",
+          "direction": "down",
+          "label": ""
+        },
+        {
+          "edited": false,
+          "scale": 1.0,
+          "rotation": 0.0,
+          "opacity": 1.0,
+          "at_word": "w12",
+          "type": "tag",
+          "text": "৳৩"
+        }
+      ],
+      "tone": 0,
+      "archetype": "stick",
+      "caption": {
+        "highlight_words": [
+          "w7"
+        ]
+      },
+      "stick": {
+        "set": {
+          "id": "bank1",
+          "kind": "bank",
+          "props": [
+            "desk",
+            "safe",
+            "sign",
+            "plant",
+            "door"
+          ],
+          "time": "day",
+          "weather": "none",
+          "art": null
+        },
+        "camera": {
+          "shot": "medium",
+          "move": "push_in",
+          "focus": null
+        },
+        "cast": [
+          {
+            "id": "host",
+            "rig": "stick-basic",
+            "role": "teacher",
+            "name": "Host",
+            "style": {
+              "color": "#1f2937",
+              "head": "round",
+              "accessory": "glasses",
+              "height": "adult",
+              "hair": "short",
+              "shirt": "#3b82f6",
+              "skin": null
+            },
+            "kind": "person",
+            "emoji": null,
+            "art": null
+          },
+          {
+            "id": "sam",
+            "rig": "stick-basic",
+            "role": "student",
+            "name": "Sam",
+            "style": {
+              "color": "#374151",
+              "head": "round",
+              "accessory": "backpack",
+              "height": "child",
+              "hair": "bun",
+              "shirt": "#ef4444",
+              "skin": null
+            },
+            "kind": "person",
+            "emoji": null,
+            "art": null
+          }
+        ],
+        "actions": [
+          {
+            "at_word": "w1",
+            "who": "host",
+            "do": "walk_in",
+            "from": "left",
+            "to": 0.3,
+            "start": 0.35,
+            "end": 1.75
+          },
+          {
+            "at_word": "w1",
+            "who": "sam",
+            "do": "walk_in",
+            "from": "right",
+            "to": 0.7,
+            "start": 0.35,
+            "end": 1.75
+          },
+          {
+            "at_word": "w1",
+            "who": "sam",
+            "do": "say",
+            "bubble": "ইয়েল্ড মানে কী?",
+            "start": 1.75,
+            "end": 3.75
+          },
+          {
+            "at_word": "w3",
+            "who": "host",
+            "do": "think",
+            "start": 1.75,
+            "end": 3.25
+          },
+          {
+            "at_word": "w3",
+            "who": "host",
+            "do": "wave",
+            "start": 3.25,
+            "end": 4.45
+          },
+          {
+            "at_word": "w3",
+            "who": "host",
+            "do": "mark",
+            "mark": "question",
+            "start": 4.45,
+            "end": 5.65
+          },
+          {
+            "at_word": "w5",
+            "who": "sam",
+            "do": "celebrate",
+            "start": 3.75,
+            "end": 5.25
+          },
+          {
+            "at_word": "w9",
+            "who": "sam",
+            "do": "mark",
+            "mark": "question",
+            "start": 5.25,
+            "end": 6.45
+          }
+        ]
+      },
+      "sfx": [
+        {
+          "at_word": "w1",
+          "id": "whoosh"
+        },
+        {
+          "at_word": "w3",
+          "id": "pop"
+        },
+        {
+          "at_word": "w9",
+          "id": "pop"
+        }
+      ]
+    },
+    {
+      "id": "s2",
+      "beats": [
+        "b4",
+        "b5"
+      ],
+      "layout": "upper",
+      "transition_in": "fade",
+      "elements": [
+        {
+          "edited": false,
+          "scale": 1.0,
+          "rotation": 0.0,
+          "opacity": 1.0,
+          "at_word": "w18",
+          "type": "big_number",
+          "value": "৪",
+          "unit": "%",
+          "label": "ইয়েল্ড"
+        },
+        {
+          "edited": false,
+          "scale": 1.0,
+          "rotation": 0.0,
+          "opacity": 1.0,
+          "at_word": "w21",
+          "type": "sticker",
+          "emoji": "1f4b8",
+          "label": ""
+        }
+      ],
+      "tone": 1,
+      "archetype": "stick",
+      "caption": {
+        "highlight_words": [
+          "w18"
+        ]
+      },
+      "stick": {
+        "set": {
+          "id": "bank1",
+          "kind": "bank",
+          "props": [
+            "desk",
+            "safe",
+            "sign",
+            "plant",
+            "door"
+          ],
+          "time": "day",
+          "weather": "none",
+          "art": null
+        },
+        "camera": {
+          "shot": "medium",
+          "move": "pan_left",
+          "focus": null
+        },
+        "cast": [
+          {
+            "id": "host",
+            "rig": "stick-basic",
+            "role": "teacher",
+            "name": "Host",
+            "style": {
+              "color": "#1f2937",
+              "head": "round",
+              "accessory": "glasses",
+              "height": "adult",
+              "hair": "short",
+              "shirt": "#3b82f6",
+              "skin": null
+            },
+            "kind": "person",
+            "emoji": null,
+            "art": null
+          },
+          {
+            "id": "sam",
+            "rig": "stick-basic",
+            "role": "student",
+            "name": "Sam",
+            "style": {
+              "color": "#374151",
+              "head": "round",
+              "accessory": "backpack",
+              "height": "child",
+              "hair": "bun",
+              "shirt": "#ef4444",
+              "skin": null
+            },
+            "kind": "person",
+            "emoji": null,
+            "art": null
+          }
+        ],
+        "actions": [
+          {
+            "at_word": "w16",
+            "who": "host",
+            "do": "nod",
+            "start": 8.765,
+            "end": 9.465
+          },
+          {
+            "at_word": "w24",
+            "who": "sam",
+            "do": "wave_both",
+            "start": 13.08,
+            "end": 14.28
+          },
+          {
+            "at_word": "w26",
+            "who": "sam",
+            "do": "nod",
+            "start": 14.28,
+            "end": 14.98
+          },
+          {
+            "at_word": "w28",
+            "who": "sam",
+            "do": "shrug",
+            "start": 15.44,
+            "end": 16.44
+          }
+        ]
+      },
+      "sfx": []
+    }
+  ]
+}

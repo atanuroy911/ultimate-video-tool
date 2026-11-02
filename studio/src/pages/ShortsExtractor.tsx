@@ -47,6 +47,7 @@ export default function ShortsExtractor() {
   const [aroll, setAroll] = useState<"auto" | "off">("auto");
   const [focusedIndex, setFocusedIndex] = useState(0);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const busy = importing || loading || batchExporting || batchSlicing || slicingIndex !== null;
 
   const mediaRef = useRef<HTMLMediaElement | null>(null);
   const touchStart = useRef<number | null>(null);
@@ -59,19 +60,22 @@ export default function ShortsExtractor() {
       if (!selectedPid && list.length > 0) {
         setSelectedPid(list[0].id);
       }
-    }).catch(() => {});
+    }).catch((e) => setStatusMsg(e.message || "Could not load your videos. Refresh to try again."));
   }, []);
 
   // When project changes, fetch existing detected shorts if any
   useEffect(() => {
-    if (!selectedPid) return;
+    let cancelled = false;
     setShortsData(null);
+    setExported([]);
     setSelectedIndices([]);
     setFocusedIndex(0);
     mediaRef.current?.pause();
     setPlayingIndex(null);
+    if (!selectedPid) return;
     get<ShortsData>(`/api/projects/${selectedPid}/shorts`)
       .then((data) => {
+        if (cancelled) return;
         if (data && data.highlights && data.highlights.length > 0) {
           setShortsData(data);
           setSelectedIndices(data.highlights.map((_, i) => i));
@@ -80,12 +84,13 @@ export default function ShortsExtractor() {
         }
       })
       .catch(() => {});
+    return () => { cancelled = true; };
   }, [selectedPid]);
 
   const handleDetect = async (pid = selectedPid) => {
     if (!pid) return;
     setLoading(true);
-    setStatusMsg("Analyzing transcript with AI Virality framework...");
+    setStatusMsg("Reading your video to find moments that work as short clips…");
     try {
       const job = await post<{ id: string }>(`/api/projects/${pid}/shorts/detect`, { num_clips: clipCount });
       for (let attempt = 0; attempt < 300; attempt++) {
@@ -197,8 +202,11 @@ export default function ShortsExtractor() {
     const media = mediaRef.current;
     if (!media) { setStatusMsg("Preview is still preparing. Try again shortly."); return; }
     media.currentTime = highlight.start_time;
-    media.play().catch(() => setStatusMsg("Preview could not play in this browser. Try an MP4 video."));
     setPlayingIndex(idx);
+    media.play().catch(() => {
+      setPlayingIndex(null);
+      setStatusMsg("Preview could not play in this browser. Try an MP4 video.");
+    });
   };
 
   const handleSliceOne = async (index: number) => {
@@ -286,21 +294,21 @@ export default function ShortsExtractor() {
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <h1 style={{ margin: 0, fontSize: "1.6rem", fontWeight: 700, letterSpacing: "-0.02em" }}>
-                AI Shorts & Viral Highlights
+                Find the moments worth sharing.
               </h1>
               
             </div>
             <p style={{ margin: "4px 0 0", color: "var(--muted)", fontSize: "0.9rem" }}>
-              Find high-retention scenes, opinion bombs, revelations, and hooks from long videos and auto-generate 9:16 vertical shorts.
+              Turn a long recording into short, captioned videos. You choose what makes the cut.
             </p>
           </div>
         </div>
 
         {shortsData && shortsData.highlights.length > 0 && (
-          <div className="row wrap" style={{ gap: 8 }}><button className="btn" disabled={batchExporting || selectedIndices.length === 0} onClick={handleBatchExport}>{batchExporting ? "Exporting…" : `Batch Export ${selectedIndices.length} Videos`}</button><button
+          <div className="row wrap" style={{ gap: 8 }}><button className="btn" disabled={busy || selectedIndices.length === 0} onClick={handleBatchExport}>{batchExporting ? "Exporting…" : `Export ${selectedIndices.length} clips`}</button><button
             className="btn primary"
             onClick={handleBatchSlice}
-            disabled={batchSlicing || selectedIndices.length === 0}
+            disabled={busy || selectedIndices.length === 0}
             style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 18px", fontWeight: 600 }}
           >
             <Layers size={18} />
@@ -310,39 +318,41 @@ export default function ShortsExtractor() {
       </div>
 
       {/* Control Card */}
-      <div className="card" style={{ padding: 22, marginBottom: 28, background: "var(--card-bg, #18181b)", borderRadius: 14, border: "1px solid var(--border)" }}>
+      <ol className="clip-journey" aria-label="Make short clips"><li aria-current={!shortsData ? "step" : undefined}><b>1</b><span>Add a recording<small>Upload, paste a link, or use your library</small></span></li><li aria-current={shortsData && !exported.length ? "step" : undefined}><b>2</b><span>Pick your moments<small>Watch each suggestion and keep your favorites</small></span></li><li aria-current={exported.length ? "step" : undefined}><b>3</b><span>Get your clips<small>Export with captions, ready to share</small></span></li></ol>
+      <div className="card" style={{ padding: 22, marginBottom: 28, background: "var(--panel)", borderRadius: 14, border: "1px solid var(--border)" }}>
         <div className="row wrap" style={{ gap: 12, alignItems: "end", marginBottom: 16 }}>
           <div style={{ flex: "1 1 240px" }}>
             <strong>Start with a video</strong>
             <p className="small muted" style={{ margin: "4px 0 0" }}>Upload a recording. We transcribe it, find strong moments, then make captioned vertical Shorts from your picks.</p>
           </div>
           <label className="small" style={{ display: "grid", gap: 4 }}>Picks to find
-            <select aria-label="Number of Shorts suggestions" value={clipCount} onChange={e => setClipCount(Number(e.target.value))} disabled={importing || loading}>
+            <select aria-label="Number of Shorts suggestions" value={clipCount} onChange={e => setClipCount(Number(e.target.value))} disabled={busy}>
               {[3, 5, 6, 8, 10, 12].map(n => <option key={n} value={n}>{n}</option>)}
             </select>
           </label>
           <label className="small" style={{ display: "grid", gap: 4 }}>Captions
-            <select aria-label="Shorts caption style" value={captionStyle} onChange={e => setCaptionStyle(e.target.value as typeof captionStyle)}>
+            <select aria-label="Shorts caption style" value={captionStyle} onChange={e => setCaptionStyle(e.target.value as typeof captionStyle)} disabled={busy}>
               <option value="pop">Pop</option><option value="box">Box</option><option value="pill">Pill</option><option value="underline">Underline</option><option value="theme">Theme default</option>
             </select>
           </label>
           <label className="small" style={{ display: "grid", gap: 4 }}>Original video
-            <select aria-label="Keep original speaker video" value={aroll} onChange={e => setAroll(e.target.value as typeof aroll)}>
+            <select aria-label="Keep original speaker video" value={aroll} onChange={e => setAroll(e.target.value as typeof aroll)} disabled={busy}>
               <option value="auto">Keep speaker in frame</option><option value="off">Graphics only</option>
             </select>
           </label>
           <input ref={fileRef} type="file" accept=".mp4,.mov,.mkv,.webm,video/*" hidden onChange={e => handleFile(e.target.files?.[0])} />
-          <button className="btn primary" disabled={importing || loading} onClick={() => fileRef.current?.click()}><Upload size={16} /> {importing ? (uploadProgress < 1 ? `Uploading ${Math.round(uploadProgress * 100)}%` : "Preparing video…") : "Upload video & find Shorts"}</button>
+          <button className="btn primary" disabled={busy} onClick={() => fileRef.current?.click()}><Upload size={16} /> {importing ? (uploadProgress < 1 ? `Uploading ${Math.round(uploadProgress * 100)}%` : "Preparing video…") : "Upload video & find Shorts"}</button>
         </div>
-        <div className="row wrap" style={{ gap: 8, marginBottom: 16 }}><input aria-label="YouTube video URL" placeholder="Paste a YouTube or video URL" value={youtubeUrl} onChange={e => setYoutubeUrl(e.target.value)} style={{ flex: "1 1 280px" }} /><button className="btn" disabled={importing || !youtubeUrl.trim()} onClick={handleImport}>{importing ? "Importing…" : "Import video for Shorts"}</button></div>
+        <div className="row wrap" style={{ gap: 8, marginBottom: 16 }}><input aria-label="YouTube video URL" placeholder="Paste a YouTube or video URL" value={youtubeUrl} onChange={e => setYoutubeUrl(e.target.value)} style={{ flex: "1 1 280px" }} /><button className="btn" disabled={busy || !youtubeUrl.trim()} onClick={handleImport}>{importing ? "Importing…" : "Import video for Shorts"}</button></div>
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16 }}>
           <div style={{ flex: "1 1 280px" }}>
             <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, color: "var(--muted)", marginBottom: 6 }}>
-              Select Long-Form Video / Project
+              Or choose a video from your library
             </label>
             <select
               aria-label="Long video to find shorts in"
               value={selectedPid}
+              disabled={busy}
               onChange={(e) => setSelectedPid(e.target.value)}
               style={{ width: "100%", padding: "9px 12px", borderRadius: 8, background: "var(--input-bg, #27272a)", border: "1px solid var(--border)", color: "var(--fg)" }}
             >
@@ -358,11 +368,11 @@ export default function ShortsExtractor() {
             <button
               className="btn primary"
               onClick={() => handleDetect()}
-              disabled={loading || !selectedPid}
+              disabled={busy || !selectedPid}
               style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", fontWeight: 600 }}
             >
               {loading ? <RefreshCw className="spin" size={18} /> : <Wand2 size={18} />}
-              {loading ? "Analyzing Video..." : "Find Viral Highlights"}
+              {loading ? "Finding moments…" : "Find short clips"}
             </button>
           </div>
         </div>
@@ -401,7 +411,7 @@ export default function ShortsExtractor() {
                 <div className="row wrap" style={{ gap: 8 }}>
                   <button className="btn" onClick={() => handlePlayToggle(focusedIndex, shortsData.highlights[focusedIndex])}>{playingIndex === focusedIndex ? <Pause size={15} /> : <Play size={15} />} {playingIndex === focusedIndex ? "Pause clip" : "Play clip"}</button>
                   <button className="btn" onClick={() => toggleSelectIndex(focusedIndex)}>{selectedIndices.includes(focusedIndex) ? "Remove from batch" : "Add to batch"}</button>
-                  <button className="btn primary" disabled={slicingIndex !== null} onClick={() => handleSliceOne(focusedIndex)}><Scissors size={15} /> Create & open in Studio</button>
+                  <button className="btn primary" disabled={busy} onClick={() => handleSliceOne(focusedIndex)}><Scissors size={15} /> Create & open in Studio</button>
                 </div>
                 <p className="small muted">In Studio, you can ask Codex or Claude to direct the Short, inspect its framing, and render it. Batch export uses the automatic draft.</p>
               </div>
@@ -572,9 +582,9 @@ export default function ShortsExtractor() {
             <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(99, 102, 241, 0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px", color: "var(--accent, #6366f1)" }}>
               <Scissors size={32} />
             </div>
-            <h3 style={{ margin: "0 0 8px", fontSize: "1.2rem", fontWeight: 600 }}>No Shorts Extracted Yet</h3>
+            <h3 style={{ margin: "0 0 8px", fontSize: "1.2rem", fontWeight: 600 }}>Turn one recording into several short videos</h3>
             <p style={{ margin: "0 auto 24px", maxWidth: 440, color: "var(--muted)", fontSize: "0.9rem" }}>
-              Click <strong>"Find Viral Highlights"</strong> above to parse the recording with our multi-signal virality framework and identify scroll-stopping clips.
+              Choose a recording, press <strong>Find short clips</strong>, then preview the suggested moments. Pick the ones you like and export them with captions.
             </p>
           </div>
         )

@@ -1,7 +1,7 @@
 """Data contracts shared by every stage, the planner, the composer, the server and the MCP tools."""
 from __future__ import annotations
 
-from typing import Annotated, Literal, Optional, Union
+from typing import Annotated, Any, Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -13,6 +13,8 @@ class Word(BaseModel):
     text: str
     start: float
     end: float
+    caption_start: Optional[float] = None
+    caption_end: Optional[float] = None
     conf: float = 1.0
     lang: Literal["bn", "en", "other"] = "bn"
     flag: Optional[Literal["review"]] = None
@@ -94,9 +96,23 @@ TitleText = Annotated[str, Field(min_length=1, max_length=40)]
 class _El(BaseModel):
     model_config = STRICT
     id: Optional[str] = None
+    edited: bool = False
+    start: Optional[float] = Field(default=None, ge=0, allow_inf_nan=False, description="Exact appearance time in video seconds; overrides the generated word timing")
+    end: Optional[float] = Field(default=None, gt=0, allow_inf_nan=False, description="Exact disappearance time in video seconds")
+    x: Optional[float] = Field(default=None, ge=0, le=1, description="Horizontal centre in the frame, from left to right")
+    y: Optional[float] = Field(default=None, ge=0, le=1, description="Vertical centre in the frame, from top to bottom")
+    scale: float = Field(default=1, ge=0.05, le=5)
+    rotation: float = Field(default=0, ge=-360, le=360)
+    opacity: float = Field(default=1, ge=0, le=1)
     at_word: str = Field(description="id of the spoken word at which this element animates in")
     until_word: Optional[str] = Field(default=None, description="id of the spoken word after which it leaves; over a picture it leaves by itself "
                                                                 "after its sentence (1.5 to 3 s) so the picture gets the frame back")
+
+    @model_validator(mode="after")
+    def valid_range(self):
+        if self.start is not None and self.end is not None and self.end <= self.start:
+            raise ValueError("End must be after start")
+        return self
 
 
 class Title(_El):
@@ -376,6 +392,7 @@ class Device(_El):
     """A phone, laptop or browser window showing the user's screenshot/photo/video, with optional callouts pointing at parts of it."""
 
     type: Literal["device"] = "device"
+    offset: float = Field(default=0, ge=0, description="Start within the video file, in seconds")
     kind: Literal["phone", "laptop", "browser"] = "phone"
     media: Optional[str] = Field(default=None, description="media id from the project's media bin; empty shows a neutral placeholder")
     caption: str = Field(default="", max_length=40)
@@ -423,6 +440,7 @@ class MediaFrame(_El):
     """The user's photo, GIF or video clip as a framed picture inside the scene."""
 
     type: Literal["media_frame"] = "media_frame"
+    offset: float = Field(default=0, ge=0, description="Start within the video file, in seconds")
     media: str = Field(description="media id from the project's media bin")
     frame: Literal["plain", "rounded", "polaroid", "tv"] = "rounded"
     caption: str = Field(default="", max_length=40)
@@ -526,16 +544,27 @@ class Gauge(_El):
     display: Optional[str] = Field(default=None, max_length=10)
 
 
+class Shape(_El):
+    """A simple geometric visual, optionally labelled. Use for grouping or a visual cue, not invented data."""
+
+    type: Literal["shape"] = "shape"
+    shape: Literal["rectangle", "circle", "triangle", "line"] = "rectangle"
+    color: str = Field(default="#6366f1", pattern=r"^#[0-9a-fA-F]{6}$")
+    label: str = Field(default="", max_length=48)
+    width: float = Field(default=0.65, ge=0.1, le=1.0, description="Width as a fraction of the available scene space")
+    rounded: bool = True
+
+
 Element = Annotated[
     Union[Title, ValueCard, BigNumber, Arrow, IconRow, Tag, Compare, ListEl, Equation, Quote, BarChart, Icon, Keyword, Sticker,
           Ring, LineChart, Steps, Timeline, Definition, Checklist, ProsCons, StatRow, Question, FeatureGrid, Cta, PriceTag, Device,
-          SpeakerCard, Cartoon, MediaFrame, Flow, Cycle, Hierarchy, Venn, Funnel, Pyramid, Matrix, Pictogram, Gauge],
+          SpeakerCard, Cartoon, MediaFrame, Flow, Cycle, Hierarchy, Venn, Funnel, Pyramid, Matrix, Pictogram, Gauge, Shape],
     Field(discriminator="type"),
 ]
 
 ELEMENT_MODELS = [Title, ValueCard, BigNumber, Arrow, IconRow, Tag, Compare, ListEl, Equation, Quote, BarChart, Icon, Keyword, Sticker,
                   Ring, LineChart, Steps, Timeline, Definition, Checklist, ProsCons, StatRow, Question, FeatureGrid, Cta, PriceTag, Device,
-                  SpeakerCard, Cartoon, MediaFrame, Flow, Cycle, Hierarchy, Venn, Funnel, Pyramid, Matrix, Pictogram, Gauge]
+                  SpeakerCard, Cartoon, MediaFrame, Flow, Cycle, Hierarchy, Venn, Funnel, Pyramid, Matrix, Pictogram, Gauge, Shape]
 
 Layout = Literal["stack", "split", "hero", "grid", "side", "lower", "upper"]
 Transition = Literal["cut", "fade", "slide_up", "slide_left", "zoom", "wipe", "whip"]
@@ -578,17 +607,18 @@ class Backdrop(BaseModel):
 class Scene(BaseModel):
     model_config = STRICT
     id: str
-    beats: list[str] = Field(min_length=1, description="beat ids covered by this scene, in order")
+    beats: list[str] = Field(default_factory=list, description="Narration beats associated with this scene; a manually split visual scene may have none")
+    start: Optional[float] = Field(default=None, ge=0, allow_inf_nan=False, description="Exact scene start in video seconds; overrides sentence timing")
     layout: Layout = "stack"
     transition_in: Transition = "fade"
-    elements: list[Element] = Field(default_factory=list, max_length=5)
+    elements: list[Element] = Field(default_factory=list)
     tone: int = Field(default=0, ge=0, le=5, description="colour tone: rotates the accent colours so neighbouring scenes feel different")
     archetype: Optional[str] = Field(default=None, max_length=24, description="the kind of scene the director chose (informational; used by the Studio's 'show as' switch)")
     role: Optional[str] = Field(default=None, max_length=24, description="what the sentences do in the story (hook, claim, number, step...)")
     backdrop: Optional[Backdrop] = None
     caption: SceneCaption = Field(default_factory=SceneCaption)
     stick: Optional[dict] = Field(default=None, description="stick-figure timeline compiled from a Video Script (set, camera, cast, timed actions); see vt/script/compile.py")
-    sfx: list[dict] = Field(default_factory=list, max_length=6, description="sound cues [{at_word, id}] from a Video Script")
+    sfx: list[dict] = Field(default_factory=list, description="sound cues [{at_word, id}] from a Video Script")
 
 
 class ScenesFile(BaseModel):
@@ -808,6 +838,8 @@ def validate_scenes(sf: ScenesFile, tr: Transcript, beats: Beats, icons: set[str
     expected = [b.id for b in beats.beats]
     seen: list[str] = []
     for sc in sf.scenes:
+        if not sc.beats and sc.start is None:
+            errs.append(f"scene {sc.id}: a scene without narration needs an explicit start time")
         for bid in sc.beats:
             if bid not in beat_by_id:
                 errs.append(f"scene {sc.id}: unknown beat '{bid}'")
@@ -833,7 +865,7 @@ def validate_scenes(sf: ScenesFile, tr: Transcript, beats: Beats, icons: set[str
         for el in sc.elements:
             if el.at_word not in words:
                 errs.append(f"scene {sc.id}: element at_word '{el.at_word}' is not a transcript word")
-            elif el.at_word not in wset:
+            elif el.at_word not in wset and sc.start is None and el.start is None:
                 errs.append(f"scene {sc.id}: at_word '{el.at_word}' is outside this scene's beats")
             if el.until_word is not None:
                 if el.until_word not in words:

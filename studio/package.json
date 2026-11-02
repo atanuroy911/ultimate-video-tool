@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "test:timeline": "node --test tests/timeline-editing.test.mjs tests/layer-saving.test.mjs tests/free-editing.test.mjs",
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",

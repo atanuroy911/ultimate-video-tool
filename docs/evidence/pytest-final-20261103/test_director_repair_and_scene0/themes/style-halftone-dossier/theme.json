@@ -1,0 +1,74 @@
+{
+  "name": "style-halftone-dossier",
+  "label": "Halftone Dossier",
+  "color": {
+    "bg": "#D9D4BF",
+    "bg2": "#C0BCAD",
+    "ink": "#0B0E28",
+    "muted": "#5A5A62",
+    "accent": "#8B481F",
+    "accent2": "#8B481F",
+    "card": "#CBC6B4",
+    "card_border": "#0B0E28",
+    "caption_bg": "#CBC6B4",
+    "caption_ink": "#0B0E28",
+    "highlight_bg": "#8B481F",
+    "highlight_ink": "#FFFFFF",
+    "tag_bg": "#8B481F",
+    "tag_ink": "#FFFFFF",
+    "arc": "rgba(11,14,40,0.08)"
+  },
+  "font": {
+    "headline": [
+      "Bagel Fat One",
+      "Anek Bangla"
+    ],
+    "body": [
+      "Bagel Fat One",
+      "Hind Siliguri"
+    ],
+    "numeral": [
+      "Bagel Fat One",
+      "Anek Bangla"
+    ],
+    "caption": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "headline_weight": 800
+  },
+  "shape": {
+    "radius": 4,
+    "stroke": 3,
+    "shadow": {
+      "x": 0,
+      "y": 8,
+      "color": "rgba(0,0,0,0.18)",
+      "blur": 24
+    },
+    "card_tilt": 0
+  },
+  "background": {
+    "kind": "dots",
+    "grain": 0.12,
+    "arcs": false,
+    "pattern": 0.35,
+    "animated": false
+  },
+  "motion": {
+    "preset": "bouncy"
+  },
+  "caption": {
+    "style": "box",
+    "reveal": "line",
+    "weight": 800,
+    "size": 60,
+    "words_per_line": 3,
+    "safe_bottom": {
+      "portrait": 380,
+      "landscape": 64
+    }
+  },
+  "style": "lemo:halftone-dossier",
+  "picture": "emoji"
+}

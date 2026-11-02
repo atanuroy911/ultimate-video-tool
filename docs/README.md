@@ -2,6 +2,8 @@
 
 Everything about the project, organised so that an agent or a person can pick it up cold.
 
+Start with the [2026-11-03 vision-to-product audit](AUDIT-2026-11-03.md) for the latest discrepancies, completed connections and open acceptance gates.
+
 ## Read in this order
 | # | Read | For |
 |---|---|---|
@@ -10,7 +12,7 @@ Everything about the project, organised so that an agent or a person can pick it
 | 3 | [STATUS.md](STATUS.md), and [TEST-PLAN.md](TEST-PLAN.md) for how everything is tested | **what is implemented, where (file paths and functions), the tests, and the logs that prove it**; what is not built; what failed |
 | 4 | [plans/](plans/) | the detailed designs behind the phases (below) |
 | 5 | [research/REELS-ANALYSIS.md](research/REELS-ANALYSIS.md) | what the owner's high-retention example reels do, measured and watched; the model for Phase 4 |
-| 6 | [ops/](ops/), [qa/](qa/), [evidence/](evidence/), [history/](history/) | the server runbook, QA reports, raw test logs, and archived plans |
+| 6 | [ops/](ops/), qa/ (historical report missing from this checkout), [evidence/](evidence/), [history/](history/) | the server runbook, QA reports, raw test logs, and archived plans |
 
 ## Folder map
 ```

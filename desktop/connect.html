@@ -27,17 +27,18 @@
 </style></head>
 <body><main>
   <div class="logo"><i></i></div>
-  <h1>Where should Video Tool run?</h1>
-  <p>The heavy work (voices, pictures, rendering) happens on a server: this computer, or a stronger one on your network. You can change this later in the File menu.</p>
+  <h1>Welcome to Video Tool</h1>
+  <p>Choose where to open your workspace. You can use a graphics-card computer for AI pictures later, whichever option you choose here.</p>
 
   <div class="list">
-    <button class="opt" id="here"><span><b>This computer</b><small>Sets up and runs everything here.</small></span><span class="go">Use</span></button>
+    <button class="opt" id="here"><span><b>Start on this computer</b><small>Install what the app needs and keep your videos here.</small></span><span class="go">Continue →</span></button>
   </div>
 
-  <h2>On your network <button class="link" id="again" title="Look again">look again</button></h2>
+  <h2>Open a workspace on another computer</h2>
+  <p>Already running Video Tool elsewhere? Choose that computer below. <button class="link" id="again" title="Look again">Search again</button></p>
   <div class="list" id="found"><div class="note" id="looking">Looking…</div></div>
 
-  <h2>Type an address</h2>
+  <h2>Or enter its address</h2>
   <form class="row" id="typed">
     <input id="addr" placeholder="192.168.1.20:8765" spellcheck="false" autocomplete="off" aria-label="Server address">
     <button class="main" id="go" type="submit">Connect</button>

@@ -8,9 +8,11 @@ from functools import lru_cache
 from .. import paths
 from ..schema import ELEMENT_MODELS, LAYOUTS, TRANSITIONS
 from ..util import read_json
+from .element_library import library_info
 
 # One valid example per element (at_word values are placeholders replaced in the prompt).
 EXAMPLES: dict[str, dict] = {
+    "shape": {"type": "shape", "shape": "rectangle", "color": "#6366f1", "label": "", "width": 0.65, "rounded": True, "at_word": "w1"},
     "title": {"type": "title", "text": "ইয়েল্ড", "at_word": "w1"},
     "value_card": {"type": "value_card", "value": "৳১০০", "label": "দোকানের দাম", "at_word": "w7"},
     "big_number": {"type": "big_number", "value": "৪", "unit": "%", "label": "বছরে আয়", "at_word": "w18"},
@@ -53,6 +55,7 @@ EXAMPLES: dict[str, dict] = {
 }
 
 USE_WHEN: dict[str, str] = {
+    "shape": "A rectangle, circle, triangle or line to organize the scene or emphasize a spoken concept. Optional label must come from the script.",
     "title": "Name the topic or key term being explained. Usually first in a scene.",
     "value_card": "A price, amount or single number with context (label says what it is).",
     "big_number": "One striking statistic or percentage that deserves the whole screen.",
@@ -115,12 +118,13 @@ def component_catalogue() -> list[dict]:
         props = {k: v for k, v in schema.get("properties", {}).items() if k not in ("id", "type")}
         out.append({
             "type": t,
+            **library_info(t, EXAMPLES[t]),
             "description": inspect.getdoc(m) or "",
             "use_when": USE_WHEN.get(t, ""),
             "fields": props,
             "defs": schema.get("$defs", {}),
             "required": [r for r in schema.get("required", []) if r not in ("type",)],
-            "example": EXAMPLES[t],
+            "example": library_info(t, EXAMPLES[t])["starter"],
         })
     return out
 

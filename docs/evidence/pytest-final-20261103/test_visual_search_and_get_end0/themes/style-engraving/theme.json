@@ -1,0 +1,74 @@
+{
+  "name": "style-engraving",
+  "label": "Copperplate Engraving",
+  "color": {
+    "bg": "#DED0AA",
+    "bg2": "#C7BA98",
+    "ink": "#1C1510",
+    "muted": "#625847",
+    "accent": "#6F5329",
+    "accent2": "#462D10",
+    "card": "#D0C39F",
+    "card_border": "#1C1510",
+    "caption_bg": "#D0C39F",
+    "caption_ink": "#1C1510",
+    "highlight_bg": "#6F5329",
+    "highlight_ink": "#FFFFFF",
+    "tag_bg": "#462D10",
+    "tag_ink": "#FFFFFF",
+    "arc": "rgba(28,21,16,0.08)"
+  },
+  "font": {
+    "headline": [
+      "IBM Plex Mono",
+      "Anek Bangla"
+    ],
+    "body": [
+      "IBM Plex Mono",
+      "Hind Siliguri"
+    ],
+    "numeral": [
+      "IBM Plex Mono",
+      "Anek Bangla"
+    ],
+    "caption": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "headline_weight": 800
+  },
+  "shape": {
+    "radius": 4,
+    "stroke": 3,
+    "shadow": {
+      "x": 0,
+      "y": 8,
+      "color": "rgba(0,0,0,0.18)",
+      "blur": 24
+    },
+    "card_tilt": 0
+  },
+  "background": {
+    "kind": "grid",
+    "grain": 0.12,
+    "arcs": false,
+    "pattern": 0.35,
+    "animated": false
+  },
+  "motion": {
+    "preset": "smooth"
+  },
+  "caption": {
+    "style": "box",
+    "reveal": "line",
+    "weight": 800,
+    "size": 60,
+    "words_per_line": 3,
+    "safe_bottom": {
+      "portrait": 380,
+      "landscape": 64
+    }
+  },
+  "style": "lemo:engraving",
+  "picture": "line"
+}

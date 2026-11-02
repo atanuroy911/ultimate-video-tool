@@ -1,0 +1,74 @@
+{
+  "name": "style-circuit-board",
+  "label": "Circuit Board",
+  "color": {
+    "bg": "#05190F",
+    "bg2": "#213328",
+    "ink": "#F2EEE1",
+    "muted": "#878E82",
+    "accent": "#D9B25B",
+    "accent2": "#4AA977",
+    "card": "#16281E",
+    "card_border": "#F2EEE1",
+    "caption_bg": "#030F09",
+    "caption_ink": "#F2EEE1",
+    "highlight_bg": "#D9B25B",
+    "highlight_ink": "#000000",
+    "tag_bg": "#4AA977",
+    "tag_ink": "#000000",
+    "arc": "rgba(242,238,225,0.08)"
+  },
+  "font": {
+    "headline": [
+      "IBM Plex Mono",
+      "Anek Bangla"
+    ],
+    "body": [
+      "IBM Plex Mono",
+      "Hind Siliguri"
+    ],
+    "numeral": [
+      "IBM Plex Mono",
+      "Anek Bangla"
+    ],
+    "caption": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "headline_weight": 800
+  },
+  "shape": {
+    "radius": 4,
+    "stroke": 3,
+    "shadow": {
+      "x": 0,
+      "y": 8,
+      "color": "rgba(0,0,0,0.18)",
+      "blur": 24
+    },
+    "card_tilt": 0
+  },
+  "background": {
+    "kind": "grid",
+    "grain": 0.12,
+    "arcs": false,
+    "pattern": 0.35,
+    "animated": false
+  },
+  "motion": {
+    "preset": "smooth"
+  },
+  "caption": {
+    "style": "pop",
+    "reveal": "line",
+    "weight": 800,
+    "size": 60,
+    "words_per_line": 3,
+    "safe_bottom": {
+      "portrait": 380,
+      "landscape": 64
+    }
+  },
+  "style": "lemo:circuit-board",
+  "picture": "emoji"
+}

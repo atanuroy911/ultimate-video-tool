@@ -17,7 +17,7 @@ def test_projects_and_catalogue(client):
     lst = client.get("/api/projects").json()
     assert lst[0]["id"] == "reference" and lst[0]["scene_count"] == 3 and lst[0]["duration"] > 10
     cat = client.get("/api/catalogue").json()
-    assert len(cat["elements"]) == 39 and "slide_up" in cat["transitions"]
+    assert len(cat["elements"]) == 40 and "shape" in {e["type"] for e in cat["elements"]} and "slide_up" in cat["transitions"]
     assert client.get("/api/projects/nope").status_code == 404
     assert client.get("/api/projects/..%2Fetc").status_code in (400, 404)
 

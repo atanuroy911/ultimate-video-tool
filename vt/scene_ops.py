@@ -48,7 +48,7 @@ def _redistribute(sf: ScenesFile, beats: Beats) -> ScenesFile:
             pool_hl[tgt].append(wid)
     scenes = []
     for s in sf.scenes:
-        scenes.append(s.model_copy(update={"elements": pool_el[s.id][:5], "caption": s.caption.model_copy(update={"highlight_words": pool_hl[s.id]})}))
+        scenes.append(s.model_copy(update={"elements": pool_el[s.id], "caption": s.caption.model_copy(update={"highlight_words": pool_hl[s.id]})}))
     return _restick(sf.model_copy(update={"scenes": scenes}), beats)
 
 
@@ -79,7 +79,7 @@ def _restick(sf: ScenesFile, beats: Beats) -> ScenesFile:
     out = []
     for i, s in enumerate(sf.scenes):
         base = s.stick or next((x.stick for x in sf.scenes[i::-1] if x.stick), None) or have[0].stick
-        out.append(s.model_copy(update={"stick": {**base, "actions": sorted(acts[s.id], key=lambda a: a.get("start", 0))}, "sfx": sfx[s.id][:6],
+        out.append(s.model_copy(update={"stick": {**base, "actions": sorted(acts[s.id], key=lambda a: a.get("start", 0))}, "sfx": sfx[s.id],
                                         "archetype": s.archetype or "stick"}))
     return sf.model_copy(update={"scenes": out})
 
@@ -101,9 +101,9 @@ def merge_with_next(sf: ScenesFile, beats: Beats, sid: str) -> ScenesFile:
     if i + 1 >= len(sf.scenes):
         raise OpError("this is the last scene")
     a, b = sf.scenes[i], sf.scenes[i + 1]
-    merged = a.model_copy(update={"beats": a.beats + b.beats, "elements": (list(a.elements) + list(b.elements))[:5],
+    merged = a.model_copy(update={"beats": a.beats + b.beats, "elements": list(a.elements) + list(b.elements),
                                   "caption": a.caption.model_copy(update={"highlight_words": a.caption.highlight_words + b.caption.highlight_words}),
-                                  "sfx": (list(a.sfx) + list(b.sfx))[:6], "stick": _join_stick(a, b)})
+                                  "sfx": list(a.sfx) + list(b.sfx), "stick": _join_stick(a, b)})
     return _restick(sf.model_copy(update={"scenes": sf.scenes[:i] + [merged] + sf.scenes[i + 2:]}), beats)
 
 
@@ -115,11 +115,11 @@ def delete_scene(sf: ScenesFile, beats: Beats, sid: str) -> ScenesFile:
     s = sf.scenes[i]
     if i > 0:
         prev = sf.scenes[i - 1]
-        prev = prev.model_copy(update={"beats": prev.beats + s.beats, "sfx": (list(prev.sfx) + list(s.sfx))[:6], "stick": _join_stick(prev, s)})
+        prev = prev.model_copy(update={"beats": prev.beats + s.beats, "sfx": list(prev.sfx) + list(s.sfx), "stick": _join_stick(prev, s)})
         scenes = sf.scenes[: i - 1] + [prev] + sf.scenes[i + 1:]
     else:
         nxt = sf.scenes[1]
-        nxt = nxt.model_copy(update={"beats": s.beats + nxt.beats, "transition_in": "cut", "sfx": (list(s.sfx) + list(nxt.sfx))[:6], "stick": _join_stick(nxt, s)})
+        nxt = nxt.model_copy(update={"beats": s.beats + nxt.beats, "transition_in": "cut", "sfx": list(s.sfx) + list(nxt.sfx), "stick": _join_stick(nxt, s)})
         scenes = [nxt] + sf.scenes[2:]
     return _restick(sf.model_copy(update={"scenes": scenes}), beats)
 
@@ -139,10 +139,36 @@ def move_boundary(sf: ScenesFile, beats: Beats, sid: str, new_first_beat_of_next
     return _redistribute(sf.model_copy(update={"scenes": sf.scenes[:i] + [na, nb] + sf.scenes[i + 2:]}), beats)
 
 
+def boundary_choices(sf: ScenesFile, beats: Beats, duration: float) -> dict[str, list[dict]]:
+    """Legal shared-edge destinations, in the exact clock used by preview/export."""
+    from .compose.composer import scene_timing
+
+    original = scene_timing(sf, beats, duration)
+    by_id = {b.id: b for b in beats.beats}
+    result = {}
+    for i, a in enumerate(sf.scenes[:-1]):
+        b = sf.scenes[i + 1]
+        choices = []
+        for bid in (a.beats + b.beats)[1:]:
+            try:
+                changed = move_boundary(sf, beats, a.id, bid)
+                timing = scene_timing(changed, beats, duration)
+            except OpError:
+                continue
+            at = timing[i]["end"]
+            if at - original[i]["start"] < 0.399 or original[i + 1]["end"] - at < 0.399:
+                continue
+            if any(t != original[j] for j, t in enumerate(timing) if j not in (i, i + 1)):
+                continue
+            choices.append({"at_beat": bid, "time": at, "text": by_id[bid].text, "current": bid == b.beats[0]})
+        result[a.id] = choices
+    return result
+
+
 def patch_scene(sf: ScenesFile, sid: str, patch: dict[str, Any]) -> ScenesFile:
     """Apply layout / transition_in / elements / caption changes (validated by pydantic)."""
     i = _find(sf, sid)
-    allowed = {"layout", "transition_in", "elements", "caption"}
+    allowed = {"layout", "transition_in", "elements", "caption", "backdrop", "tone"}
     bad = set(patch) - allowed
     if bad:
         raise OpError(f"cannot change {sorted(bad)}; use split/merge/move for beats")
@@ -177,12 +203,17 @@ def _requeue(actions: list[dict], tr: Transcript, scene_end: float) -> list[dict
 
     words = tr.by_id()
     busy: dict[str, float] = {}
-    out = []
-    for a in sorted(actions, key=lambda x: words[x["at_word"]].start if x.get("at_word") in words else x.get("start", 0)):
+    # Queue by playback time but retain stable indices: the editor selects actions by index.
+    out = list(actions)
+    ordered = sorted(enumerate(actions), key=lambda item: item[1].get("start", 0) if item[1].get("_timed") else words[item[1]["at_word"]].start if item[1].get("at_word") in words else item[1].get("start", 0))
+    for index, a in ordered:
+        if a.get("_timed"):
+            busy[a["who"]] = max(busy.get(a["who"], 0), a["end"])
+            continue
         start = max(words[a["at_word"]].start if a.get("at_word") in words else a.get("start", 0.0), busy.get(a["who"], 0.0))
         end = min(start + verb_seconds(a["do"]), max(start + 0.2, scene_end))
         busy[a["who"]] = end
-        out.append({**a, "start": round(start, 3), "end": round(end, 3)})
+        out[index] = {**a, "start": round(start, 3), "end": round(end, 3)}
     return out
 
 
@@ -198,11 +229,18 @@ def edit_action(sf: ScenesFile, tr: Transcript, beats: Beats, sid: str, index: i
         acts.pop(index)
     else:
         cur = {**acts[index], **(patch or {})}
+        if "start" in (patch or {}) or "end" in (patch or {}):
+            from math import isfinite
+            if not all(isfinite(cur.get(k, -1)) for k in ("start", "end")) or not 0 <= cur["start"] < cur["end"]:
+                raise OpError("Action end must be after its start")
+            cur["_timed"] = True
+        elif "at_word" in (patch or {}):
+            cur.pop("_timed", None)
         words = {w for bb in beats.beats if bb.id in sc.beats for w in bb.word_ids}
-        if cur.get("at_word") not in words:
+        if cur.get("at_word") not in words and sc.start is None:
             raise OpError("an action must be anchored to a word inside its scene")
         try:
-            Action.model_validate({k: v for k, v in cur.items() if k not in ("start", "end")})
+            Action.model_validate({k: v for k, v in cur.items() if k not in ("start", "end", "_timed")})
         except Exception as e:
             raise OpError(str(e)[:200]) from e
         acts[index] = cur

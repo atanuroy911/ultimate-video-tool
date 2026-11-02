@@ -207,6 +207,25 @@ class Project:
     def save_request(self, r: PlanRequest) -> None:
         write_json(self.requests_dir / f"{r.id}.json", r.model_dump())
 
+    def theme(self, name: str) -> Theme:
+        """Keep a project portable even when its custom theme library is missing."""
+        snapshot = self.dir / "theme.snapshot.json"
+        try:
+            theme = load_theme(name)
+        except FileNotFoundError:
+            # Older projects already embed the complete theme in their preview.
+            candidates = [snapshot, *sorted(self.comp_dir.glob("*/data.json"))]
+            for candidate in candidates:
+                data = read_json(candidate, {}) or {}
+                raw = data.get("theme", data)
+                if raw.get("name") == name:
+                    theme = Theme.model_validate(raw)
+                    break
+            else:
+                raise
+        write_json(snapshot, theme.model_dump(exclude_none=True))
+        return theme
+
 
 def load_theme(name: str) -> Theme:
     p = paths.THEMES / name / "theme.json"

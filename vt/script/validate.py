@@ -338,9 +338,9 @@ def repair_script(data: dict, tr: Transcript, beats: Beats, kind: Optional[str] 
                 continue
             ov.append(o)
         ov.sort(key=lambda o: words[o["at_word"]].start if o.get("at_word") in words else 1e9)
-        sc["overlays"] = ov[:5]
+        sc["overlays"] = ov
         sc["sfx"] = [dict(c, at_word=c["at_word"] if c.get("at_word") in pool else _nearest(c.get("at_word"), pool)) for c in sc.get("sfx", []) or []
-                     if isinstance(c, dict) and c.get("id") in C.SFX][:6]
+                     if isinstance(c, dict) and c.get("id") in C.SFX]
         sc["highlight_words"] = [w for w in sc.get("highlight_words", []) if w in pool][:3]
     s["scenes"] = scenes
     return s

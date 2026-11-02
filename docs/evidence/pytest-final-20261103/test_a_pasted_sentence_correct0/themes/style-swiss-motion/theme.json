@@ -1,0 +1,74 @@
+{
+  "name": "style-swiss-motion",
+  "label": "Swiss Motion Graphics",
+  "color": {
+    "bg": "#EAE9E5",
+    "bg2": "#CFCECB",
+    "ink": "#0B0B0B",
+    "muted": "#686766",
+    "accent": "#B94100",
+    "accent2": "#1F3FFF",
+    "card": "#DAD9D6",
+    "card_border": "#0B0B0B",
+    "caption_bg": "#DAD9D6",
+    "caption_ink": "#0B0B0B",
+    "highlight_bg": "#B94100",
+    "highlight_ink": "#FFFFFF",
+    "tag_bg": "#1F3FFF",
+    "tag_ink": "#FFFFFF",
+    "arc": "rgba(11,11,11,0.08)"
+  },
+  "font": {
+    "headline": [
+      "Inter",
+      "Anek Bangla"
+    ],
+    "body": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "numeral": [
+      "Inter",
+      "Anek Bangla"
+    ],
+    "caption": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "headline_weight": 800
+  },
+  "shape": {
+    "radius": 4,
+    "stroke": 3,
+    "shadow": {
+      "x": 0,
+      "y": 8,
+      "color": "rgba(0,0,0,0.18)",
+      "blur": 24
+    },
+    "card_tilt": 0
+  },
+  "background": {
+    "kind": "aurora",
+    "grain": 0.12,
+    "arcs": false,
+    "pattern": 0.35,
+    "animated": true
+  },
+  "motion": {
+    "preset": "snappy"
+  },
+  "caption": {
+    "style": "box",
+    "reveal": "line",
+    "weight": 800,
+    "size": 60,
+    "words_per_line": 3,
+    "safe_bottom": {
+      "portrait": 380,
+      "landscape": 64
+    }
+  },
+  "style": "lemo:swiss-motion",
+  "picture": "line"
+}

@@ -9,7 +9,6 @@ import { jobsStore, onChanged, toast, useStore } from "../store";
 import type { ProjectSummary } from "../types";
 import { Modal, ProgressBar, Spinner } from "../ui";
 import RedoModal from "../components/RedoModal";
-import SetupWizard from "../components/SetupWizard";
 
 /* The dashboard: always-visible search + filter + batch-select bar, then every video as a cover. */
 const LAST_OPENED = "vt-last-project";
@@ -214,21 +213,8 @@ export default function ProjectsPage() {
     { key: "1:1", label: "1:1" },
   ];
 
-  const setup = useFetch<{ done: boolean; engines: { mode: string }[] }>("/api/setup");
-  const [wizard, setWizard] = useState(false);
-  const [skipSetup, setSkipSetup] = useState(() => { try { return localStorage.getItem("vt-skip-setup") === "1"; } catch { return false; } });
-  const needsSetup = !!setup.data && !setup.data.done && setup.data.engines.every((e) => e.mode === "off") && !skipSetup;
-
   return (
     <div className="page-inner dash2">
-      {needsSetup && (
-        <div className="banner" role="region" aria-label="Set up" data-testid="setup-banner">
-          <span className="grow">{t("setup.banner")}</span>
-          <button className="btn sm primary" onClick={() => setWizard(true)}>{t("setup.banner.go")}</button>
-          <button className="btn sm ghost" onClick={() => { try { localStorage.setItem("vt-skip-setup", "1"); } catch { /* private window */ } setSkipSetup(true); }}>{t("setup.banner.skip")}</button>
-        </div>
-      )}
-      {wizard && <SetupWizard onClose={() => { setWizard(false); setup.refetch(); }} />}
       {/* ── Top bar: title + search ── */}
       <div className="row" style={{ flexWrap: "wrap", gap: 12 }}>
         <h1 className="grow" style={{ margin: 0 }}>{t("projects.title")}</h1>

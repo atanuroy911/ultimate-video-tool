@@ -1,0 +1,76 @@
+{
+  "name": "mine",
+  "label": "mine",
+  "color": {
+    "bg": "#f1efe8",
+    "ink": "#1a1a1a",
+    "muted": "#6e6c66",
+    "accent": "#0a84ff",
+    "accent2": "#ffc83a",
+    "card": "#e3eee0",
+    "card_border": "#1a1a1a",
+    "caption_bg": "#ffffff",
+    "caption_ink": "#1a1a1a",
+    "highlight_bg": "#f26a1f",
+    "highlight_ink": "#ffffff",
+    "tag_bg": "#ffc83a",
+    "tag_ink": "#1a1a1a",
+    "arc": "rgba(40,40,30,0.09)"
+  },
+  "font": {
+    "headline": [
+      "Inter",
+      "Anek Bangla"
+    ],
+    "body": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "numeral": [
+      "Inter",
+      "Anek Bangla"
+    ],
+    "caption": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "headline_weight": 800
+  },
+  "shape": {
+    "radius": 22.0,
+    "stroke": 4.0,
+    "shadow": {
+      "x": 7.0,
+      "y": 7.0,
+      "color": "#1a1a1a",
+      "blur": 0.0
+    },
+    "card_tilt": -3.0
+  },
+  "background": {
+    "kind": "paper",
+    "grain": 0.4,
+    "arcs": true,
+    "pattern": 0.5,
+    "animated": false
+  },
+  "motion": {
+    "preset": "snappy"
+  },
+  "caption": {
+    "style": "box",
+    "reveal": "line",
+    "weight": 700,
+    "size": 58,
+    "words_per_line": 6,
+    "safe_bottom": {
+      "portrait": 300,
+      "landscape": 64
+    }
+  },
+  "currency": "৳",
+  "sfx": "pop",
+  "style": "",
+  "palette": "",
+  "picture": "emoji"
+}

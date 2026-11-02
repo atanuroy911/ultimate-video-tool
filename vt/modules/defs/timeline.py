@@ -213,7 +213,7 @@ class LayersOut(BaseModel):
     cost=Cost("fast", ("cpu",), 0.3), effects="writes_timeline", determinism="pure", grounding=(),
     fallback=None, fallback_reason="The existing layer validator and history provide actionable errors and recovery.",
     examples=(Example(inputs={"operation": "get"}, outputs={"document": {"v": 1, "tracks": [], "clips": []}, "errors": [], "can_undo": False, "can_redo": False}),),
-    toolboxes=("studio", "full"), plain_name="Editing timeline layers",
+    toolboxes=("autonomous", "studio", "full"), plain_name="Editing timeline layers",
     log_line=lambda i, o: f"Layer {i.operation} completed with {len(o.errors)} validation error(s).",
     native_outputs=True,
 )
@@ -235,19 +235,23 @@ def layers(ws: Workspace, inputs: LayersIn) -> LayersOut:
             layer_api.save(project, document)
     elif inputs.operation in ("undo", "redo"):
         layer_api.step(project, inputs.operation)
+    if inputs.operation != "get" and not errors and project.scenes():
+        from ...pipeline import compose_all
+        compose_all(project)
     document = layer_api.load(project)
     state = layer_api.history(project)
     return LayersOut(document=document, errors=errors, can_undo=state["can_undo"], can_redo=state["can_redo"])
 
 
 class EditSceneIn(BaseModel):
-    operation: Literal["split", "merge_next", "delete", "move_boundary", "patch", "reorder_elements", "edit_action", "add_action", "edit_cast"] = Field(
+    operation: Literal["split", "split_at", "move_edge", "edit_element", "merge_next", "delete", "move_boundary", "patch", "reorder_elements", "edit_action", "add_action", "edit_cast"] = Field(
         description="Typed existing scene-edit operation.")
     scene_id: str = Field(default="", description="Target scene id for scene and action operations.")
     beat_id: str | None = Field(default=None, description="Split beat or new first beat of the following scene.")
+    time: float | None = Field(default=None, ge=0, allow_inf_nan=False, description="Exact video seconds for split_at or move_edge; independent of sentence boundaries.")
     patch: dict[str, Any] = Field(default_factory=dict, description="Validated fields for scene, action or cast changes.")
     order: list[int] = Field(default_factory=list, description="Element-index order for reorder_elements.")
-    index: int = Field(default=0, ge=0, description="Action index for edit_action.")
+    index: int = Field(default=0, ge=0, description="Zero-based action or element index. edit_element accepts content, start/end seconds, x/y, scale, rotation, opacity, duplicate, delete or split in patch.")
     delete_action: bool = Field(default=False, description="Delete rather than patch the selected action.")
     cast_id: str = Field(default="", description="Cast id for edit_cast.")
 
@@ -257,13 +261,13 @@ class EditSceneOut(BaseModel):
 
 
 @module(
-    id="timeline.edit_scene", version=1, summary="Apply one typed split, merge, boundary, scene, element, action or cast edit.",
+    id="timeline.edit_scene", version=2, summary="Edit any visual, character or scene, including precise splits, timing, position and content.",
     when_to_use="The person or director changes the editable scene timeline.", when_not_to_use="For rebuilding the entire plan from scratch.",
     inputs=EditSceneIn, outputs=EditSceneOut, requires=("scenes", "transcript", "beats"), produces=("scenes",),
     cost=Cost("fast", ("cpu",), 0.3), effects="writes_timeline", determinism="pure", grounding=("patch",),
     fallback=None, fallback_reason="The existing scene operations validate ids, ordering and typed scene models.",
     examples=(Example(inputs={"operation": "patch", "scene_id": "s1", "patch": {"layout": "hero"}}, outputs={"scenes": 1}),),
-    toolboxes=("studio", "full"), plain_name="Editing a scene",
+    toolboxes=("autonomous", "studio", "full"), plain_name="Editing a scene",
     log_line=lambda i, o: f"Applied {i.operation.replace('_', ' ')}; the timeline has {o.scenes} scene(s).", native_outputs=True,
 )
 def edit_scene(ws: Workspace, inputs: EditSceneIn) -> EditSceneOut:
@@ -275,7 +279,16 @@ def edit_scene(ws: Workspace, inputs: EditSceneIn) -> EditSceneOut:
     if scenes is None:
         raise ValueError("the project has no scenes")
     beats, transcript = project.beats(), project.transcript()
-    if inputs.operation == "split":
+    from ... import editor_timing
+    if inputs.operation in ("split_at", "move_edge"):
+        if inputs.time is None:
+            raise ValueError("Give time in video seconds")
+        args = (scenes, beats, project.cuts().output_duration, inputs.scene_id, inputs.time)
+        scenes = (editor_timing.split_at(*args, editor_timing.project_element_times(project)) if inputs.operation == "split_at"
+                  else editor_timing.move_edge(*args))
+    elif inputs.operation == "edit_element":
+        scenes = editor_timing.edit_element(scenes, inputs.scene_id, inputs.index, inputs.patch, editor_timing.project_element_times(project))
+    elif inputs.operation == "split":
         scenes = scene_ops.split_scene(scenes, beats, inputs.scene_id, inputs.beat_id or "")
     elif inputs.operation == "merge_next":
         scenes = scene_ops.merge_with_next(scenes, beats, inputs.scene_id)
@@ -294,5 +307,14 @@ def edit_scene(ws: Workspace, inputs: EditSceneIn) -> EditSceneOut:
         scenes = scene_ops.add_action(scenes, transcript, beats, inputs.scene_id, inputs.patch)
     else:
         scenes = scene_ops.edit_cast(scenes, inputs.cast_id, inputs.patch)
+    from ...schema import validate_scenes
+    from ...planner.catalogue import all_icon_names
+    from ...pipeline import compose_all
+    from ...util import write_json
+    errors = validate_scenes(scenes, transcript, beats, all_icon_names(), {m.id for m in project.meta().media})
+    if errors:
+        raise ValueError("; ".join(errors[:12]))
+    write_json(project.dir / "scenes.prev.json", project.scenes().model_dump(exclude_none=True))
     project.save_scenes(scenes)
+    compose_all(project)
     return EditSceneOut(scenes=len(scenes.scenes))

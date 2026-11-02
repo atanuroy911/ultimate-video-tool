@@ -1,0 +1,74 @@
+{
+  "name": "style-memphis-diorama",
+  "label": "Memphis Diorama",
+  "color": {
+    "bg": "#FFFCF6",
+    "bg2": "#E5E2E1",
+    "ink": "#25214A",
+    "muted": "#76728A",
+    "accent": "#2F5BFF",
+    "accent2": "#866E1B",
+    "card": "#F0EDEA",
+    "card_border": "#25214A",
+    "caption_bg": "#F0EDEA",
+    "caption_ink": "#25214A",
+    "highlight_bg": "#2F5BFF",
+    "highlight_ink": "#FFFFFF",
+    "tag_bg": "#866E1B",
+    "tag_ink": "#FFFFFF",
+    "arc": "rgba(37,33,74,0.08)"
+  },
+  "font": {
+    "headline": [
+      "Inter Tight",
+      "Anek Bangla"
+    ],
+    "body": [
+      "Inter Tight",
+      "Hind Siliguri"
+    ],
+    "numeral": [
+      "Inter Tight",
+      "Anek Bangla"
+    ],
+    "caption": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "headline_weight": 800
+  },
+  "shape": {
+    "radius": 18,
+    "stroke": 3,
+    "shadow": {
+      "x": 6,
+      "y": 6,
+      "color": "#25214A",
+      "blur": 0
+    },
+    "card_tilt": 0
+  },
+  "background": {
+    "kind": "dots",
+    "grain": 0.12,
+    "arcs": false,
+    "pattern": 0.35,
+    "animated": false
+  },
+  "motion": {
+    "preset": "bouncy"
+  },
+  "caption": {
+    "style": "box",
+    "reveal": "line",
+    "weight": 800,
+    "size": 60,
+    "words_per_line": 3,
+    "safe_bottom": {
+      "portrait": 380,
+      "landscape": 64
+    }
+  },
+  "style": "lemo:memphis-diorama",
+  "picture": "emoji"
+}

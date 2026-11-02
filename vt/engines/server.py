@@ -16,7 +16,7 @@ from typing import Any, Optional
 
 import httpx
 from fastapi import APIRouter, Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse, HTMLResponse
 from pydantic import BaseModel, Field
 
 VERSION = "1"
@@ -57,6 +57,9 @@ def create_app(*, key: str = "", pairing_code: str = "", name: str = "", service
     """
     app = FastAPI(title="Video Tool Engine Server", docs_url=None, redoc_url=None)
     app.include_router(engine_router(new_state(key=key, pairing_code=pairing_code, name=name, services=services)))
+    @app.get("/", response_class=HTMLResponse)
+    def dashboard() -> str:
+        return (Path(__file__).with_name("dashboard.html")).read_text(encoding="utf-8")
     return app
 
 
@@ -68,6 +71,16 @@ def new_state(*, key: str = "", pairing_code: str = "", name: str = "", services
 def engine_router(state: dict[str, Any]) -> APIRouter:
     """The engine contract as routes, for the standalone engine app and for `vt server` (the Studio and the engine on one port)."""
     app = APIRouter()
+
+    def local_admin(request: Request) -> None:
+        forwarded = {"forwarded", "x-forwarded-for", "x-real-ip", "cf-connecting-ip"}
+        if not request.client or request.client.host not in ("127.0.0.1", "::1", "localhost") or any(h in request.headers for h in forwarded):
+            raise HTTPException(403, "Open this page on the server computer to manage it.")
+
+    @app.get("/v1/admin/status", dependencies=[Depends(local_admin)])
+    def admin_status() -> dict[str, Any]:
+        from . import hub
+        return {"name": state["name"], "services": {n: hub.reachable(n, u, 1.0) for n, u in state["services"].items()}}
 
     def auth(authorization: Optional[str] = Header(default=None)) -> None:
         got = (authorization or "").removeprefix("Bearer ").strip()
@@ -93,7 +106,7 @@ def engine_router(state: dict[str, Any]) -> APIRouter:
         caps = capabilities() + [CAPABILITY_OF[n] for n, ok in up.items() if ok and n in CAPABILITY_OF]
         return {"ok": True, "capabilities": sorted(set(caps)), "version": VERSION, "services": up}
 
-    @app.post("/v1/admin/new-code")
+    @app.post("/v1/admin/new-code", dependencies=[Depends(local_admin)])
     def new_code(request: Request) -> dict[str, str]:
         """A fresh pairing code. Only the computer the hub runs on may ask (`vt engine pair`)."""
         host = request.client.host if request.client else ""

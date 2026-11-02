@@ -124,6 +124,7 @@ async def ws_endpoint(ws: WebSocket) -> None:
     known = clients.known(_token(ws.scope))
     device_id = str((known or {}).get("id") or ("local-app" if is_local(ws.scope) else ""))
     device_name = str((known or {}).get("name") or "This computer")
+    send_to_device = lambda m, sock=ws: hub.send(sock, m)
     try:
         await ws.send_text(json.dumps({"type": "hello", "jobs": [j.public() for j in jobs.jobs.values() if j.status in ("queued", "running")]}))
         while True:
@@ -135,7 +136,7 @@ async def ws_endpoint(ws: WebSocket) -> None:
                 continue
             if msg.get("type") in ("director", "director_announce") and msg.get("director") == "claude":
                 directors.broker.connect(device_id, device_name, version=str(msg.get("version", ""))[:80],
-                                         logged_in=bool(msg.get("logged_in")), send=lambda m, sock=ws: hub.send(sock, m))
+                                         logged_in=bool(msg.get("logged_in")), send=send_to_device)
                 hub.emit({"type": "directors_changed"})
             elif msg.get("type") == "director_done":
                 directors.broker.finish(str(msg.get("request", "")), ok=bool(msg.get("ok")), error=str(msg.get("error", "")),
@@ -147,7 +148,7 @@ async def ws_endpoint(ws: WebSocket) -> None:
     finally:
         hub.clients.discard(ws)
         if device_id:
-            directors.broker.disconnect(device_id)
+            directors.broker.disconnect(device_id, send_to_device)
             hub.emit({"type": "directors_changed"})
 
 
@@ -249,7 +250,7 @@ def edit_scenes(p: Project, fn) -> ScenesFile:
 
 
 # ------------------------------------------------------------------ meta / catalogue
-API_VERSION = 6          # bump when the Studio page starts calling an endpoint an older server does not have
+API_VERSION = 8          # Free scene/visual/caption timing and component examples
 
 
 @app.get("/api/health")
@@ -262,6 +263,33 @@ def catalogue() -> dict:
     cat = catalogue_summary()
     cat["stages"] = [{"key": k, "label": LABELS[k]} for k in ORDER]
     return cat
+
+
+@app.get("/api/elements/{kind}/preview")
+def element_preview(kind: str) -> dict:
+    """A real, silent component example using the same runtime as exported videos."""
+    from ..planner.catalogue import component_catalogue
+    from ..schema import Beat, Beats, Scene, Transcript, Word
+    from ..compose.composer import resolve_composition, write_composition
+    spec = next((s for s in component_catalogue() if s["type"] == kind), None)
+    if not spec:
+        raise HTTPException(404, "Unknown element")
+    folder = paths.PROJECTS / ".elements" / kind
+    folder.mkdir(parents=True, exist_ok=True)
+    art = folder / "example.svg"
+    art.write_text('<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><rect width="800" height="600" fill="#dbeafe"/><circle cx="590" cy="150" r="65" fill="#fbbf24"/><path d="M0 600L270 240 440 460 600 300 800 600" fill="#60a5fa"/><text x="400" y="550" text-anchor="middle" font-family="sans-serif" font-size="36" fill="#172554">Your picture</text></svg>', encoding="utf-8")
+    el = {**spec["starter"], "at_word": "w1"}
+    if kind in ("media_frame", "device"):
+        el["media"] = "example"
+    theme = load_theme("paper")
+    tr = Transcript(language="en", words=[Word(id="w1", text="Example", start=.3, end=3.5)])
+    beats = Beats(beats=[Beat(id="b1", word_ids=["w1"], start=.3, end=3.5, text="Example")])
+    sf = ScenesFile(scenes=[Scene(id="sample", beats=["b1"], elements=[el], layout="hero")])
+    media = {"example": {"src":"example.svg", "kind":"image", "width":800, "height":600}}
+    data = resolve_composition(sf, tr, beats, theme, "1:1", 4, media=media)
+    data["captions_enabled"] = False
+    write_composition(folder, data, theme, spec["name"])
+    return {"url":f"/media/.elements/{kind}/index.html"}
 
 
 @app.get("/api/icons/{name}")
@@ -317,6 +345,15 @@ def get_directors() -> dict:
     from ..directors import listing
 
     return listing()
+
+
+@app.post("/api/directors/token")
+def director_token() -> dict:
+    """A revocable MCP key for the desktop app's constrained Claude process."""
+    from . import clients
+
+    device, token = clients.add("Claude director on this device")
+    return {"device": device, "token": token}
 
 
 def _public_settings(s: dict) -> dict:
@@ -1572,6 +1609,9 @@ class WordEdit(BaseModel):
     text: Optional[str] = None
     cut: Optional[bool] = None
     restore: bool = False
+    start: Optional[float] = None
+    end: Optional[float] = None
+    reset_timing: bool = False
 
 
 class SnippetBody(BaseModel):
@@ -1645,7 +1685,23 @@ def edit_word(pid: str, wid: str, body: WordEdit) -> dict:
         raise HTTPException(409, "this project has no transcript to edit yet; process the audio first")
     path = p.dir / "edits.json"
     edits = read_json(path, {"words": {}}) or {"words": {}}
+    import copy
+    before = copy.deepcopy(edits)
     cur = edits["words"].get(wid, {})
+    if body.reset_timing:
+        cur.pop("caption_start_src", None)
+        cur.pop("caption_end_src", None)
+    if body.start is not None or body.end is not None:
+        from ..audio_edit import out_to_src
+        from math import isfinite
+        word = p.transcript().by_id().get(wid)
+        if not word:
+            raise HTTPException(404, "Word not found")
+        a = body.start if body.start is not None else word.caption_start if word.caption_start is not None else word.start
+        b = body.end if body.end is not None else word.caption_end if word.caption_end is not None else word.end
+        if not isfinite(a) or not isfinite(b) or not 0 <= a < b <= p.cuts().output_duration:
+            raise HTTPException(422, "Keep caption start and end inside the video, with end after start")
+        cur.update(caption_start_src=out_to_src(p.cuts(), a), caption_end_src=out_to_src(p.cuts(), b))
     if body.text is not None and body.text.strip() and not body.restore:
         from .. import taste
 
@@ -1667,6 +1723,11 @@ def edit_word(pid: str, wid: str, body: WordEdit) -> dict:
     else:
         edits["words"].pop(wid, None)
     write_json(path, edits)
+    if edits != before:
+        history = read_json(p.dir / "word_history.json", {"past": [], "future": []})
+        history["past"] = (history["past"] + [before])[-50:]
+        history["future"] = []
+        write_json(p.dir / "word_history.json", history)
     pl = Pipeline(p)
     pl.stage_words()
     pl.stage_plan()
@@ -1674,6 +1735,23 @@ def edit_word(pid: str, wid: str, body: WordEdit) -> dict:
     changed(pid)
     return {"ok": True}
 
+
+
+@app.post("/api/projects/{pid}/words/history/{direction}")
+def word_history(pid: str, direction: str) -> dict:
+    if direction not in ("undo", "redo"):
+        raise HTTPException(404, "Unknown history action")
+    p = proj(pid)
+    path = p.dir / "word_history.json"
+    history = read_json(path, {"past": [], "future": []})
+    take, give = ("past", "future") if direction == "undo" else ("future", "past")
+    if not history[take]:
+        raise HTTPException(409, "No caption change to restore")
+    history[give].append(read_json(p.dir / "edits.json", {"words": {}}))
+    write_json(p.dir / "edits.json", history[take].pop())
+    write_json(path, history)
+    _rebuild_words(p, pid)
+    return {"ok": True}
 
 
 @app.post("/api/projects/{pid}/polish")
@@ -1855,8 +1933,14 @@ def _audio_apply(p: Project, pid: str, rerun: bool = True) -> dict:
     from .. import audio_edit as AE
 
     if rerun:
+        old_cuts, old_plan = p.cuts(), p.scenes()
         pl = Pipeline(p)
         pl.stage_cuts()
+        if old_plan and old_cuts:
+            from ..editor_timing import retime_manual
+            remapped, clock = retime_manual(old_plan, old_cuts, p.cuts(), read_json(p.dir / "editor_clock.json", {}) or {})
+            p.save_scenes(remapped)
+            write_json(p.dir / "editor_clock.json", clock)
         pl.stage_aroll()
         pl.stage_words()
         pl.stage_plan()
@@ -1888,6 +1972,31 @@ def get_audio(pid: str) -> dict:
     if not p.cuts_path.exists():
         raise HTTPException(409, "process the audio first")
     return AE.view(p)
+
+
+@app.post("/api/projects/{pid}/audio/extract")
+def extract_voice_clip(pid: str, body: RangeBody) -> dict:
+    """Make the selected source audio available as an independently editable sound clip."""
+    import soundfile as soundfile
+    from ..director.media import add_sound
+    from ..audio_edit import src_ranges
+    import numpy as np
+    p = proj(pid)
+    if not 0 <= body.start < body.end <= p.cuts().output_duration:
+        raise HTTPException(422, "Choose a range inside the video")
+    # Read original audio, so a previously muted selection can still be extracted.
+    with soundfile.SoundFile(p.master) as src:
+        parts = []
+        for start, end in src_ranges(p.cuts(), body.start, body.end):
+            src.seek(round(start * src.samplerate))
+            parts.append(src.read(round((end-start)*src.samplerate), dtype="float32", always_2d=True))
+        rate = src.samplerate
+    with tempfile.TemporaryDirectory() as temp:
+        wav = Path(temp) / "selected-audio.wav"
+        soundfile.write(wav, np.concatenate(parts), rate, subtype="PCM_16")
+        item = add_sound(p, wav, caption=f"Audio {body.start:.3f}–{body.end:.3f}s", source="timeline")
+    changed(pid)
+    return _media_view(p, item)
 
 
 @app.post("/api/projects/{pid}/audio/cut")
@@ -1977,7 +2086,37 @@ def get_scenes(pid: str) -> dict:
     cuts = p.cuts()
     dur = cuts.output_duration if cuts else max((w.end for w in p.transcript().kept()), default=1.0) + 0.5
     timing = {"scenes": scene_timing(sf, p.beats(), dur), "duration": round(dur, 3)}
-    return {"plan": sf.model_dump(exclude_none=True), "timing": timing}
+    return {"plan": sf.model_dump(exclude_none=True), "timing": timing, "elements": _element_times(p)}
+
+
+def _element_times(p):
+    from ..editor_timing import resolved_elements
+    tag = FORMATS[p.meta().aspect]["tag"]
+    return resolved_elements(read_json(p.comp_dir / tag / "data.json", {}) or {})
+
+
+@app.post("/api/projects/{pid}/scenes/{sid}/edge")
+def free_scene_edge(pid: str, sid: str, body: TimeBody) -> dict:
+    from ..editor_timing import move_edge
+    p = proj(pid)
+    sf = edit_scenes(p, lambda s: move_edge(s, p.beats(), p.cuts().output_duration, sid, body.t))
+    return {"plan": sf.model_dump(exclude_none=True)}
+
+
+@app.post("/api/projects/{pid}/scenes/{sid}/split-at")
+def free_scene_split(pid: str, sid: str, body: TimeBody) -> dict:
+    from ..editor_timing import split_at
+    p = proj(pid)
+    sf = edit_scenes(p, lambda s: split_at(s, p.beats(), p.cuts().output_duration, sid, body.t, _element_times(p)))
+    return {"plan": sf.model_dump(exclude_none=True)}
+
+
+@app.patch("/api/projects/{pid}/scenes/{sid}/elements/{index}")
+def edit_element(pid: str, sid: str, index: int, body: dict[str, Any]) -> dict:
+    from ..editor_timing import edit_element as apply_element
+    p = proj(pid)
+    sf = edit_scenes(p, lambda sf: apply_element(sf, sid, index, body, _element_times(p)))
+    return {"plan": sf.model_dump(exclude_none=True)}
 
 
 @app.put("/api/projects/{pid}/scenes")

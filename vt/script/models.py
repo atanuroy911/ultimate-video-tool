@@ -95,8 +95,8 @@ class ScriptScene(BaseModel):
     set: Optional[str] = None
     camera: Camera = Field(default_factory=Camera)
     actions: list[Action] = Field(default_factory=list, max_length=24)
-    overlays: list[dict[str, Any]] = Field(default_factory=list, max_length=5, description="on-screen elements from the component catalogue (each has type and at_word)")
-    sfx: list[SfxCue] = Field(default_factory=list, max_length=6)
+    overlays: list[dict[str, Any]] = Field(default_factory=list, description="on-screen elements from the component catalogue (each has type and at_word)")
+    sfx: list[SfxCue] = Field(default_factory=list)
     layout: Literal["stack", "split", "hero", "grid", "side", "lower", "upper"] = "stack"
     transition_in: Literal["cut", "fade", "slide_up", "slide_left", "zoom", "wipe", "whip"] = "fade"
     tone: int = Field(default=0, ge=0, le=5)

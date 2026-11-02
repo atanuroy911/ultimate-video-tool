@@ -19,7 +19,7 @@ For the next agent (Codex, Claude, a person). Read [ROADMAP.md](ROADMAP.md) for 
   | `third_party/` | vendored sources (shotcraft recipes, Cartoon Studio, the shorts reference) |
   | `projects/` | **the owner's real videos** (never touch; tests use scratch folders) |
   | `docs/` | this documentation (see [README.md](README.md)) |
-  | `qa_*` folders | outputs of QA runs (media and frames); not source, and not kept: they were removed on 2026-10-27, so old QA videos linked from `docs/qa/` are gone |
+  | `qa_*` folders | outputs of QA runs (media and frames); not source, and not kept: they were removed on 2026-10-27, so old QA videos linked from the historical QA directory (missing from this checkout) are gone |
 
 ## 2. Commands
 ```powershell

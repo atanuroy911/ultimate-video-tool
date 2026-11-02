@@ -226,32 +226,32 @@ export default function AIAssistants() {
     {
       id: "auto",
       icon: <Cpu size={18} />,
-      title: "Local Ollama",
-      subtitle: "Free, private, runs on this computer or your network",
+      title: "Free AI on a computer",
+      subtitle: "Private; can use this computer or your GPU server",
     },
     {
       id: "claude_cli",
       icon: <Star size={18} />,
-      title: "Claude (my login)",
-      subtitle: "Uses Claude Code on this computer — no API key needed",
+      title: "Claude on this computer",
+      subtitle: "Uses your Claude login — no key to paste",
     },
     {
       id: "best",
       icon: <Sparkles size={18} />,
-      title: "Best available",
-      subtitle: "Claude when ready, falls back to Ollama automatically",
+      title: "Automatic (recommended)",
+      subtitle: "Uses the best helper that is ready",
     },
     {
       id: "anthropic",
       icon: <Key size={18} />,
-      title: "Claude API key",
-      subtitle: "Direct Anthropic API with your own key",
+      title: "Claude with a key",
+      subtitle: "Use your own paid Claude key",
     },
     {
       id: "openai",
       icon: <Zap size={18} />,
-      title: "OpenAI GPT / compatible API",
-      subtitle: "Any OpenAI-compatible endpoint — OpenAI, Groq, local, etc.",
+      title: "Another online AI",
+      subtitle: "OpenAI, Groq, or anything that works the same way",
     },
     {
       id: "off",
@@ -292,7 +292,7 @@ export default function AIAssistants() {
               bodyNode = (
                 <div className="col" style={{ gap: 12 }}>
                   {ollamaModelList.length > 0 ? (
-                    <Field label="Model">
+                    <Field label="AI version">
                       <select value={currentOllamaModel} onChange={(e) => save({ ollama_model: e.target.value })}>
                         <option value="">Automatic ({recommendedModel || "auto"})</option>
                         {ollamaModelList.map((m: string) => <option key={m} value={m}>{m}</option>)}
@@ -301,7 +301,7 @@ export default function AIAssistants() {
                   ) : (
                     <span className="small muted">No Ollama models found. Make sure Ollama is running and has at least one model pulled.</span>
                   )}
-                  <Field label="Ollama address" hint="Another computer on your network also works, e.g. http://192.168.1.20:11434">
+                  <Field label="Computer address" hint="Where the free AI helper is running">
                     <input
                       type="text"
                       defaultValue={llmStatus?.ollama_url ?? "http://localhost:11434"}

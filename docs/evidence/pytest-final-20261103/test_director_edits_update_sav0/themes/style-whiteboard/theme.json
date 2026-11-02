@@ -1,0 +1,74 @@
+{
+  "name": "style-whiteboard",
+  "label": "Whiteboard Explainer",
+  "color": {
+    "bg": "#23262C",
+    "bg2": "#3A3538",
+    "ink": "#E5A38E",
+    "muted": "#B18173",
+    "accent": "#D76D70",
+    "accent2": "#6A8DCA",
+    "card": "#312F33",
+    "card_border": "#E5A38E",
+    "caption_bg": "#15171A",
+    "caption_ink": "#E5A38E",
+    "highlight_bg": "#D76D70",
+    "highlight_ink": "#000000",
+    "tag_bg": "#6A8DCA",
+    "tag_ink": "#000000",
+    "arc": "rgba(229,163,142,0.08)"
+  },
+  "font": {
+    "headline": [
+      "Architects Daughter",
+      "Anek Bangla"
+    ],
+    "body": [
+      "Architects Daughter",
+      "Hind Siliguri"
+    ],
+    "numeral": [
+      "Architects Daughter",
+      "Anek Bangla"
+    ],
+    "caption": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "headline_weight": 700
+  },
+  "shape": {
+    "radius": 4,
+    "stroke": 3,
+    "shadow": {
+      "x": 0,
+      "y": 8,
+      "color": "rgba(0,0,0,0.18)",
+      "blur": 24
+    },
+    "card_tilt": 0
+  },
+  "background": {
+    "kind": "grid",
+    "grain": 0.12,
+    "arcs": false,
+    "pattern": 0.35,
+    "animated": false
+  },
+  "motion": {
+    "preset": "smooth"
+  },
+  "caption": {
+    "style": "pop",
+    "reveal": "line",
+    "weight": 800,
+    "size": 60,
+    "words_per_line": 3,
+    "safe_bottom": {
+      "portrait": 380,
+      "landscape": 64
+    }
+  },
+  "style": "lemo:whiteboard",
+  "picture": "line"
+}

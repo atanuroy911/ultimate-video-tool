@@ -93,8 +93,12 @@ def _safe(fn, *a) -> bool:
 
 def working_set(steps: list[Step], hints: tuple[str, ...] = ()) -> list[str]:
     """The modules whose full schema is shown: the ones already used, plus a few hints for what usually comes next. Everything else is one catalogue line away."""
-    used = list(dict.fromkeys(s.module for s in steps))
-    return list(dict.fromkeys(used + list(hints)))[:12]
+    recent = []
+    for s in reversed(steps):
+        if s.ok and s.module == "meta.describe" and s.inputs.get("module_id"):
+            recent.append(s.inputs["module_id"])
+        recent.append(s.module)
+    return list(dict.fromkeys(recent + list(hints) + ["meta.describe", "meta.catalog"]))[:12]
 
 
 def hints_for(project, steps: list[Step]) -> tuple[str, ...]:
@@ -118,6 +122,8 @@ def run_agent(project, step: Callable[..., dict], *, limits: Optional[Limits] = 
     limits = limits or Limits()
     ex = Executor(project.dir)
     system = prompt if prompt is not None else load_prompt()
+    from .plan_director import catalogue_lines
+    system += "\n\nAvailable capabilities (ask meta.describe for exact inputs):\n" + catalogue_lines(toolbox)
     run = Run()
     started = time.monotonic()
     last: dict[str, Any] = {}
@@ -162,7 +168,10 @@ def run_agent(project, step: Callable[..., dict], *, limits: Optional[Limits] = 
         st = Step(n=len(run.steps) + 1, module=mid, inputs=call.get("inputs") or {}, why=str(call.get("why", ""))[:300], ok=res.ok, status=res.status, summary=res.summary or "", fix=res.fix or "",
                   seconds=round(time.monotonic() - t0, 2))
         run.steps.append(st)
-        last = {"module": mid, "ok": res.ok, "summary": res.summary or "", "fix": res.fix or "", "output": _small(res.output)}
+        # Discovery is the model's only way to learn unfamiliar inputs. Cutting it at
+        # 600 characters hid nearly the entire catalogue and most nested schemas.
+        output = res.output if mid in ("meta.catalog", "meta.describe") else _small(res.output)
+        last = {"module": mid, "ok": res.ok, "summary": res.summary or "", "fix": res.fix or "", "output": output}
         key = (mid, json.dumps(call.get("inputs") or {}, sort_keys=True, default=str), (res.summary or "") + (res.fix or ""))
         seen.append(key)
         if len(seen) >= limits.repeat and all(k == seen[-1] for k in seen[-limits.repeat:]):
@@ -193,8 +202,8 @@ def ollama_step(model: str = "", temperature: float = 0.2) -> Callable[..., dict
                 tools.append(export_tool(get_module(m), "mcp"))
             except KeyError:
                 pass
-        user = (f"Goal: {goal or 'make the best video of this project'}\n\nState:\n{card}\n\nLast result:\n{json.dumps(last, ensure_ascii=False)[:800]}\n\n"
-                f"Full schemas for the modules you may call now:\n{json.dumps(tools, ensure_ascii=False)[:6000]}\n\nAnswer with one call, or finish.")
+        user = (f"Goal: {goal or 'make the best video of this project'}\n\nState:\n{card}\n\nLast result:\n{json.dumps(last, ensure_ascii=False)}\n\n"
+                f"Full schemas for your current working set (other capabilities remain available through meta.describe):\n{json.dumps(tools, ensure_ascii=False)}\n\nAnswer with one call, or finish.")
         return complete_json(user, schema, system=system, retries=0, max_tokens=700, temperature=temperature)
 
     return step

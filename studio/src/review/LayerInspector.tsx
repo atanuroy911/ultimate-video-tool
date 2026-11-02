@@ -3,13 +3,14 @@ import { Panel } from "../ds";
 import type { LClip, MediaItem } from "../types";
 import * as Ops from "./layerOps";
 import type { Layers } from "./useLayers";
+import { timeStore } from "./timeStore";
 
 /** A range input that shows the change at once and saves when it is let go. */
 function Num({ label, value, min, max, step, unit, layers, onSet, fmt }: { label: string; value: number; min: number; max: number; step: number; unit?: string; layers: Layers; onSet: (v: number) => void; fmt?: (v: number) => string }) {
   const save = () => layers.commit();
   return (
     <label className="field"><span>{label} <em className="muted" style={{ fontStyle: "normal" }}>{fmt ? fmt(value) : `${value}${unit ?? ""}`}</em></span>
-      <input type="range" min={min} max={max} step={step} value={value} aria-label={label} onChange={(e) => onSet(+e.target.value)} onPointerUp={save} onKeyUp={(e) => e.key.startsWith("Arrow") && save()} />
+      <input type="range" min={min} max={max} step={step} value={value} aria-label={label} onChange={(e) => onSet(+e.target.value)} onPointerUp={save} onBlur={save} onKeyUp={(e) => (e.key.startsWith("Arrow") || e.key === "Home" || e.key === "End") && save()} />
     </label>
   );
 }
@@ -23,6 +24,7 @@ export default function LayerInspector({ layers, clip, media, total, onSelect, s
   const pct = (v: number) => `${Math.round(v * 100)}%`;
   const canSplit = time > clip.start + Ops.MIN && time < clip.start + clip.dur - Ops.MIN;
   const track = layers.doc.tracks.find((t) => t.id === clip.track);
+  const sourceLimit = m && (m.kind === "video" || m.kind === "audio") ? m.duration || null : null;
 
   return (
     <div>
@@ -30,9 +32,25 @@ export default function LayerInspector({ layers, clip, media, total, onSelect, s
         <h2>{clip.type === "text" ? "Text layer" : clip.type === "audio" ? "Sound layer" : "Picture / video layer"}</h2>
         <span className="small muted">{track?.name} · {clip.start.toFixed(2)}–{(clip.start + clip.dur).toFixed(2)} s{m ? ` · ${m.caption || m.id}` : ""}</span>
       </div>
-      <Panel title="Clip">
+      {track?.locked && <p className="banner">This track is locked. Unlock it from its timeline menu to edit.</p>}
+      <fieldset disabled={track?.locked} style={{border:0,padding:0,margin:0,minWidth:0}}>
+      <Panel title="Timing & trimming">
+        <p className="small muted">Set exactly when this clip appears and disappears. Trimming a video also trims its source footage.</p>
+        <div className="ed-time-fields">
+          {(["start","end"] as const).map(side => <label key={side}>{side === "start" ? "Start" : "End"} (seconds)
+            <input key={`${clip.id}-${clip.start}-${clip.dur}-${side}`} type="number" min={0} max={total} step={0.01} aria-label={`Clip ${side} in seconds`} defaultValue={(side === "start" ? clip.start : clip.start + clip.dur).toFixed(3)} onKeyDown={e => {if(e.key === "Enter") e.currentTarget.blur();}} onBlur={e => {
+              const n = Number(e.target.value);
+              if(e.target.value.trim() && Number.isFinite(n)) {
+                const next = Ops.trim(layers.doc, clip.id, side, n, total, sourceLimit);
+                const trimmed = next.clips.find(c => c.id === clip.id)!;
+                e.target.value = (side === "start" ? trimmed.start : trimmed.start + trimmed.dur).toFixed(3);
+                layers.commit(next);
+              }
+              else e.target.value = (side === "start" ? clip.start : clip.start + clip.dur).toFixed(3);
+            }} /></label>)}
+        </div>
         <div className="row wrap" style={{ gap: 6 }}>
-          <button className="btn sm" disabled={!canSplit} onClick={() => { const r = Ops.split(layers.doc, clip.id, time); if (r) { layers.commit(r.doc); onSelect(r.ids[1]); } }} title="Split at the playhead"><Scissors size={13} /> Split</button>
+          <button className="btn sm" disabled={!canSplit} onClick={() => { const r = Ops.split(layers.doc, clip.id, timeStore.t); if (r) { layers.commit(r.doc); onSelect(r.ids[1]); } }} title="Split at the playhead"><Scissors size={13} /> Split here</button>
           <button className="btn sm" onClick={() => { const r = Ops.duplicate(layers.doc, clip.id, total); if (r) { layers.commit(r.doc); onSelect(r.id); } }}><Copy size={13} /> Duplicate</button>
           <button className="btn sm danger" onClick={() => { layers.commit(Ops.remove(layers.doc, clip.id)); onSelect(null); }}><Trash2 size={13} /> Delete</button>
           <button className="btn sm ghost" onClick={() => seek(clip.start)}>Go to start</button>
@@ -63,9 +81,9 @@ export default function LayerInspector({ layers, clip, media, total, onSelect, s
       )}
 
       {visual && (
-        <Panel title="Place">
-          <Num label="Across" value={clip.x ?? 0.5} min={0} max={1} step={0.005} layers={layers} onSet={(v) => set({ x: v })} fmt={pct} />
-          <Num label="Down" value={clip.y ?? 0.5} min={0} max={1} step={0.005} layers={layers} onSet={(v) => set({ y: v })} fmt={pct} />
+        <Panel title="Position & size">
+          <Num label="Left ↔ right" value={clip.x ?? 0.5} min={0} max={1} step={0.005} layers={layers} onSet={(v) => set({ x: v })} fmt={pct} />
+          <Num label="Top ↔ bottom" value={clip.y ?? 0.5} min={0} max={1} step={0.005} layers={layers} onSet={(v) => set({ y: v })} fmt={pct} />
           <Num label="Width" value={clip.w ?? 1} min={0.05} max={2} step={0.01} layers={layers} onSet={(v) => set({ w: v })} fmt={pct} />
           {clip.type === "media" && (
             <label className="field"><span>Height</span>
@@ -99,6 +117,7 @@ export default function LayerInspector({ layers, clip, media, total, onSelect, s
           {clip.type === "media" && <span className="small muted">A video's own sound is off unless you turn it up here.</span>}
         </Panel>
       )}
+      </fieldset>
     </div>
   );
 }

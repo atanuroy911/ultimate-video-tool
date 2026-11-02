@@ -23,13 +23,15 @@ export default function ScriptPanel({ r, time, playing, seek }: { r: Review; tim
     setSaying(id);
     try {
       const j = await post<{ id: string }>(`/api/projects/${r.id}/voice/overdub`, { text, voice: voice.id, start, end });
+        let finished = false;
       for (let i = 0; i < 600; i++) {
         await new Promise((res) => setTimeout(res, 1500));
         const st = await fetch(`/api/jobs/${j.id}`).then((x) => x.json());
-        if (st.status === "error") throw new Error(st.error);
-        if (st.status === "done") break;
+          if (st.status === "error" || st.status === "cancelled") throw new Error(st.error || "Voice replacement was cancelled");
+          if (st.status === "done") { finished = true; break; }
       }
-      r.reloadAll();
+        if (!finished) throw new Error("Voice replacement is still running. Check its progress before trying again.");
+        await r.reloadAll();
       toast(`Said again in ${voice.name}'s voice. It is on the "My voice" sound track.`, "ok", 5000);
     } catch (e: any) {
       toast(e.errors?.[0] || e.message, "err", 8000);
@@ -60,12 +62,15 @@ export default function ScriptPanel({ r, time, playing, seek }: { r: Review; tim
     try {
       const res = await put<Result>(`/api/projects/${r.id}/transcript`, { text: clean, beat: id });
       toast(res.changed ? `Corrected ${res.changed} word${res.changed === 1 ? "" : "s"}` : "No change", "ok", 2000);
-      r.reloadAll();
+      await r.reloadAll();
+      setDrafts(d => {
+        if (d[id]?.trim() !== clean) return d;
+        const next = { ...d }; delete next[id]; return next;
+      });
     } catch (e: any) {
       toast(e.errors?.length ? e.errors.join(" · ") : e.message, "err", 5000);
     } finally {
       setSaving(null);
-      window.setTimeout(() => setDrafts((d) => { const n = { ...d }; delete n[id]; return n; }), 1500);        // keep what was typed on screen until the corrected words have been fetched
     }
   };
   const undo = async () => {

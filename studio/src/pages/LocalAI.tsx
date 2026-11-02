@@ -69,25 +69,24 @@ export default function LocalAI() {
   if (!st) return null;
   const ready = st.reachable && st.model_ready;
   return (
-    <section className="card card-pad col" style={{ gap: 12 }} aria-label="Local AI">
+    <section className="card card-pad col" style={{ gap: 12 }} aria-label="AI helper on a computer">
       <div className="row wrap">
-        <h2 className="grow"><Cpu size={18} style={{ verticalAlign: -3 }} /> Local AI planner</h2>
+        <h2 className="grow"><Cpu size={18} style={{ verticalAlign: -3 }} /> AI helper on a computer</h2>
         <span className={`chip ${st.llm_mode === "off" ? "" : ready ? "ok" : "warn"}`}>
           {st.llm_mode === "off" ? "Off" : ready ? <><Check size={12} /> Ready · {st.model}</> : st.reachable ? `Model ${st.model} not downloaded` : "Not running"}
         </span>
       </div>
       <p className="muted" style={{ margin: 0 }}>
-        Picks the right picture for every word and designs each scene automatically, with no human step and no Claude needed. It runs on a free model through
-        Ollama, on this computer or on another one on your network. Your transcript is only ever sent to the address below.
+        This free helper picks pictures and designs scenes. It can run here or on another computer with a graphics card. Your transcript is only sent to the computer below.
       </p>
       <Seg value={st.llm_mode} onChange={(v) => save({ llm_mode: v })} label="Local AI" options={[{ value: "auto", label: "On (automatic)" }, { value: "off", label: "Off (rules only)" }]} />
       {st.llm_mode === "auto" && (
         <>
           <div className="row wrap" style={{ gap: 12, alignItems: "flex-start" }}>
-            <Field label="Ollama address" hint="Another computer on your network works too, e.g. http://192.168.1.20:11434">
+            <Field label="Computer address" hint="Where the free AI helper is running">
               <input type="text" value={url} onChange={(e) => setUrl(e.target.value)} onBlur={() => url !== st.ollama_url && save({ ollama_url: url.trim() })} spellCheck={false} style={{ minWidth: 280 }} />
             </Field>
-            <Field label="Model">
+            <Field label="AI version">
               <select value={st.ollama_model} onChange={(e) => save({ ollama_model: e.target.value })}>
                 <option value="">Automatic ({st.model})</option>
                 {st.models.map((m) => <option key={m} value={m}>{m}</option>)}
@@ -95,8 +94,8 @@ export default function LocalAI() {
             </Field>
           </div>
           <div className="row wrap">
-            <button className="btn" onClick={load}><RefreshCw size={14} /> Check</button>
-            <button className="btn" disabled={!ready || testing} onClick={test}>{testing ? <Spinner /> : <Zap size={14} />} Test</button>
+            <button className="btn" onClick={load}><RefreshCw size={14} /> Check connection</button>
+            <button className="btn" disabled={!ready || testing} onClick={test}>{testing ? <Spinner /> : <Zap size={14} />} Ask it something</button>
           </div>
           {!ready && st.local && (
             <div className="banner small col" style={{ gap: 8 }}>

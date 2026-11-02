@@ -1,0 +1,74 @@
+{
+  "name": "style-satellite-briefing",
+  "label": "Satellite Briefing",
+  "color": {
+    "bg": "#070B0E",
+    "bg2": "#23272A",
+    "ink": "#F2F5F6",
+    "muted": "#888C8E",
+    "accent": "#FFBE55",
+    "accent2": "#A1A7A9",
+    "card": "#171B1E",
+    "card_border": "#F2F5F6",
+    "caption_bg": "#040708",
+    "caption_ink": "#F2F5F6",
+    "highlight_bg": "#FFBE55",
+    "highlight_ink": "#000000",
+    "tag_bg": "#A1A7A9",
+    "tag_ink": "#000000",
+    "arc": "rgba(242,245,246,0.08)"
+  },
+  "font": {
+    "headline": [
+      "Barlow Condensed",
+      "Anek Bangla"
+    ],
+    "body": [
+      "Barlow Condensed",
+      "Hind Siliguri"
+    ],
+    "numeral": [
+      "Barlow Condensed",
+      "Anek Bangla"
+    ],
+    "caption": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "headline_weight": 800
+  },
+  "shape": {
+    "radius": 4,
+    "stroke": 3,
+    "shadow": {
+      "x": 0,
+      "y": 8,
+      "color": "rgba(0,0,0,0.18)",
+      "blur": 24
+    },
+    "card_tilt": 0
+  },
+  "background": {
+    "kind": "grid",
+    "grain": 0.12,
+    "arcs": false,
+    "pattern": 0.35,
+    "animated": false
+  },
+  "motion": {
+    "preset": "smooth"
+  },
+  "caption": {
+    "style": "pop",
+    "reveal": "line",
+    "weight": 800,
+    "size": 60,
+    "words_per_line": 3,
+    "safe_bottom": {
+      "portrait": 380,
+      "landscape": 64
+    }
+  },
+  "style": "lemo:satellite-briefing",
+  "picture": "emoji"
+}

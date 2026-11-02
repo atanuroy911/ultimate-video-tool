@@ -10,7 +10,8 @@
     "start": "electron .",
     "start:repo": "set VT_USE_REPO=1&& electron .",
     "dist": "electron-builder",
-    "dist:dir": "electron-builder --dir"
+    "dist:dir": "electron-builder --dir",
+    "test:director": "node test-director-runner.js"
   },
   "dependencies": {
     "ffmpeg-static": "^5.2.0",
@@ -25,7 +26,7 @@
     "productName": "Video Tool",
     "copyright": "Apache-2.0",
     "directories": { "output": "dist", "buildResources": "build" },
-    "files": ["main.js", "bootstrap.js", "discover.js", "assistants.js", "mcp-bridge.js", "preload.js", "main-preload.js", "splash.html", "connect.html", "package.json"],
+    "files": ["main.js", "bootstrap.js", "discover.js", "assistants.js", "director-runner.js", "mcp-bridge.js", "preload.js", "main-preload.js", "splash.html", "connect.html", "package.json"],
     "asarUnpack": ["node_modules/ffmpeg-static/**", "node_modules/ffprobe-static/**", "mcp-bridge.js"],
     "extraResources": [
       {

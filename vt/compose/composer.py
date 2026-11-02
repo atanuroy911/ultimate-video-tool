@@ -234,7 +234,7 @@ def build_caption_chunks(words: list[Word], words_per_line: int, max_chars: int,
         out.append({
             "start": round(start, 3),
             "end": round(end, 3),
-            "words": [{"text": w.text, "start": round(w.start, 3), "end": round(w.end, 3), "hl": w.id in highlight_ids} for w in ch],
+            "words": [{"id": w.id, "text": w.text, "start": round(w.start, 3), "end": round(w.end, 3), "hl": w.id in highlight_ids} for w in ch],
         })
     return out
 
@@ -263,9 +263,9 @@ def scene_starts(sf: ScenesFile, beats: Beats) -> list[float]:
     beat_by_id = {b.id: b for b in beats.beats}
     starts: list[float] = []
     for i, sc in enumerate(sf.scenes):
-        s = 0.0 if i == 0 else beat_by_id[sc.beats[0]].start - SCENE_LEAD
+        s = 0.0 if i == 0 else sc.start if sc.start is not None else beat_by_id[sc.beats[0]].start - SCENE_LEAD
         if i > 0:
-            s = max(s, starts[-1] + 0.4)
+            s = max(s, starts[-1] + (0.001 if sc.start is not None else 0.4))
         starts.append(round(max(0.0, s), 3))
     return starts
 
@@ -357,6 +357,9 @@ def _keep_clear_of_people(scene_d: dict, sc, media: dict, aspect: str) -> None:
     renderer); when there is no room worth using, the elements are dropped for this shape and the picture stays clear. (vt/people.py)"""
     from .. import people as PE
 
+    if scene_d.get("edited") or any(e.get("free") for e in scene_d.get("elements", [])):
+        return  # Manual content/placement must survive every aspect ratio.
+
     bd = sc.backdrop
     m = media.get(bd.media) if bd else None
     if not bd or not m or not scene_d["elements"] or not m.get("w") or not m.get("h"):
@@ -400,6 +403,9 @@ def paginate(scenes: list[dict], aspect: str) -> list[dict]:
     for sc in scenes:
         for i, e in enumerate(sc.get("elements", [])):
             e.setdefault("_i", i)                       # the element's place in the plan: the editor picks by (scene, index) even after paging
+        if sc.get("edited") or any(e.get("free") for e in sc.get("elements", [])):
+            out.append(sc)
+            continue
         els = sorted(sc.get("elements", []), key=lambda e: e.get("at", sc["start"]))
         parts = sum(e.get("type") not in PAGEABLE for e in els)
         heading = parts and any(e.get("type") == "title" for e in els)             # a title over a list or a chart is its heading
@@ -502,6 +508,10 @@ def resolve_composition(sf: ScenesFile, tr: Transcript, beats: Beats, theme: The
                 d["until"] = round(min(at + HOLD_MAX, max(at + HOLD_MIN, sentence_end.get(el.at_word, at) + 0.2)), 3)
             if d.get("until", end) >= end - 0.35:          # the scene cuts first: no exit of its own
                 d.pop("until", None)
+            if el.start is not None or el.end is not None or el.x is not None or el.y is not None or el.scale != 1 or el.rotation != 0 or el.opacity != 1:
+                d["free"] = True
+                d["at"] = round(el.start if el.start is not None else at, 3)
+                d["until"] = round(el.end if el.end is not None else max(d["at"] + .1, end), 3)
             els.append(d)
             _nested_assets(d, used_icons, used_stickers)
             if d["type"] == "icon":
@@ -523,15 +533,18 @@ def resolve_composition(sf: ScenesFile, tr: Transcript, beats: Beats, theme: The
                     used_stickers.add(key)
                 else:
                     d.pop("emoji")
-        if els:                                   # never show an empty screen: the first picture is up within half a second of the scene start
-            first = min(els, key=lambda x: x["at"])
+        automatic = [e for e in els if not e.get("free")]
+        if automatic:                                   # generated timing only; never override an editor's choice
+            first = min(automatic, key=lambda x: x["at"])
             if i == 0:
                 first["at"] = round(start, 3)            # the opening picture is on screen from the first frame (thumbnail, first impression)
             elif first["at"] - start > 0.6:
                 first["at"] = round(min(start + 0.4, max(start, end - 0.3)), 3)
         scene_d = {"id": sc.id, "start": start, "end": end, "layout": sc.layout,
                    "transition_in": sc.transition_in, "tone": sc.tone, "elements": els}
-        if sc.backdrop is None and els and all(e["type"] in CARD_TYPES for e in els) and not sc.stick:
+        if sc.start is not None or any(e.edited for e in sc.elements):
+            scene_d["edited"] = True
+        if not scene_d.get("edited") and sc.backdrop is None and els and all(e["type"] in CARD_TYPES for e in els) and not sc.stick:
             last = max(sc.elements, key=lambda e: words_by_id[e.at_word].start)
             last_at = max(e["at"] for e in els)
             out = min(last_at + HOLD_MAX, max(last_at + HOLD_MIN, sentence_end.get(last.at_word, last_at) + 0.2))
@@ -558,7 +571,19 @@ def resolve_composition(sf: ScenesFile, tr: Transcript, beats: Beats, theme: The
     highlight = {wid for sc in sf.scenes for wid in sc.caption.highlight_words}
     cap = theme.caption
     max_chars = {"9:16": 40, "1:1": 34, "16:9": 52}[aspect]
-    captions = build_caption_chunks(kept, cap.words_per_line, max_chars, highlight)
+    automatic_words = [w for w in kept if w.caption_start is None and w.caption_end is None]
+    captions = build_caption_chunks(automatic_words, cap.words_per_line, max_chars, highlight)
+    for w in kept:
+        if w.caption_start is not None or w.caption_end is not None:
+            a = w.caption_start if w.caption_start is not None else w.start
+            b = w.caption_end if w.caption_end is not None else w.end
+            if b > a:
+                one = w.model_copy(update={"start": a, "end": b})
+                chunks = build_caption_chunks([one], 1, max_chars, highlight)
+                for chunk in chunks:
+                    chunk["start"], chunk["end"] = a, b
+                captions.extend(chunks)
+    captions.sort(key=lambda c: c["start"])
 
     scenes_out = paginate(scenes_out, aspect)
     thinned = build_cues(scenes_out)
@@ -748,7 +773,7 @@ def compose_project(project, aspect: Optional[str] = None, duration: Optional[fl
     sf = project.scenes()
     if sf is None:
         raise RuntimeError("no scenes.json yet - run the planning stage first")
-    theme = load_theme(sf.theme or meta.theme)
+    theme = project.theme(sf.theme or meta.theme)
     from ..planner.rules import detect_currency
 
     theme = theme.model_copy(update={"currency": detect_currency(project.transcript(), meta.language, theme.currency)})

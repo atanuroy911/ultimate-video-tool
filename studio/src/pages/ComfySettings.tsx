@@ -21,8 +21,7 @@ export default function ComfySettings() {
     if (!address.trim() || address.trim() === status.data?.url) return;
     setSaving(true);
     try {
-      const current = await get<Record<string, unknown>>("/api/settings");
-      await put("/api/settings", { ...current, comfy_url: address.trim() });
+      await put("/api/settings", { comfy_url: address.trim() });
       status.refetch();
     } catch (e: any) {
       toast(e.message, "err");
@@ -34,20 +33,19 @@ export default function ComfySettings() {
   const data = status.data;
   const gpu = data?.devices?.[0];
   return (
-    <section className="card card-pad col" style={{ gap: 12 }} aria-label="ComfyUI">
+    <section className="card card-pad col" style={{ gap: 12 }} aria-label="Moving pictures">
       <div className="row wrap">
-        <h2 className="grow"><Clapperboard size={18} style={{ verticalAlign: -3 }} /> Video generation (ComfyUI)</h2>
+        <h2 className="grow"><Clapperboard size={18} style={{ verticalAlign: -3 }} /> Make moving pictures</h2>
         {status.loading && !data ? <Spinner /> : <span className={`chip ${data?.ok ? "ok" : "warn"}`}>{data?.ok ? <><Check size={12} /> Connected{data.version ? ` · ${data.version}` : ""}</> : "Not reachable"}</span>}
       </div>
       <p className="muted" style={{ margin: 0 }}>
-        Turns a picture into a few seconds of silent motion footage on a ComfyUI server, for the media bin. Your voice, captions and the rest of the video stay yours.
-        Only the picture and the words you type are sent to the address below.
+        Turns a still picture into a short moving clip using a graphics-card computer. Only that picture and the words describing it are sent to the computer below.
       </p>
       <div className="row wrap" style={{ gap: 12, alignItems: "flex-end" }}>
-        <Field label="ComfyUI address" hint="Another computer on your network, e.g. http://192.168.1.20:8188">
-          <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} onBlur={save} onKeyDown={(e) => e.key === "Enter" && save()} spellCheck={false} style={{ minWidth: 300 }} aria-label="ComfyUI address" />
+        <Field label="Picture-making computer" hint="The address of the computer with the graphics card">
+          <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} onBlur={save} onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()} spellCheck={false} style={{ width: "100%", minWidth: 0 }} aria-label="ComfyUI address" />
         </Field>
-        <button className="btn" disabled={saving || status.loading} onClick={() => status.refetch()}>{saving || status.loading ? <Spinner /> : <RefreshCw size={14} />} Check again</button>
+        <button className="btn" disabled={saving || status.loading} onClick={() => status.refetch()}>{saving || status.loading ? <Spinner /> : <RefreshCw size={14} />} Check connection</button>
       </div>
       {data && !data.ok && <div className="banner warn small">{data.error}</div>}
       {data?.ok && (

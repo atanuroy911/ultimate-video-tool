@@ -31,6 +31,8 @@ export const settingsStore = new Store<Settings>({
   default_aspect: "9:16",
   default_pace: "normal",
   default_music: "auto",
+  director_order: ["claude-client", "claude-server", "local"],
+  director_wait_seconds: 120,
   ui_language: (localStorage.getItem("vt-lang") as "en" | "bn") || "en",
 });
 export const jobsStore = new Store<Record<string, JobInfo>>({});
@@ -83,11 +85,20 @@ export function startRealtime() {
   const connect = () => {
     const proto = location.protocol === "https:" ? "wss" : "ws";
     const ws = new WebSocket(`${proto}://${location.host}/ws`);
+    const desktopDirector = (window as any).vtDesktop?.director as undefined | {
+      status: () => Promise<{ found: boolean; logged_in: boolean; version: string }>;
+      run: (task: any) => Promise<{ ok: boolean; error?: string }>;
+      onLog: (fn: (value: any) => void) => () => void;
+    };
+    let stopLogs: undefined | (() => void);
     ws.onopen = () => {
       delay = 500;
       connStore.set((c) => ({ ...c, ws: true }));
+      desktopDirector?.status().then((s) => ws.send(JSON.stringify({ type: "director", director: "claude", version: s.version, logged_in: s.found && s.logged_in }))).catch(() => {});
+      if (desktopDirector) stopLogs = desktopDirector.onLog((m) => ws.readyState === WebSocket.OPEN && ws.send(JSON.stringify({ type: "director_log", ...m })));
     };
     ws.onclose = () => {
+      stopLogs?.();
       connStore.set((c) => ({ ...c, ws: false }));
       setTimeout(connect, delay);
       delay = Math.min(delay * 2, 8000);
@@ -108,6 +119,10 @@ export function startRealtime() {
         jobsStore.set((p) => ({ ...p, [j.id]: j }));
         if ((j.status === "done" || j.status === "error") && j.project && j.kind !== "thumbs") emitChanged(j.project);
       } else if (m.type === "changed") emitChanged(m.project);
+      else if (m.type === "direct" && desktopDirector) {
+        desktopDirector.run(m).then((result) => ws.readyState === WebSocket.OPEN && ws.send(JSON.stringify({ type: "director_done", request: m.request, ...result })))
+          .catch((e) => ws.readyState === WebSocket.OPEN && ws.send(JSON.stringify({ type: "director_done", request: m.request, ok: false, error: e?.message || String(e) })));
+      }
       else if (m.type === "call" || m.type === "ticket" || m.type === "call_started") callHandlers.forEach((h) => h(m));
     };
   };

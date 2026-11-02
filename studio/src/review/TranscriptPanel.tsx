@@ -4,6 +4,7 @@ import { fmtTime } from "../api";
 import { Menu, Modal } from "../ui";
 import type { Word } from "../types";
 import type { Review } from "./useReview";
+import { clearPreview, previewWord } from "./previewEdits";
 
 export default function TranscriptPanel(props: {
   r: Review;
@@ -134,7 +135,7 @@ export default function TranscriptPanel(props: {
                 </div>
               )}
             </div>
-            <div className="words" lang="bn">
+            <div className="words" lang="en">
               {ws.map((w) =>
                 editingId === w.id ? (
                   <input
@@ -143,18 +144,23 @@ export default function TranscriptPanel(props: {
                     autoFocus
                     defaultValue={w.text}
                     onFocus={(e) => e.currentTarget.select()}
+                    onChange={(e) => previewWord(w.id, w.caption_start ?? w.start, w.caption_end ?? w.end, e.currentTarget.value)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
-                        const v = e.currentTarget.value.trim();
-                        setEditingId(null);
-                        if (v && v !== w.text) r.editWord(w.id, { text: v });
-                      } else if (e.key === "Escape") setEditingId(null);
+                        e.preventDefault();
+                        e.currentTarget.blur();
+                      } else if (e.key === "Escape") {
+                        e.currentTarget.value = w.text;
+                        clearPreview();
+                        e.currentTarget.blur();
+                      }
                       e.stopPropagation();
                     }}
                     onBlur={(e) => {
                       const v = e.currentTarget.value.trim();
                       setEditingId(null);
                       if (v && v !== w.text) r.editWord(w.id, { text: v });
+                      else clearPreview();
                     }}
                     aria-label="Edit word"
                   />

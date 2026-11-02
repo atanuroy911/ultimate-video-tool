@@ -36,7 +36,7 @@ def test_asr_stage_detects_and_remembers_the_language(projects_dir, tmp_path, mo
 
     p.update_meta(language="auto")
     monkeypatch.setattr(langdetect, "from_audio", broken)
-    assert Pipeline(p)._detect_language().language == "bn"
+    assert Pipeline(p)._detect_language().language == "en"
 
 
 @pytest.mark.parametrize("text,lang,voice_prefix", [("আমি আজ একটা গল্প বলব।", "bn", "bn-"), ("Today I will tell you a story.", "en", "en-")])

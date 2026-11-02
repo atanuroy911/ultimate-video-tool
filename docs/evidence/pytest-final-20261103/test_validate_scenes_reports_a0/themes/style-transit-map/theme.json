@@ -1,0 +1,74 @@
+{
+  "name": "style-transit-map",
+  "label": "Transit Map",
+  "color": {
+    "bg": "#F2EEE5",
+    "bg2": "#D8D4CC",
+    "ink": "#1B1918",
+    "muted": "#6D6A66",
+    "accent": "#D80029",
+    "accent2": "#4C6D8A",
+    "card": "#E3DFD7",
+    "card_border": "#1B1918",
+    "caption_bg": "#E3DFD7",
+    "caption_ink": "#1B1918",
+    "highlight_bg": "#D80029",
+    "highlight_ink": "#FFFFFF",
+    "tag_bg": "#4C6D8A",
+    "tag_ink": "#FFFFFF",
+    "arc": "rgba(27,25,24,0.08)"
+  },
+  "font": {
+    "headline": [
+      "Inter",
+      "Anek Bangla"
+    ],
+    "body": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "numeral": [
+      "Inter",
+      "Anek Bangla"
+    ],
+    "caption": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "headline_weight": 800
+  },
+  "shape": {
+    "radius": 4,
+    "stroke": 3,
+    "shadow": {
+      "x": 0,
+      "y": 8,
+      "color": "rgba(0,0,0,0.18)",
+      "blur": 24
+    },
+    "card_tilt": 0
+  },
+  "background": {
+    "kind": "grid",
+    "grain": 0.12,
+    "arcs": false,
+    "pattern": 0.35,
+    "animated": false
+  },
+  "motion": {
+    "preset": "smooth"
+  },
+  "caption": {
+    "style": "box",
+    "reveal": "line",
+    "weight": 800,
+    "size": 60,
+    "words_per_line": 3,
+    "safe_bottom": {
+      "portrait": 380,
+      "landscape": 64
+    }
+  },
+  "style": "lemo:transit-map",
+  "picture": "line"
+}

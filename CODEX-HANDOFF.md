@@ -3,6 +3,19 @@
 The owner works with Claude Code and Codex interchangeably. Read this file first, then the tail of `WORKLOG.md` (newest entries at the
 bottom) for details of what was done. When you stop, update both: what you did, what you verified, what is left.
 
+## Latest continuation — 2026-11-03
+
+Read docs/AUDIT-2026-11-03.md for the current vision-to-product audit and docs/evidence/capability-inventory.json for all 165 modules / 40 components. Older task statuses below and in the October docs are historical.
+
+- Implemented unrestricted visual timing: exact scene edges/splits, independent element/action/caption ranges and transforms, stable action indices, caption undo, sound extraction, renderer library examples, opaque dropdowns, working Video settings toggle, responsive one-editor layout. Removed five-visual/six-sound truncation. Manual visuals survive automatic people-avoidance and scene splits retain actions once.
+- Connected Director capabilities: complete discovery/schemas (formerly truncated), recent described-tool working set, shared exact edits through timeline.edit_scene, canonical graphics through timeline.place with all-format recomposition and no partial saves on unsupported content. English catalogue examples are shared with the library.
+- Studio AI → All video tools exposes the live registry as searchable categories and labeled forms; shared CLI/MCP/API contracts remain authoritative. New exposes existing caption presets and optional reel closing line. Settings no longer claims a merely configured GPU address is connected or overwrites unrelated settings from a stale snapshot.
+- Verified: initial 41 passed + 1 optional skip; expanded integration 113 passed; final follow-up 69 passed; Studio build, 17 Node behavior tests, desktop Director runner and docs checker pass. Live :8878 QA on the disposable -copy project verifies exact split 2.137s, removal 0.500s, mute/gain, undo/redo and layers in all formats; baseline restored. The user's original remains untouched.
+- Real renderer frames in docs/evidence/free-editor-render and editor-actor-render verify visual timing beyond the original scene. Fresh Cua checks now pass: settings returns to selection; renderer example visible; caption draft RUN → SPRINT immediately, Escape restores RUN; free scene boundary drag saved 1.879s, Undo restored 1.600s; opaque dropdown; desktop, 960px window, 400×664 emulation and mobile tool browser inspected. Original project untouched, disposable-copy baseline restored. Caption editing was moved into Details so the canvas stays visible; transcript typing is live too. Tab switching resets scroll; mobile time input no longer shrinks. Normal desktop restored.
+- Studio restarted on :8878, launcher PID 34584; live exact-edit QA passes again. Broad non-slow regression finished: 1142 passed, 4 skipped, 3 stale assertions (old 39 count / five-element cap) failed; all corrected assertions pass focused reruns. Additional 15-case follow-up passes. Full regression session 26011 remains running (docs/evidence/app-audit-full-tests.log, Python child 33896); last reported 65%, with failures to inspect when it completes. Do not claim full-suite green. Final correction selection completed: 48 passed (audit-final-corrections.xml), using an explicit workspace temp directory after default pytest temp setup stalled. Old full run: 1195 tests, 14 failures, 9 errors, 7 skips. All recorded honestly in audit.
+- Follow-up correctness: fill.graphic now respects the requested slot instead of copied manual timestamps; language detection failure falls back to English; generic tool detail fields can create numbers, toggles, groups and lists. Studio build and 17 Node tests pass after the caption-panel changes.
+- Open product gates are listed explicitly in the audit: universal per-sentence re-voicing with one undo; classic plan review; measured Director/Shorts quality; reference consistency; clean-machine packaging; live social account acceptance. No remote service modifications, posts, commits or pushes.
+
 ## The product in one paragraph
 
 Video Tool turns a typed script, a voice recording or a link into a faceless short video. Retention is the metric: every change should make
@@ -153,6 +166,24 @@ Anything less is "in progress", and the next agent must be able to see exactly w
      the client runs `claude -p` limited to Video Tool's MCP tools, and the server falls back to the local AI after a timeout.
 
    Test with a fake device, then for real on the billionaire script.
+   - **Implementation and local live paths complete (Codex, 2026-11-02):** registry/API/project choice/Studio Settings+New+Review,
+     CLI/MCP, Electron broker and constrained Claude runner are built. Local Electron uses stdio MCP; remote clients use revocable HTTP
+     tokens. `get_reel_plan` / `check_reel_plan` expose self-contained prompts and picture checks. Focused tests, Electron allowlist/config
+     tests, CLI/schema/compile checks, Studio typecheck/build, a complete Chrome Studio render with Claude on the server, and a complete
+     Electron render with `Claude on This computer` all pass. The advanced editor visibly reports the saved director. The fresh Electron
+     server had to download its recommended `gemma3:4b` model once before context analysis; this is setup time, not a director fallback.
+     Still required for the repository's full “done” definition: finish/triage the long full-pytest run and the real billionaire GPU
+     comparison/judgement (requires the owner's GPU credential). See WORKLOG for project IDs, visual findings, and the exact test boundary.
+### Desktop flow redesign completed 2026-11-02
+
+- No startup setup banner. The primary creation path is three steps: content → posting shape → create.
+- Do not reintroduce an Advanced disclosure. The owner explicitly wants every useful choice visible, but described in ordinary language.
+- The final create screen visibly lists all optional choices; Automatic remains the safe default for every technical decision.
+- Settings shows a simple readiness/defaults card first and the complete settings list below, with labels such as “Where work runs,”
+  “Who plans each scene,” “Make moving pictures,” and “AI helper on a computer.”
+- For now both AI planning and picture generation use the remote GPU server at `192.168.123.47` (Ollama `:11434`, ComfyUI `:8188`).
+- Electron visual QA and production build passed. Focused director tests pass using the repository `.venv` (6/6) and the desktop runner passes.
+
 2. **Natural, expressive narration for every video (owner, 2026-11-02: "natural voice with tones and ups and downs").**
 
    Today English uses Edge TTS: clean but flat, because its free endpoint only changes speed. The parts for expression exist but are not
@@ -200,13 +231,34 @@ Anything less is "in progress", and the next agent must be able to see exactly w
    - The Studio panel through Playwright.
    - MCP from the owner's PC to the server.
 9. **Round 8, the suite and leftovers.**
-   - Full pytest. Known failure: `tests/test_music_auto.py::test_mood_picks_a_fitting_track_stably` expects hiphop, gets upbeat.
+   - Full pytest. Music-catalogue regression repaired on 2026-11-02: preference/variety tests now use an isolated catalogue, with explicit fallback and real bundled-track checks (5/5 pass).
    - Remove the 64 `design/themes/auto-*` folders left by old projects.
    - The gemma4 context step (~150 s), post-plan QA time (~6 min), Studio timeline smoothness.
 10. **Not before the owner says:** `docs/plans/PLAN-CLOUD-AI.MD` (OpenRouter key kept in the OS keychain, budget, cloud director/critic,
    collage promo video type). Plan only.
 
 ## Known problems and traps
+
+**Editor workflow and precision repair (2026-11-02, current):** Implementation and automated verification completed; visual sign-off is pending because Windows is locked.
+- Editor now opens without the app sidebar. Menu restores navigation; Editing tools / Selection details / Focus on video control workspace panels.
+- Left tools have explicit tasks; right panel distinguishes voice selection, added clips, scenes and whole-video settings. Exact playhead and clip/voice range fields are available.
+- Fixed final-pointer-position loss, wide trim-handle offsets, exact voice/layer splitting, trim source offsets/fade limits, locked-track edit paths, stale save/refetch overwrites and phantom layer undo steps.
+- Scene structure follows sentences. Scene split now offers the actual sentence boundaries rather than silently choosing a nearby one. Scene-edge previews show the actual landing boundary.
+- Local added-layer text/position/timing/opacity updates feed the preview before the save returns. Element saves flush when switching scenes. Captions can be opened by double-clicking a timeline word.
+- Narrow layouts retain the timeline; preview controls wrap and the video fits short windows. Project navigation remounts editor state. Keyboard shortcuts respect dialogs and focused form fields.
+- Studio build and `npm run test:timeline` pass (13 regressions, including delayed-save races and a drag released before any intermediate move event). Focused audio/layers/caption Python tests pass (one optional skip).
+- `scripts/qa_editor_precision.py --project 2026-11-02-why-do-small-habits-matter-copy` passes against :8878: exact 2.137s split, 0.500s cut, mute/gain, undo/redo, plus layer text/trim/position/opacity in all three composition formats. Test restores the copy's baseline.
+- Full pytest is running with output in `docs/evidence/editor-full-tests.log` and JUnit in `docs/evidence/editor-full-tests.xml` (Python 39644, launcher 36584, exec session 91004). Its first failure was frontend EXPECTED_API=6 vs backend API_VERSION=7; corrected to 7 and that regression passes separately. At 20:24 local, the full run remains in `test_recordings_are_byte_identical` (real ASR, pytest temp root pytest-114).
+- Remaining non-slow tests finished separately: 375 passed, 1 failed, in 233s, recorded in `docs/evidence/editor-remaining-tests.log` / `.xml`. Sole failure was the previously documented music test's assumptions about optional installed tracks. Repaired with isolated preference/variety fixtures plus explicit fallback and bundled-track checks; all 5 music tests pass on rerun. This is not a claim that the entire slow suite passed.
+- The actual editor UI remains unverified after these changes: Cua screenshots show the Windows lock screen; user was asked to unlock. Next visual check should use the disposable `...-copy`, reload the page for the new build, and exercise both side panels, focus mode, precise split/trim, Escape cancel, caption editing, layer controls and undo/redo. Do not claim this visual audit passed.
+
+**Caption preview repair (2026-11-02):** The small-habits project's transcript contained `run` while its composition still contained `walk`.
+`edit_word` saved the transcript but composition failed with `FileNotFoundError` for `auto-y-do-small-habits-matter`.
+`Project.theme()` now keeps a project-local theme snapshot and recovers older projects from the theme embedded in existing composition data.
+Composer uses that resolver. The local Studio on port 8878 was restarted with the fix and the saved correction was reapplied.
+Verified through Chrome: edited the word to `walk`, then back to `run` in Captions, without refreshing; the paused video visibly shows **RUN EACH** at ~2.55s.
+Both caption regressions passed, including missing-library recovery; latest Studio typecheck/build passes.
+The broader UI audit/full suite is not certified complete; see the current editor verification entry above.
 
 **Picture models:**
 - **FLUX.2 Klein** sometimes draws a person twice in one picture, ignores "winding" for stairs, and cannot draw an upside-down bicycle.

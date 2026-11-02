@@ -2,7 +2,10 @@ import { Magnet, Minus, Plus, Scissors, MousePointer2, Maximize2, VolumeX, Volum
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { fmtTime } from "../api";
 import type { MediaItem, SoundEvents } from "../types";
+import { previewEdge, previewElement, previewWord, previewAction, clearPreview } from "./previewEdits";
 import { Menu } from "../ui";
+import { toast } from "../store";
+import { pointerDrag } from "./pointerDrag";
 import LayerLanes from "./LayerLanes";
 import * as Ops from "./layerOps";
 import type { Layers } from "./useLayers";
@@ -60,6 +63,7 @@ interface Props {
   sounds?: SoundEvents | null;
   onListen?: () => void;
   listening?: boolean;
+  onEditWord?: (id: string) => void;
 }
 
 interface Clip { key: string; o0: number; o1: number; s: number; e: number; muted: boolean; db: number | null }
@@ -83,12 +87,26 @@ const Playhead = memo(function Playhead({ pps, scroller }: { pps: number; scroll
   return <div className="tl-head" ref={el} aria-hidden />;
 });
 
-export default function Timeline({ r, duration, seek, selected, onSelect, selectedEl, onSelectEl, tool, setTool, snap, setSnap, sel, setSel, layers, media, selLayer, onSelectLayer, onAddMedia, sounds, onListen, listening }: Props) {
+function TimeInput({ seek, duration }: { seek: (t: number) => void; duration: number }) {
+  const [value, setValue] = useState(timeStore.t.toFixed(3));
+  const editing = useRef(false);
+  useEffect(() => timeStore.subscribe(t => { if (!editing.current) setValue(t.toFixed(3)); }), []);
+  const commit = () => {
+    editing.current = false;
+    const n = Number(value);
+    const t = value.trim() && Number.isFinite(n) ? clamp(n, 0, duration) : timeStore.t;
+    seek(t); setValue(t.toFixed(3));
+  };
+  return <label className="tl-time-input">Position <input type="number" aria-label="Playhead position in seconds" step={0.01} min={0} max={duration} value={value} onFocus={() => { editing.current = true; }} onChange={e => setValue(e.target.value)} onBlur={commit} onKeyDown={e => { if(e.key === "Enter") e.currentTarget.blur(); }} /> s</label>;
+}
+
+export default function Timeline({ r, duration, seek, selected, onSelect, selectedEl, onSelectEl, tool, setTool, snap, setSnap, sel, setSel, layers, media, selLayer, onSelectLayer, onAddMedia, sounds, onListen, listening, onEditWord }: Props) {
   const scroller = useRef<HTMLDivElement>(null);
   const hover = useRef<HTMLDivElement>(null);
   const [vw, setVw] = useState(900);
   const dur = Math.max(duration, 0.5);
   const fit = Math.max(4, (vw - LABEL - 24) / dur);
+  const maxZoom = Math.max(MAX_PPS, fit * 4);
   const [pps, setPps] = useState(fit);
   const ppsRef = useRef(fit);
   const targetRef = useRef(fit);
@@ -102,7 +120,9 @@ export default function Timeline({ r, duration, seek, selected, onSelect, select
   const [hint, setHint] = useState<{ t: number; text: string } | null>(null);
   const [ghost, setGhost] = useState<{ o0: number; o1: number; kind: "cut" | "restore"; pending?: boolean } | null>(null);
   const [guide, setGuide] = useState<number | null>(null);
-  const [actDrag, setActDrag] = useState<{ sid: string; k: number; t: number } | null>(null);
+  const [actDrag, setActDrag] = useState<{ sid: string; k: number; t: number; end:number } | null>(null);
+  const [visualDrag,setVisualDrag]=useState<{sid:string;k:number;start:number;end:number}|null>(null);
+  const [wordDrag,setWordDrag]=useState<{id:string;start:number;end:number}|null>(null);
   const [gainLive, setGainLive] = useState<number | null>(null);
 
   const audio = r.audio;
@@ -125,11 +145,11 @@ export default function Timeline({ r, duration, seek, selected, onSelect, select
     raf.current = requestAnimationFrame(step);
   }, [fit]);
   const zoomTo = useCallback((v: number, anchor?: { t: number; px: number } | null) => {
-    targetRef.current = clamp(v, fit * 0.999, MAX_PPS);
+    targetRef.current = clamp(v, fit, maxZoom);
     fitMode.current = targetRef.current <= fit * 1.001;
     anchorRef.current = anchor ?? null;
     glide();
-  }, [fit, glide]);
+  }, [fit, maxZoom, glide]);
   // keep the moment under the pointer where it was: after React has widened the content (so the scroll position is not clamped)
   useLayoutEffect(() => {
     const sc = scroller.current, a = anchorRef.current;
@@ -195,9 +215,10 @@ export default function Timeline({ r, duration, seek, selected, onSelect, select
     const t: number[] = [0, dur];
     scenes.forEach((s) => { const tm = timing.get(s.id); if (tm) t.push(tm.start, tm.end); });
     clips.forEach((c) => t.push(c.o0, c.o1));
+    layers.doc.clips.forEach(c => t.push(c.start, c.start + c.dur));
     audio?.cuts.forEach((c) => t.push(c.o));
     return t;
-  }, [scenes, timing, clips, audio, dur]);
+  }, [scenes, timing, clips, layers.doc.clips, audio, dur]);
   const snapT = useCallback((t: number, alt = false, withWords = true) => {
     if (!snap || alt) return { t, hit: null as number | null };
     const th = 6 / ppsRef.current;
@@ -209,37 +230,17 @@ export default function Timeline({ r, duration, seek, selected, onSelect, select
     return best === null ? { t, hit: null } : { t: best as number, hit: best as number };
   }, [snap, targets, r.words]);
 
+  const cancelDrag = useRef<(() => void) | null>(null);
+  useEffect(() => () => cancelDrag.current?.(), []);
   const drag = useCallback((e: React.PointerEvent | PointerEvent, move: (ev: PointerEvent) => void, up: (ev: PointerEvent, moved: boolean) => void, cancel?: () => void) => {
-    const sx = e.clientX, sy = e.clientY;
-    let moved = false;
-    try { (e.target as Element).setPointerCapture?.(e.pointerId); } catch { /* the element may already be gone */ }     // the drag keeps working outside the window and over the preview
-    document.body.classList.add("tl-scrubbing");
-    let raf = 0, last: PointerEvent | null = null;                    // at most one update per frame: the pointer can report several times in one
-    const m = (ev: PointerEvent) => {
-      if (!moved && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 3) return;
-      moved = true;
-      last = ev;
-      if (!raf) raf = requestAnimationFrame(() => { raf = 0; if (last) move(last); });
-    };
-    const done = () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("pointermove", m);
-      window.removeEventListener("pointerup", u);
-      window.removeEventListener("keydown", k, true);
-      document.body.classList.remove("tl-scrubbing");
-      setGuide(null);
-    };
-    const u = (ev: PointerEvent) => { done(); up(ev, moved); };
-    const k = (ev: KeyboardEvent) => { if (ev.key === "Escape") { ev.stopPropagation(); done(); cancel?.(); } };      // Escape drops the drag and leaves everything as it was
-    window.addEventListener("pointermove", m);
-    window.addEventListener("pointerup", u);
-    window.addEventListener("keydown", k, true);
+    cancelDrag.current?.();
+    cancelDrag.current = pointerDrag(e, move, (ev, moved) => { setGuide(null); up(ev, moved); }, () => { setGuide(null); cancel?.(); });
   }, []);
 
   /* ---------- scrubbing (ruler and empty lane space) ---------- */
   const scrub = (e: React.PointerEvent) => {
     e.preventDefault();
-    const go = (cx: number, alt: boolean) => { const s = snapT(tAt(cx), alt); setGuide(s.hit); seek(s.t); };
+    const go = (cx: number, _alt: boolean) => seek(tAt(cx));
     go(e.clientX, e.altKey);
     drag(e, (ev) => go(ev.clientX, ev.altKey), () => {});
   };
@@ -257,53 +258,54 @@ export default function Timeline({ r, duration, seek, selected, onSelect, select
   const startEdge = (e: React.PointerEvent, i: number) => {
     e.stopPropagation();
     e.preventDefault();
+    if (e.button !== 0 || edge) return;
     const a = scenes[i], b = scenes[i + 1];
     const ta = a && timing.get(a.id), tb = b && timing.get(b.id);
     if (!a || !b || !ta || !tb) return;
-    const pool = [...a.beats, ...b.beats].slice(1).map((id) => beatById.get(id)).filter(Boolean) as { id: string; start: number }[];
-    if (!pool.length) return;
-    const nearest = (t: number) => pool.reduce((best, c) => (Math.abs(c.start - t) < Math.abs(best.start - t) ? c : best), pool[0]);
-    const free = (ev: PointerEvent) => clamp(tAt(ev.clientX), ta.start + 0.3, tb.end - 0.3);                  // the edge itself follows the pointer
-    setEdge({ i, snap: ta.end, land: null });
-    drag(e, (ev) => { const t = free(ev); setEdge({ i, snap: t, land: nearest(t).start }); }, (ev, moved) => {
-      if (!moved) return setEdge(null);
-      const pick = nearest(free(ev));
-      if (pick.id === b.beats[0]) return setEdge(null);
-      setEdge({ i, snap: pick.start, land: null });                       // settles on the sentence and stays until the new plan arrives: no jump back and forth
-      Promise.resolve(r.moveBoundary(a.id, pick.id)).finally(() => setEdge(null));
-    }, () => setEdge(null));
+    window.dispatchEvent(new Event("vt-flush-elements"));
+    const grab = tAt(e.clientX) - ta.end;
+    const free = (ev: PointerEvent) => {
+      const point=snapT(tAt(ev.clientX)-grab,ev.altKey);
+      setGuide(point.hit);
+      return Math.round(clamp(point.t,ta.start+.02,tb.end-.02)*1000)/1000;
+    };
+    setEdge({i,snap:ta.end,land:null});
+    drag(e, ev=>{ const t=free(ev); setEdge({i,snap:t,land:t}); setHint({t,text:`Scene change at ${t.toFixed(3)}s`}); previewEdge(a.id,b.id,t); }, (ev,moved)=>{
+      setHint(null); if(!moved) return setEdge(null);
+      const t=free(ev); setEdge({i,snap:t,land:t});
+      r.moveEdge(a.id,t).finally(()=>{setEdge(null); clearPreview();});
+    },()=>{setEdge(null);setHint(null);clearPreview();});
   };
-  const bladeScene = (sid: string, t: number) => {
-    const sc = scenes.find((q) => q.id === sid);
-    if (!sc || sc.beats.length < 2) return;
-    const cand = sc.beats.slice(1).map((id) => beatById.get(id)).filter(Boolean) as { id: string; start: number }[];
-    const pick = cand.reduce((best, c) => (Math.abs(c.start - t) < Math.abs(best.start - t) ? c : best), cand[0]);
-    r.splitScene(sid, pick.id);
+  const bladeScene = (sid: string, cx: number, _cy: number) => {
+    const t=tAt(cx); seek(t); r.splitAt(sid,t);
   };
 
   /* ---------- stick action chips ---------- */
-  const startAction = (e: React.PointerEvent, sid: string, k: number) => {
-    e.stopPropagation();
-    e.preventDefault();
-    const sc = scenes.find((q) => q.id === sid);
-    if (!sc) return;
-    const ids = new Set(sc.beats.flatMap((b) => beatById.get(b)?.word_ids ?? []));
-    const pool = r.words.filter((w) => ids.has(w.id) && !w.cut);
-    if (!pool.length) return;
-    const near = (t: number) => pool.reduce((best, c) => (Math.abs(c.start - t) < Math.abs(best.start - t) ? c : best), pool[0]);
-    drag(e, (ev) => setActDrag({ sid, k, t: near(tAt(ev.clientX)).start }), (ev, moved) => {
-      setActDrag(null);
-      if (moved) r.patchAction(sid, k, { patch: { at_word: near(tAt(ev.clientX)).id } });
-    });
+  const startAction = (e:React.PointerEvent,sid:string,k:number,side:"move"|"start"|"end"="move")=>{
+    e.stopPropagation();e.preventDefault();if(e.button!==0) return;
+    const action=scenes.find(s=>s.id===sid)?.stick?.actions?.[k];if(!action) return;
+    window.dispatchEvent(new CustomEvent("vt-action-select",{detail:{scene:sid,index:k}}));
+    const origin=tAt(e.clientX), length=action.end-action.start;
+    const range=(ev:PointerEvent)=>{
+      const point=snapT((side==="end"?action.end:action.start)+tAt(ev.clientX)-origin,ev.altKey);setGuide(point.hit);
+      const start=side==="end"?action.start:clamp(point.t,0,side==="move"?dur-length:action.end-.02);
+      return {start:Math.round(start*1000)/1000,end:Math.round((side==="move"?start+length:side==="start"?action.end:clamp(point.t,start+.02,dur))*1000)/1000};
+    };
+    drag(e,ev=>{const n=range(ev);setActDrag({sid,k,t:n.start,end:n.end});previewAction(sid,k,n.start,n.end);},(ev,moved)=>{
+      if(!moved) return;
+      r.patchAction(sid,k,{patch:range(ev)}).finally(()=>{setActDrag(null);clearPreview();});
+    },()=>{setActDrag(null);clearPreview();});
   };
 
   /* ---------- the voice: select, range, trim, blade ---------- */
-  const clipAt = (t: number) => clips.find((c) => t >= c.o0 && t <= c.o1) ?? null;
+  const clipAt = (t: number) => clips.find((c) => t >= c.o0 && t < c.o1) ?? null;
   const onVoiceDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return;
     e.preventDefault();
+    onSelectLayer(null);
     const t0 = snapT(tAt(e.clientX), e.altKey).t;
-    if (tool === "blade") { audio && r.audioEdit("split", { t: t0 }); return; }
+    if (tool === "blade") { const t = tAt(e.clientX); seek(t); audio && r.audioEdit("split", { t }); return; }
+    const before = sel;
     drag(e, (ev) => {
       const t1 = snapT(tAt(ev.clientX), ev.altKey);
       setGuide(t1.hit);
@@ -313,14 +315,18 @@ export default function Timeline({ r, duration, seek, selected, onSelect, select
       const c = clipAt(t0);
       seek(t0);
       setSel(c ? { o0: c.o0, o1: c.o1 } : null);
-    });
+    }, () => setSel(before));
   };
   const adjacentCut = (clip: Clip, side: "left" | "right") => audio?.cuts.find((c) => (side === "left" ? Math.abs(c.e - clip.s) < 0.002 : Math.abs(c.s - clip.e) < 0.002)) ?? null;
   const startTrim = (e: React.PointerEvent, clip: Clip, side: "left" | "right") => {
     e.stopPropagation();
     e.preventDefault();
     if (tool === "blade") return;
+    setSel(null);
+    onSelectLayer(null);
     const edgeT = side === "left" ? clip.o0 : clip.o1;
+    const startX = e.clientX, startScroll = scroller.current?.scrollLeft ?? 0;
+    const edgeAt = (ev: PointerEvent) => snapT(edgeT + (ev.clientX - startX + (scroller.current?.scrollLeft ?? 0) - startScroll) / ppsRef.current, ev.altKey);
     const cut = adjacentCut(clip, side);
     const shape = (t: number) => {
       const d = t - edgeT;
@@ -336,8 +342,9 @@ export default function Timeline({ r, duration, seek, selected, onSelect, select
       return g;
     };
     const clear = () => { setGhost(null); setTrim(null); setHint(null); };
-    drag(e, (ev) => { const s = snapT(tAt(ev.clientX), ev.altKey); setGuide(s.hit); show(s.t); }, (ev) => {
-      const g = shape(snapT(tAt(ev.clientX), ev.altKey).t);
+    drag(e, (ev) => { const s = edgeAt(ev); setGuide(s.hit); show(s.t); }, (ev, moved) => {
+      if (!moved) return clear();
+      const g = shape(edgeAt(ev).t);
       setHint(null);
       if (!g || g.o1 - g.o0 < 0.03) return clear();
       setGhost({ ...g, pending: true });                                   // shown until the server has re-cut the audio, so nothing flickers
@@ -349,7 +356,7 @@ export default function Timeline({ r, duration, seek, selected, onSelect, select
     e.stopPropagation();
     e.preventDefault();
     if (!sel) return;
-    drag(e, (ev) => { const s = snapT(tAt(ev.clientX), ev.altKey); setGuide(s.hit); setSel(which === "o0" ? { o0: Math.min(s.t, sel.o1 - 0.02), o1: sel.o1 } : { o0: sel.o0, o1: Math.max(s.t, sel.o0 + 0.02) }); }, () => {});
+    drag(e, (ev) => { const s = snapT(tAt(ev.clientX), ev.altKey); setGuide(s.hit); setSel(which === "o0" ? { o0: Math.min(s.t, sel.o1 - 0.02), o1: sel.o1 } : { o0: sel.o0, o1: Math.max(s.t, sel.o0 + 0.02) }); }, () => {}, () => setSel(sel));
   };
 
   const selMuted = !!(sel && audio && audio.mutes.some((m) => m.o0 <= sel.o0 + 0.01 && m.o1 >= sel.o1 - 0.01));
@@ -358,12 +365,26 @@ export default function Timeline({ r, duration, seek, selected, onSelect, select
     const g = audio.gains.find((q) => q.o0 <= sel.o0 + 0.01 && q.o1 >= sel.o1 - 0.01);
     return g ? g.db : 0;
   }, [sel, audio]);
-  const cutSel = () => { if (sel && sel.o1 - sel.o0 > 0.03) { r.audioEdit("cut", { start: sel.o0, end: sel.o1 }); setSel(null); } };
+  const selectedClip = layers.doc.clips.find(c => c.id === selLayer);
+  const locked = !!selectedClip && !!Ops.trackOf(layers.doc, selectedClip.track)?.locked;
+  const cutSel = async () => {
+    if(selectedEl) { await r.patchElement(selectedEl.scene,selectedEl.index,{delete:true}); onSelect(selectedEl.scene); return; }
+    if (selectedClip) { layers.commit(Ops.remove(layers.doc, selectedClip.id)); onSelectLayer(null); return; }
+    if (sel && sel.o1 - sel.o0 > 0.03) {
+      const result = await r.audioEdit("cut", { start: sel.o0, end: sel.o1 });
+      if (result) { seek(Math.min(sel.o0, result.duration)); setSel(null); }
+    }
+  };
   const muteSel = () => { if (sel) r.audioEdit("mute", { start: sel.o0, end: sel.o1, on: !selMuted }); };
   const splitHere = () => {
+    if(selectedEl) {r.patchElement(selectedEl.scene,selectedEl.index,{split:timeStore.t});return;}
     const sc = selLayer ? layers.doc.clips.find((c) => c.id === selLayer) : null;
     const res = sc ? Ops.split(layers.doc, sc.id, timeStore.t) : null;
-    if (res) { layers.commit(res.doc); onSelectLayer(res.ids[1]); return; }
+    if (sc) {
+      if (res) { layers.commit(res.doc); onSelectLayer(res.ids[1]); }
+      else toast("Move the playhead inside the selected clip to split it.");
+      return;
+    }
     if (audio) r.audioEdit("split", { t: timeStore.t });
   };
   const addText = () => {
@@ -374,19 +395,21 @@ export default function Timeline({ r, duration, seek, selected, onSelect, select
   const gainTimer = useRef(0);
   const commitGain = (db: number) => {
     window.clearTimeout(gainTimer.current);
-    gainTimer.current = window.setTimeout(() => { if (sel) r.audioEdit("gain", { start: sel.o0, end: sel.o1, db }).then(() => setGainLive(null)); else setGainLive(null); }, 350);
+    if (sel) r.audioEdit("gain", { start: sel.o0, end: sel.o1, db }).then(() => setGainLive(null));
+    else setGainLive(null);
   };
 
   const openMenu = (e: React.MouseEvent, c: Clip | null) => {
     e.preventDefault();
     const t = tAt(e.clientX);
     const target = sel && t >= sel.o0 && t <= sel.o1 ? sel : c ? { o0: c.o0, o1: c.o1 } : null;
+    const targetMuted = !!(target && audio?.mutes.some(m => m.o0 <= target.o0 + 0.01 && m.o1 >= target.o1 - 0.01));
     if (target) setSel(target);
     setMenu({
       x: e.clientX, y: e.clientY, items: [
         ...(target ? [
-          { label: "Cut out (ripple delete)", run: () => r.audioEdit("cut", { start: target.o0, end: target.o1 }), danger: true },
-          { label: selMuted ? "Unmute" : "Mute", run: () => r.audioEdit("mute", { start: target.o0, end: target.o1, on: !selMuted }) },
+          { label: "Remove this time (shortens video)", run: () => r.audioEdit("cut", { start: target.o0, end: target.o1 }), danger: true },
+          { label: targetMuted ? "Unmute" : "Mute", run: () => r.audioEdit("mute", { start: target.o0, end: target.o1, on: !targetMuted }) },
           { label: "Volume: reset", run: () => r.audioEdit("gain", { start: target.o0, end: target.o1, db: 0 }) },
           { label: "Volume: −6 dB", run: () => r.audioEdit("gain", { start: target.o0, end: target.o1, db: -6 }) },
           { label: "Volume: +4 dB", run: () => r.audioEdit("gain", { start: target.o0, end: target.o1, db: 4 }) },
@@ -428,16 +451,56 @@ export default function Timeline({ r, duration, seek, selected, onSelect, select
     if (tt >= 0) ticks.push({ t: tt, big: Math.abs(tt / major - Math.round(tt / major)) < 1e-4 });
   }
 
-  const words = useMemo(() => r.words.filter((w) => w.end >= v0 && w.start <= v1), [r.words, v0, v1]);
-  const wordLane = useMemo(() => words.map((w) => (
-    <button key={w.id} className={`tl-word bn ${w.cut ? "cut" : ""} ${w.flag === "review" ? "flag" : ""}`} style={{ left: x(w.start), width: Math.max(4, (w.end - w.start) * pps - 1) }} onClick={() => seek(w.start)} title={w.text}>
-      {(w.end - w.start) * pps > 26 ? w.text : ""}
-    </button>
-  )), [words, pps, seek]);                                                                                     // eslint-disable-line react-hooks/exhaustive-deps
+  const words = useMemo(()=>r.words.filter(w=>(w.caption_end??w.end)>=v0 && (w.caption_start??w.start)<=v1),[r.words,v0,v1]);
+  const startWord=(e:React.PointerEvent,w:typeof r.words[number],side:"move"|"start"|"end")=>{
+    if(e.button!==0) return;e.stopPropagation();e.preventDefault();
+    const start=w.caption_start??w.start,end=w.caption_end??w.end,origin=tAt(e.clientX),len=end-start;
+    const range=(ev:PointerEvent)=>{
+      const point=snapT((side==="end"?end:start)+tAt(ev.clientX)-origin,ev.altKey,false);setGuide(point.hit);
+      const a=side==="end"?start:clamp(point.t,0,side==="move"?dur-len:end-.02);
+      return {start:Math.round(a*1000)/1000,end:Math.round((side==="move"?a+len:side==="start"?end:clamp(point.t,start+.02,dur))*1000)/1000};
+    };
+    drag(e,ev=>{const n=range(ev);setWordDrag({id:w.id,...n});previewWord(w.id,n.start,n.end);},(ev,moved)=>{
+      if(!moved) {seek(start);return;}
+      const n=range(ev);setWordDrag({id:w.id,...n});r.editWord(w.id,n).finally(()=>{setWordDrag(null);clearPreview();});
+    },()=>{setWordDrag(null);clearPreview();});
+  };
+  const wordLane=words.map(w=>{
+    const t=wordDrag?.id===w.id?wordDrag:{start:w.caption_start??w.start,end:w.caption_end??w.end};
+    return <div key={w.id} role="button" tabIndex={0} className={`tl-word tl-editable bn ${w.cut?"cut":""}`} style={{left:x(t.start),width:Math.max(18,(t.end-t.start)*pps-1)}}
+      aria-label={`Caption ${w.text}`} title={`${w.text} · drag to move; double-click to edit text and timing`}
+      onPointerDown={e=>startWord(e,w,"move")} onDoubleClick={()=>onEditWord?.(w.id)} onKeyDown={e=>{if(e.key==="Enter") onEditWord?.(w.id);}}
+      onContextMenu={e=>{e.preventDefault();onEditWord?.(w.id);}}>
+      <span className="clip-grip left" role="button" aria-label={`Trim caption start: ${w.text}`} onPointerDown={e=>startWord(e,w,"start")}/>
+      {w.text}<span className="clip-grip right" role="button" aria-label={`Trim caption end: ${w.text}`} onPointerDown={e=>startWord(e,w,"end")}/>
+    </div>;
+  });
 
   /* elements and actions never sit on top of each other: crowded ones go on a second row */
-  const elItems = useMemo(() => scenes.flatMap((s) => s.elements.map((el, k) => ({ s, el: el as any, k, w: r.wordById.get(el.at_word) }))).filter((q) => q.w) as { s: (typeof scenes)[number]; el: any; k: number; w: NonNullable<ReturnType<typeof r.wordById.get>> }[], [scenes, r.wordById]);
-  const elPack = useMemo(() => pack(elItems.map((q) => ({ left: LABEL + q.w.start * pps, w: chipW(q.el.type.replace("_", " ")) }))), [elItems, pps]);
+  const elItems = useMemo(() => scenes.flatMap(s=>s.elements.map((el,k)=>{
+    const t=r.sc.data?.elements?.[`${s.id}:${k}`], sceneTime=timing.get(s.id);
+    return {s,el,k,start:el.start ?? t?.start ?? sceneTime?.start ?? 0,end:el.end ?? t?.end ?? sceneTime?.end ?? dur};
+  })),[scenes,r.sc.data?.elements,timing,dur]);
+  const elPack = useMemo(()=>pack(elItems.map(q=>({left:x(q.start),w:Math.max(22,(q.end-q.start)*pps)}))),[elItems,pps]);
+  const startVisual = (e: React.PointerEvent,q:typeof elItems[number],side:"move"|"start"|"end")=>{
+    if(e.button!==0) return; e.stopPropagation();e.preventDefault();
+    window.dispatchEvent(new Event("vt-flush-elements"));
+    onSelectEl(q.s.id,q.k);
+    if(tool==="blade") {r.patchElement(q.s.id,q.k,{split:tAt(e.clientX)}); return;}
+    const origin=tAt(e.clientX), length=q.end-q.start;
+    const range=(ev:PointerEvent)=>{
+      const desired=(side==="end"?q.end:q.start)+tAt(ev.clientX)-origin;
+      const snapped=snapT(desired,ev.altKey);setGuide(snapped.hit);
+      const sourceStart=side==="start" && media.get(q.el.media??"")?.kind==="video" ? Math.max(0,q.start-(q.el.offset??0)) : 0;
+      const start=side==="end"?q.start:clamp(snapped.t,sourceStart,side==="move"?Math.max(0,dur-length):q.end-.02);
+      return {start:Math.round(start*1000)/1000,end:Math.round((side==="move"?start+length:side==="start"?q.end:clamp(snapped.t,q.start+.02,dur))*1000)/1000};
+    };
+    drag(e,ev=>{const next=range(ev);setVisualDrag({sid:q.s.id,k:q.k,...next});previewElement(q.s.id,q.k,next);},(ev,moved)=>{
+      if(!moved) {seek(q.start);return;}
+      const next=range(ev);setVisualDrag({sid:q.s.id,k:q.k,...next});
+      r.patchElement(q.s.id,q.k,{...next,...(side==="start" && ["media_frame","device"].includes(q.el.type) ? {offset:Math.max(0,(q.el.offset??0)+next.start-q.start)} : {})}).finally(()=>{setVisualDrag(null);clearPreview();});
+    },()=>{setVisualDrag(null);clearPreview();});
+  };
   const actItems = useMemo(() => scenes.flatMap((s) => (s.stick?.actions ?? []).map((a: any, k: number) => ({ s, a, k }))), [scenes]);
   const actPack = useMemo(() => pack(actItems.map((q) => ({ left: LABEL + q.a.start * pps, w: Math.max(10, (q.a.end - q.a.start) * pps, chipW(q.a.do.replace("_", " "))) }))), [actItems, pps]);
   const keyZoom = { t: timeStore.t, px: x(timeStore.t) - (scroller.current?.scrollLeft ?? 0) };
@@ -445,34 +508,35 @@ export default function Timeline({ r, duration, seek, selected, onSelect, select
   return (
     <div className="tl" aria-label="Timeline">
       <div className="tl-bar" role="toolbar" aria-label="Timeline tools">
-        <button className={`tl-tool ${tool === "select" ? "on" : ""}`} onClick={() => setTool("select")} aria-pressed={tool === "select"} aria-label="Select tool" title="Select (V)"><MousePointer2 size={15} /></button>
-        <button className={`tl-tool ${tool === "blade" ? "on" : ""}`} onClick={() => setTool("blade")} aria-pressed={tool === "blade"} aria-label="Blade tool" title="Blade: click the voice or a scene to split it (B)"><Scissors size={15} /></button>
-        <button className={`tl-tool ${snap ? "on" : ""}`} onClick={() => setSnap(!snap)} aria-pressed={snap} aria-label="Snapping" title="Snapping (N). Hold Alt while dragging to ignore it"><Magnet size={15} /></button>
+        <button className={`tl-tool ${tool === "select" ? "on" : ""}`} onClick={() => setTool("select")} aria-pressed={tool === "select"} aria-label="Select tool" title="Select (V)"><MousePointer2 size={15} /> Select</button>
+        <button className={`tl-tool ${tool === "blade" ? "on" : ""}`} onClick={() => setTool("blade")} aria-pressed={tool === "blade"} aria-label="Blade tool" title="Click a voice or added clip to split exactly there (B)"><Scissors size={15} /> Split tool</button>
+        <button className={`tl-tool ${snap ? "on" : ""}`} onClick={() => setSnap(!snap)} aria-pressed={snap} aria-label="Snapping" title="Align dragged edges with nearby words or clips. Alt temporarily disables this."><Magnet size={15} /> Snap {snap ? "on" : "off"}</button>
         <span className="ds-sep" aria-hidden />
-        <button className="tl-tool" onClick={splitHere} aria-label="Split the voice at the playhead" title="Split the voice at the playhead (Ctrl+B)" disabled={!audio}><Scissors size={14} style={{ transform: "rotate(90deg)" }} /></button>
-        <button className="tl-tool" onClick={cutSel} aria-label="Cut out the selection" title="Cut out the selection and close the gap (Delete)" disabled={!sel || sel.o1 - sel.o0 < 0.03}><Trash2 size={14} /></button>
-        <button className={`tl-tool ${selMuted ? "on" : ""}`} onClick={muteSel} aria-label="Mute the selection" title="Mute or unmute the selection (M)" disabled={!sel}>{selMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}</button>
-        <label className="tl-gain" title="Volume of the selection">
+        <button className="tl-tool" onClick={splitHere} aria-label="Split at playhead" title="Split the selected clip, or the voice, at the red line (Ctrl+B)" disabled={r.audioSaving || layers.saving || locked || (!audio && !selectedClip)}><Scissors size={14} /> Split here</button>
+        <button className="tl-tool" onClick={cutSel} aria-label="Remove selection" title={selectedClip ? "Remove this added clip" : "Remove the selected voice time and shorten the video (Delete)"} disabled={r.audioSaving || layers.saving || locked || (!selectedEl && !selectedClip && (!sel || sel.o1 - sel.o0 < 0.03))}><Trash2 size={14} /> Remove</button>
+        <button className={`tl-tool ${selMuted ? "on" : ""}`} onClick={muteSel} aria-label="Mute the selection" title="Mute or unmute the selected voice (M)" disabled={!sel || r.audioSaving}>{selMuted ? <VolumeX size={14} /> : <Volume2 size={14} />} {selMuted ? "Unmute" : "Mute"}</button>
+        {sel && <label className="tl-gain" title="Volume of the selection">
           <span className="small muted">Volume</span>
-          <input type="range" min={-24} max={12} step={0.5} value={gainLive ?? selGain} disabled={!sel} aria-label="Volume of the selection in decibels"
+          <input type="range" min={-24} max={12} step={0.5} value={gainLive ?? selGain} disabled={!sel || r.audioSaving} aria-label="Volume of the selection in decibels"
             onChange={(e) => setGainLive(+e.target.value)} onPointerUp={(e) => commitGain(+(e.target as HTMLInputElement).value)} onKeyUp={(e) => (e.key.startsWith("Arrow") || e.key === "Home" || e.key === "End") && commitGain(+(e.target as HTMLInputElement).value)} />
           <span className="small" style={{ minWidth: 44, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{(gainLive ?? selGain) > 0 ? "+" : ""}{(gainLive ?? selGain).toFixed(1)} dB</span>
-        </label>
+        </label>}
         <span className="small muted" style={{ marginLeft: 8 }}>{sel ? `${stamp(sel.o0, 0.1)} – ${stamp(sel.o1, 0.1)} (${(sel.o1 - sel.o0).toFixed(2)} s)` : `${scenes.length} scenes · ${fmtTime(dur)}`}</span>
         <span className="ds-sep" aria-hidden />
-        <button className="tl-tool" onClick={addText} aria-label="Add a text layer" title="Add a text layer at the playhead"><Type size={14} /></button>
-        <button className="tl-tool" onClick={onAddMedia} aria-label="Add a picture, video or sound" title="Add a picture, video clip or sound from your files"><LayersIcon size={14} /></button>
+        <button className="tl-tool" onClick={addText} aria-label="Add a text layer" title="Add a text layer at the playhead"><Type size={14} /> Text</button>
+        <button className="tl-tool" onClick={onAddMedia} aria-label="Add a picture, video or sound" title="Add a picture, video clip or sound from your files"><LayersIcon size={14} /> Media</button>
         <button className="tl-tool" onClick={(e) => setMenu({ x: e.clientX, y: e.clientY, items: [{ label: "New picture / text track", run: () => layers.commit(Ops.addTrack(layers.doc, "visual").doc) }, { label: "New sound track", run: () => layers.commit(Ops.addTrack(layers.doc, "audio").doc) }] })} aria-label="Add a track" title="Add a track"><Plus size={14} /></button>
         <span className="grow" />
         <button className="btn ghost icon sm" aria-label="Zoom out" onClick={() => zoomTo(targetRef.current / 1.5, keyZoom)}><Minus size={14} /></button>
-        <input type="range" min={0} max={1000} value={Math.round((Math.log(clamp(pps / fit, 1, MAX_PPS / fit)) / Math.log(MAX_PPS / fit)) * 1000)} aria-label="Timeline zoom" style={{ width: 96 }}
-          onChange={(e) => zoomTo(fit * Math.pow(MAX_PPS / fit, +e.target.value / 1000), keyZoom)} />
+        <input type="range" min={0} max={1000} value={Math.round((Math.log(clamp(pps / fit, 1, maxZoom / fit)) / Math.log(maxZoom / fit)) * 1000)} aria-label="Timeline zoom" style={{ width: 96 }}
+          onChange={(e) => zoomTo(fit * Math.pow(maxZoom / fit, +e.target.value / 1000), keyZoom)} />
         <button className="btn ghost icon sm" aria-label="Zoom in" onClick={() => zoomTo(targetRef.current * 1.5, keyZoom)}><Plus size={14} /></button>
         <button className="btn ghost icon sm" aria-label="Fit the whole video" title="Fit (\)" onClick={() => zoomTo(fit, null)}><Maximize2 size={14} /></button>
         <span className="small muted" style={{ minWidth: 40, textAlign: "right" }}>{Math.round((pps / fit) * 100)}%</span>
       </div>
+      <div className="tl-context-bar"><TimeInput duration={dur} seek={seek} /><span role="status">{r.audioSaving ? "Saving voice edit…" : selectedClip ? "Drag the clip to move it. Drag either edge to trim it. Split here uses the red line." : sel ? "Orange is the selected voice range. Remove closes the gap; Mute keeps the timing." : tool === "blade" ? "Click voice or added clips for an exact split. Scenes and visuals split exactly where you click." : "Drag across the voice to select time. Double-click a word to edit its caption."}</span></div>
 
-      <div className={`tl-scroll ${tool === "blade" ? "blade" : ""}`} ref={scroller} onPointerMove={onHover} onPointerLeave={() => hover.current && (hover.current.style.display = "none")}>
+      <div className={`tl-scroll ${tool === "blade" ? "blade" : ""}`} style={{pointerEvents: r.audioSaving ? "none" : undefined}} aria-busy={r.audioSaving} ref={scroller} onPointerMove={onHover} onPointerLeave={() => hover.current && (hover.current.style.display = "none")}>
         <div className="tl-inner" style={{ width }}>
           <div className="tl-ruler" onPointerDown={scrub} aria-label="Ruler: click or drag to move the playhead">
             {ticks.map((k) => (
@@ -481,10 +545,10 @@ export default function Timeline({ r, duration, seek, selected, onSelect, select
           </div>
 
           <LayerLanes kind="visual" layers={layers} label={LABEL} x={x} tAt={tAt} pps={pps} v0={v0} v1={v1} total={dur} drag={drag} snapT={snapT} setGuide={setGuide} media={media} selected={selLayer} onSelect={onSelectLayer} scrub={scrub} menu={(mx, my, items) => setMenu({ x: mx, y: my, items })} seek={seek}
- />
+ tool={tool} />
 
           <div className="tl-lane tall" role="group" aria-label="Scenes" onPointerDown={(e) => e.target === e.currentTarget && scrub(e)}>
-            <div className="tl-label">Scenes</div>
+            <div className="tl-label" title="Drag a shared edge to change scene timing. Split anywhere with the split tool.">Scenes</div>
             {scenes.map((s, i) => {
               const t0 = timing.get(s.id);
               if (!t0 || t0.end < v0 || t0.start > v1) return null;
@@ -494,26 +558,50 @@ export default function Timeline({ r, duration, seek, selected, onSelect, select
               return (
                 <div key={s.id} role="button" tabIndex={0} aria-label={`Scene ${i + 1}`} aria-pressed={selected === s.id} className={`tl-clip ${selected === s.id ? "sel" : ""} ${edge && edge.land == null ? "live" : ""}`}
                   style={{ left: x(t.start), width: Math.max(8, w - 2) }}
-                  onClick={(e) => { if (tool === "blade") return bladeScene(s.id, tAt(e.clientX)); onSelect(s.id); seek(t.start); }}
+                  onClick={(e) => { if (tool === "blade") return bladeScene(s.id, e.clientX, e.clientY); onSelect(s.id); seek(t.start); }}
                   onKeyDown={(e) => e.key === "Enter" && (onSelect(s.id), seek(t.start))}>
                   {th && w > 46 && <img src={th} alt="" draggable={false} />}
                   <span>{i + 1}</span>
                   {s.archetype && w > 90 && <span className="muted" style={{ fontWeight: 500 }}>{s.archetype.replace("_", " ")}</span>}
-                  {i > 0 && <div className="grab l" onPointerDown={(e) => startEdge(e, i - 1)} title="Drag to move where this scene starts" aria-label={`Move the start of scene ${i + 1}`} />}
-                  {i < scenes.length - 1 && <div className="grab" onPointerDown={(e) => startEdge(e, i)} title="Drag to move where this scene ends" aria-label={`Move the end of scene ${i + 1}`} />}
                 </div>
               );
             })}
-            {edge && edge.land != null && <div className="tl-snap land" style={{ left: x(edge.land) }} title="The scene will end here, at the start of this sentence" />}
+            {scenes.slice(0,-1).map((s,i) => {
+              const at = edge?.i === i && edge.snap != null ? edge.snap : timing.get(s.id)?.end;
+              if (at == null || at < v0 || at > v1) return null;
+              return <button key={`edge-${s.id}`} className="tl-scene-edge" style={{left:x(at)-10}}
+                aria-label={`Boundary between scenes ${i+1} and ${i+2}`} aria-disabled={!!edge}
+                title="Drag freely to move the scene change. Arrow keys: one frame. Shift: 0.1 seconds."
+                onClick={e=>e.stopPropagation()} onPointerDown={e=>startEdge(e,i)}
+                onKeyDown={e=>{ if(!["ArrowLeft","ArrowRight"].includes(e.key) || edge) return; e.preventDefault(); e.stopPropagation();
+                  const a=timing.get(s.id)!, b=timing.get(scenes[i+1].id)!;
+                  const next=clamp(at+(e.key==="ArrowLeft"?-1:1)*(e.shiftKey ? .1 : 1/30),a.start+.02,b.end-.02);
+                  setEdge({i,snap:next,land:next}); r.moveEdge(s.id,next).finally(()=>setEdge(null));
+                }}>↔</button>;
+            })}
+            {edge && edge.land != null && <div className="tl-snap land" style={{ left: x(edge.land) }} title="The scene will end here" />}
           </div>
 
           <div className="tl-lane slim" role="group" aria-label="Elements" style={{ height: elPack.count * ROW + 4 }} onPointerDown={(e) => e.target === e.currentTarget && scrub(e)}>
             <div className="tl-label">Elements</div>
-            {elItems.map((q, n) => {
-              if (q.w.start < v0 - 2 || q.w.start > v1) return null;
-              const on = selectedEl?.scene === q.s.id && selectedEl.index === q.k;
-              const label = q.el.type.replace("_", " ");
-              return <button key={`${q.s.id}-${q.k}`} className={`tl-chip ${on ? "sel" : ""}`} style={{ left: x(q.w.start), top: 4 + elPack.rows[n] * ROW, maxWidth: 160 }} onClick={() => onSelectEl(q.s.id, q.k)} title={`${label} appears at “${q.w.text}”`}>{label}</button>;
+            {elItems.map((q,n)=>{
+              const live=visualDrag?.sid===q.s.id && visualDrag.k===q.k?visualDrag:q;
+              if(live.end<v0 || live.start>v1) return null;
+              const on=selectedEl?.scene===q.s.id && selectedEl.index===q.k;
+              return <div key={`${q.s.id}-${q.k}`} role="button" tabIndex={0} aria-label={`Edit ${q.el.type} visual`} className={`tl-chip tl-editable ${on?"sel":""}`}
+                style={{left:x(live.start),top:4+elPack.rows[n]*ROW,width:Math.max(20,(live.end-live.start)*pps-1)}}
+                title="Drag to move. Drag either end to trim. Right-click for duplicate, split or remove."
+                onPointerDown={e=>startVisual(e,q,"move")} onKeyDown={e=>{if(e.key==="Enter") onSelectEl(q.s.id,q.k);}}
+                onContextMenu={e=>{e.preventDefault();onSelectEl(q.s.id,q.k);setMenu({x:e.clientX,y:e.clientY,items:[
+                  {label:"Edit visual",run:()=>onSelectEl(q.s.id,q.k)},
+                  {label:"Duplicate",run:()=>r.patchElement(q.s.id,q.k,{duplicate:true})},
+                  {label:"Split at playhead",run:()=>r.patchElement(q.s.id,q.k,{split:timeStore.t})},
+                  {label:"Remove visual",danger:true,run:()=>r.patchElement(q.s.id,q.k,{delete:true})},
+                ]});}}>
+                <span role="button" aria-label={`Trim start of ${q.el.type}`} className="clip-grip left" onPointerDown={e=>startVisual(e,q,"start")}/>
+                {q.el.type.replace(/_/g," ")}
+                <span role="button" aria-label={`Trim end of ${q.el.type}`} className="clip-grip right" onPointerDown={e=>startVisual(e,q,"end")}/>
+              </div>;
             })}
           </div>
 
@@ -524,9 +612,10 @@ export default function Timeline({ r, duration, seek, selected, onSelect, select
                 const { s, a, k } = q;
                 if (a.end < v0 || a.start > v1) return null;
                 const live = actDrag && actDrag.sid === s.id && actDrag.k === k;
-                return <span key={`a-${s.id}-${k}`} role="button" tabIndex={0} aria-label={`Action ${a.do}`} className="tl-chip" onPointerDown={(e) => startAction(e, s.id, k)}
-                  style={{ left: x(live ? actDrag!.t : a.start), top: 4 + actPack.rows[n] * ROW, width: Math.max(10, (a.end - a.start) * pps), background: "var(--ok-soft)", color: "var(--ok)", cursor: "grab", opacity: live ? 0.7 : 1 }}
-                  title={`${a.do.replace("_", " ")}: drag to another word`}>{a.do.replace("_", " ")}</span>;
+                return <span key={`a-${s.id}-${k}`} role="button" tabIndex={0} aria-label={`Action ${a.do}`} className="tl-chip tl-editable" onPointerDown={(e) => startAction(e, s.id, k)}
+                  style={{ left: x(live ? actDrag!.t : a.start), top: 4 + actPack.rows[n] * ROW, width: Math.max(10, ((live ? actDrag!.end : a.end) - (live ? actDrag!.t : a.start)) * pps), background: "var(--ok-soft)", color: "var(--ok)", cursor: "grab", opacity: live ? 0.7 : 1 }}
+                  onKeyDown={e=>{if(e.key==="Enter") window.dispatchEvent(new CustomEvent("vt-action-select",{detail:{scene:s.id,index:k}}));}}
+                  title="Drag to move, drag ends to trim, select to edit the action"><span className="clip-grip left" onPointerDown={e=>startAction(e,s.id,k,"start")}/>{a.do.replace("_", " ")}<span className="clip-grip right" onPointerDown={e=>startAction(e,s.id,k,"end")}/></span>;
               })}
             </div>
           )}
@@ -535,7 +624,7 @@ export default function Timeline({ r, duration, seek, selected, onSelect, select
             <div className="tl-lane slim" role="group" aria-label="Sounds" onPointerDown={(e) => e.target === e.currentTarget && scrub(e)}>
               <div className="tl-label">Sounds</div>
               {(sounds?.events ?? []).filter((e) => e.end >= v0 && e.start <= v1).map((e, i) => (
-                <button key={`${e.concept}-${e.start}-${i}`} className="tl-chip tl-sound" style={{ left: x(e.start), width: Math.max(22, (e.end - e.start) * pps - 1) }} onClick={() => seek(e.start)}
+                <button key={`${e.concept}-${e.start}-${i}`} className="tl-chip tl-sound" style={{ left: x(e.start), width: Math.max(22, (e.end - e.start) * pps - 1) }} onClick={() => { onSelectLayer(null); setSel({o0:e.start,o1:e.end}); seek(e.start); }}
                   title={`${e.label} (${e.start.toFixed(1)}\u2013${e.end.toFixed(1)} s, ${Math.round(e.score * 100)}% sure)`}>
                   <span aria-hidden>{String.fromCodePoint(parseInt(e.emoji, 16))}</span> {(e.end - e.start) * pps > 70 ? e.label : ""}
                 </button>
@@ -588,7 +677,7 @@ export default function Timeline({ r, duration, seek, selected, onSelect, select
           </div>
 
           <LayerLanes kind="audio" layers={layers} label={LABEL} x={x} tAt={tAt} pps={pps} v0={v0} v1={v1} total={dur} drag={drag} snapT={snapT} setGuide={setGuide} media={media} selected={selLayer} onSelect={onSelectLayer} scrub={scrub} menu={(mx, my, items) => setMenu({ x: mx, y: my, items })} seek={seek}
- />
+ tool={tool} />
 
           {guide != null && <div className="tl-snap" style={{ left: x(guide) }} />}
           <div className="tl-hover" ref={hover} aria-hidden />

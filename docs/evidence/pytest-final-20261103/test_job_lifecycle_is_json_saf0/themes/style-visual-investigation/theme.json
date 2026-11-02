@@ -1,0 +1,74 @@
+{
+  "name": "style-visual-investigation",
+  "label": "Visual Investigation",
+  "color": {
+    "bg": "#0B0C0E",
+    "bg2": "#262728",
+    "ink": "#ECEAE4",
+    "muted": "#878684",
+    "accent": "#FF4A2E",
+    "accent2": "#E4E0D4",
+    "card": "#1B1C1D",
+    "card_border": "#ECEAE4",
+    "caption_bg": "#070708",
+    "caption_ink": "#ECEAE4",
+    "highlight_bg": "#FF4A2E",
+    "highlight_ink": "#000000",
+    "tag_bg": "#E4E0D4",
+    "tag_ink": "#000000",
+    "arc": "rgba(236,234,228,0.08)"
+  },
+  "font": {
+    "headline": [
+      "IBM Plex Mono",
+      "Anek Bangla"
+    ],
+    "body": [
+      "IBM Plex Mono",
+      "Hind Siliguri"
+    ],
+    "numeral": [
+      "IBM Plex Mono",
+      "Anek Bangla"
+    ],
+    "caption": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "headline_weight": 800
+  },
+  "shape": {
+    "radius": 18,
+    "stroke": 3,
+    "shadow": {
+      "x": 0,
+      "y": 8,
+      "color": "rgba(0,0,0,0.18)",
+      "blur": 24
+    },
+    "card_tilt": 0
+  },
+  "background": {
+    "kind": "grid",
+    "grain": 0.12,
+    "arcs": false,
+    "pattern": 0.35,
+    "animated": false
+  },
+  "motion": {
+    "preset": "smooth"
+  },
+  "caption": {
+    "style": "pop",
+    "reveal": "line",
+    "weight": 800,
+    "size": 60,
+    "words_per_line": 3,
+    "safe_bottom": {
+      "portrait": 380,
+      "landscape": 64
+    }
+  },
+  "style": "lemo:visual-investigation",
+  "picture": "emoji"
+}

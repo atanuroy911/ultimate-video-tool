@@ -17,7 +17,7 @@ export default function VideoInspector({ r, p, useCases, onRedirect, onRepace }:
     <div>
       <div style={{ padding: "12px 14px 4px" }}>
         <h2>Video</h2>
-        <span className="small muted">Nothing selected. Click a scene, a clip on the timeline or an element on the canvas.</span>
+        <span className="small muted">Choose the look, captions and shape for the whole video. Return to selection to keep editing an individual item.</span>
       </div>
       <Panel title="Look">
         <label className="field"><span>Theme</span>

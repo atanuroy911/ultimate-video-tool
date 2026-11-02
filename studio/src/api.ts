@@ -140,7 +140,7 @@ function sendForm<T>(url: string, form: FormData, onProgress: ((f: number) => vo
   });
 }
 
-export const EXPECTED_API = 6;          // keep in step with API_VERSION in vt/server/app.py
+export const EXPECTED_API = 8;          // keep in step with API_VERSION in vt/server/app.py
 
 export const fmtTime = (s: number) => {
   if (!isFinite(s)) return "0:00";

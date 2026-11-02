@@ -1,0 +1,74 @@
+{
+  "name": "style-stained-glass",
+  "label": "Stained Glass",
+  "color": {
+    "bg": "#000000",
+    "bg2": "#101313",
+    "ink": "#859BA0",
+    "muted": "#67787C",
+    "accent": "#5671D5",
+    "accent2": "#5671D5",
+    "card": "#090B0B",
+    "card_border": "#859BA0",
+    "caption_bg": "#000000",
+    "caption_ink": "#859BA0",
+    "highlight_bg": "#5671D5",
+    "highlight_ink": "#000000",
+    "tag_bg": "#5671D5",
+    "tag_ink": "#000000",
+    "arc": "rgba(133,155,160,0.08)"
+  },
+  "font": {
+    "headline": [
+      "IM Fell English",
+      "Anek Bangla"
+    ],
+    "body": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "numeral": [
+      "IM Fell English",
+      "Anek Bangla"
+    ],
+    "caption": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "headline_weight": 700
+  },
+  "shape": {
+    "radius": 18,
+    "stroke": 3,
+    "shadow": {
+      "x": 0,
+      "y": 8,
+      "color": "rgba(0,0,0,0.18)",
+      "blur": 24
+    },
+    "card_tilt": 0
+  },
+  "background": {
+    "kind": "aurora",
+    "grain": 0.12,
+    "arcs": false,
+    "pattern": 0.35,
+    "animated": true
+  },
+  "motion": {
+    "preset": "snappy"
+  },
+  "caption": {
+    "style": "pop",
+    "reveal": "line",
+    "weight": 800,
+    "size": 60,
+    "words_per_line": 3,
+    "safe_bottom": {
+      "portrait": 380,
+      "landscape": 64
+    }
+  },
+  "style": "lemo:stained-glass",
+  "picture": "emoji"
+}

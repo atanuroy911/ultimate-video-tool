@@ -1,7 +1,7 @@
 import { Suspense } from "react";
-import { Film, Moon, Palette, Play, Scissors, Settings as Cog, Share2, Sun } from "lucide-react";
+import { Film, Moon, Palette, Play, Scissors, Settings as Cog, Share2, Sun, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { EXPECTED_API, get } from "./api";
 import { setLanguage, useT } from "./i18n";
 import { connStore, settingsStore, startRealtime, useStore } from "./store";
@@ -23,6 +23,15 @@ function useDark() {
 export default function Shell() {
   const t = useT();
   const nav = useNavigate();
+  const location = useLocation();
+  const editing = /^\/p\/[^/]+\/?$/.test(location.pathname);
+  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => setMenuOpen(false), [location.pathname]);
+  useEffect(() => {
+    const toggle = () => setMenuOpen(v => !v);
+    window.addEventListener("vt-app-menu", toggle);
+    return () => window.removeEventListener("vt-app-menu", toggle);
+  }, []);
   const conn = useStore(connStore);
   // Subscribe to settings changes — used for lang and to re-fetch AI status so the pill stays in sync
   const settings = useStore(settingsStore);
@@ -46,27 +55,30 @@ export default function Shell() {
   }, [settings]);
   const aiName = !ai || ai.provider === "off" || !ai.available ? "rules only" : ai.provider.startsWith("claude") || ai.provider === "anthropic" ? "Claude" : ai.model || ai.provider;
   return (
-    <div className="shell">
+    <div className={`shell ${editing ? "shell-editor" : ""} ${menuOpen ? "menu-open" : ""}`}>
+      {editing && menuOpen && <button className="shell-menu-backdrop" aria-label="Close app navigation" onClick={() => setMenuOpen(false)} />}
       <header className="topbar">
-        <div className="brand" onClick={() => nav("/")} style={{ cursor: "pointer" }}>
+        {editing && <button className="btn ghost" onClick={() => setMenuOpen(false)}><X size={16} /> Back to editing</button>}
+        <button className="brand" onClick={() => nav("/")} aria-label="Video Tool home">
           <span className="brand-mark">
             <Play size={15} fill="currentColor" />
           </span>
           Video Tool
-        </div>
+        </button>
+        <button className="btn primary shell-create" onClick={() => nav("/new")}>New video</button>
         <nav className="nav" aria-label="Main">
           <NavLink to="/" end className={({ isActive }) => (isActive ? "active" : "")}>
-            {t("nav.projects")}
+            <Film size={18} /> Your videos
           </NavLink>
           <NavLink to="/themes" className={({ isActive }) => (isActive ? "active" : "")}>
-            {t("nav.themes")}
+            <Palette size={18} /> Styles
           </NavLink>
           <NavLink to="/shorts" className={({ isActive }) => (isActive ? "active" : "")}>
-            {t("nav.shorts")}
+            <Scissors size={18} /> Make short clips
           </NavLink>
-          <NavLink to="/social" className={({ isActive }) => (isActive ? "active" : "")}>{t("nav.social")}</NavLink>
+          <NavLink to="/social" className={({ isActive }) => (isActive ? "active" : "")}><Share2 size={18} /> Share videos</NavLink>
           <NavLink to="/settings" className={({ isActive }) => (isActive ? "active" : "")}>
-            {t("nav.settings")}
+            <Cog size={18} /> Settings
           </NavLink>
         </nav>
         <div className="spacer" />

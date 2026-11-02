@@ -72,7 +72,7 @@ export function move(d: LDoc, id: string, start: number, track: string, total: n
   const c = d.clips.find((x) => x.id === id);
   const t = trackOf(d, track);
   const from = c && trackOf(d, c.track);
-  if (!c || !t || !from || t.kind !== from.kind || t.locked) return null;
+  if (!c || !t || !from || t.kind !== from.kind || t.locked || from.locked) return null;
   const others = clipsOn(d, track, id);
   let s = Math.max(0, Math.min(start, total - c.dur));
   // slide against the neighbours: stop at the edge of the one in the way
@@ -90,7 +90,7 @@ export function move(d: LDoc, id: string, start: number, track: string, total: n
 /** Trim one edge. Media and sounds keep their place in the source: trimming the start moves `in` with it. `limit` is the source length (null: unlimited, as for text and pictures). */
 export function trim(d: LDoc, id: string, side: "start" | "end", t: number, total: number, limit: number | null): LDoc {
   const c = d.clips.find((x) => x.id === id);
-  if (!c) return d;
+  if (!c || trackOf(d, c.track)?.locked || !Number.isFinite(t)) return d;
   const others = clipsOn(d, c.track, id);
   const prev = others.filter((o) => endOf(o) <= c.start + 1e-6).reduce((m, o) => Math.max(m, endOf(o)), 0);
   const next = others.filter((o) => o.start >= endOf(c) - 1e-6).reduce((m, o) => Math.min(m, o.start), total);
@@ -105,24 +105,24 @@ export function trim(d: LDoc, id: string, side: "start" | "end", t: number, tota
     const hi = Math.min(next, limit != null ? c.start + (limit - inn) : total);
     dur = Math.max(MIN, Math.min(t, hi) - c.start);
   }
-  return { ...d, clips: d.clips.map((x) => (x.id === id ? { ...x, start: round(start), dur: round(dur), ...(c.type !== "text" ? { in: round(Math.max(0, inn)) } : {}) } : x)) };
+  return { ...d, clips: d.clips.map((x) => (x.id === id ? { ...x, start: round(start), dur: round(dur), fade_in: Math.min(c.fade_in, dur / 2), fade_out: Math.min(c.fade_out, dur / 2), ...(c.type !== "text" ? { in: round(Math.max(0, inn)) } : {}) } : x)) };
 }
 
 export function split(d: LDoc, id: string, t: number): { doc: LDoc; ids: [string, string] } | null {
   const c = d.clips.find((x) => x.id === id);
-  if (!c || t <= c.start + MIN || t >= endOf(c) - MIN) return null;
-  const a: LClip = { ...c, dur: round(t - c.start), fade_out: 0 };
-  const b: LClip = { ...c, id: uid("c"), start: round(t), dur: round(endOf(c) - t), fade_in: 0, ...(c.type !== "text" ? { in: round((c.in ?? 0) + (t - c.start)) } : {}) };
+  if (!c || trackOf(d, c.track)?.locked || !Number.isFinite(t) || t <= c.start + MIN || t >= endOf(c) - MIN) return null;
+  const a: LClip = { ...c, dur: round(t - c.start), fade_in: Math.min(c.fade_in, (t - c.start) / 2), fade_out: 0 };
+  const b: LClip = { ...c, id: uid("c"), start: round(t), dur: round(endOf(c) - t), fade_in: 0, fade_out: Math.min(c.fade_out, (endOf(c) - t) / 2), ...(c.type !== "text" ? { in: round((c.in ?? 0) + (t - c.start)) } : {}) };
   return { doc: { ...d, clips: d.clips.flatMap((x) => (x.id === id ? [a, b] : [x])) }, ids: [a.id, b.id] };
 }
 
 export function remove(d: LDoc, id: string): LDoc {
-  return { ...d, clips: d.clips.filter((c) => c.id !== id) };
+  return { ...d, clips: d.clips.filter((c) => c.id !== id || trackOf(d, c.track)?.locked) };
 }
 
 export function duplicate(d: LDoc, id: string, total: number): { doc: LDoc; id: string } | null {
   const c = d.clips.find((x) => x.id === id);
-  if (!c) return null;
+  if (!c || trackOf(d, c.track)?.locked) return null;
   const copy = { ...c, id: uid("c"), start: endOf(c) };
   const kind = trackOf(d, c.track)?.kind ?? "visual";
   if (copy.start + MIN > total) return null;
@@ -131,7 +131,7 @@ export function duplicate(d: LDoc, id: string, total: number): { doc: LDoc; id: 
 }
 
 export function patchClip(d: LDoc, id: string, patch: Partial<LClip>): LDoc {
-  return { ...d, clips: d.clips.map((c) => (c.id === id ? { ...c, ...patch, ...(patch.style ? { style: { ...c.style!, ...patch.style } } : {}) } : c)) };
+  return { ...d, clips: d.clips.map((c) => (c.id === id && !trackOf(d, c.track)?.locked ? { ...c, ...patch, ...(patch.style ? { style: { ...c.style!, ...patch.style } } : {}) } : c)) };
 }
 
 export function patchTrack(d: LDoc, id: string, patch: Partial<LTrack>): LDoc {
@@ -139,6 +139,7 @@ export function patchTrack(d: LDoc, id: string, patch: Partial<LTrack>): LDoc {
 }
 
 export function removeTrack(d: LDoc, id: string): LDoc {
+  if (trackOf(d, id)?.locked) return d;
   return { ...d, tracks: d.tracks.filter((t) => t.id !== id), clips: d.clips.filter((c) => c.track !== id) };
 }
 

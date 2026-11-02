@@ -155,13 +155,14 @@ function useRecorder() {
 
 
 /* ------------------------------------------------------------------ page
-   One question per screen, like a conversation: what are we working with → (a video: keep the speaker?) → style → shape →
-   look → sound → (a script: which voice) → ready. Every screen has a best answer already picked, so Enter always moves on.
-   The language is detected from the speech (or the script); the last screen shows it and starts the process. */
+   The everyday path is deliberately tiny: add content → choose where it will be posted → create.
+   The backend still has every expert control, but those choices stay behind Customize on the final screen. */
 type SourceKind = "voice" | "file" | "link" | "script";
 type SourceMode = "talking_head" | "video" | "audio";
 type VideoStyle = "auto" | "reel" | "explainer" | "stick" | "cartoon" | "emoji" | "mixed";
-type StepId = "source" | "mode" | "style" | "shape" | "look" | "sound" | "voice" | "ready";
+type StepId = "source" | "mode" | "style" | "director" | "shape" | "look" | "sound" | "voice" | "ready";
+type DirectorInfo = { id: string; label: string; available: boolean; note: string };
+type DirectorsResponse = { directors: DirectorInfo[] };
 
 const LINK = /^https?:\/\/\S+\.\S+$/i;
 const hasBangla = (s: string) => /[ঀ-৿]/.test(s);
@@ -214,6 +215,7 @@ export default function NewPage() {
   const { data: music } = useMusic();
   const { data: models } = useFetch<ModelInfo[]>("/api/models");
   const { data: engines } = useFetch<VoiceEngine[]>("/api/voices");
+  const { data: directors } = useFetch<DirectorsResponse>("/api/directors");
   const recorder = useRecorder();
 
   /* ---- answers */
@@ -238,10 +240,12 @@ export default function NewPage() {
   };
   const [aspect, setAspect] = useState<"9:16" | "1:1" | "16:9">(settings.default_aspect);
   const [theme, setTheme] = useState(settings.default_theme);
-  const [musicTrack, setMusicTrack] = useState<string>(settings.default_music || "auto");
-  const [captions, setCaptions] = useState<"auto" | "pop" | "theme">("auto");
+  const [musicTrack, setMusicTrack] = useState<string>(settings.default_music === null ? "" : settings.default_music ?? "auto");
+  const [captions, setCaptions] = useState("auto");
+  const [endCard, setEndCard] = useState("");
   const [voiceDirection, setVoiceDirection] = useState<"auto" | "off">("auto");               // the director adds delivery notes and sounds (sigh, laugh) to a spoken script where the voice can follow them
   const [usecase, setUsecase] = useState("auto");                                       // the kind of video, for the director (Fine tuning); auto decides from what is said
+  const [director, setDirector] = useState("best");
   const usecases = useFetch<{ id: string; label: string; about?: string }[]>("/api/usecases");
   const [planReview, setPlanReview] = useState<"auto" | "always" | "never">("auto");      // reels only: look at the plan before anything is drawn
   const [title, setTitle] = useState("");
@@ -315,15 +319,10 @@ export default function NewPage() {
   const hasPicture = mode !== "audio";
   const speakerStays = hasPicture && keepSpeaker;
 
-  /* ---- the steps that apply to this source */
+  /* Three human decisions. Everything technical already has an automatic answer. */
   const steps: StepId[] = useMemo(() => {
-    const list: StepId[] = ["source"];
-    if (hasPicture) list.push("mode");
-    list.push("style", "shape", "look", "sound");
-    if (source === "script") list.push("voice");
-    list.push("ready");
-    return list;
-  }, [hasPicture, source]);
+    return ["source", "shape", "ready"];
+  }, []);
   const [stepIndex, setStepIndex] = useState(0);
   const step = steps[Math.min(stepIndex, steps.length - 1)];
   const scriptTooLong = source === "script" && trimmedText.length > 5000;
@@ -334,9 +333,9 @@ export default function NewPage() {
   /* ---- start */
   const glossaryMap = useMemo(() => {
     const map: Record<string, string> = {};
-    glossary.split("\n").forEach((line) => {
+    glossary.split(/[,\n]/).forEach((line) => {
       const [word, ...rest] = line.split("=");
-      if (word?.trim() && rest.join("=").trim()) map[word.trim()] = rest.join("=").trim();
+      if (word?.trim()) map[word.trim()] = rest.join("=").trim() || word.trim();
     });
     return map;
   }, [glossary]);
@@ -344,7 +343,8 @@ export default function NewPage() {
     remove_fillers: removeFillers, remove_retakes: removeRetakes, target_length: targetLength, caption_style: captions, music: musicTrack || null,
     sfx: soundEffects !== "off", sfx_level: soundEffects, script_policy: scriptPolicy, speakers, glossary: glossaryMap, asr_model: speechModel,
     aroll: speakerStays ? "auto" : "off", voice_direction: voiceDirection,
-    ...(style === "reel" ? { look: "reel", plan_review: planReview } : {}),
+    director,
+    ...(style === "reel" ? { look: "reel", plan_review: planReview, end_card: endCard.trim() } : {}),
   });
   const kind = style === "auto" || style === "reel" ? "explainer" : style;
   const [starting, setStarting] = useState(false);
@@ -419,6 +419,7 @@ export default function NewPage() {
     const onKey = (e: KeyboardEvent) => {
       const typing = e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement;
       if (e.key === "Enter" && !e.shiftKey && !(e.target instanceof HTMLTextAreaElement && step === "source" && !LINK.test(trimmedText))) {
+        if (typing && step === "ready") return;
         if (e.target instanceof HTMLButtonElement) return;
         e.preventDefault();
         step === "ready" ? start() : goNext();
@@ -636,6 +637,20 @@ export default function NewPage() {
         </div>
       ),
     },
+    director: {
+      question: "Who directs this video?",
+      hint: "The director reads the whole script and decides what every moment should show.",
+      body: () => (
+        <div className="col tf-choices" role="radiogroup" aria-label="Director">
+          {(directors?.directors || [{ id: "best", label: "Best available", available: true, note: "Uses your fallback order." }]).map((d) => {
+            const index = letterHandlers.current.length;
+            const letter = String.fromCharCode(65 + index);
+            if (d.available) letterHandlers.current.push(() => setDirector(d.id));
+            return <Choice key={d.id} letter={letter} selected={director === d.id} title={d.label} about={d.note} onPick={() => d.available && setDirector(d.id)} />;
+          })}
+        </div>
+      ),
+    },
     shape: {
       question: t("tf.shape.q"),
       hint: detected?.width && detected.height ? t(detected.width > detected.height ? "tf.shape.yours.wide" : "tf.shape.yours.vertical") : undefined,
@@ -705,39 +720,63 @@ export default function NewPage() {
       ),
     },
     ready: {
-      question: t("tf.ready.q"),
-      hint: t("tf.ready.hint"),
+      question: "That’s it. Ready to create?",
+      hint: "The app will direct, edit, caption, add pictures and choose music automatically.",
       body: () => (
         <div className="col" style={{ gap: 14 }}>
+          <div className="tf-auto-card">
+            <span className="tf-auto-icon"><Sparkles size={20} /></span>
+            <span className="col grow" style={{ gap: 3 }}>
+              <strong>Your video, your choices</strong>
+              <span className="small muted">Review the choices below. Automatic lets the app choose for this video.</span>
+            </span>
+          </div>
           <Group>
             <Row label={t("tf.row.source")}><span className="tf-val">{sourceLabel}</span></Row>
             {source === "link" && <Row label="" stack><span className="small muted" data-testid="rights">Only use videos that are yours or free to reuse (for example Creative Commons). You are responsible for having the right to use what you download.</span></Row>}
-            <Row label={t("tf.row.mode")}><span className="tf-val">{modeLabel}</span></Row>
-            <Row label={t("tf.row.language")} stack>
-              <span className="small muted">{languageGuess}</span>
-              <Seg value={language} onChange={setLanguage} label={t("tf.row.language")} options={(["auto", "bn", "en"] as const).map((v) => ({ value: v, label: v === "auto" ? t(LANGUAGE_LABEL[v]) : LANGUAGE_LABEL[v] }))} />
-            </Row>
-            <Row label={t("tf.row.style")}><span className="tf-val">{t(STYLE_CHOICES.find((c) => c.value === style)!.title)}</span></Row>
-            {style === "reel" && (
-              <Row label={t("tf.plan")} stack>
-                <Seg<"auto" | "always" | "never"> label={t("tf.plan")} value={planReview} onChange={setPlanReview}
-                  options={[{ value: "auto", label: t("tf.plan.auto") }, { value: "always", label: t("tf.plan.always") }, { value: "never", label: t("tf.plan.never") }]} />
-              </Row>
-            )}
-            <Row label={t("tf.row.shape")}><span className="tf-val">{t(SHAPE_CHOICES.find((c) => c.value === aspect)!.title)} · {themeLabel}</span></Row>
-            <Row label={t("tf.row.music")}><span className="tf-val">{musicLabel}</span></Row>
-            <Row label={t("tf.row.name")} stack><input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("tf.name.placeholder")} className="bn" aria-label={t("tf.row.name")} /></Row>
+            <Row label="Posting as"><span className="tf-val">{t(SHAPE_CHOICES.find((c) => c.value === aspect)!.title)}</span></Row>
+            <Row label="Video name (optional)" stack><input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="The app can name it for you" className="bn" aria-label={t("tf.row.name")} /></Row>
           </Group>
-          <button type="button" className="ios-more" onClick={() => setFineTuning(true)}>
-            <SlidersHorizontal size={18} />
-            <span className="col grow" style={{ gap: 2 }}><strong>{t("tf.fine")}</strong><span className="sum">{t("tf.fine.about")}</span></span>
-            <ChevronRight size={18} className="muted" />
-          </button>
+          <section className="tf-customize">
+            <div className="tf-customize-title"><SlidersHorizontal size={17} /><span className="grow"><strong>Want to choose?</strong><small>Leave anything on Automatic and the app decides for you.</small></span></div>
+            <div className="col tf-customize-body">
+              <Row label="Language" stack><span className="small muted">{languageGuess}</span><Seg value={language} onChange={setLanguage} label={t("tf.row.language")} options={(["auto", "bn", "en"] as const).map((v) => ({ value: v, label: v === "auto" ? t(LANGUAGE_LABEL[v]) : LANGUAGE_LABEL[v] }))} /></Row>
+              <Row label="Visual style"><select value={style} onChange={(e) => setStyle(e.target.value as VideoStyle)}>{STYLE_CHOICES.map((c) => <option key={c.value} value={c.value}>{t(c.title)}</option>)}</select></Row>
+              <Row label="AI director"><select value={director} onChange={(e) => setDirector(e.target.value)}>{(directors?.directors || [{ id: "best", label: "Automatic", available: true, note: "" }]).map((d) => <option key={d.id} value={d.id} disabled={!d.available}>{d.id === "best" ? "Automatic (recommended)" : d.label}</option>)}</select></Row>
+              <Row label="Look"><select value={theme} onChange={(e) => setTheme(e.target.value)}><option value="auto">Automatic</option>{(themes || []).filter((th) => !th.name.startsWith("auto-")).map((th) => <option key={th.name} value={th.name}>{th.label || th.name}</option>)}</select></Row>
+              <Row label="Music"><select value={musicTrack} onChange={(e) => setMusicTrack(e.target.value)}><option value="auto">Automatic</option><option value="">No music</option>{(music || []).map((m) => <option key={m.id} value={m.id}>{m.title}</option>)}</select></Row>
+              <Row label="Captions"><select aria-label="Caption style" value={captions} onChange={e=>setCaptions(e.target.value)}>{[["auto","Automatic"],["pop","Bold short lines"],["theme","Match the theme"],["word","One word at a time"],["keyword","Emphasize key words"],["box","Boxed"],["pill","Rounded background"],["underline","Underline"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></Row>
+              {style==="reel" && <Row label="Closing line" stack><input value={endCard} maxLength={40} onChange={e=>setEndCard(e.target.value)} placeholder="Optional, e.g. Save this for later" aria-label="Closing line"/><span className="small muted">Shown over the last picture. Leave blank to keep only your script.</span></Row>}
+              {source === "script" && <>
+                <Row label="Voice provider"><select value={engine} aria-label="Voice provider" onChange={(e) => {
+                  setEngine(e.target.value);
+                  voiceChosenByPerson.current = false;
+                  setVoiceRaw(engines?.find(x => x.id === e.target.value)?.voices[0]?.id ?? "");
+                }}>{(engines || []).map(e => <option key={e.id} value={e.id} disabled={!e.available}>{e.label}{e.available ? "" : " — unavailable"}</option>)}</select></Row>
+                <Row label="Voice"><select value={voice} onChange={(e) => setVoice(e.target.value)} aria-label="Voice">{(chosenEngine?.voices || []).map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}</select></Row>
+                <Row label={`Speaking speed · ${rate.toFixed(2)}×`}><input type="range" min={0.7} max={1.4} step={0.05} value={rate} onChange={e => setRate(+e.target.value)} aria-label="Speaking speed" /></Row>
+                <Row label="Voice expression"><Seg value={voiceDirection} onChange={setVoiceDirection} label="Voice expression" options={[{value:"auto",label:"Expressive"},{value:"off",label:"Plain"}]} /></Row>
+                <Row label="Listen first"><button type="button" className="btn" disabled={samplingVoice || !chosenEngine?.available || !voice} onClick={hearVoice}>{samplingVoice ? <Spinner /> : <Volume2 size={14} />} Preview voice</button></Row>
+              </>}
+              <Row label="Pace"><Seg value={pace} onChange={setPace} label="Pace" options={[{ value: "calm", label: "Calm" }, { value: "normal", label: "Normal" }, { value: "fast", label: "Fast" }]} /></Row>
+              <Row label="Clean up speech" stack>
+                <label className="row"><input type="checkbox" checked={removeFillers} onChange={(e) => setRemoveFillers(e.target.checked)} /> Remove “um”, “uh” and long pauses</label>
+                <label className="row"><input type="checkbox" checked={removeRetakes} onChange={(e) => setRemoveRetakes(e.target.checked)} /> Keep the best take when a line is repeated</label>
+              </Row>
+              <Row label="Length"><select value={targetLength} onChange={(e) => setTargetLength(e.target.value as typeof targetLength)}><option value="auto">Automatic</option><option value="keep">Keep the full recording</option><option value="60">About 60 seconds</option><option value="90">About 90 seconds</option></select></Row>
+              <Row label="Sound effects"><select value={soundEffects} onChange={(e) => setSoundEffects(e.target.value as typeof soundEffects)}><option value="off">None</option><option value="subtle">A little</option><option value="normal">Normal</option><option value="rich">More</option></select></Row>
+              <Row label="Words the app may mishear" stack><input value={glossary} onChange={(e) => setGlossary(e.target.value)} placeholder="Names or unusual words, separated by commas" /></Row>
+              <Row label="Your own pictures" stack>
+                <input ref={pictureInput} type="file" accept="image/*" multiple hidden onChange={(e) => setPictures(Array.from(e.target.files || []))} />
+                <button type="button" className="btn" onClick={() => pictureInput.current?.click()}><Upload size={14} /> {pictures.length ? `${pictures.length} selected` : "Choose pictures"}</button>
+              </Row>
+            </div>
+          </section>
           <button className="btn primary lg" disabled={starting || (source === "script" && !chosenEngine?.available)} onClick={start}>
             {starting ? <Spinner /> : <Sparkles size={16} />}{" "}
             {starting ? (source === "link" ? linkMessage || "Downloading…" : uploadShare > 0 && uploadShare < 1 ? `Uploading ${Math.round(uploadShare * 100)}%` : "Starting…") : "Make my video"}
           </button>
-          {source === "script" && chosenEngine && !chosenEngine.available && <span className="small muted center">The voice “{chosenEngine.label}” is not available on this computer ({chosenEngine.note}). Go back and pick another voice.</span>}
+          {source === "script" && chosenEngine && !chosenEngine.available && <span className="small muted center">{chosenEngine.label} is unavailable: {chosenEngine.note}. Choose another voice provider above, or open Speech & voice in Settings.</span>}
         </div>
       ),
     },
@@ -764,7 +803,7 @@ export default function NewPage() {
             <button className="btn primary" disabled={!canContinue} onClick={goNext}>{t("tf.ok")} <CornerDownLeft size={14} /></button>
           </div>
         )}
-        {step === "ready" && <button className="btn ghost" style={{ alignSelf: "flex-start" }} onClick={goBack}><ChevronLeft size={16} /> {t("tf.back")}</button>}
+        {step === "ready" && <button className="btn ghost" style={{ alignSelf: "flex-start" }} onClick={goBack}><ChevronLeft size={16} /> Change where it will be posted</button>}
       </div>
 
       {fineTuning && (

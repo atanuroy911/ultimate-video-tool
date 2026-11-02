@@ -1,0 +1,78 @@
+{
+  "theme": "paper",
+  "planner": "manual",
+  "scenes": [
+    {
+      "id": "s1",
+      "beats": [
+        "b1",
+        "b2",
+        "b3",
+        "b4"
+      ],
+      "layout": "hero",
+      "transition_in": "fade",
+      "elements": [
+        {
+          "edited": false,
+          "scale": 1.0,
+          "rotation": 0.0,
+          "opacity": 1.0,
+          "at_word": "w1",
+          "type": "title",
+          "text": "ইয়েল্ড"
+        },
+        {
+          "edited": false,
+          "scale": 1.0,
+          "rotation": 0.0,
+          "opacity": 1.0,
+          "at_word": "w3",
+          "type": "icon",
+          "name": "circle-help",
+          "label": "কী এটা?"
+        }
+      ],
+      "tone": 0,
+      "caption": {
+        "highlight_words": []
+      },
+      "sfx": []
+    },
+    {
+      "id": "s3",
+      "beats": [
+        "b5"
+      ],
+      "layout": "stack",
+      "transition_in": "zoom",
+      "elements": [
+        {
+          "edited": false,
+          "scale": 1.0,
+          "rotation": 0.0,
+          "opacity": 1.0,
+          "at_word": "w27",
+          "type": "compare",
+          "left": {
+            "title": "গ্রস",
+            "value": "৪%"
+          },
+          "right": {
+            "title": "নেট",
+            "value": "৩%"
+          },
+          "verdict": "আসল লাভ নেট"
+        }
+      ],
+      "tone": 0,
+      "caption": {
+        "highlight_words": [
+          "w26",
+          "w29"
+        ]
+      },
+      "sfx": []
+    }
+  ]
+}

@@ -1,0 +1,74 @@
+{
+  "name": "style-game-show",
+  "label": "Game Show Flat",
+  "color": {
+    "bg": "#41298C",
+    "bg2": "#58439A",
+    "ink": "#FFFFFF",
+    "muted": "#ACA1CD",
+    "accent": "#FD8931",
+    "accent2": "#FFA85A",
+    "card": "#4E3894",
+    "card_border": "#FFFFFF",
+    "caption_bg": "#271954",
+    "caption_ink": "#FFFFFF",
+    "highlight_bg": "#FD8931",
+    "highlight_ink": "#000000",
+    "tag_bg": "#FFA85A",
+    "tag_ink": "#000000",
+    "arc": "rgba(255,255,255,0.08)"
+  },
+  "font": {
+    "headline": [
+      "Fredoka",
+      "Anek Bangla"
+    ],
+    "body": [
+      "Fredoka",
+      "Hind Siliguri"
+    ],
+    "numeral": [
+      "Fredoka",
+      "Anek Bangla"
+    ],
+    "caption": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "headline_weight": 800
+  },
+  "shape": {
+    "radius": 18,
+    "stroke": 3,
+    "shadow": {
+      "x": 6,
+      "y": 6,
+      "color": "#FFFFFF",
+      "blur": 0
+    },
+    "card_tilt": 0
+  },
+  "background": {
+    "kind": "paper",
+    "grain": 0.25,
+    "arcs": false,
+    "pattern": 0.35,
+    "animated": false
+  },
+  "motion": {
+    "preset": "bouncy"
+  },
+  "caption": {
+    "style": "pop",
+    "reveal": "line",
+    "weight": 800,
+    "size": 60,
+    "words_per_line": 3,
+    "safe_bottom": {
+      "portrait": 380,
+      "landscape": 64
+    }
+  },
+  "style": "lemo:game-show",
+  "picture": "emoji"
+}

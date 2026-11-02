@@ -220,9 +220,9 @@ class Pipeline:
         self._say("asr", 0.01, "Working out the language")
         try:
             lang, _ = langdetect.from_audio(self.p.asr_wav, allowed=AUTO_LANGUAGES)
-        except Exception as e:                                     # no detector model and no network: Bangla is the app's first language
-            log.warning("language detection failed (%s); using Bangla", e)
-            lang = "bn"
+        except Exception as e:                                     # Match the English-first creation defaults when detection is unavailable.
+            log.warning("language detection failed (%s); using English", e)
+            lang = "en"
         self._say("asr", 0.03, f"Language: {langdetect.NAMES.get(lang, lang)}")
         return self.p.update_meta(language=lang)
 
@@ -451,13 +451,28 @@ class Pipeline:
                 if who == "claude-server" and status.get("available"):
                     from .ai.providers import ClaudeCLIProvider
 
-                    plan = PD.build(p, provider=ClaudeCLIProvider())
-                    directors.record(p, who, requested=requested, fallback_reason=fallback_reason)
-                    break
+                    try:
+                        plan = PD.build(p, provider=ClaudeCLIProvider())
+                        directors.record(p, who, requested=requested, fallback_reason=fallback_reason)
+                        break
+                    except Exception as e:  # a CLI that disappears or loses login must not stop the video
+                        fallback_reason = f"Claude on the server failed ({type(e).__name__}: {str(e)[:120]})."
+                        self._say("plan", 0.12, f"{fallback_reason} Falling back.")
+                        (p.dir / PD.PLAN).unlink(missing_ok=True)
+                        (p.dir / "reel_reading.json").unlink(missing_ok=True)
+                        plan = None
+                        continue
                 if who == "local" and status.get("available"):
-                    plan = PD.build(p)
-                    directors.record(p, who, requested=requested, fallback_reason=fallback_reason)
-                    break
+                    try:
+                        plan = PD.build(p)
+                        directors.record(p, who, requested=requested, fallback_reason=fallback_reason)
+                        break
+                    except Exception as e:  # the rules below are the engine-free final fallback
+                        fallback_reason = f"The local AI failed ({type(e).__name__}: {str(e)[:120]})."
+                        (p.dir / PD.PLAN).unlink(missing_ok=True)
+                        (p.dir / "reel_reading.json").unlink(missing_ok=True)
+                        plan = None
+                        continue
                 fallback_reason = fallback_reason or str(status.get("note") or f"{who} is unavailable.")
             if plan is None:  # the rule director is the final, engine-free safety net
                 plan = PD.build(p, use_ai=False)
@@ -549,7 +564,7 @@ class Pipeline:
         audio = p.cut_audio if p.cut_audio.exists() else None
         sf, brief = None, None
         notice = None
-        from . import llm
+        from . import directors, llm
         from .director import contrast as K
         from .director import plan as D
         from .director import profiles as PR
@@ -592,10 +607,36 @@ class Pipeline:
             meta, sf = draw(brief)
         try:
             from .script import service as script_service
+            from contextlib import nullcontext
 
-            sf, how = script_service.direct(p, sf, lambda f, m: self._say("plan", 0.9 + 0.05 * f, m))
+            requested = meta.options.director or "best"
+            available = {d["id"]: d for d in directors.listing()["directors"]}
+            chosen = next((d for d in directors.candidates(requested) if available.get(d, {}).get("available")), "local")
+            provider_ctx = nullcontext()
+            if chosen == "claude-server":
+                provider_ctx = AIP.use_provider(AIP.ClaudeCLIProvider())
+            elif chosen == "local":
+                provider_ctx = AIP.use_provider(AIP.OllamaProvider())
+            with provider_ctx:
+                sf, how = script_service.direct(p, sf, lambda f, m: self._say("plan", 0.9 + 0.05 * f, m))
+            actual = "rules" if how.startswith("rules") else chosen
             if how.startswith("rules"):
                 notice = notice or "The AI script was not available; the rule director wrote it (" + how.split(" + ")[0][7:-1][:120] + ")"
+            if chosen.startswith("claude@"):
+                p.save_scenes(sf)                              # the outside director receives this as its editable draft
+                self._say("plan", 0.92, f"Waiting for {available[chosen].get('label', 'Claude on this PC')}")
+                result = directors.broker.request(chosen.split("@", 1)[1], p.id, directors.client_scene_prompt(p.id), directors.settings()["wait_seconds"])
+                outside = p.scenes()
+                if result.get("ok") and outside is not None and outside.planner in ("claude", "assistant"):
+                    sf = outside
+                    directors.record(p, chosen, requested=requested)
+                else:
+                    reason = result.get("reason") or result.get("error") or "The client director did not submit a valid plan."
+                    directors.record(p, actual, requested=requested, fallback_reason=reason)
+                    notice = notice or reason
+            else:
+                directors.record(p, actual, requested=requested,
+                                 fallback_reason=("The selected AI was unavailable, so the rule director wrote the plan." if actual == "rules" else ""))
         except Exception as e:                  # the script step never breaks the video
             notice = notice or f"Script step skipped: {type(e).__name__}: {str(e)[:120]}"
         write_json(p.dir / "usecase.json", {"requested": meta.usecase, "used": usecase, "profile": profile.get("label")})
@@ -723,7 +764,7 @@ def remap_scenes(sf: ScenesFile, old: Beats, new: Beats) -> Optional[ScenesFile]
     scenes = []
     for sc in sf.scenes:
         ids = [nb.id for nb, s in zip(new.beats, assigned) if s == sc.id]
-        if ids:                              # a scene whose sentences all vanished is dropped
+        if ids or sc.start is not None:       # manually timed visual scenes survive transcript edits
             scenes.append(sc.model_copy(update={"beats": ids}))
     if not scenes:
         return None
@@ -747,11 +788,11 @@ def repair_scenes(sf: ScenesFile, tr: Transcript, beats: Beats, icons: set[str],
     for sc in data["scenes"]:
         wids = [w for b in sc["beats"] if b in beat_by for w in beat_by[b].word_ids]
         wset = set(wids)
-        if not wids:
+        if not wids and sc.get("start") is None:
             return None
         for el in sc["elements"]:
-            if el["at_word"] not in wset:
-                el["at_word"] = wids[0]
+            if el["at_word"] not in tr.by_id() or (el["at_word"] not in wset and sc.get("start") is None and el.get("start") is None):
+                el["at_word"] = (wids or [w.id for w in tr.kept()])[0]
         sc["caption"]["highlight_words"] = [w for w in sc["caption"]["highlight_words"] if w in wset]
     try:
         fixed = ScenesFile.model_validate(data)

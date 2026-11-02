@@ -21,13 +21,13 @@ def test_field_limits_are_enforced():
     with pytest.raises(ValidationError):  # unknown field
         Scene.model_validate({"id": "s1", "beats": ["b1"], "elements": [{"type": "tag", "text": "a", "color": "red", "at_word": "w1"}]})
     els = [{"type": "tag", "text": "a", "at_word": "w1"}] * 6
-    with pytest.raises(ValidationError):  # more than 5 elements
-        Scene.model_validate({"id": "s1", "beats": ["b1"], "elements": els})
+    scene = Scene.model_validate({"id": "s1", "beats": ["b1"], "elements": els})
+    assert len(scene.elements) == 6  # Editing never discards valid visuals to enforce a layout suggestion.
 
 
 def test_catalogue_describes_every_component():
     cat = component_catalogue()
-    assert len(cat) == 39
+    assert len(cat) == len(ELEMENT_MODELS) == 40
     for c in cat:
         assert c["description"] and c["use_when"] and c["example"]["type"] == c["type"]
         assert "at_word" in c["required"]

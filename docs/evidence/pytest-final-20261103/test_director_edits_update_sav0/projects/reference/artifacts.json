@@ -1,0 +1,31 @@
+{
+  "scenes": [
+    {
+      "hash": "b8199f72a14865b6be6da1dc30a4571f41ced662395f5a51dbd2804c92cf4749",
+      "path": "scenes.json",
+      "produced_by": "preexisting",
+      "inputs": {},
+      "version": 1
+    },
+    {
+      "hash": "a89743553a39dd6ff372c5f93dbbbbd2b0be1d6d1e87913e805e7a6b187c1e90",
+      "path": "scenes.json",
+      "produced_by": "c86ea53d77f24",
+      "inputs": {
+        "transcript": "3401618d62746d8fab2d3b817f069ce94d4014fc77d8737cb2bfe1a1a47e0407",
+        "beats": "027f7c7be32ca6e391056989b6cd936574d31145c5e50a52510959774e0b238e"
+      },
+      "version": 2
+    },
+    {
+      "hash": "180b76a7c432d0d6be922ec9136ba4332bd80536ef02cfb9b24db20927259b1c",
+      "path": "scenes.json",
+      "produced_by": "c200735ad34e6",
+      "inputs": {
+        "transcript": "3401618d62746d8fab2d3b817f069ce94d4014fc77d8737cb2bfe1a1a47e0407",
+        "beats": "027f7c7be32ca6e391056989b6cd936574d31145c5e50a52510959774e0b238e"
+      },
+      "version": 3
+    }
+  ]
+}

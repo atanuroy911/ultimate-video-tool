@@ -1,4 +1,5 @@
-import { useState } from "react";
+import TimeRangeFields from "./TimeRangeFields";
+import { useEffect, useState } from "react";
 import { ChevronDown, ChevronRight, MessageSquare, Play, Plus, Smile, Sparkles, Trash2, User, Wand2 } from "lucide-react";
 import type { StickAction, StickCast } from "../types";
 import type { Review } from "./useReview";
@@ -113,6 +114,7 @@ const MARKS = [
 ];
 
 export default function ActionEditor(props: {
+  focusIndex?:number|null;
   sceneId: string;
   cast: StickCast[];
   actions: StickAction[];
@@ -122,6 +124,7 @@ export default function ActionEditor(props: {
 }) {
   const { sceneId, cast, actions, words, playheadWord, r } = props;
   const [openIndex, setOpenIndex] = useState<number | null>(null);
+  useEffect(()=>{if(props.focusIndex!=null) setOpenIndex(props.focusIndex);},[props.focusIndex]);
   const [adding, setAdding] = useState(false);
 
   // Form state for new action
@@ -359,6 +362,7 @@ export default function ActionEditor(props: {
                   </label>
                 </div>
 
+                <TimeRangeFields label="Action" start={act.start} end={act.end} total={r.timing.duration} onChange={range=>r.patchAction(sceneId,idx,{patch:range})}/>
                 <label className="field">
                   <span>Pose / Action (Verb)</span>
                   <select

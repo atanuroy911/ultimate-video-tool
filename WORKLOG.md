@@ -3,13 +3,48 @@
 Newest first. Every agent (Claude Code, Codex) adds an entry when it stops: what it did, what it verified, what is left. Read
 `CODEX-HANDOFF.md` first.
 
-## 2026-11-02 (Codex) — director choice (in progress)
+## 2026-11-02 (Codex) — director choice (implementation complete; local live paths verified)
 
 **Plan:** Build the director registry and fallback selection as one shared `vt/` capability, expose it through `/api/directors`, project
 creation, CLI, MCP, and the Studio New/Settings flows, then connect the desktop WebSocket client so a logged-in local Claude can answer a
 remote server's directing request with Video Tool MCP tools only. Verify registry/selection, fake-device completion, timeout fallback, and
 tool allowlisting with focused tests; then typecheck/build Studio, run the related suite and full pytest, restart the lab Studio, and make
 and judge the billionaire comparison through the real UI and GPU path.
+
+**Built:** `vt/directors.py` owns the live registry, fallback policy and targeted request broker; `/api/directors` and a revocable
+desktop-director MCP token are exposed; project options and metadata record the requested/resolved director and fallback reason. Reel and
+ordinary plan paths now honor client Claude, server Claude and local fallback. The Studio New flow has a director step, Settings has order
+and timeout controls, Review shows attribution, CLI creation commands accept `--director` and `vt directors` lists availability, and the
+MCP `project.create` input carries the same choice. Electron detects/login-checks Claude, announces over `/ws`, runs it with only
+`mcp__video-tool__*`, streams logs and reports completion (`desktop/director-runner.js`). Local Electron uses the bundled Python stdio MCP;
+a client attached to a remote server uses a revocable HTTP MCP token. MCP now exposes `get_reel_plan` and `check_reel_plan`, including full
+self-contained picture prompts and actionable `picture.place` / `picture.drawable` issues. Reconnect races, failed sends, Claude process
+launch on Windows, one-token-per-session behavior, provider failure fallback, and accurate rules attribution were also closed.
+
+**Verified:** all 6 `tests/test_director_choice.py` tests pass (targeted completion, absence, reconnect race, send failure, prompt/tool names,
+reel-plan MCP payload/checks, API registration). The existing non-ASGI plan tests reached 15 passes before the first TestClient test was
+stopped. Electron syntax and `npm run test:director` pass, including both stdio/HTTP MCP definitions and the exact tool allowlist. Python
+compiles; schema construction, CLI listing/help, `git diff --check`, and the backspace scan pass. Studio `npx tsc --noEmit` and `npm run
+build` pass. A real Studio was started on port 8878 and the New page loaded visibly in Chrome.
+
+**Live verification resumed at the owner's request:** rebuilt `studio/dist`, started the real Studio on port 8878, and drove the complete
+New flow in Chrome. Project `2026-11-02-why-do-small-habits-matter` selected **Claude on the server**, completed all 15 stages, rendered an
+8.48 s vertical video, and saved `director.requested = director.who = claude-server`. Settings visibly showed Local AI and server Claude
+Ready; `/p/<id>/pro` visibly showed `Who directed this video: Claude on the server`. Frames were inspected at about 1 s, 5 s, and 7 s. The
+visual story and scene transitions worked, but the viewer check correctly flagged five retention-risk moments and four captions that pass
+too quickly (first at 1.8 s); that pacing problem belongs to the later retention/caption task, not director selection.
+
+Installed the locked Electron packages, launched `npm run start:repo`, and drove a second real flow through the desktop app. Electron
+visibly offered **Claude on This computer — Ready on this device**. Project `2026-11-02-a-small-habit-becomes-easier-when` selected it,
+completed the WebSocket/stdin Claude handoff, saved `director.requested = director.who = claude@local-app` with `planner = claude`, and
+rendered a 3.58 s vertical video. A fresh local Electron server first tried to download its missing recommended `gemma3:4b`; cancelling the
+synthetic run cannot interrupt `llm.pull()` because that stream has no cancellation hook. After the one-time model setup/restart, the
+client-Claude handoff and render completed. `npm run test:director` and the Studio production build pass. The full pytest run is executing
+outside the sandbox (Windows socket tests now work there); it reached 48% with one failure marker and several expected skips at the time of
+this update, so its final failure details still need to be recorded. The real billionaire GPU comparison still requires the owner's
+`GPU_PASS`. The separately rerun documented baseline failure remains exactly
+`tests/test_music_auto.py::test_mood_picks_a_fitting_track_stably`: sports selects `upbeat`, while the test expects `hiphop`. No commit or
+push was made.
 
 ## 2026-11-01, later (Claude Code) — styles, remote Claude, GPU builds, timeline, lab round 2 + matrix
 
@@ -120,3 +155,49 @@ See `docs/plans/PLAN-CLIENT-SERVER.MD` (Progress sections) and the git log from 
   (craft.py, director/archetypes.py). Check with: python -c "import pathlib;print([p for p in pathlib.Path('vt').rglob('*.py') if chr(8) in p.read_text(encoding='utf-8')])"
 - 2026-11-02: CODEX-HANDOFF.md rewritten as the starting brief for Codex: current environment (8188 and Ollama on the 3060, models on the SSD,
   no commits, English only), what the owner wants videos to be like, tasks 1-9 in order (director choice first), known problems and traps.
+- 2026-11-02 caption mismatch investigation and verification: trace the saved transcript through composition and the actual browser preview;
+  success means editing walk to run displays RUN without a reload. Reproduced HTTP 500 after transcript save: generated theme missing from
+  the library. Added Project.theme() project-local snapshots and recovery from embedded preview themes, used by compose_project.
+  tests/test_caption_live_edit.py passes both all-format correction and missing-theme recovery regressions. Reapplied the already-saved run
+  correction on the restarted local Studio :8878. In Chrome, changed run→walk→run through the caption field and confirmed the preview
+  visibly reads RUN EACH at ~2.55 seconds without refreshing. Latest Studio typecheck/build passes. No export or narration change claimed;
+  this verifies the editable video preview. Full UI-audit suite remains pending, not passed.
+- 2026-11-02: Simplified the everyday desktop flow after visual testing. Projects no longer interrupts with a setup banner. New Video is now
+  exactly three steps: add content, choose posting shape, create. Every optional choice remains visible on the final screen in plain language
+  (language, style, director, look, music, captions, voice, pace, speech cleanup, length, sound effects, unusual words and own pictures).
+  Settings now starts with three normal choices and keeps the complete settings list visible below with human labels; there is no hidden
+  Advanced section. Remote GPU services are configured at 192.168.123.47 (Ollama 11434, ComfyUI 8188), and the UI reports the GPU server as
+  connected without exposing technical details in the normal flow. Electron visual checks passed for Projects, all three New Video steps,
+  the full visible choices screen and Settings. Verification: Studio production build passes; desktop `npm run test:director` passes;
+  `.venv\\Scripts\\python.exe -m pytest tests/test_director_choice.py -q` passes 6/6. Running the system Python instead of `.venv` fails
+  collection because that interpreter does not have httpx; this is an environment mismatch, not an app failure.
+- 2026-11-02 editor workflow/precision pass: inspect pointer-to-time handling, save races and panel layout; verify exact timing against
+  the live Studio on a disposable copy and with regression tests, then visually exercise the rebuilt app when the desktop is available.
+  Implemented automatic app-sidebar collapse, explicit panel/focus toggles, task-based left navigation, context-based right controls,
+  precise time fields and understandable timing labels. Fixed final pointer release coordinates, handle offsets, exact splits, source
+  offsets when trimming, fades after shortening, locked tracks, stale save/refetch responses and phantom undo steps. Scene splitting now
+  shows actual sentence choices; it no longer silently moves a click to another time. Scene-boundary drag previews match their landing.
+  Added live local layer preview updates, pending element-save flush, selection exclusivity, narrow-window timeline access, responsive
+  preview sizing and form/dialog-safe shortcuts. Voice edits are serialized without accepting stale output coordinates while saving.
+  Validation: Studio production build passes; 13 Node timeline/save-race tests pass; focused Python audio/layers/caption selection passes
+  with one optional skip. Live API QA on 2026-11-02-why-do-small-habits-matter-copy verifies split at 2.137s, cut exactly 0.500s, mute/gain,
+  undo/redo, and layer text/timing/position/opacity in portrait, square and landscape data. Baseline restored; user's original untouched.
+  Full pytest is running in docs/evidence/editor-full-tests.log. Found/fixed frontend API expectation 6 vs backend 7; targeted test passes.
+  Visual sign-off is outstanding: Windows is locked and Cua cannot activate Chrome. Asked user to unlock; did not bypass the lock or
+  claim visual QA. The revised layout must still be inspected and exercised in the live UI. No new rendered video/export claimed.
+  Follow-up validation: remaining backend selection completed in 233s (375 passed, one stale music-catalogue test failed). Repaired that
+  test using a real isolated catalogue for preference/variety, with separate fallback and actual bundled-track checks; all five music
+  tests now pass. No music-selection behavior changed. Full pytest remains in slow real-recording ASR equivalence at 20:24; its first
+  API-version failure is fixed and separately verified. Windows still locked on the final Cua check. No visual pass or full-suite pass claimed.
+- 2026-11-02 follow-up plan: cloned and inspected Concat/Filmcraft source and screenshots; cross-checked existing components, layers,
+  renderer and director/MCP catalogue. Recorded scope and acceptance in docs/plans/PLAN-RESPONSIVE-EDITOR.MD before implementation.
+  Priorities: canonical scene-boundary destinations and loss prevention; shared searchable component browser; a fully integrated Shape
+  component; compact responsive layout; actual UI checks when Cua permits. Existing 39 components and layered editing will be reused.
+
+- 2026-11-03 continuation plan and outcome: finish free editor semantics first, then compare docs vision against registered modules, UI routes and actual Director discovery. Implement shared connections rather than new isolated controls; verify model persistence and all aspect ratios, then run UI checks.
+  Replaced sentence-bound edges with exact seconds, enabled independent visual/action/caption timing, live drafts, sound extraction and caption history; removed data-dropping overlay/SFX limits and automatic removal of edited visuals; fixed action index stability and split duplication. Added real renderer library previews and opaque dropdowns, reversible Video settings and responsive panels.
+  Audit found module discovery schemas were truncated and new editor actions/graphics were unavailable to the Director. Shared exact editor functions now drive timeline.edit_scene; timeline.place preserves canonical components, rejects unsupported fragments before saving and recomposes previews. Agent discovery retains complete catalogue/schema data and includes described tools in its recent working set. Studio exposes the registry under AI → All video tools, with ordinary forms, prerequisites and results. New offers all existing caption styles and optional closing line. Fixed settings stale overwrite, narrow address field and false connection claim.
+  Evidence: docs/AUDIT-2026-11-03.md and capability-inventory.json (165 modules, 135 autonomous, 40 components, 162 routes, 18 pages, clean registry). 41+1 initial editor, 113 expanded, 69 final focused Python cases; 17 Node behavior tests; Studio build, desktop Director runner and docs checker pass. Live disposable-copy precision QA passes and restores baseline. Real free-visual frames inspected; independent character/shape frames rendered. Full and fast regression logs are still running at this checkpoint; one stale 39-component assertion was repaired and passes in the focused rerun. No full-suite or fresh interactive visual pass claimed. No remote deployment or social posting performed.
+
+- 2026-11-03 fresh UI acceptance and final corrections: Cua now works. Verified the disposable copy in desktop, 960px and 400x664 layouts, actual Title example, opaque operation dropdown, settings return, live RUN-to-SPRINT caption draft and Escape cancellation, exact boundary drag to 1.879s and undo to 1.600s. Caption editing moved from a preview-covering modal into Details; transcript typing now previews too. Reset tab scroll, corrected whole-video helper copy, protected mobile time-field width, and added typed custom tool details. Normal desktop restored; original project unchanged.
+  Fixed fill.graphic slot timing override and English language-detection fallback. Broad non-slow run completed: 1142 passed, 4 skipped, 3 stale assertions failed; 15-case and final 48-case reruns pass corrected assertions. Latest Studio build and 17 Node checks pass; capability inventory remains 165/135 autonomous/164 forms/40 components/162 routes/18 pages, clean lint. Local Studio restarted PID 34584; live precision API QA passes and restores baseline. Slow full regression 26011 remains running, last 65%; inspect final failures before full sign-off. Audit and handoff updated; no deployment, posting or commits.

@@ -203,6 +203,7 @@ class CreateProjectIn(BaseModel):
     voice_engine: str = Field(default="edge", description="Speech engine for typed narration.")
     voice: str = Field(default="en-US-AriaNeural", description="Voice id for typed narration.")
     rate: float = Field(default=1.0, ge=0.5, le=2.0, description="Typed narration speech rate.")
+    director: str = Field(default="best", description="Director choice: best, local, claude-server, or claude@<device>.")
 
     @model_validator(mode="after")
     def one_source(self):
@@ -225,9 +226,9 @@ class ProjectOut(BaseModel):
 def create_project(ws: Workspace, inputs: CreateProjectIn) -> ProjectOut:
     from ...project import Project
     project = (Project.create_from_script(inputs.title, inputs.script, voice_engine=inputs.voice_engine, voice=inputs.voice,
-                                          rate=inputs.rate, language=inputs.language, aspect=inputs.aspect, theme=inputs.theme)
+                                           rate=inputs.rate, language=inputs.language, aspect=inputs.aspect, theme=inputs.theme, options={"director": inputs.director})
                if inputs.script else
-               Project.create(inputs.title, Path(inputs.source), language=inputs.language, aspect=inputs.aspect, theme=inputs.theme))
+               Project.create(inputs.title, Path(inputs.source), language=inputs.language, aspect=inputs.aspect, theme=inputs.theme, options={"director": inputs.director}))
     return ProjectOut(project_id=project.id, directory=str(project.dir))
 
 
@@ -306,7 +307,7 @@ def graphic(ws: Workspace, inputs: GraphicIn) -> Fragment:
     scene = scene or next((s for s in scenes if inputs.slot.sentence_id in s.beats), None)
     if scene is None or not scene.elements:
         raise ValueError("no planned graphic covers this slot")
-    items = [{"start": inputs.slot.start, "end": inputs.slot.end, **element.model_dump(exclude_none=True)}
+    items = [{**element.model_dump(exclude_none=True), "start": inputs.slot.start, "end": inputs.slot.end}
              for element in scene.elements]
     return Fragment(slot_id=inputs.slot.id, items=items, confidence=1.0,
                     provenance={"module": "fill.graphic", "scene_id": scene.id,
@@ -443,47 +444,83 @@ class PlaceIn(BaseModel):
 
 
 class PlaceOut(BaseModel):
-    placed: int = Field(description="Number of editable layer clips placed.")
-    skipped: int = Field(description="Renderer-specific items skipped instead of being flattened.")
+    placed: int = Field(description="Number of editable layer clips and scene elements placed.")
+    skipped: int = Field(description="Always zero; unsupported items are reported as errors rather than silently skipped.")
 
 
-@module(id="timeline.place", version=1, summary="Place fragment text and media as validated editable timeline-layer clips.",
+@module(id="timeline.place", version=2, summary="Place text, media and every catalogue component as editable, precisely timed visuals.",
         when_to_use="Audio-first fill modules have returned ordinary fragments.", when_not_to_use="For renderer-private or unvalidated data.",
-        inputs=PlaceIn, outputs=PlaceOut, requires=("project.meta",), produces=("layers",), cost=Cost("fast", ("cpu",), 1.0),
+        inputs=PlaceIn, outputs=PlaceOut, requires=("project.meta",), produces=("layers", "scenes"), cost=Cost("fast", ("cpu",), 1.0),
         effects="writes_timeline", determinism="pure", grounding=(), fallback=None,
-        fallback_reason="Unsupported fragment items are skipped and remain available for explicit scene compilation.",
+        fallback_reason="Invalid or unsupported fragments are rejected before any edits are saved.",
         examples=(Example(inputs={"fragments": []}, outputs={"placed": 0, "skipped": 0}),),
         toolboxes=("autonomous", "studio", "full"), plain_name="Placing timeline fragments", log_line=lambda i, o: f"Placed {o.placed} editable clip(s).", native_outputs=True)
 def timeline_place(ws: Workspace, inputs: PlaceIn) -> PlaceOut:
+    import uuid
+    from pydantic import TypeAdapter
     from ... import layers
     from ...project import Project
+    from ...schema import Element, ELEMENT_MODELS, validate_scenes
+    from ...compose import scene_timing
+    from ...pipeline import compose_all
+    from ...planner.catalogue import all_icon_names
+    from ...util import write_json
     project = Project(ws.root.name, ws.root.parent)
     document = layers.load(project)
     media = {item.id: item.kind for item in (*project.meta().media, *project.meta().sounds)}
-    placed = skipped = 0
+    scenes = project.scenes()
+    scenes = scenes.model_copy(deep=True) if scenes else None
+    transcript, beats = project.transcript(), project.beats()
+    duration = project.cuts().output_duration if project.cuts_path.exists() else max((word.end for word in transcript.kept()), default=1.0) + .5
+    times = scene_timing(scenes, beats, duration) if scenes else []
+    kinds = {model.model_fields["type"].default for model in ELEMENT_MODELS}
+    adapter = TypeAdapter(Element)
+    placed = scene_added = 0
     for fragment in inputs.fragments:
         for item in fragment.items:
             kind = item.get("type")
+            start, end = float(item.get("start", -1)), float(item.get("end", -1))
+            if not 0 <= start < end <= duration + .001:
+                raise ValueError(f"Moment {fragment.slot_id}: visual timing must be inside the video")
+            if kind in kinds:
+                if not scenes:
+                    raise ValueError("Create the scene plan before placing components")
+                owner = next((sc for sc,t in zip(scenes.scenes,times) if t["start"] <= start < t["end"]), scenes.scenes[-1])
+                anchor = item.get("at_word") or next((wid for wid in fragment.provenance.get("word_ids",[]) if wid in transcript.by_id()), None)
+                if not anchor:
+                    anchor = min(transcript.kept(), key=lambda w: abs(w.start-start)).id
+                element = adapter.validate_python({**item, "id": None, "at_word": anchor, "start": start, "end": end, "edited": True})
+                owner.elements.append(element)
+                placed += 1
+                scene_added += 1
+                continue
             clip = None
             if kind in ("text", "text_card") and item.get("text"):
-                clip = {"type": "text", "text": item["text"], "x": item.get("x", 0.5), "y": item.get("y", 0.35)}
+                clip = {"type": "text", "text": item["text"], "x": item.get("x", .5), "y": item.get("y", .35)}
             elif kind in ("media", "speaker") and item.get("media") in media:
                 clip = {"type": "media", "media": item["media"], "fit": item.get("fit", "cover"),
-                        "anim": item.get("anim", "none"), "x": item.get("x", 0.5), "y": item.get("y", 0.5)}
+                        "anim": item.get("anim", "none"), "x": item.get("x", .5), "y": item.get("y", .5)}
             if clip is None:
-                skipped += 1
-                continue
+                raise ValueError(f"Moment {fragment.slot_id}: cannot place '{kind}'. Choose a catalogue component, text card or existing media.")
             placed += 1
-            track_id = f"frag{len(document['tracks']) + 1}"
+            track_id = "frag" + uuid.uuid4().hex[:12]
             document["tracks"].append({"id": track_id, "name": f"Moment {fragment.slot_id}", "kind": "visual"})
-            document["clips"].append({"id": f"clip{len(document['clips']) + 1}", "track": track_id,
-                                      "start": item["start"], "dur": item["end"] - item["start"], **clip})
-    duration = max((word.end for word in project.transcript().kept()), default=1.0) + 0.5
+            document["clips"].append({"id": "clip" + uuid.uuid4().hex[:12], "track": track_id,
+                                      "start": start, "dur": end-start, **clip})
     clean, errors = layers.validate(document, duration, media)
+    if scene_added:
+        errors += validate_scenes(scenes, transcript, beats, all_icon_names(), set(media))
     if errors:
         raise ValueError("; ".join(errors[:6]))
-    layers.save(project, clean)
-    return PlaceOut(placed=placed, skipped=skipped)
+    if placed:
+        layers.save(project, clean)
+        if scene_added:
+            write_json(project.dir / "scenes.prev.json", project.scenes().model_dump(exclude_none=True))
+            project.save_scenes(scenes)
+        if scenes:
+            compose_all(project)
+    return PlaceOut(placed=placed, skipped=0)
+
 
 
 class DirectionIn(BaseModel):

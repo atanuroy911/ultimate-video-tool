@@ -1,0 +1,34 @@
+{
+  "name": "dark-neon",
+  "label": "Dark Neon",
+  "color": {
+    "bg": "#0d0f1c",
+    "bg2": "#1b1140",
+    "ink": "#f5f5fb",
+    "muted": "#a6a8c4",
+    "accent": "#ff3d8b",
+    "accent2": "#35e0ff",
+    "card": "#191c35",
+    "card_border": "#35e0ff",
+    "caption_bg": "#272c5c",
+    "caption_ink": "#ffffff",
+    "highlight_bg": "#ff3d8b",
+    "highlight_ink": "#ffffff",
+    "tag_bg": "#35e0ff",
+    "tag_ink": "#0d0f1c",
+    "arc": "rgba(120,130,255,0.14)"
+  },
+  "font": {
+    "headline": ["Space Grotesk", "Baloo Da 2"],
+    "body": ["Space Grotesk", "Hind Siliguri"],
+    "numeral": ["Space Grotesk", "Baloo Da 2"],
+    "caption": ["Space Grotesk", "Hind Siliguri"],
+    "headline_weight": 700
+  },
+  "shape": { "radius": 26, "stroke": 3, "shadow": { "x": 0, "y": 0, "color": "#35e0ff" }, "card_tilt": 0 },
+  "background": { "kind": "gradient", "grain": 0, "arcs": true },
+  "motion": { "preset": "smooth" },
+  "caption": { "style": "pill", "reveal": "words", "weight": 700, "size": 58, "words_per_line": 5, "safe_bottom": { "portrait": 300, "landscape": 64 } },
+  "currency": "৳",
+  "sfx": "pop"
+}

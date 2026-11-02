@@ -1,6 +1,6 @@
 import { Minus, Plus, Search } from "lucide-react";
 import { useMemo, useState } from "react";
-import type { ComponentSpec, El } from "../types";
+import type { ComponentSpec, El, MediaItem } from "../types";
 import { PackIcon } from "../ui";
 import VisualPicker from "./VisualPicker";
 
@@ -49,11 +49,13 @@ export function blank(s0: Schema, defs: Schema): any {
 const label = (k: string) => k.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
 
 interface Ctx {
+  media?:MediaItem[];
   defs: Schema;
   words: WordLite[];
   icons: Record<string, string>;
   playheadWord: string | null;
   componentType: string;
+  startsAt?: number;
 }
 
 function IconPicker({ value, onChange, icons, allowCoin }: { value: string; onChange: (v: string) => void; icons: Record<string, string>; allowCoin: boolean }) {
@@ -90,21 +92,24 @@ function Counter({ value, max }: { value: string; max?: number }) {
 function Node({ k, schema, value, onChange, ctx }: { k: string; schema: Schema; value: any; onChange: (v: any) => void; ctx: Ctx }) {
   const s = resolve(schema, ctx.defs);
 
-  if (k === "at_word") {
+  if (k === "at_word" || k === "until_word") {
+    const ending = k === "until_word";
+    const choices = ending ? ctx.words.filter(w => w.start >= (ctx.startsAt ?? 0)) : ctx.words;
     return (
       <label className="field">
-        <span>Appears when this word is spoken</span>
+        <span>{ending ? "Disappear after" : "Appear at"}</span>
         <div className="row">
-          <select value={value} onChange={(e) => onChange(e.target.value)} className="bn">
-            {!ctx.words.some((w) => w.id === value) && <option value={value}>{value} (not in this scene)</option>}
-            {ctx.words.map((w) => (
+          <select aria-label={ending ? "Disappear after word" : "Appear at word"} value={value ?? ""} onChange={(e) => onChange(e.target.value || null)} className="bn">
+            {ending && <option value="">Automatically — when this sentence finishes</option>}
+            {value && !ctx.words.some((w) => w.id === value) && <option value={value}>Word outside this scene</option>}
+            {choices.map((w) => (
               <option key={w.id} value={w.id}>
                 {w.text} · {w.start.toFixed(1)}s
               </option>
             ))}
           </select>
-          <button type="button" className="btn sm" disabled={!ctx.playheadWord} onClick={() => ctx.playheadWord && onChange(ctx.playheadWord)} title="Use the word at the playhead">
-            Playhead
+          <button type="button" className="btn sm" disabled={!choices.some(w => w.id === ctx.playheadWord)} onClick={() => ctx.playheadWord && onChange(ctx.playheadWord)} title="Use the word at the current video position">
+            Use current word
           </button>
         </div>
       </label>
@@ -125,6 +130,7 @@ function Node({ k, schema, value, onChange, ctx }: { k: string; schema: Schema; 
     );
   }
 
+  if(k === "media") return <label className="field"><span>Picture or video</span><select value={value??""} onChange={e=>onChange(e.target.value||null)}><option value="">Choose a file…</option>{(ctx.media??[]).map(m=><option key={m.id} value={m.id}>{m.caption||m.file} ({m.kind})</option>)}</select></label>;
   if (s.enum) {
     return (
       <label className="field">
@@ -140,6 +146,12 @@ function Node({ k, schema, value, onChange, ctx }: { k: string; schema: Schema; 
     );
   }
 
+  if (k === "color" && s.pattern?.includes("0-9a-fA-F")) {
+    return <label className="field"><span>Color</span><input type="color" value={/^#[0-9a-f]{6}$/i.test(value) ? value : "#6366f1"} onChange={e => onChange(e.target.value)}/></label>;
+  }
+  if (k === "width" && ctx.componentType === "shape") {
+    return <label className="field"><span>Size · {Math.round((value ?? .65)*100)}%</span><input type="range" min={10} max={100} step={1} value={Math.round((value ?? .65)*100)} onChange={e => onChange(Number(e.target.value)/100)}/></label>;
+  }
   if (s.type === "string") {
     const v = value ?? "";
     const long = (s.maxLength ?? 0) > 50;
@@ -176,7 +188,7 @@ function Node({ k, schema, value, onChange, ctx }: { k: string; schema: Schema; 
             </>
           )}
           {!(s.type === "integer" && s.minimum != null && s.maximum != null && s.maximum - s.minimum <= 12) && (
-            <input type="number" value={value ?? 0} min={s.minimum} step={s.type === "integer" ? 1 : "any"} onChange={(e) => onChange(e.target.value === "" ? 0 : +e.target.value)} />
+            <input type="number" value={value ?? 0} min={s.minimum} max={s.maximum} step={s.type === "integer" ? 1 : "any"} onChange={(e) => onChange(e.target.value === "" ? 0 : +e.target.value)} />
           )}
         </div>
       </label>
@@ -246,6 +258,7 @@ function ObjectFields({ schema, value, onChange, ctx }: { schema: Schema; value:
 }
 
 export default function SchemaForm(props: {
+  media?:MediaItem[];
   spec: ComponentSpec;
   value: El;
   words: WordLite[];
@@ -253,14 +266,24 @@ export default function SchemaForm(props: {
   playheadWord: string | null;
   onChange: (v: El) => void;
 }) {
-  const ctx: Ctx = { defs: props.spec.defs, words: props.words, icons: props.icons, playheadWord: props.playheadWord, componentType: props.spec.type };
+  const ctx: Ctx = { media:props.media, defs: props.spec.defs, words: props.words, icons: props.icons, playheadWord: props.playheadWord, componentType: props.spec.type, startsAt: props.words.find(w => w.id === props.value.at_word)?.start };
   const fields = props.spec.fields;
-  // at_word first, then the component's own fields
-  const keys = ["at_word", ...Object.keys(fields).filter((k) => k !== "at_word")];
+  // Content first; timing follows it, expressed in words and seconds rather than internal IDs.
+  const keys = [...Object.keys(fields).filter(k => !["edited","at_word","until_word","start","end","x","y","scale","rotation","opacity"].includes(k)), "at_word", ...(fields.until_word ? ["until_word"] : [])];
   return (
     <div className="col" style={{ gap: 12 }}>
       {keys.map((k) => (
-        <Node key={k} k={k} schema={fields[k] || { type: "string" }} value={(props.value as any)[k]} onChange={(v) => props.onChange({ ...props.value, [k]: v })} ctx={ctx} />
+        <Node key={k} k={k} schema={fields[k] || { type: "string" }} value={(props.value as any)[k]} onChange={(v) => {
+          const next = { ...props.value, [k]: v };
+          if (k === "at_word") next.start = null;
+          if (k === "until_word") next.end = null;
+          if (k === "at_word" && next.until_word) {
+            const start = props.words.find(w => w.id === v)?.start ?? 0;
+            const end = props.words.find(w => w.id === next.until_word)?.start ?? Infinity;
+            if (end < start) next.until_word = null;
+          }
+          props.onChange(next);
+        }} ctx={ctx} />
       ))}
     </div>
   );

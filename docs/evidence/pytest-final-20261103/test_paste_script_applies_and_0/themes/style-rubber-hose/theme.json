@@ -1,0 +1,74 @@
+{
+  "name": "style-rubber-hose",
+  "label": "1930s Rubber Hose Cartoon",
+  "color": {
+    "bg": "#000000",
+    "bg2": "#121211",
+    "ink": "#99968A",
+    "muted": "#78766D",
+    "accent": "#969387",
+    "accent2": "#858277",
+    "card": "#0B0A0A",
+    "card_border": "#99968A",
+    "caption_bg": "#000000",
+    "caption_ink": "#99968A",
+    "highlight_bg": "#969387",
+    "highlight_ink": "#000000",
+    "tag_bg": "#858277",
+    "tag_ink": "#000000",
+    "arc": "rgba(153,150,138,0.08)"
+  },
+  "font": {
+    "headline": [
+      "IM Fell English",
+      "Anek Bangla"
+    ],
+    "body": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "numeral": [
+      "IM Fell English",
+      "Anek Bangla"
+    ],
+    "caption": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "headline_weight": 700
+  },
+  "shape": {
+    "radius": 18,
+    "stroke": 3,
+    "shadow": {
+      "x": 0,
+      "y": 8,
+      "color": "rgba(0,0,0,0.18)",
+      "blur": 24
+    },
+    "card_tilt": 0
+  },
+  "background": {
+    "kind": "paper",
+    "grain": 0.25,
+    "arcs": false,
+    "pattern": 0.35,
+    "animated": false
+  },
+  "motion": {
+    "preset": "bouncy"
+  },
+  "caption": {
+    "style": "pop",
+    "reveal": "line",
+    "weight": 800,
+    "size": 60,
+    "words_per_line": 3,
+    "safe_bottom": {
+      "portrait": 380,
+      "landscape": 64
+    }
+  },
+  "style": "lemo:rubber-hose",
+  "picture": "emoji"
+}

@@ -248,7 +248,7 @@ def test_the_state_card_stays_under_600_tokens_however_long_the_run(project):
 
 def test_only_the_modules_in_play_have_their_schemas_shown(project):
     steps = [AG.Step(n=1, module="plan.make"), AG.Step(n=2, module="plan.make"), AG.Step(n=3, module="plan.edit")]
-    assert AG.working_set(steps, ("plan.start",)) == ["plan.make", "plan.edit", "plan.start"]
+    assert AG.working_set(steps, ("plan.start",)) == ["plan.edit", "plan.make", "plan.start", "meta.describe", "meta.catalog"]
     assert AG.hints_for(project, []) [0] == "understand.read_script"
     assert "plan.start" in AG.hints_for(project, [AG.Step(n=1, module="plan.make", ok=True)])
     assert len(AG.working_set([AG.Step(n=i, module=f"m.x{i}") for i in range(30)])) == 12

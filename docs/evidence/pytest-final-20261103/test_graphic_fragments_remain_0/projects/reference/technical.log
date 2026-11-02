@@ -1,0 +1,1 @@
+timeline.place: ValueError: Moment bad: cannot place 'not_a_visual'. Choose a catalogue component, text card or existing media.

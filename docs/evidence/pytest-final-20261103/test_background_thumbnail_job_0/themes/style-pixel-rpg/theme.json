@@ -1,0 +1,74 @@
+{
+  "name": "style-pixel-rpg",
+  "label": "16-bit Pixel RPG",
+  "color": {
+    "bg": "#4A3D46",
+    "bg2": "#60545C",
+    "ink": "#FFFFFF",
+    "muted": "#B2ACB0",
+    "accent": "#FC934A",
+    "accent2": "#F4AB5D",
+    "card": "#574B53",
+    "card_border": "#FFFFFF",
+    "caption_bg": "#2C252A",
+    "caption_ink": "#FFFFFF",
+    "highlight_bg": "#FC934A",
+    "highlight_ink": "#000000",
+    "tag_bg": "#F4AB5D",
+    "tag_ink": "#000000",
+    "arc": "rgba(255,255,255,0.08)"
+  },
+  "font": {
+    "headline": [
+      "IBM Plex Mono",
+      "Anek Bangla"
+    ],
+    "body": [
+      "IBM Plex Mono",
+      "Hind Siliguri"
+    ],
+    "numeral": [
+      "IBM Plex Mono",
+      "Anek Bangla"
+    ],
+    "caption": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "headline_weight": 800
+  },
+  "shape": {
+    "radius": 18,
+    "stroke": 3,
+    "shadow": {
+      "x": 0,
+      "y": 8,
+      "color": "rgba(0,0,0,0.18)",
+      "blur": 24
+    },
+    "card_tilt": 0
+  },
+  "background": {
+    "kind": "dots",
+    "grain": 0.12,
+    "arcs": false,
+    "pattern": 0.35,
+    "animated": false
+  },
+  "motion": {
+    "preset": "smooth"
+  },
+  "caption": {
+    "style": "pop",
+    "reveal": "line",
+    "weight": 800,
+    "size": 60,
+    "words_per_line": 3,
+    "safe_bottom": {
+      "portrait": 380,
+      "landscape": 64
+    }
+  },
+  "style": "lemo:pixel-rpg",
+  "picture": "emoji"
+}

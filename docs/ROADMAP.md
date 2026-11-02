@@ -1,5 +1,7 @@
 # Roadmap: from what exists to the finished product
 
+**Current cross-check (2026-11-03):** [Vision-to-product audit](AUDIT-2026-11-03.md) records the live capability inventory, repaired UI/Director gaps and outstanding acceptance work. Older measurements below remain dated evidence, not current pass claims.
+
 *The master plan, in phases. Phase 0 is what is done; Phase 1 is what to pick up next. Detailed designs live in [plans/](plans/); what exists, where, and the proof for it is in [STATUS.md](STATUS.md). How to work in this repo: [HANDOFF.md](HANDOFF.md).*
 
 **Vision (owner).** Give it a voice (Bangla, English, Banglish), a talking-head video, a long podcast or a link. Get back finished, scroll-stopping videos and an editable timeline, with no human step in between. An AI makes every decision a good editor would, says why, and the person steps in only if they want to.

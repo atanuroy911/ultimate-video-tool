@@ -26,6 +26,7 @@ def test_split_keeps_elements_with_their_beats(ref):
 def test_merge_delete_move_boundary_stay_valid(ref):
     sf, beats = ref.scenes(), ref.beats()
     merged = scene_ops.merge_with_next(sf, beats, "s1")
+    assert len(merged.scenes[0].elements) == len(sf.scenes[0].elements)+len(sf.scenes[1].elements)
     assert valid(ref, merged) and len(merged.scenes) == 2 and merged.scenes[0].beats == ["b1", "b2", "b3", "b4"]
     deleted = scene_ops.delete_scene(sf, beats, "s2")
     assert valid(ref, deleted) and [s.id for s in deleted.scenes] == ["s1", "s3"]

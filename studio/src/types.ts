@@ -40,6 +40,7 @@ export interface ProjectSummary {
   created_at: string;
   status: string;
   stages: Record<string, any>;
+  director?: { who: string; requested: string; at: string; fallback_reason?: string };
   source?: "recording" | "script";
   usecase?: string;
   video_kind?: string;
@@ -66,6 +67,8 @@ export interface ProjectSummary {
 }
 
 export interface Word {
+  caption_start?: number | null;
+  caption_end?: number | null;
   id: string;
   text: string;
   start: number;
@@ -90,6 +93,7 @@ export interface TranscriptData {
 
 export type El = { type: string; at_word: string; id?: string; [k: string]: any };
 export interface Scene {
+  start?: number | null;
   id: string;
   beats: string[];
   layout: "stack" | "split" | "hero" | "grid" | "side" | "lower" | "upper";
@@ -132,11 +136,15 @@ export interface SceneTime {
 }
 export interface ScenesResponse {
   plan: Plan | null;
+  elements?: Record<string, {start:number; end:number}>;
   timing: { scenes: SceneTime[]; duration: number };
 }
 
 export interface ComponentSpec {
   type: string;
+  name?: string;
+  category?: string;
+  starter?: El;
   description: string;
   use_when: string;
   fields: Record<string, any>;
@@ -231,6 +239,8 @@ export interface Settings {
   llm_mode?: "auto" | "off";
   ollama_url?: string;
   ollama_model?: string;
+  director_order?: string[];
+  director_wait_seconds?: number | "wait";
 }
 
 export interface DoctorRow {

@@ -150,6 +150,44 @@ def submit_scenes(project: str, request_id: str, scenes: list[dict[str, Any]]) -
     return planning.submit(_proj(project), request_id, scenes)
 
 
+def _reel_plan_payload(project: Project) -> dict:
+    """The complete, inexpensive reel plan plus checks a remote director can act on."""
+    from .. import craft
+    from ..direction import plan_doc as PD
+    from ..reel.style import cast_for, drawing_style, prompt_for
+
+    plan = PD.load(project.dir)
+    if plan is None:
+        raise ValueError("no reel plan yet; run the pipeline through the plan stage first")
+    style = drawing_style(plan.idea.style, project.meta().theme)
+    made = [m for m in plan.moments if m.medium == "made"]
+    shots = []
+    for moment in made:
+        place = plan.idea.places.get(moment.place, "")
+        character = cast_for(moment.draw, plan.idea.cast) or plan.idea.character
+        shots.append({"id": moment.id, "draw": moment.draw, "place": moment.place,
+                      "place_description": place,
+                      "prompt": prompt_for(moment.draw, style, character, place)})
+    place_checks = craft.place_problems([(s["id"], " ".join(x for x in (s["draw"], s["place_description"]) if x)) for s in shots])
+    drawable_checks = craft.drawable_problems([(s["id"], s["draw"]) for s in shots])
+    issues = ([{"rule": "picture.place", **x} for x in place_checks]
+              + [{"rule": "picture.drawable", **x} for x in drawable_checks])
+    return {"project": project.id, "plan": plan.model_dump(mode="json"), "shots": shots,
+            "checks": {"ok": not issues, "issues": issues, "plan_notes": PD.checks(plan)}}
+
+
+@tool
+def get_reel_plan(project: str) -> dict:
+    """Read the complete reel plan: script moments, cast, places, full picture prompts, estimate and current checks. Makes nothing."""
+    return _reel_plan_payload(_proj(project))
+
+
+@tool
+def check_reel_plan(project: str) -> dict:
+    """Recheck a reel plan after edits. Fix every picture.place and picture.drawable issue before approving it."""
+    return _reel_plan_payload(_proj(project))["checks"]
+
+
 # ------------------------------------------------------------------ projects
 @tool
 def list_projects() -> list[dict]:

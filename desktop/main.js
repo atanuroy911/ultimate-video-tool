@@ -13,6 +13,7 @@ const { spawn, spawnSync } = require("child_process");
 const B = require("./bootstrap");
 const discover = require("./discover");
 const assistants = require("./assistants");
+const directorRunner = require("./director-runner");
 
 const WIN = process.platform === "win32";
 const REPO = path.resolve(__dirname, "..");
@@ -25,6 +26,8 @@ let quitting = false;
 let logFile = null;
 let origin = null;                 // where the Studio comes from: http://127.0.0.1:<port> here, or the server's address
 let connFile = null;               // the remembered choice: {"server": "here"} or {"server": "http://..."}
+let directorToken = null;           // one revocable MCP token for this app session, not one persistent device record per run
+let localDirectorMcp = null;         // packaged/repo Python stdio MCP when this app owns the local server
 
 if (!app.requestSingleInstanceLock()) { app.quit(); process.exit(0); }
 app.on("second-instance", () => { const w = win || splash; if (w) { if (w.isMinimized()) w.restore(); w.focus(); } });
@@ -154,6 +157,8 @@ function openRemote(url) {
   log("using the server at " + url);
   closeMain();
   killServer();
+  localDirectorMcp = null;
+  directorToken = null;
   origin = url;
   buildMenu();
   createMain();
@@ -197,6 +202,15 @@ async function startHere() {
     python = L.python; cwd = L.runtime; env = B.serverEnv(L);
   }
   fs.mkdirSync(layoutRef.data, { recursive: true });
+  localDirectorMcp = {
+    command: python,
+    args: ["-m", "vt.mcp.server"],
+    env: {
+      VT_DATA: env.VT_DATA || layoutRef.data,
+      PYTHONIOENCODING: "utf-8",
+      PYTHONPATH: [cwd, env.PYTHONPATH || ""].filter(Boolean).join(path.delimiter),
+    },
+  };
 
   say({ sub: "Starting the engine…", step: "", busy: true });
   const port = await freePort();
@@ -227,6 +241,27 @@ ipcMain.on("open-log", () => { if (logFile) shell.showItemInFolder(logFile); });
 ipcMain.on("quit", () => app.quit());
 ipcMain.handle("find-servers", () => discover.find(2000));
 ipcMain.handle("assistants-status", () => assistants.status());
+ipcMain.handle("director-status", () => directorRunner.status());
+ipcMain.handle("director-run", async (e, task) => {
+  if (!origin || !win || e.sender !== win.webContents || !task || typeof task.prompt !== "string") throw new Error("Invalid director request.");
+  let token = "";
+  if (!localDirectorMcp) {
+    const cookies = await session.defaultSession.cookies.get({ url: origin });
+    const paired = cookies.find((c) => c.name === "vt_token")?.value || "";
+    token = directorToken || await new Promise((resolve, reject) => {
+      const target = new URL(origin + "/api/directors/token");
+      const lib = target.protocol === "https:" ? require("https") : http;
+      const headers = { "Content-Type": "application/json", "Content-Length": 2 };
+      if (paired) headers.Cookie = `vt_token=${paired}`;
+      const req = lib.request(target, { method: "POST", headers }, (res) => { let body = ""; res.on("data", (b) => body += b); res.on("end", () => { try { const data = JSON.parse(body); if (res.statusCode >= 400 || !data.token) reject(new Error(data.detail || "Could not make a director key.")); else resolve(data.token); } catch { reject(new Error("The server did not make a director key.")); } }); });
+      req.on("error", reject); req.end("{}");
+    });
+    directorToken = token;
+  }
+  return directorRunner.run({ prompt: task.prompt, mcp: localDirectorMcp, server: origin, token }, (message) => {
+    if (win && !win.isDestroyed()) win.webContents.send("director-log", { request: task.request, project: task.project, message });
+  });
+});
 ipcMain.handle("assistants-connect", (e, id, remote) => {
   // only for the server this window shows: a page cannot point the assistants anywhere else
   if (!origin || !win || e.sender !== win.webContents || !remote || !String(remote.url || "").startsWith(origin + "/")) throw new Error("That server is not the one this window shows.");

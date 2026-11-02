@@ -1,6 +1,6 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
 import Shell from "./Shell";
 import { PairGate } from "./Pair";
 import ProjectsPage from "./pages/Projects";
@@ -24,7 +24,7 @@ function lazyScreen(load: () => Promise<{ default: React.ComponentType<any> }>) 
 const NewPage = lazyScreen(() => import("./pages/New"));
 const ProgressPage = lazyScreen(() => import("./pages/Progress"));
 const ReviewPage = lazyScreen(() => import("./pages/Review"));
-const EditorPage = lazyScreen(() => import("./editor/EditorPage"));
+function LegacyEditorRedirect() { const { id } = useParams(); return <Navigate to={`/p/${id}`} replace />; }
 const ExportPage = lazyScreen(() => import("./pages/Export"));
 const ResultPage = lazyScreen(() => import("./pages/Result"));
 const ThemesPage = lazyScreen(() => import("./pages/Themes"));
@@ -45,8 +45,8 @@ createRoot(document.getElementById("root")!).render(
           <Route path="/social" element={<SocialPage />} />
           <Route path="/p/:id/shorts" element={<ShortsPage />} />
           <Route path="/p/:id/progress" element={<ProgressPage />} />
-          <Route path="/p/:id" element={<EditorPage />} />
-          <Route path="/p/:id/pro" element={<ReviewPage />} />
+          <Route path="/p/:id" element={<ReviewPage />} />
+          <Route path="/p/:id/pro" element={<LegacyEditorRedirect />} />
           <Route path="/p/:id/export" element={<ExportPage />} />
           <Route path="/p/:id/result" element={<ResultPage />} />
           <Route path="/themes" element={<ThemesPage />} />

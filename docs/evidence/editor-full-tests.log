@@ -1,0 +1,1730 @@
+..........s..........................................................F.. [  6%]
+........................................................................ [ 12%]
+....s................................................................... [ 18%]
+......ss...........................s.................................... [ 24%]
+........................................................................ [ 30%]
+........................................................................ [ 36%]
+........................................................................ [ 42%]
+........................................................................ [ 48%]
+........................................................................ [ 54%]
+........................................................................ [ 60%]
+.......................................................................F [ 66%]
+s.....................................F........................EEEEEEEEE [ 72%]
+..................................................................FFFFF. [ 78%]
+........................................................................ [ 84%]
+......................................s.........FFF......FF............. [ 90%]
+................................................................F....... [ 96%]
+...........................................                              [100%]
+=================================== ERRORS ====================================
+_____________ ERROR at setup of test_every_element_is_drawn[9:16] _____________
+
+request = <SubRequest 'shots' for <Function test_every_element_is_drawn[9:16]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x000002BE295DA1D0>, _basetemp=WindowsPath('C:/Users/Roy/AppData/Local/Temp/pytest-of-Roy/pytest-114'), _retention_count=3, _retention_policy='all')
+chrome_ok = None
+
+    @pytest.fixture(scope="module", params=["9:16", "1:1", "16:9"])
+    def shots(request, tmp_path_factory, chrome_ok):
+        from vt.compose import showcase
+        out = tmp_path_factory.mktemp("p2" + request.param.replace(":", "x"))
+>       frames = showcase.render(out, request.param, "minimal")
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_phase2_render.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+vt\compose\showcase.py:113: in render
+    return snapshot(idx.parent, out / "snap", times)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+vt\render\hyperframes.py:130: in snapshot
+    run(hyperframes_cmd(*args))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cmd = ['C:\\Program Files\\nodejs\\node.EXE', 'C:\\Users\\Roy\\Desktop\\ultimate-video-tool\\renderer\\node_modules\\hyperfr...,118.700,123.500,128.300,133.100,137.900,142.700,147.500,152.300,157.100,161.900,166.700,171.500,176.300,181.100', ...]
+cwd = None, on_line = None, check = True, stall_seconds = None
+
+    def run(cmd: list[str], *, cwd: Optional[Path] = None, on_line: Optional[Callable[[str], None]] = None, check: bool = True,
+            stall_seconds: Optional[float] = None) -> str:
+        """Run a subprocess, streaming merged stdout/stderr lines to on_line. Returns the full output.
+    
+        `stall_seconds`: kill the process and raise if it prints nothing for that long. A render that hangs (seen on 2026-10-27: the GPU encoder
+        stuck in HyperFrames' final "assemble" step for over twenty minutes) must become an error the caller can retry, not a job that never ends."""
+        import threading
+        import time
+    
+        proc = subprocess.Popen(
+            cmd, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
+            creationflags=CREATE_NO_WINDOW,
+        )
+        lines: list[str] = []
+        assert proc.stdout is not None
+        last = [time.monotonic()]
+        stalled = threading.Event()
+        done = threading.Event()
+    
+        def watch() -> None:
+            while not done.wait(5.0):
+                if time.monotonic() - last[0] > (stall_seconds or 0):
+                    stalled.set()
+                    proc.kill()
+                    return
+    
+        if stall_seconds:
+            threading.Thread(target=watch, daemon=True).start()
+        try:
+            for raw in proc.stdout:
+                last[0] = time.monotonic()
+                line = raw.rstrip()
+                lines.append(line)
+                if on_line:
+                    on_line(line)  # may raise (e.g. job cancelled) -> the process is killed below
+        except BaseException:
+            proc.kill()
+            proc.wait()
+            raise
+        finally:
+            done.set()
+        code = proc.wait()
+        out = "\n".join(lines)
+        if stalled.is_set():
+            raise RuntimeError(f"command stalled: no output for {int(stall_seconds or 0)} s, so it was stopped: {' '.join(map(str, cmd))[:160]}\n" + "\n".join(lines[-8:]))
+        if check and code != 0:
+            tail = "\n".join(lines[-25:])
+>           raise RuntimeError(f"command failed ({code}): {' '.join(map(str, cmd))[:200]}\n{tail}")
+E           RuntimeError: command failed (1): C:\Program Files\nodejs\node.EXE C:\Users\Roy\Desktop\ultimate-video-tool\renderer\node_modules\hyperframes\bin\hyperframes.mjs snapshot C:\Users\Roy\AppData\Local\Temp\pytest-of-Roy\pytest-114\p29x16
+E           \u25c6  Capturing 38 frames at [3.4s, 8.3s, 13.1s, 17.9s, 22.7s, 27.5s, 32.3s, 37.1s, 41.9s, 46.7s, 51.5s, 56.3s, 61.1s, 65.9s, 70.7s, 75.5s, 80.3s, 85.1s, 89.9s, 94.7s, 99.5s, 104.3s, 109.1s, 113.9s, 118.7s, 123.5s, 128.3s, 133.1s, 137.9s, 142.7s, 147.5s, 152.3s, 157.1s, 161.9s, 166.7s, 171.5s, 176.3s, 181.1s] from comp
+E           [hyperframes] browserGpuMode probe \u2192 software (probe failed (spawn UNKNOWN))
+E           [hyperframes] browserGpuMode=hardware was requested, but the GPU probe could not run, so hardware acceleration is UNVERIFIED. If Chrome falls back to software WebGL the capture will run at CPU speed. Honouring the explicit request anyway.
+E             This is a probe failure, not evidence of a missing GPU: see the `browserGpuMode probe \u2192 software (probe failed ...)` line above for the underlying error, which usually means Chrome could not launch (bad HYPERFRAMES_BROWSER_PATH, missing shared libraries, or a denied sandbox) rather than a GPU problem.
+E             Run `hyperframes doctor` to check the Chrome install.
+E           
+E           \u2717 Snapshot failed: spawn UNKNOWN
+
+vt\util.py:144: RuntimeError
+_____ ERROR at setup of test_nothing_is_cut_off_at_the_sides_or_top[9:16] _____
+
+request = <SubRequest 'shots' for <Function test_every_element_is_drawn[9:16]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x000002BE295DA1D0>, _basetemp=WindowsPath('C:/Users/Roy/AppData/Local/Temp/pytest-of-Roy/pytest-114'), _retention_count=3, _retention_policy='all')
+chrome_ok = None
+
+    @pytest.fixture(scope="module", params=["9:16", "1:1", "16:9"])
+    def shots(request, tmp_path_factory, chrome_ok):
+        from vt.compose import showcase
+        out = tmp_path_factory.mktemp("p2" + request.param.replace(":", "x"))
+>       frames = showcase.render(out, request.param, "minimal")
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_phase2_render.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+vt\compose\showcase.py:113: in render
+    return snapshot(idx.parent, out / "snap", times)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+vt\render\hyperframes.py:130: in snapshot
+    run(hyperframes_cmd(*args))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cmd = ['C:\\Program Files\\nodejs\\node.EXE', 'C:\\Users\\Roy\\Desktop\\ultimate-video-tool\\renderer\\node_modules\\hyperfr...,118.700,123.500,128.300,133.100,137.900,142.700,147.500,152.300,157.100,161.900,166.700,171.500,176.300,181.100', ...]
+cwd = None, on_line = None, check = True, stall_seconds = None
+
+    def run(cmd: list[str], *, cwd: Optional[Path] = None, on_line: Optional[Callable[[str], None]] = None, check: bool = True,
+            stall_seconds: Optional[float] = None) -> str:
+        """Run a subprocess, streaming merged stdout/stderr lines to on_line. Returns the full output.
+    
+        `stall_seconds`: kill the process and raise if it prints nothing for that long. A render that hangs (seen on 2026-10-27: the GPU encoder
+        stuck in HyperFrames' final "assemble" step for over twenty minutes) must become an error the caller can retry, not a job that never ends."""
+        import threading
+        import time
+    
+        proc = subprocess.Popen(
+            cmd, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
+            creationflags=CREATE_NO_WINDOW,
+        )
+        lines: list[str] = []
+        assert proc.stdout is not None
+        last = [time.monotonic()]
+        stalled = threading.Event()
+        done = threading.Event()
+    
+        def watch() -> None:
+            while not done.wait(5.0):
+                if time.monotonic() - last[0] > (stall_seconds or 0):
+                    stalled.set()
+                    proc.kill()
+                    return
+    
+        if stall_seconds:
+            threading.Thread(target=watch, daemon=True).start()
+        try:
+            for raw in proc.stdout:
+                last[0] = time.monotonic()
+                line = raw.rstrip()
+                lines.append(line)
+                if on_line:
+                    on_line(line)  # may raise (e.g. job cancelled) -> the process is killed below
+        except BaseException:
+            proc.kill()
+            proc.wait()
+            raise
+        finally:
+            done.set()
+        code = proc.wait()
+        out = "\n".join(lines)
+        if stalled.is_set():
+            raise RuntimeError(f"command stalled: no output for {int(stall_seconds or 0)} s, so it was stopped: {' '.join(map(str, cmd))[:160]}\n" + "\n".join(lines[-8:]))
+        if check and code != 0:
+            tail = "\n".join(lines[-25:])
+>           raise RuntimeError(f"command failed ({code}): {' '.join(map(str, cmd))[:200]}\n{tail}")
+E           RuntimeError: command failed (1): C:\Program Files\nodejs\node.EXE C:\Users\Roy\Desktop\ultimate-video-tool\renderer\node_modules\hyperframes\bin\hyperframes.mjs snapshot C:\Users\Roy\AppData\Local\Temp\pytest-of-Roy\pytest-114\p29x16
+E           \u25c6  Capturing 38 frames at [3.4s, 8.3s, 13.1s, 17.9s, 22.7s, 27.5s, 32.3s, 37.1s, 41.9s, 46.7s, 51.5s, 56.3s, 61.1s, 65.9s, 70.7s, 75.5s, 80.3s, 85.1s, 89.9s, 94.7s, 99.5s, 104.3s, 109.1s, 113.9s, 118.7s, 123.5s, 128.3s, 133.1s, 137.9s, 142.7s, 147.5s, 152.3s, 157.1s, 161.9s, 166.7s, 171.5s, 176.3s, 181.1s] from comp
+E           [hyperframes] browserGpuMode probe \u2192 software (probe failed (spawn UNKNOWN))
+E           [hyperframes] browserGpuMode=hardware was requested, but the GPU probe could not run, so hardware acceleration is UNVERIFIED. If Chrome falls back to software WebGL the capture will run at CPU speed. Honouring the explicit request anyway.
+E             This is a probe failure, not evidence of a missing GPU: see the `browserGpuMode probe \u2192 software (probe failed ...)` line above for the underlying error, which usually means Chrome could not launch (bad HYPERFRAMES_BROWSER_PATH, missing shared libraries, or a denied sandbox) rather than a GPU problem.
+E             Run `hyperframes doctor` to check the Chrome install.
+E           
+E           \u2717 Snapshot failed: spawn UNKNOWN
+
+vt\util.py:144: RuntimeError
+________ ERROR at setup of test_contact_sheet_matches_the_golden[9:16] ________
+
+request = <SubRequest 'shots' for <Function test_every_element_is_drawn[9:16]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x000002BE295DA1D0>, _basetemp=WindowsPath('C:/Users/Roy/AppData/Local/Temp/pytest-of-Roy/pytest-114'), _retention_count=3, _retention_policy='all')
+chrome_ok = None
+
+    @pytest.fixture(scope="module", params=["9:16", "1:1", "16:9"])
+    def shots(request, tmp_path_factory, chrome_ok):
+        from vt.compose import showcase
+        out = tmp_path_factory.mktemp("p2" + request.param.replace(":", "x"))
+>       frames = showcase.render(out, request.param, "minimal")
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_phase2_render.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+vt\compose\showcase.py:113: in render
+    return snapshot(idx.parent, out / "snap", times)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+vt\render\hyperframes.py:130: in snapshot
+    run(hyperframes_cmd(*args))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cmd = ['C:\\Program Files\\nodejs\\node.EXE', 'C:\\Users\\Roy\\Desktop\\ultimate-video-tool\\renderer\\node_modules\\hyperfr...,118.700,123.500,128.300,133.100,137.900,142.700,147.500,152.300,157.100,161.900,166.700,171.500,176.300,181.100', ...]
+cwd = None, on_line = None, check = True, stall_seconds = None
+
+    def run(cmd: list[str], *, cwd: Optional[Path] = None, on_line: Optional[Callable[[str], None]] = None, check: bool = True,
+            stall_seconds: Optional[float] = None) -> str:
+        """Run a subprocess, streaming merged stdout/stderr lines to on_line. Returns the full output.
+    
+        `stall_seconds`: kill the process and raise if it prints nothing for that long. A render that hangs (seen on 2026-10-27: the GPU encoder
+        stuck in HyperFrames' final "assemble" step for over twenty minutes) must become an error the caller can retry, not a job that never ends."""
+        import threading
+        import time
+    
+        proc = subprocess.Popen(
+            cmd, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
+            creationflags=CREATE_NO_WINDOW,
+        )
+        lines: list[str] = []
+        assert proc.stdout is not None
+        last = [time.monotonic()]
+        stalled = threading.Event()
+        done = threading.Event()
+    
+        def watch() -> None:
+            while not done.wait(5.0):
+                if time.monotonic() - last[0] > (stall_seconds or 0):
+                    stalled.set()
+                    proc.kill()
+                    return
+    
+        if stall_seconds:
+            threading.Thread(target=watch, daemon=True).start()
+        try:
+            for raw in proc.stdout:
+                last[0] = time.monotonic()
+                line = raw.rstrip()
+                lines.append(line)
+                if on_line:
+                    on_line(line)  # may raise (e.g. job cancelled) -> the process is killed below
+        except BaseException:
+            proc.kill()
+            proc.wait()
+            raise
+        finally:
+            done.set()
+        code = proc.wait()
+        out = "\n".join(lines)
+        if stalled.is_set():
+            raise RuntimeError(f"command stalled: no output for {int(stall_seconds or 0)} s, so it was stopped: {' '.join(map(str, cmd))[:160]}\n" + "\n".join(lines[-8:]))
+        if check and code != 0:
+            tail = "\n".join(lines[-25:])
+>           raise RuntimeError(f"command failed ({code}): {' '.join(map(str, cmd))[:200]}\n{tail}")
+E           RuntimeError: command failed (1): C:\Program Files\nodejs\node.EXE C:\Users\Roy\Desktop\ultimate-video-tool\renderer\node_modules\hyperframes\bin\hyperframes.mjs snapshot C:\Users\Roy\AppData\Local\Temp\pytest-of-Roy\pytest-114\p29x16
+E           \u25c6  Capturing 38 frames at [3.4s, 8.3s, 13.1s, 17.9s, 22.7s, 27.5s, 32.3s, 37.1s, 41.9s, 46.7s, 51.5s, 56.3s, 61.1s, 65.9s, 70.7s, 75.5s, 80.3s, 85.1s, 89.9s, 94.7s, 99.5s, 104.3s, 109.1s, 113.9s, 118.7s, 123.5s, 128.3s, 133.1s, 137.9s, 142.7s, 147.5s, 152.3s, 157.1s, 161.9s, 166.7s, 171.5s, 176.3s, 181.1s] from comp
+E           [hyperframes] browserGpuMode probe \u2192 software (probe failed (spawn UNKNOWN))
+E           [hyperframes] browserGpuMode=hardware was requested, but the GPU probe could not run, so hardware acceleration is UNVERIFIED. If Chrome falls back to software WebGL the capture will run at CPU speed. Honouring the explicit request anyway.
+E             This is a probe failure, not evidence of a missing GPU: see the `browserGpuMode probe \u2192 software (probe failed ...)` line above for the underlying error, which usually means Chrome could not launch (bad HYPERFRAMES_BROWSER_PATH, missing shared libraries, or a denied sandbox) rather than a GPU problem.
+E             Run `hyperframes doctor` to check the Chrome install.
+E           
+E           \u2717 Snapshot failed: spawn UNKNOWN
+
+vt\util.py:144: RuntimeError
+_____________ ERROR at setup of test_every_element_is_drawn[1:1] ______________
+
+request = <SubRequest 'shots' for <Function test_every_element_is_drawn[1:1]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x000002BE295DA1D0>, _basetemp=WindowsPath('C:/Users/Roy/AppData/Local/Temp/pytest-of-Roy/pytest-114'), _retention_count=3, _retention_policy='all')
+chrome_ok = None
+
+    @pytest.fixture(scope="module", params=["9:16", "1:1", "16:9"])
+    def shots(request, tmp_path_factory, chrome_ok):
+        from vt.compose import showcase
+        out = tmp_path_factory.mktemp("p2" + request.param.replace(":", "x"))
+>       frames = showcase.render(out, request.param, "minimal")
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_phase2_render.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+vt\compose\showcase.py:113: in render
+    return snapshot(idx.parent, out / "snap", times)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+vt\render\hyperframes.py:130: in snapshot
+    run(hyperframes_cmd(*args))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cmd = ['C:\\Program Files\\nodejs\\node.EXE', 'C:\\Users\\Roy\\Desktop\\ultimate-video-tool\\renderer\\node_modules\\hyperfr...,118.700,123.500,128.300,133.100,137.900,142.700,147.500,152.300,157.100,161.900,166.700,171.500,176.300,181.100', ...]
+cwd = None, on_line = None, check = True, stall_seconds = None
+
+    def run(cmd: list[str], *, cwd: Optional[Path] = None, on_line: Optional[Callable[[str], None]] = None, check: bool = True,
+            stall_seconds: Optional[float] = None) -> str:
+        """Run a subprocess, streaming merged stdout/stderr lines to on_line. Returns the full output.
+    
+        `stall_seconds`: kill the process and raise if it prints nothing for that long. A render that hangs (seen on 2026-10-27: the GPU encoder
+        stuck in HyperFrames' final "assemble" step for over twenty minutes) must become an error the caller can retry, not a job that never ends."""
+        import threading
+        import time
+    
+        proc = subprocess.Popen(
+            cmd, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
+            creationflags=CREATE_NO_WINDOW,
+        )
+        lines: list[str] = []
+        assert proc.stdout is not None
+        last = [time.monotonic()]
+        stalled = threading.Event()
+        done = threading.Event()
+    
+        def watch() -> None:
+            while not done.wait(5.0):
+                if time.monotonic() - last[0] > (stall_seconds or 0):
+                    stalled.set()
+                    proc.kill()
+                    return
+    
+        if stall_seconds:
+            threading.Thread(target=watch, daemon=True).start()
+        try:
+            for raw in proc.stdout:
+                last[0] = time.monotonic()
+                line = raw.rstrip()
+                lines.append(line)
+                if on_line:
+                    on_line(line)  # may raise (e.g. job cancelled) -> the process is killed below
+        except BaseException:
+            proc.kill()
+            proc.wait()
+            raise
+        finally:
+            done.set()
+        code = proc.wait()
+        out = "\n".join(lines)
+        if stalled.is_set():
+            raise RuntimeError(f"command stalled: no output for {int(stall_seconds or 0)} s, so it was stopped: {' '.join(map(str, cmd))[:160]}\n" + "\n".join(lines[-8:]))
+        if check and code != 0:
+            tail = "\n".join(lines[-25:])
+>           raise RuntimeError(f"command failed ({code}): {' '.join(map(str, cmd))[:200]}\n{tail}")
+E           RuntimeError: command failed (1): C:\Program Files\nodejs\node.EXE C:\Users\Roy\Desktop\ultimate-video-tool\renderer\node_modules\hyperframes\bin\hyperframes.mjs snapshot C:\Users\Roy\AppData\Local\Temp\pytest-of-Roy\pytest-114\p21x10
+E           \u25c6  Capturing 38 frames at [3.4s, 8.3s, 13.1s, 17.9s, 22.7s, 27.5s, 32.3s, 37.1s, 41.9s, 46.7s, 51.5s, 56.3s, 61.1s, 65.9s, 70.7s, 75.5s, 80.3s, 85.1s, 89.9s, 94.7s, 99.5s, 104.3s, 109.1s, 113.9s, 118.7s, 123.5s, 128.3s, 133.1s, 137.9s, 142.7s, 147.5s, 152.3s, 157.1s, 161.9s, 166.7s, 171.5s, 176.3s, 181.1s] from comp
+E           [hyperframes] browserGpuMode probe \u2192 software (probe failed (spawn UNKNOWN))
+E           [hyperframes] browserGpuMode=hardware was requested, but the GPU probe could not run, so hardware acceleration is UNVERIFIED. If Chrome falls back to software WebGL the capture will run at CPU speed. Honouring the explicit request anyway.
+E             This is a probe failure, not evidence of a missing GPU: see the `browserGpuMode probe \u2192 software (probe failed ...)` line above for the underlying error, which usually means Chrome could not launch (bad HYPERFRAMES_BROWSER_PATH, missing shared libraries, or a denied sandbox) rather than a GPU problem.
+E             Run `hyperframes doctor` to check the Chrome install.
+E           
+E           \u2717 Snapshot failed: spawn UNKNOWN
+
+vt\util.py:144: RuntimeError
+_____ ERROR at setup of test_nothing_is_cut_off_at_the_sides_or_top[1:1] ______
+
+request = <SubRequest 'shots' for <Function test_every_element_is_drawn[1:1]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x000002BE295DA1D0>, _basetemp=WindowsPath('C:/Users/Roy/AppData/Local/Temp/pytest-of-Roy/pytest-114'), _retention_count=3, _retention_policy='all')
+chrome_ok = None
+
+    @pytest.fixture(scope="module", params=["9:16", "1:1", "16:9"])
+    def shots(request, tmp_path_factory, chrome_ok):
+        from vt.compose import showcase
+        out = tmp_path_factory.mktemp("p2" + request.param.replace(":", "x"))
+>       frames = showcase.render(out, request.param, "minimal")
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_phase2_render.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+vt\compose\showcase.py:113: in render
+    return snapshot(idx.parent, out / "snap", times)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+vt\render\hyperframes.py:130: in snapshot
+    run(hyperframes_cmd(*args))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cmd = ['C:\\Program Files\\nodejs\\node.EXE', 'C:\\Users\\Roy\\Desktop\\ultimate-video-tool\\renderer\\node_modules\\hyperfr...,118.700,123.500,128.300,133.100,137.900,142.700,147.500,152.300,157.100,161.900,166.700,171.500,176.300,181.100', ...]
+cwd = None, on_line = None, check = True, stall_seconds = None
+
+    def run(cmd: list[str], *, cwd: Optional[Path] = None, on_line: Optional[Callable[[str], None]] = None, check: bool = True,
+            stall_seconds: Optional[float] = None) -> str:
+        """Run a subprocess, streaming merged stdout/stderr lines to on_line. Returns the full output.
+    
+        `stall_seconds`: kill the process and raise if it prints nothing for that long. A render that hangs (seen on 2026-10-27: the GPU encoder
+        stuck in HyperFrames' final "assemble" step for over twenty minutes) must become an error the caller can retry, not a job that never ends."""
+        import threading
+        import time
+    
+        proc = subprocess.Popen(
+            cmd, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
+            creationflags=CREATE_NO_WINDOW,
+        )
+        lines: list[str] = []
+        assert proc.stdout is not None
+        last = [time.monotonic()]
+        stalled = threading.Event()
+        done = threading.Event()
+    
+        def watch() -> None:
+            while not done.wait(5.0):
+                if time.monotonic() - last[0] > (stall_seconds or 0):
+                    stalled.set()
+                    proc.kill()
+                    return
+    
+        if stall_seconds:
+            threading.Thread(target=watch, daemon=True).start()
+        try:
+            for raw in proc.stdout:
+                last[0] = time.monotonic()
+                line = raw.rstrip()
+                lines.append(line)
+                if on_line:
+                    on_line(line)  # may raise (e.g. job cancelled) -> the process is killed below
+        except BaseException:
+            proc.kill()
+            proc.wait()
+            raise
+        finally:
+            done.set()
+        code = proc.wait()
+        out = "\n".join(lines)
+        if stalled.is_set():
+            raise RuntimeError(f"command stalled: no output for {int(stall_seconds or 0)} s, so it was stopped: {' '.join(map(str, cmd))[:160]}\n" + "\n".join(lines[-8:]))
+        if check and code != 0:
+            tail = "\n".join(lines[-25:])
+>           raise RuntimeError(f"command failed ({code}): {' '.join(map(str, cmd))[:200]}\n{tail}")
+E           RuntimeError: command failed (1): C:\Program Files\nodejs\node.EXE C:\Users\Roy\Desktop\ultimate-video-tool\renderer\node_modules\hyperframes\bin\hyperframes.mjs snapshot C:\Users\Roy\AppData\Local\Temp\pytest-of-Roy\pytest-114\p21x10
+E           \u25c6  Capturing 38 frames at [3.4s, 8.3s, 13.1s, 17.9s, 22.7s, 27.5s, 32.3s, 37.1s, 41.9s, 46.7s, 51.5s, 56.3s, 61.1s, 65.9s, 70.7s, 75.5s, 80.3s, 85.1s, 89.9s, 94.7s, 99.5s, 104.3s, 109.1s, 113.9s, 118.7s, 123.5s, 128.3s, 133.1s, 137.9s, 142.7s, 147.5s, 152.3s, 157.1s, 161.9s, 166.7s, 171.5s, 176.3s, 181.1s] from comp
+E           [hyperframes] browserGpuMode probe \u2192 software (probe failed (spawn UNKNOWN))
+E           [hyperframes] browserGpuMode=hardware was requested, but the GPU probe could not run, so hardware acceleration is UNVERIFIED. If Chrome falls back to software WebGL the capture will run at CPU speed. Honouring the explicit request anyway.
+E             This is a probe failure, not evidence of a missing GPU: see the `browserGpuMode probe \u2192 software (probe failed ...)` line above for the underlying error, which usually means Chrome could not launch (bad HYPERFRAMES_BROWSER_PATH, missing shared libraries, or a denied sandbox) rather than a GPU problem.
+E             Run `hyperframes doctor` to check the Chrome install.
+E           
+E           \u2717 Snapshot failed: spawn UNKNOWN
+
+vt\util.py:144: RuntimeError
+________ ERROR at setup of test_contact_sheet_matches_the_golden[1:1] _________
+
+request = <SubRequest 'shots' for <Function test_every_element_is_drawn[1:1]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x000002BE295DA1D0>, _basetemp=WindowsPath('C:/Users/Roy/AppData/Local/Temp/pytest-of-Roy/pytest-114'), _retention_count=3, _retention_policy='all')
+chrome_ok = None
+
+    @pytest.fixture(scope="module", params=["9:16", "1:1", "16:9"])
+    def shots(request, tmp_path_factory, chrome_ok):
+        from vt.compose import showcase
+        out = tmp_path_factory.mktemp("p2" + request.param.replace(":", "x"))
+>       frames = showcase.render(out, request.param, "minimal")
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_phase2_render.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+vt\compose\showcase.py:113: in render
+    return snapshot(idx.parent, out / "snap", times)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+vt\render\hyperframes.py:130: in snapshot
+    run(hyperframes_cmd(*args))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cmd = ['C:\\Program Files\\nodejs\\node.EXE', 'C:\\Users\\Roy\\Desktop\\ultimate-video-tool\\renderer\\node_modules\\hyperfr...,118.700,123.500,128.300,133.100,137.900,142.700,147.500,152.300,157.100,161.900,166.700,171.500,176.300,181.100', ...]
+cwd = None, on_line = None, check = True, stall_seconds = None
+
+    def run(cmd: list[str], *, cwd: Optional[Path] = None, on_line: Optional[Callable[[str], None]] = None, check: bool = True,
+            stall_seconds: Optional[float] = None) -> str:
+        """Run a subprocess, streaming merged stdout/stderr lines to on_line. Returns the full output.
+    
+        `stall_seconds`: kill the process and raise if it prints nothing for that long. A render that hangs (seen on 2026-10-27: the GPU encoder
+        stuck in HyperFrames' final "assemble" step for over twenty minutes) must become an error the caller can retry, not a job that never ends."""
+        import threading
+        import time
+    
+        proc = subprocess.Popen(
+            cmd, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
+            creationflags=CREATE_NO_WINDOW,
+        )
+        lines: list[str] = []
+        assert proc.stdout is not None
+        last = [time.monotonic()]
+        stalled = threading.Event()
+        done = threading.Event()
+    
+        def watch() -> None:
+            while not done.wait(5.0):
+                if time.monotonic() - last[0] > (stall_seconds or 0):
+                    stalled.set()
+                    proc.kill()
+                    return
+    
+        if stall_seconds:
+            threading.Thread(target=watch, daemon=True).start()
+        try:
+            for raw in proc.stdout:
+                last[0] = time.monotonic()
+                line = raw.rstrip()
+                lines.append(line)
+                if on_line:
+                    on_line(line)  # may raise (e.g. job cancelled) -> the process is killed below
+        except BaseException:
+            proc.kill()
+            proc.wait()
+            raise
+        finally:
+            done.set()
+        code = proc.wait()
+        out = "\n".join(lines)
+        if stalled.is_set():
+            raise RuntimeError(f"command stalled: no output for {int(stall_seconds or 0)} s, so it was stopped: {' '.join(map(str, cmd))[:160]}\n" + "\n".join(lines[-8:]))
+        if check and code != 0:
+            tail = "\n".join(lines[-25:])
+>           raise RuntimeError(f"command failed ({code}): {' '.join(map(str, cmd))[:200]}\n{tail}")
+E           RuntimeError: command failed (1): C:\Program Files\nodejs\node.EXE C:\Users\Roy\Desktop\ultimate-video-tool\renderer\node_modules\hyperframes\bin\hyperframes.mjs snapshot C:\Users\Roy\AppData\Local\Temp\pytest-of-Roy\pytest-114\p21x10
+E           \u25c6  Capturing 38 frames at [3.4s, 8.3s, 13.1s, 17.9s, 22.7s, 27.5s, 32.3s, 37.1s, 41.9s, 46.7s, 51.5s, 56.3s, 61.1s, 65.9s, 70.7s, 75.5s, 80.3s, 85.1s, 89.9s, 94.7s, 99.5s, 104.3s, 109.1s, 113.9s, 118.7s, 123.5s, 128.3s, 133.1s, 137.9s, 142.7s, 147.5s, 152.3s, 157.1s, 161.9s, 166.7s, 171.5s, 176.3s, 181.1s] from comp
+E           [hyperframes] browserGpuMode probe \u2192 software (probe failed (spawn UNKNOWN))
+E           [hyperframes] browserGpuMode=hardware was requested, but the GPU probe could not run, so hardware acceleration is UNVERIFIED. If Chrome falls back to software WebGL the capture will run at CPU speed. Honouring the explicit request anyway.
+E             This is a probe failure, not evidence of a missing GPU: see the `browserGpuMode probe \u2192 software (probe failed ...)` line above for the underlying error, which usually means Chrome could not launch (bad HYPERFRAMES_BROWSER_PATH, missing shared libraries, or a denied sandbox) rather than a GPU problem.
+E             Run `hyperframes doctor` to check the Chrome install.
+E           
+E           \u2717 Snapshot failed: spawn UNKNOWN
+
+vt\util.py:144: RuntimeError
+_____________ ERROR at setup of test_every_element_is_drawn[16:9] _____________
+
+request = <SubRequest 'shots' for <Function test_every_element_is_drawn[16:9]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x000002BE295DA1D0>, _basetemp=WindowsPath('C:/Users/Roy/AppData/Local/Temp/pytest-of-Roy/pytest-114'), _retention_count=3, _retention_policy='all')
+chrome_ok = None
+
+    @pytest.fixture(scope="module", params=["9:16", "1:1", "16:9"])
+    def shots(request, tmp_path_factory, chrome_ok):
+        from vt.compose import showcase
+        out = tmp_path_factory.mktemp("p2" + request.param.replace(":", "x"))
+>       frames = showcase.render(out, request.param, "minimal")
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_phase2_render.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+vt\compose\showcase.py:113: in render
+    return snapshot(idx.parent, out / "snap", times)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+vt\render\hyperframes.py:130: in snapshot
+    run(hyperframes_cmd(*args))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cmd = ['C:\\Program Files\\nodejs\\node.EXE', 'C:\\Users\\Roy\\Desktop\\ultimate-video-tool\\renderer\\node_modules\\hyperfr...,118.700,123.500,128.300,133.100,137.900,142.700,147.500,152.300,157.100,161.900,166.700,171.500,176.300,181.100', ...]
+cwd = None, on_line = None, check = True, stall_seconds = None
+
+    def run(cmd: list[str], *, cwd: Optional[Path] = None, on_line: Optional[Callable[[str], None]] = None, check: bool = True,
+            stall_seconds: Optional[float] = None) -> str:
+        """Run a subprocess, streaming merged stdout/stderr lines to on_line. Returns the full output.
+    
+        `stall_seconds`: kill the process and raise if it prints nothing for that long. A render that hangs (seen on 2026-10-27: the GPU encoder
+        stuck in HyperFrames' final "assemble" step for over twenty minutes) must become an error the caller can retry, not a job that never ends."""
+        import threading
+        import time
+    
+        proc = subprocess.Popen(
+            cmd, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
+            creationflags=CREATE_NO_WINDOW,
+        )
+        lines: list[str] = []
+        assert proc.stdout is not None
+        last = [time.monotonic()]
+        stalled = threading.Event()
+        done = threading.Event()
+    
+        def watch() -> None:
+            while not done.wait(5.0):
+                if time.monotonic() - last[0] > (stall_seconds or 0):
+                    stalled.set()
+                    proc.kill()
+                    return
+    
+        if stall_seconds:
+            threading.Thread(target=watch, daemon=True).start()
+        try:
+            for raw in proc.stdout:
+                last[0] = time.monotonic()
+                line = raw.rstrip()
+                lines.append(line)
+                if on_line:
+                    on_line(line)  # may raise (e.g. job cancelled) -> the process is killed below
+        except BaseException:
+            proc.kill()
+            proc.wait()
+            raise
+        finally:
+            done.set()
+        code = proc.wait()
+        out = "\n".join(lines)
+        if stalled.is_set():
+            raise RuntimeError(f"command stalled: no output for {int(stall_seconds or 0)} s, so it was stopped: {' '.join(map(str, cmd))[:160]}\n" + "\n".join(lines[-8:]))
+        if check and code != 0:
+            tail = "\n".join(lines[-25:])
+>           raise RuntimeError(f"command failed ({code}): {' '.join(map(str, cmd))[:200]}\n{tail}")
+E           RuntimeError: command failed (1): C:\Program Files\nodejs\node.EXE C:\Users\Roy\Desktop\ultimate-video-tool\renderer\node_modules\hyperframes\bin\hyperframes.mjs snapshot C:\Users\Roy\AppData\Local\Temp\pytest-of-Roy\pytest-114\p216x9
+E           \u25c6  Capturing 38 frames at [3.4s, 8.3s, 13.1s, 17.9s, 22.7s, 27.5s, 32.3s, 37.1s, 41.9s, 46.7s, 51.5s, 56.3s, 61.1s, 65.9s, 70.7s, 75.5s, 80.3s, 85.1s, 89.9s, 94.7s, 99.5s, 104.3s, 109.1s, 113.9s, 118.7s, 123.5s, 128.3s, 133.1s, 137.9s, 142.7s, 147.5s, 152.3s, 157.1s, 161.9s, 166.7s, 171.5s, 176.3s, 181.1s] from comp
+E           [hyperframes] browserGpuMode probe \u2192 software (probe failed (spawn UNKNOWN))
+E           [hyperframes] browserGpuMode=hardware was requested, but the GPU probe could not run, so hardware acceleration is UNVERIFIED. If Chrome falls back to software WebGL the capture will run at CPU speed. Honouring the explicit request anyway.
+E             This is a probe failure, not evidence of a missing GPU: see the `browserGpuMode probe \u2192 software (probe failed ...)` line above for the underlying error, which usually means Chrome could not launch (bad HYPERFRAMES_BROWSER_PATH, missing shared libraries, or a denied sandbox) rather than a GPU problem.
+E             Run `hyperframes doctor` to check the Chrome install.
+E           
+E           \u2717 Snapshot failed: spawn UNKNOWN
+
+vt\util.py:144: RuntimeError
+_____ ERROR at setup of test_nothing_is_cut_off_at_the_sides_or_top[16:9] _____
+
+request = <SubRequest 'shots' for <Function test_every_element_is_drawn[16:9]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x000002BE295DA1D0>, _basetemp=WindowsPath('C:/Users/Roy/AppData/Local/Temp/pytest-of-Roy/pytest-114'), _retention_count=3, _retention_policy='all')
+chrome_ok = None
+
+    @pytest.fixture(scope="module", params=["9:16", "1:1", "16:9"])
+    def shots(request, tmp_path_factory, chrome_ok):
+        from vt.compose import showcase
+        out = tmp_path_factory.mktemp("p2" + request.param.replace(":", "x"))
+>       frames = showcase.render(out, request.param, "minimal")
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_phase2_render.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+vt\compose\showcase.py:113: in render
+    return snapshot(idx.parent, out / "snap", times)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+vt\render\hyperframes.py:130: in snapshot
+    run(hyperframes_cmd(*args))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cmd = ['C:\\Program Files\\nodejs\\node.EXE', 'C:\\Users\\Roy\\Desktop\\ultimate-video-tool\\renderer\\node_modules\\hyperfr...,118.700,123.500,128.300,133.100,137.900,142.700,147.500,152.300,157.100,161.900,166.700,171.500,176.300,181.100', ...]
+cwd = None, on_line = None, check = True, stall_seconds = None
+
+    def run(cmd: list[str], *, cwd: Optional[Path] = None, on_line: Optional[Callable[[str], None]] = None, check: bool = True,
+            stall_seconds: Optional[float] = None) -> str:
+        """Run a subprocess, streaming merged stdout/stderr lines to on_line. Returns the full output.
+    
+        `stall_seconds`: kill the process and raise if it prints nothing for that long. A render that hangs (seen on 2026-10-27: the GPU encoder
+        stuck in HyperFrames' final "assemble" step for over twenty minutes) must become an error the caller can retry, not a job that never ends."""
+        import threading
+        import time
+    
+        proc = subprocess.Popen(
+            cmd, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
+            creationflags=CREATE_NO_WINDOW,
+        )
+        lines: list[str] = []
+        assert proc.stdout is not None
+        last = [time.monotonic()]
+        stalled = threading.Event()
+        done = threading.Event()
+    
+        def watch() -> None:
+            while not done.wait(5.0):
+                if time.monotonic() - last[0] > (stall_seconds or 0):
+                    stalled.set()
+                    proc.kill()
+                    return
+    
+        if stall_seconds:
+            threading.Thread(target=watch, daemon=True).start()
+        try:
+            for raw in proc.stdout:
+                last[0] = time.monotonic()
+                line = raw.rstrip()
+                lines.append(line)
+                if on_line:
+                    on_line(line)  # may raise (e.g. job cancelled) -> the process is killed below
+        except BaseException:
+            proc.kill()
+            proc.wait()
+            raise
+        finally:
+            done.set()
+        code = proc.wait()
+        out = "\n".join(lines)
+        if stalled.is_set():
+            raise RuntimeError(f"command stalled: no output for {int(stall_seconds or 0)} s, so it was stopped: {' '.join(map(str, cmd))[:160]}\n" + "\n".join(lines[-8:]))
+        if check and code != 0:
+            tail = "\n".join(lines[-25:])
+>           raise RuntimeError(f"command failed ({code}): {' '.join(map(str, cmd))[:200]}\n{tail}")
+E           RuntimeError: command failed (1): C:\Program Files\nodejs\node.EXE C:\Users\Roy\Desktop\ultimate-video-tool\renderer\node_modules\hyperframes\bin\hyperframes.mjs snapshot C:\Users\Roy\AppData\Local\Temp\pytest-of-Roy\pytest-114\p216x9
+E           \u25c6  Capturing 38 frames at [3.4s, 8.3s, 13.1s, 17.9s, 22.7s, 27.5s, 32.3s, 37.1s, 41.9s, 46.7s, 51.5s, 56.3s, 61.1s, 65.9s, 70.7s, 75.5s, 80.3s, 85.1s, 89.9s, 94.7s, 99.5s, 104.3s, 109.1s, 113.9s, 118.7s, 123.5s, 128.3s, 133.1s, 137.9s, 142.7s, 147.5s, 152.3s, 157.1s, 161.9s, 166.7s, 171.5s, 176.3s, 181.1s] from comp
+E           [hyperframes] browserGpuMode probe \u2192 software (probe failed (spawn UNKNOWN))
+E           [hyperframes] browserGpuMode=hardware was requested, but the GPU probe could not run, so hardware acceleration is UNVERIFIED. If Chrome falls back to software WebGL the capture will run at CPU speed. Honouring the explicit request anyway.
+E             This is a probe failure, not evidence of a missing GPU: see the `browserGpuMode probe \u2192 software (probe failed ...)` line above for the underlying error, which usually means Chrome could not launch (bad HYPERFRAMES_BROWSER_PATH, missing shared libraries, or a denied sandbox) rather than a GPU problem.
+E             Run `hyperframes doctor` to check the Chrome install.
+E           
+E           \u2717 Snapshot failed: spawn UNKNOWN
+
+vt\util.py:144: RuntimeError
+________ ERROR at setup of test_contact_sheet_matches_the_golden[16:9] ________
+
+request = <SubRequest 'shots' for <Function test_every_element_is_drawn[16:9]>>
+tmp_path_factory = TempPathFactory(_given_basetemp=None, _trace=<pluggy._tracing.TagTracerSub object at 0x000002BE295DA1D0>, _basetemp=WindowsPath('C:/Users/Roy/AppData/Local/Temp/pytest-of-Roy/pytest-114'), _retention_count=3, _retention_policy='all')
+chrome_ok = None
+
+    @pytest.fixture(scope="module", params=["9:16", "1:1", "16:9"])
+    def shots(request, tmp_path_factory, chrome_ok):
+        from vt.compose import showcase
+        out = tmp_path_factory.mktemp("p2" + request.param.replace(":", "x"))
+>       frames = showcase.render(out, request.param, "minimal")
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_phase2_render.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+vt\compose\showcase.py:113: in render
+    return snapshot(idx.parent, out / "snap", times)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+vt\render\hyperframes.py:130: in snapshot
+    run(hyperframes_cmd(*args))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cmd = ['C:\\Program Files\\nodejs\\node.EXE', 'C:\\Users\\Roy\\Desktop\\ultimate-video-tool\\renderer\\node_modules\\hyperfr...,118.700,123.500,128.300,133.100,137.900,142.700,147.500,152.300,157.100,161.900,166.700,171.500,176.300,181.100', ...]
+cwd = None, on_line = None, check = True, stall_seconds = None
+
+    def run(cmd: list[str], *, cwd: Optional[Path] = None, on_line: Optional[Callable[[str], None]] = None, check: bool = True,
+            stall_seconds: Optional[float] = None) -> str:
+        """Run a subprocess, streaming merged stdout/stderr lines to on_line. Returns the full output.
+    
+        `stall_seconds`: kill the process and raise if it prints nothing for that long. A render that hangs (seen on 2026-10-27: the GPU encoder
+        stuck in HyperFrames' final "assemble" step for over twenty minutes) must become an error the caller can retry, not a job that never ends."""
+        import threading
+        import time
+    
+        proc = subprocess.Popen(
+            cmd, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
+            creationflags=CREATE_NO_WINDOW,
+        )
+        lines: list[str] = []
+        assert proc.stdout is not None
+        last = [time.monotonic()]
+        stalled = threading.Event()
+        done = threading.Event()
+    
+        def watch() -> None:
+            while not done.wait(5.0):
+                if time.monotonic() - last[0] > (stall_seconds or 0):
+                    stalled.set()
+                    proc.kill()
+                    return
+    
+        if stall_seconds:
+            threading.Thread(target=watch, daemon=True).start()
+        try:
+            for raw in proc.stdout:
+                last[0] = time.monotonic()
+                line = raw.rstrip()
+                lines.append(line)
+                if on_line:
+                    on_line(line)  # may raise (e.g. job cancelled) -> the process is killed below
+        except BaseException:
+            proc.kill()
+            proc.wait()
+            raise
+        finally:
+            done.set()
+        code = proc.wait()
+        out = "\n".join(lines)
+        if stalled.is_set():
+            raise RuntimeError(f"command stalled: no output for {int(stall_seconds or 0)} s, so it was stopped: {' '.join(map(str, cmd))[:160]}\n" + "\n".join(lines[-8:]))
+        if check and code != 0:
+            tail = "\n".join(lines[-25:])
+>           raise RuntimeError(f"command failed ({code}): {' '.join(map(str, cmd))[:200]}\n{tail}")
+E           RuntimeError: command failed (1): C:\Program Files\nodejs\node.EXE C:\Users\Roy\Desktop\ultimate-video-tool\renderer\node_modules\hyperframes\bin\hyperframes.mjs snapshot C:\Users\Roy\AppData\Local\Temp\pytest-of-Roy\pytest-114\p216x9
+E           \u25c6  Capturing 38 frames at [3.4s, 8.3s, 13.1s, 17.9s, 22.7s, 27.5s, 32.3s, 37.1s, 41.9s, 46.7s, 51.5s, 56.3s, 61.1s, 65.9s, 70.7s, 75.5s, 80.3s, 85.1s, 89.9s, 94.7s, 99.5s, 104.3s, 109.1s, 113.9s, 118.7s, 123.5s, 128.3s, 133.1s, 137.9s, 142.7s, 147.5s, 152.3s, 157.1s, 161.9s, 166.7s, 171.5s, 176.3s, 181.1s] from comp
+E           [hyperframes] browserGpuMode probe \u2192 software (probe failed (spawn UNKNOWN))
+E           [hyperframes] browserGpuMode=hardware was requested, but the GPU probe could not run, so hardware acceleration is UNVERIFIED. If Chrome falls back to software WebGL the capture will run at CPU speed. Honouring the explicit request anyway.
+E             This is a probe failure, not evidence of a missing GPU: see the `browserGpuMode probe \u2192 software (probe failed ...)` line above for the underlying error, which usually means Chrome could not launch (bad HYPERFRAMES_BROWSER_PATH, missing shared libraries, or a denied sandbox) rather than a GPU problem.
+E             Run `hyperframes doctor` to check the Chrome install.
+E           
+E           \u2717 Snapshot failed: spawn UNKNOWN
+
+vt\util.py:144: RuntimeError
+================================== FAILURES ===================================
+__________ test_unknown_api_paths_are_404_not_405_and_versions_agree __________
+
+    def test_unknown_api_paths_are_404_not_405_and_versions_agree():
+        """Regression: a POST to an endpoint an older server did not have fell into the page's GET-only catch-all and answered 405.
+        Also: the version the server reports must equal the one the page expects."""
+        import re
+        from pathlib import Path
+    
+        from fastapi.testclient import TestClient
+    
+        from vt.server.app import API_VERSION, app
+    
+        c = TestClient(app)
+        for method in ("get", "post", "put", "patch", "delete"):
+            r = getattr(c, method)("/api/projects/x/does-not-exist")
+            assert r.status_code == 404 and "restart" in r.text.lower(), (method, r.status_code)
+        assert c.get("/api/health").json()["api_version"] == API_VERSION
+        ts = (Path(__file__).resolve().parents[1] / "studio" / "src" / "api.ts").read_text(encoding="utf-8")
+>       assert int(re.search(r"EXPECTED_API = (\d+)", ts).group(1)) == API_VERSION
+E       assert 6 == 7
+E        +  where 6 = int('6')
+E        +    where '6' = <built-in method group of re.Match object at 0x000002BE6454E170>(1)
+E        +      where <built-in method group of re.Match object at 0x000002BE6454E170> = <re.Match object; span=(6634, 6650), match='EXPECTED_API = 6'>.group
+E        +        where <re.Match object; span=(6634, 6650), match='EXPECTED_API = 6'> = <function search at 0x000002BE26B22980>('EXPECTED_API = (\\d+)', 'import { trackRequest, update, type BusyOp } from "./busycore";\n\nexport class ApiError extends Error {\n  status: n... const fmtSize = (b: number) => (b > 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1e3))} KB`);\n')
+E        +          where <function search at 0x000002BE26B22980> = <module 're' from 'C:\\Users\\Roy\\AppData\\Roaming\\uv\\python\\cpython-3.11-windows-x86_64-none\\Lib\\re\\__init__.py'>.search
+
+tests\test_api.py:388: AssertionError
+______ test_recordings_are_byte_identical[samples/audio/bn_plain.mp3-bn] ______
+
+projects_dir = WindowsPath('C:/Users/Roy/AppData/Local/Temp/pytest-of-Roy/pytest-114/test_recordings_are_byte_ident0/projects')
+tmp_path = WindowsPath('C:/Users/Roy/AppData/Local/Temp/pytest-of-Roy/pytest-114/test_recordings_are_byte_ident0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002BF39EB7D50>
+sample = 'samples/audio/bn_plain.mp3', language = 'bn'
+
+    @pytest.mark.slow
+    @pytest.mark.parametrize("sample,language", [
+        ("samples/audio/bn_plain.mp3", "bn"),
+        ("english sample.mp3", "en"),
+    ])
+    def test_recordings_are_byte_identical(projects_dir, tmp_path, monkeypatch, sample, language):
+        source = Path(__file__).resolve().parents[1] / sample
+        if not source.exists():
+            pytest.skip(f"sample missing: {sample}")
+        if language == "en":
+            # Exercise recognition on a fixed excerpt of the owner's long English
+            # recording. The full 227 s recording is an extended QA input;
+            # keeping this regression gate short makes it practical to run in CI.
+            import subprocess
+            from vt.util import find_tool
+    
+            excerpt = tmp_path / "english-excerpt.wav"
+            subprocess.run([find_tool("ffmpeg"), "-y", "-loglevel", "error", "-i", str(source),
+                            "-t", "20", "-ac", "1", "-ar", "16000", str(excerpt)], check=True)
+            source = excerpt
+        monkeypatch.setattr("vt.project.now_iso", lambda: "2026-10-26T00:00:00+00:00")
+        monkeypatch.setattr("vt.pipeline.now_iso", lambda: "2026-10-26T00:00:00+00:00")
+        monkeypatch.setattr("vt.context.now_iso", lambda: "2026-10-26T00:00:00+00:00")
+        p = Project.create(f"equivalence-{language}", source, language=language, theme="paper")
+>       _compare(p, tmp_path)
+
+tests\test_modules_equivalence.py:90: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+p = <vt.project.Project object at 0x000002BF39EB7F10>
+tmp_path = WindowsPath('C:/Users/Roy/AppData/Local/Temp/pytest-of-Roy/pytest-114/test_recordings_are_byte_ident0')
+from_stage = None
+
+    def _compare(p: Project, tmp_path: Path, *, from_stage: str | None = None) -> None:
+        stages = ORDER[:] if p.script_path.exists() else [x for x in ORDER if x != "voice"]
+        if from_stage:
+            stages = stages[stages.index(from_stage):]
+        starting = tmp_path / "starting"
+        shutil.copytree(p.dir, starting)
+        _legacy_driver(Pipeline(p), stages, force=bool(from_stage))
+        before = _hashes(p.dir)
+        shutil.rmtree(p.dir)
+        shutil.copytree(starting, p.dir)
+        Pipeline(p).run(from_stage=from_stage)
+        after = _hashes(p.dir)
+>       assert after == before
+E       AssertionError: assert {'audio.asr.w...b3bad25', ...} == {'audio.asr.w...b3bad25', ...}
+E         
+E         Omitting 177 identical items, use -vv to show
+E         Differing items:
+E         {'project.json': '7594abb8ae92c3b7f2a66e8026087b803564ca9237c5649bc27f622229cfd7be'} != {'project.json': '3c942840a10ec2308fa6431ab77f0245a9c36ab39b43ff31786ee0cabce57ded'}
+E         Use -v to get more diff
+
+tests\test_modules_equivalence.py:52: AssertionError
+---------------------------- Captured stderr call -----------------------------
+\rLoading weights:   0%|          | 0/203 [00:00<?, ?it/s]\rLoading weights:   2%|\u258f         | 5/203 [00:00<00:05, 37.42it/s]\rLoading weights:   6%|\u258c         | 12/203 [00:00<00:03, 50.77it/s]\rLoading weights: 100%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588| 203/203 [00:00<00:00, 778.79it/s]
+___________________ test_mood_picks_a_fitting_track_stably ____________________
+
+>   ???
+E   AssertionError: assert 'upbeat' == 'hiphop'
+E     
+E     - hiphop
+E     + upbeat
+
+tests\test_music_auto.py:8: AssertionError
+_______________ test_reference_frame_matches_golden[9:16-9x16] ________________
+
+ref = <vt.project.Project object at 0x000002BF451CF7D0>
+tmp_path = WindowsPath('C:/Users/Roy/AppData/Local/Temp/pytest-of-Roy/pytest-114/test_reference_frame_matches_g0')
+chrome_ok = None, aspect = '9:16', tag = '9x16'
+
+    @pytest.mark.parametrize("aspect,tag", [("9:16", "9x16"), ("16:9", "16x9"), ("1:1", "1x1")])
+    def test_reference_frame_matches_golden(ref, tmp_path, chrome_ok, aspect, tag):
+        from vt.compose import compose_project
+        from vt.render.hyperframes import snapshot
+    
+        index = compose_project(ref, aspect)
+>       frames = snapshot(index.parent, tmp_path / "snap", [9.0])     # card, arrow, coins, tag and caption are all on screen
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_render_golden.py:53: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+vt\render\hyperframes.py:130: in snapshot
+    run(hyperframes_cmd(*args))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cmd = ['C:\\Program Files\\nodejs\\node.EXE', 'C:\\Users\\Roy\\Desktop\\ultimate-video-tool\\renderer\\node_modules\\hyperfr...est-of-Roy\\pytest-114\\test_reference_frame_matches_g0\\projects\\reference\\composition\\9x16', '--at', '9.000', ...]
+cwd = None, on_line = None, check = True, stall_seconds = None
+
+    def run(cmd: list[str], *, cwd: Optional[Path] = None, on_line: Optional[Callable[[str], None]] = None, check: bool = True,
+            stall_seconds: Optional[float] = None) -> str:
+        """Run a subprocess, streaming merged stdout/stderr lines to on_line. Returns the full output.
+    
+        `stall_seconds`: kill the process and raise if it prints nothing for that long. A render that hangs (seen on 2026-10-27: the GPU encoder
+        stuck in HyperFrames' final "assemble" step for over twenty minutes) must become an error the caller can retry, not a job that never ends."""
+        import threading
+        import time
+    
+        proc = subprocess.Popen(
+            cmd, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
+            creationflags=CREATE_NO_WINDOW,
+        )
+        lines: list[str] = []
+        assert proc.stdout is not None
+        last = [time.monotonic()]
+        stalled = threading.Event()
+        done = threading.Event()
+    
+        def watch() -> None:
+            while not done.wait(5.0):
+                if time.monotonic() - last[0] > (stall_seconds or 0):
+                    stalled.set()
+                    proc.kill()
+                    return
+    
+        if stall_seconds:
+            threading.Thread(target=watch, daemon=True).start()
+        try:
+            for raw in proc.stdout:
+                last[0] = time.monotonic()
+                line = raw.rstrip()
+                lines.append(line)
+                if on_line:
+                    on_line(line)  # may raise (e.g. job cancelled) -> the process is killed below
+        except BaseException:
+            proc.kill()
+            proc.wait()
+            raise
+        finally:
+            done.set()
+        code = proc.wait()
+        out = "\n".join(lines)
+        if stalled.is_set():
+            raise RuntimeError(f"command stalled: no output for {int(stall_seconds or 0)} s, so it was stopped: {' '.join(map(str, cmd))[:160]}\n" + "\n".join(lines[-8:]))
+        if check and code != 0:
+            tail = "\n".join(lines[-25:])
+>           raise RuntimeError(f"command failed ({code}): {' '.join(map(str, cmd))[:200]}\n{tail}")
+E           RuntimeError: command failed (1): C:\Program Files\nodejs\node.EXE C:\Users\Roy\Desktop\ultimate-video-tool\renderer\node_modules\hyperframes\bin\hyperframes.mjs snapshot C:\Users\Roy\AppData\Local\Temp\pytest-of-Roy\pytest-114\test_r
+E           \u25c6  Capturing 1 frames at [9s] from 9x16
+E           [hyperframes] browserGpuMode probe \u2192 software (probe failed (spawn UNKNOWN))
+E           [hyperframes] browserGpuMode=hardware was requested, but the GPU probe could not run, so hardware acceleration is UNVERIFIED. If Chrome falls back to software WebGL the capture will run at CPU speed. Honouring the explicit request anyway.
+E             This is a probe failure, not evidence of a missing GPU: see the `browserGpuMode probe \u2192 software (probe failed ...)` line above for the underlying error, which usually means Chrome could not launch (bad HYPERFRAMES_BROWSER_PATH, missing shared libraries, or a denied sandbox) rather than a GPU problem.
+E             Run `hyperframes doctor` to check the Chrome install.
+E           
+E           \u2717 Snapshot failed: spawn UNKNOWN
+
+vt\util.py:144: RuntimeError
+---------------------------- Captured stdout setup ----------------------------
+built C:\Users\Roy\AppData\Local\Temp\pytest-of-Roy\pytest-114\test_reference_frame_matches_g0\projects\reference duration 17.58 words 30
+_______________ test_reference_frame_matches_golden[16:9-16x9] ________________
+
+ref = <vt.project.Project object at 0x000002BF436C1F50>
+tmp_path = WindowsPath('C:/Users/Roy/AppData/Local/Temp/pytest-of-Roy/pytest-114/test_reference_frame_matches_g1')
+chrome_ok = None, aspect = '16:9', tag = '16x9'
+
+    @pytest.mark.parametrize("aspect,tag", [("9:16", "9x16"), ("16:9", "16x9"), ("1:1", "1x1")])
+    def test_reference_frame_matches_golden(ref, tmp_path, chrome_ok, aspect, tag):
+        from vt.compose import compose_project
+        from vt.render.hyperframes import snapshot
+    
+        index = compose_project(ref, aspect)
+>       frames = snapshot(index.parent, tmp_path / "snap", [9.0])     # card, arrow, coins, tag and caption are all on screen
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_render_golden.py:53: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+vt\render\hyperframes.py:130: in snapshot
+    run(hyperframes_cmd(*args))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cmd = ['C:\\Program Files\\nodejs\\node.EXE', 'C:\\Users\\Roy\\Desktop\\ultimate-video-tool\\renderer\\node_modules\\hyperfr...est-of-Roy\\pytest-114\\test_reference_frame_matches_g1\\projects\\reference\\composition\\16x9', '--at', '9.000', ...]
+cwd = None, on_line = None, check = True, stall_seconds = None
+
+    def run(cmd: list[str], *, cwd: Optional[Path] = None, on_line: Optional[Callable[[str], None]] = None, check: bool = True,
+            stall_seconds: Optional[float] = None) -> str:
+        """Run a subprocess, streaming merged stdout/stderr lines to on_line. Returns the full output.
+    
+        `stall_seconds`: kill the process and raise if it prints nothing for that long. A render that hangs (seen on 2026-10-27: the GPU encoder
+        stuck in HyperFrames' final "assemble" step for over twenty minutes) must become an error the caller can retry, not a job that never ends."""
+        import threading
+        import time
+    
+        proc = subprocess.Popen(
+            cmd, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
+            creationflags=CREATE_NO_WINDOW,
+        )
+        lines: list[str] = []
+        assert proc.stdout is not None
+        last = [time.monotonic()]
+        stalled = threading.Event()
+        done = threading.Event()
+    
+        def watch() -> None:
+            while not done.wait(5.0):
+                if time.monotonic() - last[0] > (stall_seconds or 0):
+                    stalled.set()
+                    proc.kill()
+                    return
+    
+        if stall_seconds:
+            threading.Thread(target=watch, daemon=True).start()
+        try:
+            for raw in proc.stdout:
+                last[0] = time.monotonic()
+                line = raw.rstrip()
+                lines.append(line)
+                if on_line:
+                    on_line(line)  # may raise (e.g. job cancelled) -> the process is killed below
+        except BaseException:
+            proc.kill()
+            proc.wait()
+            raise
+        finally:
+            done.set()
+        code = proc.wait()
+        out = "\n".join(lines)
+        if stalled.is_set():
+            raise RuntimeError(f"command stalled: no output for {int(stall_seconds or 0)} s, so it was stopped: {' '.join(map(str, cmd))[:160]}\n" + "\n".join(lines[-8:]))
+        if check and code != 0:
+            tail = "\n".join(lines[-25:])
+>           raise RuntimeError(f"command failed ({code}): {' '.join(map(str, cmd))[:200]}\n{tail}")
+E           RuntimeError: command failed (1): C:\Program Files\nodejs\node.EXE C:\Users\Roy\Desktop\ultimate-video-tool\renderer\node_modules\hyperframes\bin\hyperframes.mjs snapshot C:\Users\Roy\AppData\Local\Temp\pytest-of-Roy\pytest-114\test_r
+E           \u25c6  Capturing 1 frames at [9s] from 16x9
+E           [hyperframes] browserGpuMode probe \u2192 software (probe failed (spawn UNKNOWN))
+E           [hyperframes] browserGpuMode=hardware was requested, but the GPU probe could not run, so hardware acceleration is UNVERIFIED. If Chrome falls back to software WebGL the capture will run at CPU speed. Honouring the explicit request anyway.
+E             This is a probe failure, not evidence of a missing GPU: see the `browserGpuMode probe \u2192 software (probe failed ...)` line above for the underlying error, which usually means Chrome could not launch (bad HYPERFRAMES_BROWSER_PATH, missing shared libraries, or a denied sandbox) rather than a GPU problem.
+E             Run `hyperframes doctor` to check the Chrome install.
+E           
+E           \u2717 Snapshot failed: spawn UNKNOWN
+
+vt\util.py:144: RuntimeError
+---------------------------- Captured stdout setup ----------------------------
+built C:\Users\Roy\AppData\Local\Temp\pytest-of-Roy\pytest-114\test_reference_frame_matches_g1\projects\reference duration 17.58 words 30
+________________ test_reference_frame_matches_golden[1:1-1x1] _________________
+
+ref = <vt.project.Project object at 0x000002BF45F19390>
+tmp_path = WindowsPath('C:/Users/Roy/AppData/Local/Temp/pytest-of-Roy/pytest-114/test_reference_frame_matches_g2')
+chrome_ok = None, aspect = '1:1', tag = '1x1'
+
+    @pytest.mark.parametrize("aspect,tag", [("9:16", "9x16"), ("16:9", "16x9"), ("1:1", "1x1")])
+    def test_reference_frame_matches_golden(ref, tmp_path, chrome_ok, aspect, tag):
+        from vt.compose import compose_project
+        from vt.render.hyperframes import snapshot
+    
+        index = compose_project(ref, aspect)
+>       frames = snapshot(index.parent, tmp_path / "snap", [9.0])     # card, arrow, coins, tag and caption are all on screen
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_render_golden.py:53: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+vt\render\hyperframes.py:130: in snapshot
+    run(hyperframes_cmd(*args))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cmd = ['C:\\Program Files\\nodejs\\node.EXE', 'C:\\Users\\Roy\\Desktop\\ultimate-video-tool\\renderer\\node_modules\\hyperfr...test-of-Roy\\pytest-114\\test_reference_frame_matches_g2\\projects\\reference\\composition\\1x1', '--at', '9.000', ...]
+cwd = None, on_line = None, check = True, stall_seconds = None
+
+    def run(cmd: list[str], *, cwd: Optional[Path] = None, on_line: Optional[Callable[[str], None]] = None, check: bool = True,
+            stall_seconds: Optional[float] = None) -> str:
+        """Run a subprocess, streaming merged stdout/stderr lines to on_line. Returns the full output.
+    
+        `stall_seconds`: kill the process and raise if it prints nothing for that long. A render that hangs (seen on 2026-10-27: the GPU encoder
+        stuck in HyperFrames' final "assemble" step for over twenty minutes) must become an error the caller can retry, not a job that never ends."""
+        import threading
+        import time
+    
+        proc = subprocess.Popen(
+            cmd, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
+            creationflags=CREATE_NO_WINDOW,
+        )
+        lines: list[str] = []
+        assert proc.stdout is not None
+        last = [time.monotonic()]
+        stalled = threading.Event()
+        done = threading.Event()
+    
+        def watch() -> None:
+            while not done.wait(5.0):
+                if time.monotonic() - last[0] > (stall_seconds or 0):
+                    stalled.set()
+                    proc.kill()
+                    return
+    
+        if stall_seconds:
+            threading.Thread(target=watch, daemon=True).start()
+        try:
+            for raw in proc.stdout:
+                last[0] = time.monotonic()
+                line = raw.rstrip()
+                lines.append(line)
+                if on_line:
+                    on_line(line)  # may raise (e.g. job cancelled) -> the process is killed below
+        except BaseException:
+            proc.kill()
+            proc.wait()
+            raise
+        finally:
+            done.set()
+        code = proc.wait()
+        out = "\n".join(lines)
+        if stalled.is_set():
+            raise RuntimeError(f"command stalled: no output for {int(stall_seconds or 0)} s, so it was stopped: {' '.join(map(str, cmd))[:160]}\n" + "\n".join(lines[-8:]))
+        if check and code != 0:
+            tail = "\n".join(lines[-25:])
+>           raise RuntimeError(f"command failed ({code}): {' '.join(map(str, cmd))[:200]}\n{tail}")
+E           RuntimeError: command failed (1): C:\Program Files\nodejs\node.EXE C:\Users\Roy\Desktop\ultimate-video-tool\renderer\node_modules\hyperframes\bin\hyperframes.mjs snapshot C:\Users\Roy\AppData\Local\Temp\pytest-of-Roy\pytest-114\test_r
+E           \u25c6  Capturing 1 frames at [9s] from 1x1
+E           [hyperframes] browserGpuMode probe \u2192 software (probe failed (spawn UNKNOWN))
+E           [hyperframes] browserGpuMode=hardware was requested, but the GPU probe could not run, so hardware acceleration is UNVERIFIED. If Chrome falls back to software WebGL the capture will run at CPU speed. Honouring the explicit request anyway.
+E             This is a probe failure, not evidence of a missing GPU: see the `browserGpuMode probe \u2192 software (probe failed ...)` line above for the underlying error, which usually means Chrome could not launch (bad HYPERFRAMES_BROWSER_PATH, missing shared libraries, or a denied sandbox) rather than a GPU problem.
+E             Run `hyperframes doctor` to check the Chrome install.
+E           
+E           \u2717 Snapshot failed: spawn UNKNOWN
+
+vt\util.py:144: RuntimeError
+---------------------------- Captured stdout setup ----------------------------
+built C:\Users\Roy\AppData\Local\Temp\pytest-of-Roy\pytest-114\test_reference_frame_matches_g2\projects\reference duration 17.58 words 30
+___________________ test_bangla_conjuncts_render_correctly ____________________
+
+tmp_path = WindowsPath('C:/Users/Roy/AppData/Local/Temp/pytest-of-Roy/pytest-114/test_bangla_conjuncts_render_c0')
+chrome_ok = None
+
+    def test_bangla_conjuncts_render_correctly(tmp_path, chrome_ok):
+        """Conjunct-heavy Bangla (\u0995\u09cd\u09b7\u09cd\u09ae, \u09b8\u09cd\u09a4\u09cd\u09b0\u09c0, \u099c\u09cd\u099e, \u09a6\u09cd\u09ac\u09a8\u09cd\u09a6\u09cd\u09ac, \u0989\u099c\u09cd\u099c\u09cd\u09ac\u09b2...) next to English must shape correctly in every text role."""
+        from vt.compose import resolve_composition, write_composition
+        from vt.project import load_theme
+        from vt.render.hyperframes import snapshot
+        from vt.schema import Beat, Beats, ScenesFile, Transcript, Word
+    
+        words = [Word(id=f"w{i}", text=t, start=0.3 + i * 0.4, end=0.6 + i * 0.4) for i, t in enumerate(
+            ["\u0995\u09cd\u09b7\u09cd\u09ae\u09c0", "\u09b8\u09cd\u09a4\u09cd\u09b0\u09c0", "\u099c\u09cd\u099e\u09be\u09a8", "\u09a6\u09cd\u09ac\u09a8\u09cd\u09a6\u09cd\u09ac", "\u09ac\u09bf\u09b6\u09cd\u09ac\u09ac\u09cd\u09af\u09be\u09aa\u09c0", "\u09b6\u09cd\u09b0\u09a6\u09cd\u09a7\u09be", "\u0989\u099c\u09cd\u099c\u09cd\u09ac\u09b2", "\u09ad\u09ac\u09bf\u09b7\u09cd\u09af\u09ce", "net", "yield\u0964"], 1)]
+        tr = Transcript(words=words)
+        beats = Beats(beats=[Beat(id="b1", word_ids=[w.id for w in words], start=0.3, end=4.6, text="x")])
+        sf = ScenesFile.model_validate({"scenes": [{"id": "s1", "beats": ["b1"], "elements": [
+            {"type": "title", "text": "\u0995\u09cd\u09b7\u09cd\u09ae\u09c0 \u09b8\u09cd\u09a4\u09cd\u09b0\u09c0 \u099c\u09cd\u099e\u09be\u09a8", "at_word": "w1"},
+            {"type": "tag", "text": "\u09a6\u09cd\u09ac\u09a8\u09cd\u09a6\u09cd\u09ac + net yield", "at_word": "w2"},
+            {"type": "list", "items": ["\u09b8\u09cd\u09ac\u09aa\u09cd\u09a8 \u0995\u09cd\u09b7\u09c1\u09a6\u09cd\u09b0", "\u098a\u09b0\u09cd\u09a7\u09cd\u09ac\u09c7 \u09a6\u09c1\u0983\u0996", "\u09b0\u200d\u09cd\u09af\u09be\u0999\u09cd\u0995 rank"], "at_word": "w3"}],
+            "caption": {"highlight_words": ["w7"]}}]})
+        theme = load_theme("paper")
+        data = resolve_composition(sf, tr, beats, theme, "9:16", 5.0, {})
+        out = write_composition(tmp_path / "comp", data, theme).parent
+>       frames = snapshot(out, tmp_path / "snap", [4.6])
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_render_golden.py:76: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+vt\render\hyperframes.py:130: in snapshot
+    run(hyperframes_cmd(*args))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cmd = ['C:\\Program Files\\nodejs\\node.EXE', 'C:\\Users\\Roy\\Desktop\\ultimate-video-tool\\renderer\\node_modules\\hyperfr...rs\\Roy\\AppData\\Local\\Temp\\pytest-of-Roy\\pytest-114\\test_bangla_conjuncts_render_c0\\comp', '--at', '4.600', ...]
+cwd = None, on_line = None, check = True, stall_seconds = None
+
+    def run(cmd: list[str], *, cwd: Optional[Path] = None, on_line: Optional[Callable[[str], None]] = None, check: bool = True,
+            stall_seconds: Optional[float] = None) -> str:
+        """Run a subprocess, streaming merged stdout/stderr lines to on_line. Returns the full output.
+    
+        `stall_seconds`: kill the process and raise if it prints nothing for that long. A render that hangs (seen on 2026-10-27: the GPU encoder
+        stuck in HyperFrames' final "assemble" step for over twenty minutes) must become an error the caller can retry, not a job that never ends."""
+        import threading
+        import time
+    
+        proc = subprocess.Popen(
+            cmd, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
+            creationflags=CREATE_NO_WINDOW,
+        )
+        lines: list[str] = []
+        assert proc.stdout is not None
+        last = [time.monotonic()]
+        stalled = threading.Event()
+        done = threading.Event()
+    
+        def watch() -> None:
+            while not done.wait(5.0):
+                if time.monotonic() - last[0] > (stall_seconds or 0):
+                    stalled.set()
+                    proc.kill()
+                    return
+    
+        if stall_seconds:
+            threading.Thread(target=watch, daemon=True).start()
+        try:
+            for raw in proc.stdout:
+                last[0] = time.monotonic()
+                line = raw.rstrip()
+                lines.append(line)
+                if on_line:
+                    on_line(line)  # may raise (e.g. job cancelled) -> the process is killed below
+        except BaseException:
+            proc.kill()
+            proc.wait()
+            raise
+        finally:
+            done.set()
+        code = proc.wait()
+        out = "\n".join(lines)
+        if stalled.is_set():
+            raise RuntimeError(f"command stalled: no output for {int(stall_seconds or 0)} s, so it was stopped: {' '.join(map(str, cmd))[:160]}\n" + "\n".join(lines[-8:]))
+        if check and code != 0:
+            tail = "\n".join(lines[-25:])
+>           raise RuntimeError(f"command failed ({code}): {' '.join(map(str, cmd))[:200]}\n{tail}")
+E           RuntimeError: command failed (1): C:\Program Files\nodejs\node.EXE C:\Users\Roy\Desktop\ultimate-video-tool\renderer\node_modules\hyperframes\bin\hyperframes.mjs snapshot C:\Users\Roy\AppData\Local\Temp\pytest-of-Roy\pytest-114\test_b
+E           \u25c6  Capturing 1 frames at [4.6s] from comp
+E           [hyperframes] browserGpuMode probe \u2192 software (probe failed (spawn UNKNOWN))
+E           [hyperframes] browserGpuMode=hardware was requested, but the GPU probe could not run, so hardware acceleration is UNVERIFIED. If Chrome falls back to software WebGL the capture will run at CPU speed. Honouring the explicit request anyway.
+E             This is a probe failure, not evidence of a missing GPU: see the `browserGpuMode probe \u2192 software (probe failed ...)` line above for the underlying error, which usually means Chrome could not launch (bad HYPERFRAMES_BROWSER_PATH, missing shared libraries, or a denied sandbox) rather than a GPU problem.
+E             Run `hyperframes doctor` to check the Chrome install.
+E           
+E           \u2717 Snapshot failed: spawn UNKNOWN
+
+vt\util.py:144: RuntimeError
+____________________ test_every_theme_renders_the_specimen ____________________
+
+tmp_path = WindowsPath('C:/Users/Roy/AppData/Local/Temp/pytest-of-Roy/pytest-114/test_every_theme_renders_the_s0')
+chrome_ok = None
+
+    def test_every_theme_renders_the_specimen(tmp_path, chrome_ok):
+        from vt.compose.specimen import write_specimen
+        from vt.project import list_themes
+        from vt.render.hyperframes import snapshot
+    
+        for t in list_themes():
+            if t.name not in ("paper", "dark-neon", "minimal"):
+                continue
+            index = write_specimen(t, "9:16", tmp_path / t.name)
+>           frames = snapshot(index.parent, tmp_path / f"snap-{t.name}", [18.5])   # equation + tag scene
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_render_golden.py:89: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+vt\render\hyperframes.py:130: in snapshot
+    run(hyperframes_cmd(*args))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cmd = ['C:\\Program Files\\nodejs\\node.EXE', 'C:\\Users\\Roy\\Desktop\\ultimate-video-tool\\renderer\\node_modules\\hyperfr...Data\\Local\\Temp\\pytest-of-Roy\\pytest-114\\test_every_theme_renders_the_s0\\dark-neon\\9x16', '--at', '18.500', ...]
+cwd = None, on_line = None, check = True, stall_seconds = None
+
+    def run(cmd: list[str], *, cwd: Optional[Path] = None, on_line: Optional[Callable[[str], None]] = None, check: bool = True,
+            stall_seconds: Optional[float] = None) -> str:
+        """Run a subprocess, streaming merged stdout/stderr lines to on_line. Returns the full output.
+    
+        `stall_seconds`: kill the process and raise if it prints nothing for that long. A render that hangs (seen on 2026-10-27: the GPU encoder
+        stuck in HyperFrames' final "assemble" step for over twenty minutes) must become an error the caller can retry, not a job that never ends."""
+        import threading
+        import time
+    
+        proc = subprocess.Popen(
+            cmd, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
+            creationflags=CREATE_NO_WINDOW,
+        )
+        lines: list[str] = []
+        assert proc.stdout is not None
+        last = [time.monotonic()]
+        stalled = threading.Event()
+        done = threading.Event()
+    
+        def watch() -> None:
+            while not done.wait(5.0):
+                if time.monotonic() - last[0] > (stall_seconds or 0):
+                    stalled.set()
+                    proc.kill()
+                    return
+    
+        if stall_seconds:
+            threading.Thread(target=watch, daemon=True).start()
+        try:
+            for raw in proc.stdout:
+                last[0] = time.monotonic()
+                line = raw.rstrip()
+                lines.append(line)
+                if on_line:
+                    on_line(line)  # may raise (e.g. job cancelled) -> the process is killed below
+        except BaseException:
+            proc.kill()
+            proc.wait()
+            raise
+        finally:
+            done.set()
+        code = proc.wait()
+        out = "\n".join(lines)
+        if stalled.is_set():
+            raise RuntimeError(f"command stalled: no output for {int(stall_seconds or 0)} s, so it was stopped: {' '.join(map(str, cmd))[:160]}\n" + "\n".join(lines[-8:]))
+        if check and code != 0:
+            tail = "\n".join(lines[-25:])
+>           raise RuntimeError(f"command failed ({code}): {' '.join(map(str, cmd))[:200]}\n{tail}")
+E           RuntimeError: command failed (1): C:\Program Files\nodejs\node.EXE C:\Users\Roy\Desktop\ultimate-video-tool\renderer\node_modules\hyperframes\bin\hyperframes.mjs snapshot C:\Users\Roy\AppData\Local\Temp\pytest-of-Roy\pytest-114\test_e
+E           \u25c6  Capturing 1 frames at [18.5s] from 9x16
+E           [hyperframes] browserGpuMode probe \u2192 software (probe failed (spawn UNKNOWN))
+E           [hyperframes] browserGpuMode=hardware was requested, but the GPU probe could not run, so hardware acceleration is UNVERIFIED. If Chrome falls back to software WebGL the capture will run at CPU speed. Honouring the explicit request anyway.
+E             This is a probe failure, not evidence of a missing GPU: see the `browserGpuMode probe \u2192 software (probe failed ...)` line above for the underlying error, which usually means Chrome could not launch (bad HYPERFRAMES_BROWSER_PATH, missing shared libraries, or a denied sandbox) rather than a GPU problem.
+E             Run `hyperframes doctor` to check the Chrome install.
+E           
+E           \u2717 Snapshot failed: spawn UNKNOWN
+
+vt\util.py:144: RuntimeError
+__________________ test_figure_is_drawn_in_every_shape[9:16] __________________
+
+ref = <vt.project.Project object at 0x000002BE7A4CB950>, aspect = '9:16'
+tmp_path = WindowsPath('C:/Users/Roy/AppData/Local/Temp/pytest-of-Roy/pytest-114/test_figure_is_drawn_in_every_0')
+
+    @pytest.mark.slow
+    @pytest.mark.parametrize("aspect", ["9:16", "1:1", "16:9"])
+    def test_figure_is_drawn_in_every_shape(ref, aspect, tmp_path):
+        from vt.compose import FORMATS
+        from vt.render.hyperframes import BIN, snapshot
+    
+        if not BIN.exists():
+            pytest.skip("HyperFrames is not installed")
+        stick_project(ref)
+        compose_all(ref)
+>       files = snapshot(ref.comp_dir / FORMATS[aspect]["tag"], tmp_path, [1.5])
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_stick.py:43: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+vt\render\hyperframes.py:130: in snapshot
+    run(hyperframes_cmd(*args))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cmd = ['C:\\Program Files\\nodejs\\node.EXE', 'C:\\Users\\Roy\\Desktop\\ultimate-video-tool\\renderer\\node_modules\\hyperfr...est-of-Roy\\pytest-114\\test_figure_is_drawn_in_every_0\\projects\\reference\\composition\\9x16', '--at', '1.500', ...]
+cwd = None, on_line = None, check = True, stall_seconds = None
+
+    def run(cmd: list[str], *, cwd: Optional[Path] = None, on_line: Optional[Callable[[str], None]] = None, check: bool = True,
+            stall_seconds: Optional[float] = None) -> str:
+        """Run a subprocess, streaming merged stdout/stderr lines to on_line. Returns the full output.
+    
+        `stall_seconds`: kill the process and raise if it prints nothing for that long. A render that hangs (seen on 2026-10-27: the GPU encoder
+        stuck in HyperFrames' final "assemble" step for over twenty minutes) must become an error the caller can retry, not a job that never ends."""
+        import threading
+        import time
+    
+        proc = subprocess.Popen(
+            cmd, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
+            creationflags=CREATE_NO_WINDOW,
+        )
+        lines: list[str] = []
+        assert proc.stdout is not None
+        last = [time.monotonic()]
+        stalled = threading.Event()
+        done = threading.Event()
+    
+        def watch() -> None:
+            while not done.wait(5.0):
+                if time.monotonic() - last[0] > (stall_seconds or 0):
+                    stalled.set()
+                    proc.kill()
+                    return
+    
+        if stall_seconds:
+            threading.Thread(target=watch, daemon=True).start()
+        try:
+            for raw in proc.stdout:
+                last[0] = time.monotonic()
+                line = raw.rstrip()
+                lines.append(line)
+                if on_line:
+                    on_line(line)  # may raise (e.g. job cancelled) -> the process is killed below
+        except BaseException:
+            proc.kill()
+            proc.wait()
+            raise
+        finally:
+            done.set()
+        code = proc.wait()
+        out = "\n".join(lines)
+        if stalled.is_set():
+            raise RuntimeError(f"command stalled: no output for {int(stall_seconds or 0)} s, so it was stopped: {' '.join(map(str, cmd))[:160]}\n" + "\n".join(lines[-8:]))
+        if check and code != 0:
+            tail = "\n".join(lines[-25:])
+>           raise RuntimeError(f"command failed ({code}): {' '.join(map(str, cmd))[:200]}\n{tail}")
+E           RuntimeError: command failed (1): C:\Program Files\nodejs\node.EXE C:\Users\Roy\Desktop\ultimate-video-tool\renderer\node_modules\hyperframes\bin\hyperframes.mjs snapshot C:\Users\Roy\AppData\Local\Temp\pytest-of-Roy\pytest-114\test_f
+E           \u25c6  Capturing 1 frames at [1.5s] from 9x16
+E           [hyperframes] browserGpuMode probe \u2192 software (probe failed (spawn UNKNOWN))
+E           [hyperframes] browserGpuMode=hardware was requested, but the GPU probe could not run, so hardware acceleration is UNVERIFIED. If Chrome falls back to software WebGL the capture will run at CPU speed. Honouring the explicit request anyway.
+E             This is a probe failure, not evidence of a missing GPU: see the `browserGpuMode probe \u2192 software (probe failed ...)` line above for the underlying error, which usually means Chrome could not launch (bad HYPERFRAMES_BROWSER_PATH, missing shared libraries, or a denied sandbox) rather than a GPU problem.
+E             Run `hyperframes doctor` to check the Chrome install.
+E           
+E           \u2717 Snapshot failed: spawn UNKNOWN
+
+vt\util.py:144: RuntimeError
+---------------------------- Captured stdout setup ----------------------------
+built C:\Users\Roy\AppData\Local\Temp\pytest-of-Roy\pytest-114\test_figure_is_drawn_in_every_0\projects\reference duration 17.58 words 30
+__________________ test_figure_is_drawn_in_every_shape[1:1] ___________________
+
+ref = <vt.project.Project object at 0x000002BF45F76810>, aspect = '1:1'
+tmp_path = WindowsPath('C:/Users/Roy/AppData/Local/Temp/pytest-of-Roy/pytest-114/test_figure_is_drawn_in_every_1')
+
+    @pytest.mark.slow
+    @pytest.mark.parametrize("aspect", ["9:16", "1:1", "16:9"])
+    def test_figure_is_drawn_in_every_shape(ref, aspect, tmp_path):
+        from vt.compose import FORMATS
+        from vt.render.hyperframes import BIN, snapshot
+    
+        if not BIN.exists():
+            pytest.skip("HyperFrames is not installed")
+        stick_project(ref)
+        compose_all(ref)
+>       files = snapshot(ref.comp_dir / FORMATS[aspect]["tag"], tmp_path, [1.5])
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_stick.py:43: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+vt\render\hyperframes.py:130: in snapshot
+    run(hyperframes_cmd(*args))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cmd = ['C:\\Program Files\\nodejs\\node.EXE', 'C:\\Users\\Roy\\Desktop\\ultimate-video-tool\\renderer\\node_modules\\hyperfr...test-of-Roy\\pytest-114\\test_figure_is_drawn_in_every_1\\projects\\reference\\composition\\1x1', '--at', '1.500', ...]
+cwd = None, on_line = None, check = True, stall_seconds = None
+
+    def run(cmd: list[str], *, cwd: Optional[Path] = None, on_line: Optional[Callable[[str], None]] = None, check: bool = True,
+            stall_seconds: Optional[float] = None) -> str:
+        """Run a subprocess, streaming merged stdout/stderr lines to on_line. Returns the full output.
+    
+        `stall_seconds`: kill the process and raise if it prints nothing for that long. A render that hangs (seen on 2026-10-27: the GPU encoder
+        stuck in HyperFrames' final "assemble" step for over twenty minutes) must become an error the caller can retry, not a job that never ends."""
+        import threading
+        import time
+    
+        proc = subprocess.Popen(
+            cmd, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
+            creationflags=CREATE_NO_WINDOW,
+        )
+        lines: list[str] = []
+        assert proc.stdout is not None
+        last = [time.monotonic()]
+        stalled = threading.Event()
+        done = threading.Event()
+    
+        def watch() -> None:
+            while not done.wait(5.0):
+                if time.monotonic() - last[0] > (stall_seconds or 0):
+                    stalled.set()
+                    proc.kill()
+                    return
+    
+        if stall_seconds:
+            threading.Thread(target=watch, daemon=True).start()
+        try:
+            for raw in proc.stdout:
+                last[0] = time.monotonic()
+                line = raw.rstrip()
+                lines.append(line)
+                if on_line:
+                    on_line(line)  # may raise (e.g. job cancelled) -> the process is killed below
+        except BaseException:
+            proc.kill()
+            proc.wait()
+            raise
+        finally:
+            done.set()
+        code = proc.wait()
+        out = "\n".join(lines)
+        if stalled.is_set():
+            raise RuntimeError(f"command stalled: no output for {int(stall_seconds or 0)} s, so it was stopped: {' '.join(map(str, cmd))[:160]}\n" + "\n".join(lines[-8:]))
+        if check and code != 0:
+            tail = "\n".join(lines[-25:])
+>           raise RuntimeError(f"command failed ({code}): {' '.join(map(str, cmd))[:200]}\n{tail}")
+E           RuntimeError: command failed (1): C:\Program Files\nodejs\node.EXE C:\Users\Roy\Desktop\ultimate-video-tool\renderer\node_modules\hyperframes\bin\hyperframes.mjs snapshot C:\Users\Roy\AppData\Local\Temp\pytest-of-Roy\pytest-114\test_f
+E           \u25c6  Capturing 1 frames at [1.5s] from 1x1
+E           [hyperframes] browserGpuMode probe \u2192 software (probe failed (spawn UNKNOWN))
+E           [hyperframes] browserGpuMode=hardware was requested, but the GPU probe could not run, so hardware acceleration is UNVERIFIED. If Chrome falls back to software WebGL the capture will run at CPU speed. Honouring the explicit request anyway.
+E             This is a probe failure, not evidence of a missing GPU: see the `browserGpuMode probe \u2192 software (probe failed ...)` line above for the underlying error, which usually means Chrome could not launch (bad HYPERFRAMES_BROWSER_PATH, missing shared libraries, or a denied sandbox) rather than a GPU problem.
+E             Run `hyperframes doctor` to check the Chrome install.
+E           
+E           \u2717 Snapshot failed: spawn UNKNOWN
+
+vt\util.py:144: RuntimeError
+---------------------------- Captured stdout setup ----------------------------
+built C:\Users\Roy\AppData\Local\Temp\pytest-of-Roy\pytest-114\test_figure_is_drawn_in_every_1\projects\reference duration 17.58 words 30
+__________________ test_figure_is_drawn_in_every_shape[16:9] __________________
+
+ref = <vt.project.Project object at 0x000002BF4364B710>, aspect = '16:9'
+tmp_path = WindowsPath('C:/Users/Roy/AppData/Local/Temp/pytest-of-Roy/pytest-114/test_figure_is_drawn_in_every_2')
+
+    @pytest.mark.slow
+    @pytest.mark.parametrize("aspect", ["9:16", "1:1", "16:9"])
+    def test_figure_is_drawn_in_every_shape(ref, aspect, tmp_path):
+        from vt.compose import FORMATS
+        from vt.render.hyperframes import BIN, snapshot
+    
+        if not BIN.exists():
+            pytest.skip("HyperFrames is not installed")
+        stick_project(ref)
+        compose_all(ref)
+>       files = snapshot(ref.comp_dir / FORMATS[aspect]["tag"], tmp_path, [1.5])
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_stick.py:43: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+vt\render\hyperframes.py:130: in snapshot
+    run(hyperframes_cmd(*args))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cmd = ['C:\\Program Files\\nodejs\\node.EXE', 'C:\\Users\\Roy\\Desktop\\ultimate-video-tool\\renderer\\node_modules\\hyperfr...est-of-Roy\\pytest-114\\test_figure_is_drawn_in_every_2\\projects\\reference\\composition\\16x9', '--at', '1.500', ...]
+cwd = None, on_line = None, check = True, stall_seconds = None
+
+    def run(cmd: list[str], *, cwd: Optional[Path] = None, on_line: Optional[Callable[[str], None]] = None, check: bool = True,
+            stall_seconds: Optional[float] = None) -> str:
+        """Run a subprocess, streaming merged stdout/stderr lines to on_line. Returns the full output.
+    
+        `stall_seconds`: kill the process and raise if it prints nothing for that long. A render that hangs (seen on 2026-10-27: the GPU encoder
+        stuck in HyperFrames' final "assemble" step for over twenty minutes) must become an error the caller can retry, not a job that never ends."""
+        import threading
+        import time
+    
+        proc = subprocess.Popen(
+            cmd, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
+            creationflags=CREATE_NO_WINDOW,
+        )
+        lines: list[str] = []
+        assert proc.stdout is not None
+        last = [time.monotonic()]
+        stalled = threading.Event()
+        done = threading.Event()
+    
+        def watch() -> None:
+            while not done.wait(5.0):
+                if time.monotonic() - last[0] > (stall_seconds or 0):
+                    stalled.set()
+                    proc.kill()
+                    return
+    
+        if stall_seconds:
+            threading.Thread(target=watch, daemon=True).start()
+        try:
+            for raw in proc.stdout:
+                last[0] = time.monotonic()
+                line = raw.rstrip()
+                lines.append(line)
+                if on_line:
+                    on_line(line)  # may raise (e.g. job cancelled) -> the process is killed below
+        except BaseException:
+            proc.kill()
+            proc.wait()
+            raise
+        finally:
+            done.set()
+        code = proc.wait()
+        out = "\n".join(lines)
+        if stalled.is_set():
+            raise RuntimeError(f"command stalled: no output for {int(stall_seconds or 0)} s, so it was stopped: {' '.join(map(str, cmd))[:160]}\n" + "\n".join(lines[-8:]))
+        if check and code != 0:
+            tail = "\n".join(lines[-25:])
+>           raise RuntimeError(f"command failed ({code}): {' '.join(map(str, cmd))[:200]}\n{tail}")
+E           RuntimeError: command failed (1): C:\Program Files\nodejs\node.EXE C:\Users\Roy\Desktop\ultimate-video-tool\renderer\node_modules\hyperframes\bin\hyperframes.mjs snapshot C:\Users\Roy\AppData\Local\Temp\pytest-of-Roy\pytest-114\test_f
+E           \u25c6  Capturing 1 frames at [1.5s] from 16x9
+E           [hyperframes] browserGpuMode probe \u2192 software (probe failed (spawn UNKNOWN))
+E           [hyperframes] browserGpuMode=hardware was requested, but the GPU probe could not run, so hardware acceleration is UNVERIFIED. If Chrome falls back to software WebGL the capture will run at CPU speed. Honouring the explicit request anyway.
+E             This is a probe failure, not evidence of a missing GPU: see the `browserGpuMode probe \u2192 software (probe failed ...)` line above for the underlying error, which usually means Chrome could not launch (bad HYPERFRAMES_BROWSER_PATH, missing shared libraries, or a denied sandbox) rather than a GPU problem.
+E             Run `hyperframes doctor` to check the Chrome install.
+E           
+E           \u2717 Snapshot failed: spawn UNKNOWN
+
+vt\util.py:144: RuntimeError
+---------------------------- Captured stdout setup ----------------------------
+built C:\Users\Roy\AppData\Local\Temp\pytest-of-Roy\pytest-114\test_figure_is_drawn_in_every_2\projects\reference duration 17.58 words 30
+______________ test_the_new_stick_patterns_render_and_move[16:9] ______________
+
+aspect = '16:9'
+tmp_path = WindowsPath('C:/Users/Roy/AppData/Local/Temp/pytest-of-Roy/pytest-114/test_the_new_stick_patterns_re0')
+
+    @pytest.mark.parametrize("aspect", ["16:9", "9:16"])
+    def test_the_new_stick_patterns_render_and_move(aspect, tmp_path):
+        r = subprocess.run([sys.executable, str(ROOT / "scripts" / "qa_stick.py"), "--aspects", aspect, "--out", str(tmp_path), "--only", "fable_fox,wallet_story,night_rain,haggle,hide_seek,island"],
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=str(ROOT), env={**__import__("os").environ, "PYTHONIOENCODING": "utf-8"})
+        out = r.stdout + r.stderr
+>       assert r.returncode == 0 and "no problems found" in out, out[-1500:]
+E       AssertionError:  "C:\Users\Roy\Desktop\ultimate-video-tool\scripts\qa_stick.py", line 146, in main
+E             frames = snapshot(idx.parent, d / "snap", times)
+E                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           File "C:\Users\Roy\Desktop\ultimate-video-tool\vt\render\hyperframes.py", line 130, in snapshot
+E             run(hyperframes_cmd(*args))
+E           File "C:\Users\Roy\Desktop\ultimate-video-tool\vt\util.py", line 144, in run
+E             raise RuntimeError(f"command failed ({code}): {' '.join(map(str, cmd))[:200]}\n{tail}")
+E         RuntimeError: command failed (1): C:\Program Files\nodejs\node.EXE C:\Users\Roy\Desktop\ultimate-video-tool\renderer\node_modules\hyperframes\bin\hyperframes.mjs snapshot C:\Users\Roy\AppData\Local\Temp\pytest-of-Roy\pytest-114\test_t
+E         \u25c6  Capturing 4 frames at [0.78s, 2.74s, 4.69s, 6.87s] from comp
+E         [hyperframes] browserGpuMode probe \u2192 software (probe failed (spawn UNKNOWN))
+E         [hyperframes] browserGpuMode=hardware was requested, but the GPU probe could not run, so hardware acceleration is UNVERIFIED. If Chrome falls back to software WebGL the capture will run at CPU speed. Honouring the explicit request anyway.
+E           This is a probe failure, not evidence of a missing GPU: see the `browserGpuMode probe \u2192 software (probe failed ...)` line above for the underlying error, which usually means Chrome could not launch (bad HYPERFRAMES_BROWSER_PATH, missing shared libraries, or a denied sandbox) rather than a GPU problem.
+E           Run `hyperframes doctor` to check the Chrome install.
+E         
+E         \u2717 Snapshot failed: spawn UNKNOWN
+E         
+E       assert (1 == 0)
+E        +  where 1 = CompletedProcess(args=['C:\\\\Users\\\\Roy\\\\Desktop\\\\ultimate-video-tool\\\\.venv\\\\Scripts\\\\python.exe', 'C:\\\\Users\\\\Roy\\\\De...er than a GPU problem.\\n  Run `hyperframes doctor` to check the Chrome install.\\n\\n\u2717 Snapshot failed: spawn UNKNOWN\\n').returncode
+
+tests\test_stick_render.py:18: AssertionError
+______________ test_the_new_stick_patterns_render_and_move[9:16] ______________
+
+aspect = '9:16'
+tmp_path = WindowsPath('C:/Users/Roy/AppData/Local/Temp/pytest-of-Roy/pytest-114/test_the_new_stick_patterns_re1')
+
+    @pytest.mark.parametrize("aspect", ["16:9", "9:16"])
+    def test_the_new_stick_patterns_render_and_move(aspect, tmp_path):
+        r = subprocess.run([sys.executable, str(ROOT / "scripts" / "qa_stick.py"), "--aspects", aspect, "--out", str(tmp_path), "--only", "fable_fox,wallet_story,night_rain,haggle,hide_seek,island"],
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=str(ROOT), env={**__import__("os").environ, "PYTHONIOENCODING": "utf-8"})
+        out = r.stdout + r.stderr
+>       assert r.returncode == 0 and "no problems found" in out, out[-1500:]
+E       AssertionError:  "C:\Users\Roy\Desktop\ultimate-video-tool\scripts\qa_stick.py", line 146, in main
+E             frames = snapshot(idx.parent, d / "snap", times)
+E                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           File "C:\Users\Roy\Desktop\ultimate-video-tool\vt\render\hyperframes.py", line 130, in snapshot
+E             run(hyperframes_cmd(*args))
+E           File "C:\Users\Roy\Desktop\ultimate-video-tool\vt\util.py", line 144, in run
+E             raise RuntimeError(f"command failed ({code}): {' '.join(map(str, cmd))[:200]}\n{tail}")
+E         RuntimeError: command failed (1): C:\Program Files\nodejs\node.EXE C:\Users\Roy\Desktop\ultimate-video-tool\renderer\node_modules\hyperframes\bin\hyperframes.mjs snapshot C:\Users\Roy\AppData\Local\Temp\pytest-of-Roy\pytest-114\test_t
+E         \u25c6  Capturing 4 frames at [0.78s, 2.74s, 4.69s, 6.87s] from comp
+E         [hyperframes] browserGpuMode probe \u2192 software (probe failed (spawn UNKNOWN))
+E         [hyperframes] browserGpuMode=hardware was requested, but the GPU probe could not run, so hardware acceleration is UNVERIFIED. If Chrome falls back to software WebGL the capture will run at CPU speed. Honouring the explicit request anyway.
+E           This is a probe failure, not evidence of a missing GPU: see the `browserGpuMode probe \u2192 software (probe failed ...)` line above for the underlying error, which usually means Chrome could not launch (bad HYPERFRAMES_BROWSER_PATH, missing shared libraries, or a denied sandbox) rather than a GPU problem.
+E           Run `hyperframes doctor` to check the Chrome install.
+E         
+E         \u2717 Snapshot failed: spawn UNKNOWN
+E         
+E       assert (1 == 0)
+E        +  where 1 = CompletedProcess(args=['C:\\\\Users\\\\Roy\\\\Desktop\\\\ultimate-video-tool\\\\.venv\\\\Scripts\\\\python.exe', 'C:\\\\Users\\\\Roy\\\\De...er than a GPU problem.\\n  Run `hyperframes doctor` to check the Chrome install.\\n\\n\u2717 Snapshot failed: spawn UNKNOWN\\n').returncode
+
+tests\test_stick_render.py:18: AssertionError
+______________________ test_qa_project_with_pixels_only _______________________
+
+ref = <vt.project.Project object at 0x000002BF46CDD850>
+
+    @pytest.mark.slow
+    def test_qa_project_with_pixels_only(ref):
+        from vt.render.hyperframes import BIN
+    
+        if not BIN.exists():
+            pytest.skip("HyperFrames is not installed")
+        from vt.planner import plan_rules
+    
+        ref.save_scenes(plan_rules(ref.transcript(), ref.beats()))
+>       res = vision.qa_project(ref, provider=ai.FakeProvider([ai.AIUnavailable("no vlm")] * 50))
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_vision.py:63: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+vt\ai\vision.py:140: in qa_project
+    frames = _frames_from_video(video, times, project.dir / "qa_frames") if video else snapshot(project.comp_dir / FORMATS[meta.aspect]["tag"], project.dir / "qa_frames", times)
+                                                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+vt\render\hyperframes.py:130: in snapshot
+    run(hyperframes_cmd(*args))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cmd = ['C:\\Program Files\\nodejs\\node.EXE', 'C:\\Users\\Roy\\Desktop\\ultimate-video-tool\\renderer\\node_modules\\hyperfr...Roy\\pytest-114\\test_qa_project_with_pixels_on0\\projects\\reference\\composition\\9x16', '--at', '3.200,10.910', ...]
+cwd = None, on_line = None, check = True, stall_seconds = None
+
+    def run(cmd: list[str], *, cwd: Optional[Path] = None, on_line: Optional[Callable[[str], None]] = None, check: bool = True,
+            stall_seconds: Optional[float] = None) -> str:
+        """Run a subprocess, streaming merged stdout/stderr lines to on_line. Returns the full output.
+    
+        `stall_seconds`: kill the process and raise if it prints nothing for that long. A render that hangs (seen on 2026-10-27: the GPU encoder
+        stuck in HyperFrames' final "assemble" step for over twenty minutes) must become an error the caller can retry, not a job that never ends."""
+        import threading
+        import time
+    
+        proc = subprocess.Popen(
+            cmd, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
+            creationflags=CREATE_NO_WINDOW,
+        )
+        lines: list[str] = []
+        assert proc.stdout is not None
+        last = [time.monotonic()]
+        stalled = threading.Event()
+        done = threading.Event()
+    
+        def watch() -> None:
+            while not done.wait(5.0):
+                if time.monotonic() - last[0] > (stall_seconds or 0):
+                    stalled.set()
+                    proc.kill()
+                    return
+    
+        if stall_seconds:
+            threading.Thread(target=watch, daemon=True).start()
+        try:
+            for raw in proc.stdout:
+                last[0] = time.monotonic()
+                line = raw.rstrip()
+                lines.append(line)
+                if on_line:
+                    on_line(line)  # may raise (e.g. job cancelled) -> the process is killed below
+        except BaseException:
+            proc.kill()
+            proc.wait()
+            raise
+        finally:
+            done.set()
+        code = proc.wait()
+        out = "\n".join(lines)
+        if stalled.is_set():
+            raise RuntimeError(f"command stalled: no output for {int(stall_seconds or 0)} s, so it was stopped: {' '.join(map(str, cmd))[:160]}\n" + "\n".join(lines[-8:]))
+        if check and code != 0:
+            tail = "\n".join(lines[-25:])
+>           raise RuntimeError(f"command failed ({code}): {' '.join(map(str, cmd))[:200]}\n{tail}")
+E           RuntimeError: command failed (1): C:\Program Files\nodejs\node.EXE C:\Users\Roy\Desktop\ultimate-video-tool\renderer\node_modules\hyperframes\bin\hyperframes.mjs snapshot C:\Users\Roy\AppData\Local\Temp\pytest-of-Roy\pytest-114\test_q
+E           \u25c6  Capturing 2 frames at [3.2s, 10.91s] from 9x16
+E           [hyperframes] browserGpuMode probe \u2192 software (probe failed (spawn UNKNOWN))
+E           [hyperframes] browserGpuMode=hardware was requested, but the GPU probe could not run, so hardware acceleration is UNVERIFIED. If Chrome falls back to software WebGL the capture will run at CPU speed. Honouring the explicit request anyway.
+E             This is a probe failure, not evidence of a missing GPU: see the `browserGpuMode probe \u2192 software (probe failed ...)` line above for the underlying error, which usually means Chrome could not launch (bad HYPERFRAMES_BROWSER_PATH, missing shared libraries, or a denied sandbox) rather than a GPU problem.
+E             Run `hyperframes doctor` to check the Chrome install.
+E           
+E           \u2717 Snapshot failed: spawn UNKNOWN
+
+vt\util.py:144: RuntimeError
+---------------------------- Captured stdout setup ----------------------------
+built C:\Users\Roy\AppData\Local\Temp\pytest-of-Roy\pytest-114\test_qa_project_with_pixels_on0\projects\reference duration 17.58 words 30
+=========================== short test summary info ===========================
+FAILED tests/test_api.py::test_unknown_api_paths_are_404_not_405_and_versions_agree
+FAILED tests/test_modules_equivalence.py::test_recordings_are_byte_identical[samples/audio/bn_plain.mp3-bn]
+FAILED tests/test_music_auto.py::test_mood_picks_a_fitting_track_stably - Ass...
+FAILED tests/test_render_golden.py::test_reference_frame_matches_golden[9:16-9x16]
+FAILED tests/test_render_golden.py::test_reference_frame_matches_golden[16:9-16x9]
+FAILED tests/test_render_golden.py::test_reference_frame_matches_golden[1:1-1x1]
+FAILED tests/test_render_golden.py::test_bangla_conjuncts_render_correctly - ...
+FAILED tests/test_render_golden.py::test_every_theme_renders_the_specimen - R...
+FAILED tests/test_stick.py::test_figure_is_drawn_in_every_shape[9:16] - Runti...
+FAILED tests/test_stick.py::test_figure_is_drawn_in_every_shape[1:1] - Runtim...
+FAILED tests/test_stick.py::test_figure_is_drawn_in_every_shape[16:9] - Runti...
+FAILED tests/test_stick_render.py::test_the_new_stick_patterns_render_and_move[16:9]
+FAILED tests/test_stick_render.py::test_the_new_stick_patterns_render_and_move[9:16]
+FAILED tests/test_vision.py::test_qa_project_with_pixels_only - RuntimeError:...
+ERROR tests/test_phase2_render.py::test_every_element_is_drawn[9:16] - Runtim...
+ERROR tests/test_phase2_render.py::test_nothing_is_cut_off_at_the_sides_or_top[9:16]
+ERROR tests/test_phase2_render.py::test_contact_sheet_matches_the_golden[9:16]
+ERROR tests/test_phase2_render.py::test_every_element_is_drawn[1:1] - Runtime...
+ERROR tests/test_phase2_render.py::test_nothing_is_cut_off_at_the_sides_or_top[1:1]
+ERROR tests/test_phase2_render.py::test_contact_sheet_matches_the_golden[1:1]
+ERROR tests/test_phase2_render.py::test_every_element_is_drawn[16:9] - Runtim...
+ERROR tests/test_phase2_render.py::test_nothing_is_cut_off_at_the_sides_or_top[16:9]
+ERROR tests/test_phase2_render.py::test_contact_sheet_matches_the_golden[16:9]

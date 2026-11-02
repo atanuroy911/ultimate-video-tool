@@ -1,0 +1,74 @@
+{
+  "name": "style-caption-news",
+  "label": "Caption News",
+  "color": {
+    "bg": "#282019",
+    "bg2": "#42361A",
+    "ink": "#FFD921",
+    "muted": "#A1881D",
+    "accent": "#A88482",
+    "accent2": "#A08779",
+    "card": "#372D1A",
+    "card_border": "#FFD921",
+    "caption_bg": "#18130F",
+    "caption_ink": "#FFD921",
+    "highlight_bg": "#A88482",
+    "highlight_ink": "#000000",
+    "tag_bg": "#A08779",
+    "tag_ink": "#000000",
+    "arc": "rgba(255,217,33,0.08)"
+  },
+  "font": {
+    "headline": [
+      "Inter",
+      "Anek Bangla"
+    ],
+    "body": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "numeral": [
+      "Inter",
+      "Anek Bangla"
+    ],
+    "caption": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "headline_weight": 800
+  },
+  "shape": {
+    "radius": 18,
+    "stroke": 3,
+    "shadow": {
+      "x": 0,
+      "y": 8,
+      "color": "rgba(0,0,0,0.18)",
+      "blur": 24
+    },
+    "card_tilt": 0
+  },
+  "background": {
+    "kind": "gradient",
+    "grain": 0.12,
+    "arcs": false,
+    "pattern": 0.35,
+    "animated": true
+  },
+  "motion": {
+    "preset": "snappy"
+  },
+  "caption": {
+    "style": "pop",
+    "reveal": "line",
+    "weight": 800,
+    "size": 60,
+    "words_per_line": 3,
+    "safe_bottom": {
+      "portrait": 380,
+      "landscape": 64
+    }
+  },
+  "style": "lemo:caption-news",
+  "picture": "emoji"
+}

@@ -5,4 +5,9 @@ contextBridge.exposeInMainWorld("vtDesktop", {
     status: () => ipcRenderer.invoke("assistants-status"),
     connect: (id, remote) => ipcRenderer.invoke("assistants-connect", id, remote),
   },
+  director: {
+    status: () => ipcRenderer.invoke("director-status"),
+    run: (task) => ipcRenderer.invoke("director-run", task),
+    onLog: (fn) => { const listener = (_event, value) => fn(value); ipcRenderer.on("director-log", listener); return () => ipcRenderer.removeListener("director-log", listener); },
+  },
 });

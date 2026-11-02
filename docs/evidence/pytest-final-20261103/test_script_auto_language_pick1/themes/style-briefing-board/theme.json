@@ -1,0 +1,74 @@
+{
+  "name": "style-briefing-board",
+  "label": "Engineering Briefing Board",
+  "color": {
+    "bg": "#E8CABD",
+    "bg2": "#D3B9AC",
+    "ink": "#3B3E2F",
+    "muted": "#5C584A",
+    "accent": "#744F46",
+    "accent2": "#49587D",
+    "card": "#DCC0B3",
+    "card_border": "#3B3E2F",
+    "caption_bg": "#DCC0B3",
+    "caption_ink": "#3B3E2F",
+    "highlight_bg": "#744F46",
+    "highlight_ink": "#FFFFFF",
+    "tag_bg": "#49587D",
+    "tag_ink": "#FFFFFF",
+    "arc": "rgba(59,62,47,0.08)"
+  },
+  "font": {
+    "headline": [
+      "IBM Plex Mono",
+      "Anek Bangla"
+    ],
+    "body": [
+      "IBM Plex Mono",
+      "Hind Siliguri"
+    ],
+    "numeral": [
+      "IBM Plex Mono",
+      "Anek Bangla"
+    ],
+    "caption": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "headline_weight": 800
+  },
+  "shape": {
+    "radius": 18,
+    "stroke": 3,
+    "shadow": {
+      "x": 0,
+      "y": 8,
+      "color": "rgba(0,0,0,0.18)",
+      "blur": 24
+    },
+    "card_tilt": 0
+  },
+  "background": {
+    "kind": "paper",
+    "grain": 0.25,
+    "arcs": false,
+    "pattern": 0.35,
+    "animated": false
+  },
+  "motion": {
+    "preset": "bouncy"
+  },
+  "caption": {
+    "style": "box",
+    "reveal": "line",
+    "weight": 800,
+    "size": 60,
+    "words_per_line": 3,
+    "safe_bottom": {
+      "portrait": 380,
+      "landscape": 64
+    }
+  },
+  "style": "lemo:briefing-board",
+  "picture": "emoji"
+}

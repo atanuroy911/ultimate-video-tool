@@ -18,7 +18,7 @@ interface QA {
 }
 
 /** The AI slide-over: what directed this video, one-click improvements, a self-check of the rendered frames, and the way back (undo). */
-export default function AIPanel({ r, id, scene, kind, onClose, onChat, goProgress }: { r: Review; id: string; scene: Scene | null; kind: string; onClose: () => void; onChat: () => void; goProgress: () => void }) {
+export default function AIPanel({ r, id, scene, kind, onClose, onChat, onTools, goProgress }: { r: Review; id: string; scene: Scene | null; kind: string; onClose: () => void; onChat: () => void; onTools: () => void; goProgress: () => void }) {
   const ai = useFetch<{ provider: string; model: string; available: boolean; images: boolean }>("/api/ai/status");
   const qa = useFetch<QA>(`/api/projects/${id}/qa`);
   const script = useFetch<{ script: any; kind: string }>(`/api/projects/${id}/script`);
@@ -37,7 +37,8 @@ export default function AIPanel({ r, id, scene, kind, onClose, onChat, goProgres
   const [busy, setBusy] = useState<string>("");
   const [redoOpen, setRedoOpen] = useState(false);
   const planner = r.plan?.planner;
-  const how = planner === "claude" ? "Claude (through MCP or API)" : planner === "assistant" ? "Codex or connected assistant" : planner === "llm" ? `The AI (${ai.data?.model || "local model"})` : planner === "manual" ? "You (edited by hand)" : "The built-in rules";
+  const chosenDirector = r.project.data?.director;
+  const how = chosenDirector?.who ? (chosenDirector.who === "local" ? "Local AI" : chosenDirector.who === "claude-server" ? "Claude on the server" : chosenDirector.who.startsWith("claude@") ? "Claude on this PC" : chosenDirector.who === "rules" ? "Built-in rules" : chosenDirector.who) : planner === "claude" ? "Claude (through MCP or API)" : planner === "assistant" ? "Codex or connected assistant" : planner === "llm" ? `The AI (${ai.data?.model || "local model"})` : planner === "manual" ? "You (edited by hand)" : "The built-in rules";
 
   const job = async (what: string, url: string, after?: () => void) => {
     setBusy(what);
@@ -56,10 +57,16 @@ export default function AIPanel({ r, id, scene, kind, onClose, onChat, goProgres
     <Sheet title="AI" onClose={onClose}>
       <Panel title="Who directed this video">
         <div className="row"><span className="chip accent">{how}</span>{script.data?.script?.planner && <span className="small muted">script: {script.data.script.planner}</span>}</div>
+        {chosenDirector?.fallback_reason && <span className="small muted">Fallback: {chosenDirector.fallback_reason}</span>}
         <div className="row small muted">
           {ai.data ? <><span className={`dot ${ai.data.available ? "ok" : "warn"}`} /> {ai.data.provider}{ai.data.model ? ` · ${ai.data.model}` : ""}{ai.data.available ? "" : " · not available"}{ai.data.images ? " · can look at pictures" : ""}</> : <Spinner size={12} />}
           <span className="grow" /><Link to="/settings" onClick={onClose}>Settings</Link>
         </div>
+      </Panel>
+
+      <Panel title="All video tools">
+        <Button onClick={onTools}>Browse everything the app can do</Button>
+        <span className="small muted">Search tools for voice, visuals, pacing, quality checks and more. See what your Director can use.</span>
       </Panel>
 
       <Panel title="Make it better">

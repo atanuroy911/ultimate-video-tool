@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from typing import Optional
 
-from ..planner.catalogue import EXAMPLES, USE_WHEN
+from ..planner.catalogue import component_catalogue
 from ..schema import Beats, Transcript
 from . import catalogue as C
 from .models import VERSION
@@ -37,7 +37,7 @@ Social video
 - The first second already shows the subject (a hook). Keep the lower part of the screen free for captions. End with a clear closing beat (recap or call to action).
 Structure
 - Cover EVERY beat exactly once, in order. A scene spans 1-3 beats (about 3-8 seconds), scene ids s1, s2, ...
-- At most 5 overlays per scene. Every `at_word` must be a word id inside that scene's beats. List actions and overlays in spoken order."""
+- Prefer a few readable overlays per scene; do not discard requested content to meet an arbitrary count. Every `at_word` must be a word id inside that scene's beats. List actions and overlays in spoken order."""
 
 OUTPUT = """\
 OUTPUT
@@ -47,8 +47,8 @@ Free text is allowed only in `bubble`, overlay texts and labels, within their le
 
 def overlay_catalogue_text() -> str:
     lines = []
-    for t, ex in EXAMPLES.items():
-        lines.append(f"- {t}: {USE_WHEN.get(t, '')}  e.g. {json.dumps(ex, ensure_ascii=False)}")
+    for spec in component_catalogue():
+        lines.append(f"- {spec['type']}: {spec['use_when']}  e.g. {json.dumps(spec['example'], ensure_ascii=False)}")
     return "\n".join(lines)
 
 

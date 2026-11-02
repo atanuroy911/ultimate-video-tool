@@ -108,6 +108,8 @@ def build_transcript(raw: dict, cuts: Cuts, glossary: Optional[dict[str, str]] =
         conf = float(w.get("conf", 1.0))
         edited = "text" in ed
         words.append(Word(id=wid, text=text, start=round(s, 3), end=round(e, 3), conf=round(conf, 3),
+                          caption_start=round(cuts.map_time_nearest(ed["caption_start_src"]), 3) if "caption_start_src" in ed else None,
+                          caption_end=round(cuts.map_time_nearest(ed["caption_end_src"]), 3) if "caption_end_src" in ed else None,
                           lang=detect_lang(text), flag="review" if (conf < 0.5 and not edited) else None,
                           cut=bool(ed.get("cut", False)), speaker=w.get("speaker")))
         prev_end = e

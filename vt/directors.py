@@ -56,9 +56,11 @@ class DirectorBroker:
             self._devices[device_id] = rec
         return rec
 
-    def disconnect(self, device_id: str) -> None:
+    def disconnect(self, device_id: str, send: Optional[Callable[[dict[str, Any]], None]] = None) -> None:
         with self._lock:
-            self._devices.pop(device_id, None)
+            current = self._devices.get(device_id)
+            if current is not None and (send is None or current.send is send):
+                self._devices.pop(device_id, None)
 
     def devices(self) -> list[ConnectedDirector]:
         with self._lock:
@@ -71,7 +73,11 @@ class DirectorBroker:
                 return {"ok": False, "reason": "Claude on that device is not connected and logged in."}
             run = PendingRun(uuid.uuid4().hex[:12], device_id, project)
             self._runs[run.id] = run
-            device.send({"type": "direct", "request": run.id, "project": project, "task": "plan", "prompt": prompt})
+            try:
+                device.send({"type": "direct", "request": run.id, "project": project, "task": "plan", "prompt": prompt})
+            except Exception as e:
+                self._runs.pop(run.id, None)
+                return {"ok": False, "reason": f"The director request could not be sent ({type(e).__name__})."}
         answered = run.event.wait(timeout)
         with self._lock:
             self._runs.pop(run.id, None)
@@ -168,9 +174,18 @@ def record(project, who: str, *, requested: str, fallback_reason: str = "") -> N
 
 def client_prompt(project_id: str) -> str:
     return (
-        f"Direct Video Tool project {project_id}. Use only the Video Tool MCP tools. "
-        "Read the script and current plan, improve the plan with plan.edit so every made picture is self-contained: name its place, "
-        "visible scale, and every recurring person's fixed appearance; describe only visible things and put no writing in pictures. "
-        "Run craft.check, fix critical and major picture.place and picture.drawable problems, then call plan.approve with by set to Claude. "
-        "Do not render or start the plan."
+        f"Direct Video Tool project {project_id}. Use only the Video Tool MCP tools. First call module_catalog_tool to discover the system's capabilities; use module_describe_tool for exact inputs instead of guessing. Call get_reel_plan and read the script, moments, "
+        "places, cast, rules and current checks. Improve it by calling module_call_tool with module_id plan.edit once per operation and a "
+        "specific why. Every made picture must be self-contained: set its place, visible scale and every recurring person's fixed appearance; "
+        "describe only visible things and put no writing in pictures. Call check_reel_plan, fix every picture.place and picture.drawable "
+        "problem, then call module_call_tool with module_id plan.approve and inputs {\"by\":\"Claude\"}. Do not call plan.start or render."
+    )
+
+
+def client_scene_prompt(project_id: str) -> str:
+    return (
+        f"Direct Video Tool project {project_id}. Use only the Video Tool MCP tools. First call module_catalog_tool to discover the system's capabilities; use module_describe_tool for exact inputs instead of guessing. Call get_script_task for this project, read its "
+        "timed transcript, craft rules, style and schema, then write and submit a complete Video Script with submit_script. Cover every "
+        "beat, use only facts from the source, keep every picture drawable, and fix every validation error. Then call module_call_tool with "
+        "module_id craft.check and inputs {}, and fix every critical and major violation it reports. Do not render or publish."
     )

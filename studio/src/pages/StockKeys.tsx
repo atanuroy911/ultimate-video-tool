@@ -25,7 +25,7 @@ export default function StockKeys() {
   return (
     <section className="card card-pad col" style={{ gap: 12 }} aria-label="Stock media">
       <div className="row wrap">
-        <h2 className="grow"><Images size={18} style={{ verticalAlign: -3 }} /> Stock photos and videos (optional)</h2>
+        <h2 className="grow"><Images size={18} style={{ verticalAlign: -3 }} /> Find free pictures and clips</h2>
         <span className={`chip ${st.data && Object.values(st.data).some(Boolean) ? "ok" : ""}`}>
           {st.data && Object.values(st.data).some(Boolean) ? <><Check size={12} /> On</> : "Off"}
         </span>

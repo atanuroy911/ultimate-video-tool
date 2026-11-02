@@ -1,0 +1,11 @@
+/* stick-figure stage: a drawing area under the scene's infographic elements */
+.stk-stage { position: absolute; overflow: visible; z-index: 0; }
+.stk-svg { position: absolute; left: 0; top: 0; overflow: hidden; }
+.stk-ov { position: absolute; inset: 0; pointer-events: none; }
+.stk-bub { position: absolute; transform: translate(-50%, -100%); max-width: 62%; padding: .35em .8em; font-family: var(--font-body); font-weight: 700; line-height: 1.3;
+  color: var(--ink); background: var(--card); border: calc(var(--stroke) * .8) solid var(--ink); border-radius: calc(var(--radius) * .7); text-align: center; opacity: 0; }
+.stk-bub.say::after { content: ""; position: absolute; left: 38%; bottom: -.5em; width: .7em; height: .7em; background: var(--card); border-right: calc(var(--stroke) * .8) solid var(--ink);
+  border-bottom: calc(var(--stroke) * .8) solid var(--ink); transform: rotate(45deg); }
+.stk-bub.sign { background: var(--tag-bg); color: var(--tag-ink); font-family: var(--font-head); font-weight: 800; font-size: 1.3em; transform: translate(-50%, -100%) rotate(-3deg); }
+.a169 .stage[data-arch="stick"] { left: 1190px; right: 40px; top: 70px; bottom: 200px; }
+.a916 .stage[data-arch="stick"] { top: 110px; bottom: auto; height: 470px; }      /* vertical: labels and graphics in the band above the figures, never over a head */

@@ -135,14 +135,14 @@
     return {
       el: wrap,
       enter(tl, t, M, c, sc) {
-        const end = sc ? sc.end : t + 4;
+        const end = d.until ?? (sc ? sc.end : t + 4);
         tl.fromTo(wrap, { opacity: 0, scale: 0.85, rotation: d.frame === "polaroid" ? -6 : 0, y: 40 }, { opacity: 1, scale: 1, rotation: d.frame === "polaroid" ? -2.5 : 0, y: 0, duration: M.dur + 0.2, ease: "back.out(1.5)" }, t);
         if (mn) {
           if (mn.m.kind === "video") {
             mn.node.setAttribute("data-start", String(t));
             mn.node.setAttribute("data-duration", String(Math.max(0.1, end - t)));
-            mn.node.setAttribute("data-media-start", String(mn.m.trim || 0));
-            X.registerVideo(mn.node, t, end, mn.m.trim || 0, mn.m.loop);
+            mn.node.setAttribute("data-media-start", String((mn.m.trim || 0) + (d.offset || 0)));
+            X.registerVideo(mn.node, t, end, (mn.m.trim || 0) + (d.offset || 0), mn.m.loop);
           } else cameraMove(tl, mn.node, t, end, d.motion === "none" ? "none" : "kenburns", mn.m.fx != null ? mn.m.fx : 0.5, mn.m.fy != null ? mn.m.fy : 0.5);
         }
         if (cap) tl.fromTo(cap, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: M.dur }, t + 0.4);
@@ -186,13 +186,13 @@
     return {
       el: wrap,
       enter(tl, t, M, c, sc) {
-        const end = sc ? sc.end : t + 4;
+        const end = d.until ?? (sc ? sc.end : t + 4);
         tl.fromTo(frame, { opacity: 0, y: 90, scale: 0.9, rotation: d.kind === "phone" ? 4 : 0 }, { opacity: 1, y: 0, scale: 1, rotation: 0, duration: M.dur + 0.25, ease: "back.out(1.4)" }, t);
         if (mn) {
           if (mn.m.kind === "video") {
             mn.node.setAttribute("data-start", String(t));
             mn.node.setAttribute("data-duration", String(Math.max(0.1, end - t)));
-            X.registerVideo(mn.node, t, end, mn.m.trim || 0, mn.m.loop);
+            X.registerVideo(mn.node, t, end, (mn.m.trim || 0) + (d.offset || 0), mn.m.loop);
           } else cameraMove(tl, mn.node, t + 0.3, end, "kenburns", mn.m.fx != null ? mn.m.fx : 0.5, mn.m.fy != null ? mn.m.fy : 0.5);
         }
         calls.forEach((e, i) => tl.fromTo(e, { opacity: 0, scale: 0.4 }, { opacity: 1, scale: 1, duration: 0.35, ease: "back.out(2.4)" }, t + 0.7 + i * 0.5));

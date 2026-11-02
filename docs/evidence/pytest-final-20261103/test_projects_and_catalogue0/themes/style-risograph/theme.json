@@ -1,0 +1,74 @@
+{
+  "name": "style-risograph",
+  "label": "Risograph Print",
+  "color": {
+    "bg": "#F4EEE2",
+    "bg2": "#DDDBD6",
+    "ink": "#384F7E",
+    "muted": "#5A6B90",
+    "accent": "#736800",
+    "accent2": "#8C6409",
+    "card": "#E7E3DB",
+    "card_border": "#384F7E",
+    "caption_bg": "#E7E3DB",
+    "caption_ink": "#384F7E",
+    "highlight_bg": "#736800",
+    "highlight_ink": "#FFFFFF",
+    "tag_bg": "#8C6409",
+    "tag_ink": "#FFFFFF",
+    "arc": "rgba(56,79,126,0.08)"
+  },
+  "font": {
+    "headline": [
+      "Bricolage Grotesque",
+      "Anek Bangla"
+    ],
+    "body": [
+      "Bricolage Grotesque",
+      "Hind Siliguri"
+    ],
+    "numeral": [
+      "Bricolage Grotesque",
+      "Anek Bangla"
+    ],
+    "caption": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "headline_weight": 800
+  },
+  "shape": {
+    "radius": 18,
+    "stroke": 3,
+    "shadow": {
+      "x": 6,
+      "y": 6,
+      "color": "#384F7E",
+      "blur": 0
+    },
+    "card_tilt": 0
+  },
+  "background": {
+    "kind": "dots",
+    "grain": 0.12,
+    "arcs": false,
+    "pattern": 0.35,
+    "animated": false
+  },
+  "motion": {
+    "preset": "smooth"
+  },
+  "caption": {
+    "style": "box",
+    "reveal": "line",
+    "weight": 800,
+    "size": 60,
+    "words_per_line": 3,
+    "safe_bottom": {
+      "portrait": 380,
+      "landscape": 64
+    }
+  },
+  "style": "lemo:risograph",
+  "picture": "emoji"
+}

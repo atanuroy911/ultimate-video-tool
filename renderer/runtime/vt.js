@@ -141,6 +141,24 @@
     return { el, enter: (tl, t, M) => popIn(tl, el, t, M) };
   };
 
+  C.shape = (d, ctx) => {
+    const wrap = h("div", "geometric-visual");
+    const size = Math.min(ctx.maxW, 720) * (d.width || 0.65);
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 240 160");
+    svg.setAttribute("width", String(size));
+    svg.setAttribute("height", String(size * 2 / 3));
+    const kind = d.shape || "rectangle";
+    const mark = document.createElementNS(svg.namespaceURI, kind === "circle" ? "circle" : kind === "triangle" ? "polygon" : "rect");
+    const attrs = kind === "circle" ? {cx:120,cy:80,r:72} : kind === "triangle" ? {points:"120,8 232,152 8,152"}
+      : kind === "line" ? {x:8,y:74,width:224,height:12,rx:6} : {x:8,y:8,width:224,height:144,rx:d.rounded === false ? 0 : 20};
+    Object.entries(attrs).forEach(([k,v]) => mark.setAttribute(k,String(v)));
+    mark.setAttribute("fill", /^#[0-9a-f]{6}$/i.test(d.color) ? d.color : "#6366f1");
+    svg.appendChild(mark); wrap.appendChild(svg);
+    if(d.label) wrap.appendChild(rt("div", "geometric-label", d.label));
+    return {el:wrap, enter:(tl,t,M)=>popIn(tl,wrap,t,M)};
+  };
+
   C.value_card = (d, ctx) => {
     const wrap = h("div", "vcard");
     const box = h("div", "vcard-box");
@@ -751,6 +769,8 @@
     };
 
     const flowInfo = [];
+    const freeVisuals = [];
+    const freeActors = [];
     D.scenes.forEach((sc, si) => {
       const el = h("div", "scene");
       el.setAttribute("data-scene", sc.src || sc.id);          // a page of a scene answers to the scene the editor knows
@@ -770,13 +790,17 @@
       scenesLayer.appendChild(el);
       if (sc.archetype === "reel") el.classList.add("arch-reel");          // the reel look: one design for every scene (labels match the captions)
       if (sc.backdrop && window.VTX.backdrop) window.VTX.backdrop(el, sc, tl, D);
-      if (sc.stick && window.VTX.stick) window.VTX.stick(el, sc, tl, D);
+      if (sc.stick && window.VTX.stick) {
+        if(sc.stick.actions.some(a=>a._timed)) freeActors.push(sc);
+        else window.VTX.stick(el, sc, tl, D);
+      }
 
       const nEl = sc.elements.length;
       const wrappers = [];
       const jobs = [];
       flowInfo.push({ stage, jobs, sc });
       sc.elements.forEach((e, i) => {
+        if(e.free) { freeVisuals.push({e, sc, i}); return; }
         const b = C[e.type];
         if (!b) return;
         const ctx = Object.assign({}, ctxBase, { maxW: a169 ? (nEl > 1 ? 740 : 1500) : 940 });
@@ -837,6 +861,34 @@
     });
     scenesLayer.appendChild(wipe);
 
+    freeActors.forEach(sc=>{
+      const host=h("div","scene");host.setAttribute("data-scene",sc.src||sc.id);host.style.pointerEvents="none";
+      const start=Math.min(sc.start,...sc.stick.actions.filter(a=>a._timed).map(a=>a.start));
+      const end=Math.min(D.duration,Math.max(sc.end,...sc.stick.actions.filter(a=>a._timed).map(a=>a.end)));
+      root.appendChild(host);
+      window.VTX.stick(host,{...sc,start,end,stick:{...sc.stick,t0:start,t1:end}},tl,D);
+      tl.set(host,{opacity:1},start);tl.set(host,{opacity:0},end);
+    });
+    freeVisuals.forEach(({e, sc, i}) => {
+      const build = C[e.type]; if(!build) return;
+      const host = h("div", "scene vt-free-visual");
+      host.setAttribute("data-scene", sc.src || sc.id);
+      host.style.cssText = "opacity:1;pointer-events:none";
+      if(sc.tone) applyTone(host, D.theme, sc.tone);
+      const position = h("div", "free-position");
+      position.style.cssText = "position:absolute;left:" + ((e.x ?? .5)*100) + "%;top:" + ((e.y ?? .45)*100) + "%;width:max-content;max-width:90%;transform:translate(-50%,-50%) scale("+(e.scale ?? 1)+") rotate("+(e.rotation || 0)+"deg);opacity:"+(e.opacity ?? 1);
+      const wrap = h("div", "el el-"+e.type);
+      wrap.setAttribute("data-el", String(e._i ?? i));
+      wrap.style.pointerEvents = "auto";
+      const inst = build(e, {...ctxBase, maxW:a169 ? 1500 : 940});
+      wrap.appendChild(inst.el); position.appendChild(wrap); host.appendChild(position); root.appendChild(host);
+      const at=Math.max(0,e.at), end=Math.min(D.duration,e.until ?? D.duration);
+      gsap.set(host,{visibility:"hidden"});
+      tl.set(host,{visibility:"visible"},at);
+      inst.enter(tl,at,M,ctxBase,sc);
+      if(inst.hideInit) inst.hideInit.forEach(x=>x && gsap.set(x,{opacity:0}));
+      tl.set(host,{visibility:"hidden"},end);
+    });
     if (D.layers && D.layers.length && window.VTX.layers) window.VTX.layers(root, tl, D, W, H);
     if (D.captions_enabled !== false) buildCaptions(root, tl, D, M, a169);
 
@@ -946,6 +998,7 @@
     const keep = tl ? tl.time() : 0;
     Array.from(layer.querySelectorAll(":scope > .scene")).forEach((scene, si) => {
       const sd = D && D.scenes[si];
+      if(sd && sd.edited) return;
       if (tl && sd) tl.time(Math.max(sd.start, sd.end - 0.05));          // the scene's last frame: everything has entered and moved to its place
       const els = Array.from(scene.querySelectorAll(".stage .el")).filter((w) => w.style.display !== "none");
       const items = els.map((w) => ({ w, type: (/el-(\w+)/.exec(w.className) || [])[1] || "", b: boxOf(w, scene) }));

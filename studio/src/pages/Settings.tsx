@@ -1,6 +1,6 @@
 import { Check, Copy, Download, RefreshCw, X } from "lucide-react";
-import { useEffect } from "react";
-import { post, put } from "../api";
+import { useEffect, useRef, useState } from "react";
+import { get, post, put } from "../api";
 import { useFetch, useMusic, useThemes } from "../hooks";
 import { setLanguage } from "../i18n";
 import { connStore, jobsStore, settingsStore, toast, useStore } from "../store";
@@ -14,12 +14,25 @@ import MyVoices from "./MyVoices";
 import StockKeys from "./StockKeys";
 
 export default function SettingsPage() {
+  const [section, setSection] = useState("general");
+  const sections = [
+    ["general", "Your preferences", "Video style, music, language and how much the app does for you."],
+    ["speech", "Speech & voice", "Read your script aloud and understand recorded speech."],
+    ["engines", "Computers & setup", "Choose the computers that do the work and install what is missing."],
+    ["ai", "Plan my videos", "Choose the helper that decides what each scene shows."],
+    ["local-ai", "Free AI computer", "Connect and check the computer running your free AI."],
+    ["pictures", "Make pictures", "Connect the graphics-card computer that makes moving pictures."],
+    ["stock", "Picture libraries", "Connect free photo and video libraries."],
+    ["helpers", "Chat assistants", "Let Claude or Codex work with your videos."],
+    ["system", "Help & checks", "See what is working and what needs attention."],
+  ];
   const settings = useStore(settingsStore);
   const mcp = useStore(connStore).mcp;
   const doctor = useFetch<DoctorRow[]>("/api/doctor");
   const models = useFetch<ModelInfo[]>("/api/models");
   const { data: themes } = useThemes();
   const { data: music } = useMusic();
+  const directors = useFetch<{ directors: { id: string; kind: string; label: string; available: boolean; note: string }[]; claude_usage_today: { calls: number; seconds: number } }>("/api/directors");
   const jobs = useStore(jobsStore);
   const pulls = Object.values(jobs).filter((j) => j.kind === "model");
 
@@ -30,33 +43,73 @@ export default function SettingsPage() {
     }
   }, [pulls.map((j) => j.status).join()]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const save = async (patch: Partial<Settings>) => {
-    const next = { ...settings, ...patch };
-    settingsStore.set(next);
-    try {
-      await put("/api/settings", next);
-    } catch (e: any) {
-      toast(e.message, "err");
-    }
+  const saveQueue = useRef(Promise.resolve());
+  const pendingSaves = useRef(0);
+  const [saving, setSaving] = useState(false);
+  const save = (patch: Partial<Settings>) => {
+    settingsStore.set(current => ({ ...current, ...patch }));
+    pendingSaves.current++;
+    setSaving(true);
+    saveQueue.current = saveQueue.current.then(async () => {
+      try {
+        // Send only this choice; a stale page must never overwrite other settings.
+        await put("/api/settings", patch);
+      } catch (e: any) {
+        toast(`Could not save your choice: ${e.message}`, "err");
+      } finally {
+        if (--pendingSaves.current === 0) {
+          try {
+            const confirmed = await get<Settings>("/api/settings");
+            if (pendingSaves.current === 0) {
+              settingsStore.set(confirmed);
+              setLanguage(confirmed.ui_language);
+            }
+          } catch { toast("Could not check saved settings. Reconnect and try again.", "err"); }
+          setSaving(pendingSaves.current > 0);
+        }
+      }
+    });
   };
 
   const pending = (mcp as McpStatus | null)?.pending ?? 0;
+  const readyDirectors = directors.data?.directors.filter((d) => d.id !== "best" && d.available).length ?? 0;
+  const comfyUrl = (settings as Settings & { comfy_url?: string }).comfy_url || "";
+  const remoteGpu = !!comfyUrl && !/(localhost|127\.0\.0\.1)/.test(comfyUrl);
   return (
-    <div className="page-inner" style={{ maxWidth: 1060 }}>
+    <div className="page-inner settings-organized" data-section={section} style={{ maxWidth: 1060 }}>
       <h1>Settings</h1>
+      {saving && <p role="status" className="small muted">Saving your choices…</p>}
+      <p className="muted settings-lead">Make Video Tool work your way. Choose a category to see its controls.</p>
+      <section className="card card-pad settings-simple">
+        <div className="settings-ready">
+          <span className="settings-ready-icon"><Check size={22} /></span>
+          <span className="col grow" style={{ gap: 3 }}><strong>{settings.autopilot !== false ? "Automatic finishing is on" : "You control the final steps"}</strong><span className="small muted">The app chooses the director, pictures, voice, captions and music for each video.</span></span>
+          <span className="chip">{settings.autopilot !== false ? "Automatic" : "Manual"}</span>
+        </div>
+        <div className="settings-simple-grid">
+          <label className="settings-simple-row">
+            <span className="col grow" style={{ gap: 2 }}><strong>Finish videos for me</strong><span className="small muted">Edit, check and render automatically</span></span>
+            <input type="checkbox" className="ios-switch" checked={settings.autopilot !== false} onChange={(e) => save({ autopilot: e.target.checked })} aria-label="Finish videos automatically" />
+          </label>
+          <div className="settings-simple-row"><span className="col grow" style={{ gap: 2 }}><strong>Default posting shape</strong><span className="small muted">You can change this for every video</span></span><Seg value={settings.default_aspect} onChange={(v) => save({ default_aspect: v })} label="Default posting shape" options={[{ value: "9:16", label: "Vertical" }, { value: "1:1", label: "Square" }, { value: "16:9", label: "Wide" }]} /></div>
+          <div className="settings-simple-row"><span className="col grow" style={{ gap: 2 }}><strong>App language</strong><span className="small muted">Only changes menus and buttons</span></span><Seg value={settings.ui_language} onChange={(v) => { setLanguage(v); save({ ui_language: v }); }} label="App language" options={[{ value: "en", label: "English" }, { value: "bn", label: "বাংলা" }]} /></div>
+        </div>
+        <div className="settings-system-line"><span><Check size={14} /> AI director: {readyDirectors ? `${readyDirectors} ready` : "automatic"}</span><span>Pictures: {remoteGpu ? "GPU server configured" : "automatic"}</span></div>
+      </section>
+      <div className="settings-all-title"><strong>{sections.find(s => s[0] === section)?.[1]}</strong><span className="small muted">{sections.find(s => s[0] === section)?.[2]}</span></div>
       <div className="settings-layout">
       <nav className="settings-nav" aria-label="Settings sections">
-        {[["general", "General"], ["speech", "Speech"], ["engines", "Engines"], ["ai", "AI and assistants"], ["stock", "Stock and keys"], ["claude", "Claude (MCP)"], ["codex", "Codex (MCP)"], ["system", "System check"]].map(([k, l]) => (
-          <a key={k} href={`#${k}`} onClick={(e) => { e.preventDefault(); document.getElementById(k)?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>{l}</a>
+        {sections.map(([k, l, description]) => (
+          <button type="button" key={k} aria-current={section === k ? "page" : undefined} className={section === k ? "selected" : ""} onClick={() => setSection(k)}><strong>{l}</strong><span>{description}</span></button>
         ))}
       </nav>
       <div className="settings-body">
       <section id="general" className="card card-pad col" style={{ gap: 12 }}>
-        <h2>Defaults for new videos</h2>
+        <h2>How new videos start</h2>
         <label className="row" style={{ gap: 12 }}>
           <input type="checkbox" className="ios-switch" checked={settings.autopilot !== false} onChange={(e) => save({ autopilot: e.target.checked })} aria-label="Autopilot" />
           <span className="col" style={{ gap: 2 }}>
-            <strong>Autopilot</strong>
+            <strong>Finish the video automatically</strong>
             <span className="small muted">After you speak, the app edits, renders, checks and writes the title by itself, and opens the finished video. Off: it stops at the editor.</span>
           </span>
         </label>
@@ -95,10 +148,11 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <MyVoices />
+      <div id="voices"><MyVoices /></div>
 
       <section id="speech" className="card card-pad col" style={{ gap: 12 }}>
-        <h2>Speech recognition models</h2>
+        <h2>Understand spoken words</h2>
+        <p className="muted" style={{ margin: 0 }}>A bigger speech reader is usually more accurate but takes more space. Download one once; the app uses it automatically.</p>
         <table className="table">
           <thead><tr><th>Model</th><th>About</th><th /></tr></thead>
           <tbody>
@@ -127,15 +181,33 @@ export default function SettingsPage() {
       <Engines />
       </div>
       <div id="ai" className="col" style={{ gap: 22 }}>
+      <section className="card card-pad col" style={{ gap: 12 }}>
+        <h2>Who plans each scene</h2>
+        <p className="muted" style={{ margin: 0 }}>Automatic tries these helpers in order. If one is asleep or does not answer, the next one takes over.</p>
+        <Field label="Try these helpers in this order">
+          <select value={(settings.director_order || ["claude-client", "claude-server", "local"]).join(",")} onChange={(e) => save({ director_order: e.target.value.split(",") })}>
+            <option value="claude-client,claude-server,local">This PC's Claude → server Claude → local AI</option>
+            <option value="claude-server,claude-client,local">Server Claude → this PC's Claude → local AI</option>
+            <option value="local,claude-client,claude-server">Local AI first</option>
+          </select>
+        </Field>
+        <Field label="How long to wait for another computer">
+          <select value={String(settings.director_wait_seconds ?? 120)} onChange={(e) => save({ director_wait_seconds: e.target.value === "wait" ? "wait" : Number(e.target.value) })}>
+            <option value="30">30 seconds</option><option value="120">2 minutes</option><option value="300">5 minutes</option><option value="wait">Wait for me</option>
+          </select>
+        </Field>
+        <div className="col" style={{ gap: 6 }}>{(directors.data?.directors || []).filter((d) => d.id !== "best").map((d) => <div className="row" key={d.id}><span className={`chip ${d.available ? "ok" : "warn"}`}>{d.available ? "Ready" : "Unavailable"}</span><strong>{d.label}</strong><span className="small muted">{d.note}</span></div>)}</div>
+        <span className="small muted">Claude today: {directors.data?.claude_usage_today.calls || 0} calls · {Math.round(directors.data?.claude_usage_today.seconds || 0)} seconds.</span>
+      </section>
       <AIAssistants />
-      <LocalAI />
-      <ComfySettings />
       </div>
+      <div id="local-ai"><LocalAI /></div>
+      <div id="pictures"><ComfySettings /></div>
       <div id="stock"><StockKeys /></div>
 
       <section id="claude" className="card card-pad col" style={{ gap: 12 }}>
         <div className="row">
-          <h2 className="grow">Claude connection (optional)</h2>
+          <h2 className="grow">Let Claude help plan scenes</h2>
           <span className={`chip ${mcp?.connected ? "ok" : "warn"}`}>
             {mcp?.connected ? <Check size={12} /> : null} {mcp?.connected ? `Connected · last used ${mcp.seconds_ago}s ago` : "Not connected yet"}
           </span>
@@ -152,13 +224,13 @@ export default function SettingsPage() {
             </div>
           </li>
           <li>Open Claude Code in this project folder (it also adds the <code>/vt-plan</code> command).</li>
-          <li>Press <strong>Plan with Claude</strong> in a video, then tell Claude Code: <code>{mcp?.say ?? "plan my pending videos"}</code></li>
+          <li>Press <strong>Plan with Claude</strong> in a video, then tell Claude: <code>{mcp?.say ?? "plan my pending videos"}</code></li>
         </ol>
         <span className="small muted">{pending} request{pending === 1 ? "" : "s"} waiting right now.</span>
       </section>
 
       <section id="codex" className="card card-pad col" style={{ gap: 12 }}>
-        <div className="row"><h2 className="grow">Codex connection</h2><span className={`chip ${mcp?.codex_connected ? "ok" : "warn"}`}>{mcp?.codex_connected ? `Connected · last used ${mcp.codex_seconds_ago}s ago` : "Waiting for a Codex tool call"}</span></div>
+        <div className="row"><h2 className="grow">Let Codex help make videos</h2><span className={`chip ${mcp?.codex_connected ? "ok" : "warn"}`}>{mcp?.codex_connected ? `Connected · last used ${mcp.codex_seconds_ago}s ago` : "Not used yet"}</span></div>
         <p className="muted" style={{ margin: 0 }}>Codex can read the transcript, direct every scene through the Video Script, inspect preview frames, revise the plan, and render through the same local MCP server.</p>
         <div className="row wrap"><pre className="code grow" tabIndex={0}>{mcp?.codex_add_command || "Loading…"}</pre><button className="btn sm" onClick={() => mcp && copyText(mcp.codex_add_command)}><Copy size={13} /> Copy</button></div>
         <button className="btn sm primary" onClick={() => post<{ note: string }>("/api/mcp/connect-codex").then(r => toast(r.note, "ok", 7000)).catch(e => toast(e.message, "err", 7000))}>Connect Codex on this computer</button>
@@ -167,7 +239,7 @@ export default function SettingsPage() {
 
       <section id="system" className="card card-pad col" style={{ gap: 8 }}>
         <div className="row">
-          <h2 className="grow">System check</h2>
+          <h2 className="grow">Is everything working?</h2>
           <button className="btn sm" onClick={() => doctor.refetch()}><RefreshCw size={13} /> Re-check</button>
         </div>
         {doctor.loading && <div className="row muted"><Spinner /> Checking…</div>}

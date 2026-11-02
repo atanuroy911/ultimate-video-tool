@@ -95,6 +95,8 @@ class _El(BaseModel):
     model_config = STRICT
     id: Optional[str] = None
     at_word: str = Field(description="id of the spoken word at which this element animates in")
+    until_word: Optional[str] = Field(default=None, description="id of the spoken word after which it leaves; over a picture it leaves by itself "
+                                                                "after its sentence (1.5 to 3 s) so the picture gets the frame back")
 
 
 class Title(_El):
@@ -657,7 +659,7 @@ class SafeBottom(BaseModel):
 
 
 class ThemeCaption(BaseModel):
-    style: Literal["box", "pill", "underline", "none", "pop", "word", "keyword"] = "box"     # pop: big outlined words, the spoken one lights up (short-form look); word: one huge word at a time; keyword: small line, the key word grows
+    style: Literal["box", "pill", "underline", "none", "pop", "word", "keyword", "paper"] = "box"     # pop: big outlined words, the spoken one lights up (short-form look); word: one huge word at a time; keyword: small line, the key word grows; paper: serif italic on the picture over a paper-coloured halo (watercolour, print looks)
     reveal: Literal["line", "words"] = "line"
     weight: int = 800
     size: int = 60
@@ -685,6 +687,7 @@ class Theme(BaseModel):
 
 
 class Options(BaseModel):
+    director: str = Field(default="best", max_length=80, description="Who directs this video: best, local, claude-server, or claude@<device>.")
     voice_direction: Literal["off", "auto"] = "auto"   # auto: the director adds delivery notes and sounds (sigh, laugh) for voices that can follow them (vt/voice_direction.py)
     look: Literal["classic", "reel"] = "classic"     # reel: one picture drawn for each stretch of speech, in one style (vt/reel/)
     reel_style: Literal["auto", "cartoon", "line-art", "comic", "photo"] = "auto"
@@ -758,6 +761,7 @@ class ProjectMeta(BaseModel):
     created_at: str = ""
     status: str = "draft"
     stages: dict[str, dict] = Field(default_factory=dict)
+    director: dict[str, Any] = Field(default_factory=dict)  # resolved director, requested choice, time, and any fallback reason
 
     @field_validator("id")
     @classmethod
@@ -831,6 +835,11 @@ def validate_scenes(sf: ScenesFile, tr: Transcript, beats: Beats, icons: set[str
                 errs.append(f"scene {sc.id}: element at_word '{el.at_word}' is not a transcript word")
             elif el.at_word not in wset:
                 errs.append(f"scene {sc.id}: at_word '{el.at_word}' is outside this scene's beats")
+            if el.until_word is not None:
+                if el.until_word not in words:
+                    errs.append(f"scene {sc.id}: element until_word '{el.until_word}' is not a transcript word")
+                elif el.at_word in words and words[el.until_word].start < words[el.at_word].start:
+                    errs.append(f"scene {sc.id}: until_word '{el.until_word}' comes before its at_word")
             if icons is not None:
                 names = [el.name] if el.type == "icon" else [el.icon] if el.type in ("icon_row", "keyword") else                     [it.icon for it in el.items] if el.type == "feature_grid" else []
                 for nm in names:

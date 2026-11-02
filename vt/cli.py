@@ -130,7 +130,7 @@ def _progress_runner(fn):
 @app.command()
 def new(title: str = typer.Argument(..., help="Video title"),
         audio: Path = typer.Option(..., "--audio", "-a", exists=True, dir_okay=False, help="Voice recording (wav/mp3/m4a/webm)"),
-        language: str = typer.Option("bn", "--lang", help="bn or en"),
+        language: str = typer.Option("en", "--lang", help="en or bn"),
         aspect: str = typer.Option("9:16", "--aspect", help="9:16, 1:1 or 16:9"),
         theme: str = typer.Option("paper", "--theme"),
         pace: str = typer.Option("normal", "--pace", help="calm | normal | fast"),
@@ -167,9 +167,9 @@ def script(title: str = typer.Argument(..., help="Video title"),
            text: Optional[str] = typer.Option(None, "--text", "-t", help="the script, as text"),
            file: Optional[Path] = typer.Option(None, "--file", "-f", exists=True, dir_okay=False, help="a UTF-8 text file with the script"),
            engine: str = typer.Option("edge", "--engine", help="edge (online, best Bangla) | mms (offline, non-commercial)"),
-           voice: str = typer.Option("bn-BD-NabanitaNeural", "--voice"),
+           voice: str = typer.Option("en-US-AndrewNeural", "--voice"),
            rate: float = typer.Option(1.0, "--speed", help="0.7 - 1.4"),
-           language: str = typer.Option("bn", "--lang"), aspect: str = typer.Option("9:16", "--aspect"),
+           language: str = typer.Option("en", "--lang", help="en or bn; the script's letters decide in the end"), aspect: str = typer.Option("9:16", "--aspect"),
            theme: str = typer.Option("paper", "--theme"), pace: str = typer.Option("normal", "--pace"),
            music: Optional[str] = typer.Option(None, "--music")) -> None:
     """Create a project from typed text: the script is spoken by a voice, then everything else is automatic."""
@@ -291,6 +291,8 @@ def server(host: str = typer.Option("0.0.0.0", help="0.0.0.0 = other computers m
     """
     from .engines import placement
 
+    if comfy == "auto" and not comfy_url:
+        comfy_url = _first_run_comfy()
     console.print("Engines:")
     placed = placement.place({"ollama": ollama, "comfy": comfy, "voicestudio": voicestudio},
                              {"ollama": ollama_url, "comfy": comfy_url, "voicestudio": voicestudio_url}, console.print)
@@ -550,6 +552,91 @@ def engine_status() -> None:
     for n, v in st["services"].items():
         console.print(f"{'[green]up[/green]  ' if v['up'] else '[red]down[/red]'}  {n}  {v['url']}")
     console.print(f"data: {st['data']}")
+
+
+@engine_app.command("find")
+def engine_find(host: str = typer.Argument("127.0.0.1", help="this computer, or another one's address (192.168.1.20, or host:port)"),
+                deep: bool = typer.Option(False, "--deep", help="try every port from 1024, not only the usual ones (about half a minute)")) -> None:
+    """Every ComfyUI and Ollama at an address: the card each runs on and the picture set that fits it. Touches nothing."""
+    from .engines import discover
+
+    found = discover.scan(host, deep=deep)
+    console.print(f"[bold]{found['host']}[/bold]  {len(found['instances'])} found ({found['ports_tried']} ports tried)")
+    for i, inst in enumerate(found["instances"], 1):
+        if inst["engine"] == "comfy":
+            f = inst["fit"]
+            pub = f"  [yellow]published at {inst['public']}[/yellow]" if inst.get("public") else ""
+            console.print(f"  {i}. ComfyUI {inst['version']}  {inst['url']}  {inst['gpu'] or 'no card'} {inst['size_gb']} GB, RAM {inst['ram_gb']:.0f} GB{pub}")
+            console.print(f"     pictures: {f['label'] or 'none'}  [dim]{f['why']}[/dim]")
+            for w in f["warnings"]:
+                console.print(f"     [yellow]{w}[/yellow]")
+        else:
+            console.print(f"  {i}. Ollama {inst['version']}  {inst['url']}  models: {', '.join(inst['models'][:6]) or 'none yet'}")
+    if not any(i["engine"] == "comfy" for i in found["instances"]):
+        console.print("No ComfyUI found. `vt engine setup --engines comfy` installs our own (its own folder and port).")
+
+
+@engine_app.command("use")
+def engine_use(url: str = typer.Argument(..., help="the ComfyUI to make pictures with, e.g. http://127.0.0.1:8188"),
+               recipe: str = typer.Option("", help="a picture set (zimage-full, zimage-fp8, zimage-fp8-small-text, zimage-nvfp4); default: the one that fits its card"),
+               yes: bool = typer.Option(False, "--yes", help="download without asking")) -> None:
+    """Make that ComfyUI ready: download the picture set that fits its card into its own model folders, check the workflow, and use it."""
+    from .engines import prepare
+
+    try:
+        p = prepare.plan(url, recipe)
+    except RuntimeError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1)
+    console.print(f"{p['url']}  {p['instance']['gpu']} {p['instance']['vram_gb']:.0f} GB  ->  [bold]{p['label']}[/bold]")
+    for x in p["files"]:
+        console.print(f"  {'have' if x['have'] else 'get '}  {x['file']:42} {x['gb']:5.1f} GB  [dim]{x['to'] if not x['have'] else ''}[/dim]")
+    for m in p["problems"]:
+        console.print(f"[red]{m}[/red]")
+    if p["problems"]:
+        raise typer.Exit(1)
+    if p["download_gb"] and not yes and not typer.confirm(f"Download {p['download_gb']} GB?", default=True):
+        raise typer.Exit(0)
+    last = [-1]
+
+    def say(f: float, m: str) -> None:
+        if int(f * 20) != last[0]:
+            last[0] = int(f * 20)
+            console.print(f"  {int(f * 100):3d}%  {m}")
+    try:
+        prepare.prepare(url, recipe, say)
+    except RuntimeError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(1)
+    console.print(f"[green]Ready.[/green] Pictures are drawn on {p['url']} with {p['label']}.")
+
+
+def _first_run_comfy() -> str:
+    """The first `vt server` on a computer, asked in the terminal: use a ComfyUI already running here (which one), or install our own. Returns its URL, or ""."""
+    from . import paths
+    from .engines import discover, prepare
+    from .util import read_json
+
+    if (read_json(paths.SETTINGS, {}) or {}).get("picture_recipe") or not sys.stdin.isatty():
+        return ""
+    comfy = [i for i in discover.scan("127.0.0.1")["instances"] if i["engine"] == "comfy"]
+    if not comfy:
+        console.print("No ComfyUI runs on this computer. Install Video Tool's own (its own folder and port): `vt engine setup --engines comfy`, or on the Engines page.")
+        return ""
+    console.print("ComfyUI already runs here:")
+    for n, inst in enumerate(comfy, 1):
+        pub = f", published at {inst['public']}" if inst.get("public") else ""
+        console.print(f"  {n}. {inst['url']}  {inst['gpu']} {inst['size_gb']} GB{pub}  ->  {inst['fit']['label'] or 'no picture set fits'}")
+    pick = typer.prompt(f"Use which one for pictures? (1-{len(comfy)}, or 0 to install our own instead)", default="1")
+    if not pick.isdigit() or not 1 <= int(pick) <= len(comfy):
+        return ""
+    url = comfy[int(pick) - 1]["url"]
+    plan = prepare.plan(url)
+    if plan["download_gb"] and not typer.confirm(f"It needs {plan['download_gb']} GB of models, put in its own model folders. Download now?", default=True):
+        prepare.use(url, plan["recipe"])
+        return url
+    prepare.prepare(url, progress=lambda f, m: console.print(f"  {int(f * 100):3d}%  {m}") if int(f * 100) % 10 == 0 else None)
+    return url
 
 
 @engine_app.command("service")

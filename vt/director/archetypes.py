@@ -121,7 +121,7 @@ def _label(n: dict, k: int = 20) -> str:
 # ------------------------------------------------------------------ builders
 def b_title_card(g: Group, c: Ctx):
     topic = (c.brief or {}).get("topic") or ""
-    if len(topic.split()) > 5 or re.match(r"(?i)\s*(the|this) (video|clip|text)|\s*about", topic):
+    if len(topic.split()) > 5 or re.match(r"(?i)\s*(the|this) (video|clip|text)\b|\s*about\b", topic):
         topic = ""                                                   # "The video describes a small power bank" is a note about the video, not a title
     kw = _keyword(g.words, _topics(c))
     from .phrases import tidy

@@ -160,10 +160,14 @@ class Pipeline:
             # the words are already known (typed) and timed by the voice stage: no recognition needed
             from . import tts
 
-            h = file_hash(p.script_path, p.asr_wav, extra="script-transcript")
+            h = file_hash(p.script_path, p.asr_wav, extra="script-transcript-refit")
             if self._fresh("asr", h, force, p.raw_transcript_path):
                 return
             raw = tts.raw_transcript(script, meta.language)
+            from .stages.align import fit_script_words                   # the voice's word times drift: put every typed word back on the speech
+            thr = (read_json(p.dir / "cuts.silence.json") or {}).get("threshold_db")
+            silences, _dur, _, _ = A.find_silences(p.asr_wav, 0.2, thr, return_db=True)
+            raw["words"], raw["refit"] = fit_script_words(raw["words"], silences)
             write_json(p.raw_transcript_path, raw)
             p.mark_stage("asr", h, words=len(raw["words"]), model=raw["model"], dropped=0)
             return
@@ -413,13 +417,51 @@ class Pipeline:
         when the setting says so (`plan_review`, per video `options.plan_review`); the rest are approved at once and kept, so 'How this was made' has them either way."""
         from .direction import plan_doc as PD
 
+        from . import directors
+
         p = self.p
+        meta = p.meta()
         plan = PD.load(p.dir)
         ids = [b.id for b in p.beats().beats]
         if plan is None or not PD.matches(plan, ids) or plan.state in ("declined", "done"):
             if plan is not None and plan.state == "done" and not force and PD.matches(plan, ids):
                 return plan
-            plan = PD.build(p)
+            requested = meta.options.director or "best"
+            fallback_reason = ""
+            plan = None
+            available = {d["id"]: d for d in directors.listing()["directors"]}
+            for who in directors.candidates(requested):
+                status = available.get(who, {"available": False})
+                if who.startswith("claude@") and status.get("available"):
+                    plan = PD.build(p, use_ai=False)
+                    PD.save(p.dir, plan)
+                    self._say("plan", 0.1, f"Waiting for {status.get('label', 'Claude on this PC')}")
+                    result = directors.broker.request(who.split("@", 1)[1], p.id, directors.client_prompt(p.id),
+                                                      directors.settings()["wait_seconds"])
+                    plan = PD.load(p.dir) or plan
+                    if result.get("ok") and plan.state in ("approved", "running"):
+                        directors.record(p, who, requested=requested, fallback_reason=fallback_reason)
+                        break
+                    fallback_reason = result.get("reason") or result.get("error") or "The client director did not complete the plan."
+                    self._say("plan", 0.12, f"{fallback_reason} Falling back.")
+                    plan = None
+                    (p.dir / PD.PLAN).unlink(missing_ok=True)
+                    (p.dir / "reel_reading.json").unlink(missing_ok=True)
+                    continue
+                if who == "claude-server" and status.get("available"):
+                    from .ai.providers import ClaudeCLIProvider
+
+                    plan = PD.build(p, provider=ClaudeCLIProvider())
+                    directors.record(p, who, requested=requested, fallback_reason=fallback_reason)
+                    break
+                if who == "local" and status.get("available"):
+                    plan = PD.build(p)
+                    directors.record(p, who, requested=requested, fallback_reason=fallback_reason)
+                    break
+                fallback_reason = fallback_reason or str(status.get("note") or f"{who} is unavailable.")
+            if plan is None:  # the rule director is the final, engine-free safety net
+                plan = PD.build(p, use_ai=False)
+                directors.record(p, "rules", requested=requested, fallback_reason=fallback_reason)
         if plan.state == "draft":
             setting = str((read_json(paths.SETTINGS, {}) or {}).get("plan_review", "when_expensive"))
             if PD.review_wanted(plan, setting, p.meta().options.plan_review):

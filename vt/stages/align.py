@@ -70,3 +70,34 @@ def snap_words(words: list[dict], silences: list[tuple[float, float]], duration:
             out[i - 1]["end"] = round(max(out[i - 1]["start"] + MIN_WORD, min(out[i - 1]["end"], mid)), 3)
             out[i]["start"] = round(max(out[i]["start"], out[i - 1]["end"]), 3)
     return out, dropped
+
+
+def fit_script_words(words: list[dict], silences: list[tuple[float, float]], min_len: float = 0.12) -> tuple[list[dict], int]:
+    """Typed words timed by the voice (TTS word boundaries) onto the real audio. The words are certain, so none is dropped: a word whose time
+    falls inside a pause (the voice's boundaries drift; 'in 2007 and 2011.' put '2011.' into the pause after it and the silence cut removed it
+    from the captions, 2026-11-01) moves to the nearer edge of that pause, squeezed against the speech. Returns (words, how many moved)."""
+    out = [dict(w) for w in words]
+    moved = 0
+    for i, w in enumerate(out):
+        s, e = float(w["start"]), float(w["end"])
+        mid = (s + e) / 2
+        pause = next(((a, b) for a, b in silences if a <= mid <= b), None)
+        if pause is None:
+            continue
+        a, b = pause
+        length = max(min_len, min(e - s, 0.5))
+        prev_end = float(out[i - 1]["end"]) if i else 0.0
+        nxt_start = float(out[i + 1]["start"]) if i + 1 < len(out) else None
+        if mid - a <= b - mid or (nxt_start is not None and nxt_start < b):       # nearer the speech before it: it was said at the end of that speech
+            e = a
+            s = max(prev_end, a - length)
+            if e - s < min_len:                                                   # no room: share the previous word's time
+                s = max(float(out[i - 1]["start"]) + min_len, e - length) if i else max(0.0, e - length)
+                if i:
+                    out[i - 1]["end"] = round(min(float(out[i - 1]["end"]), s), 3)
+        else:                                                                     # nearer the speech after it
+            s = b
+            e = b + length if nxt_start is None else min(b + length, max(b + 0.05, nxt_start))
+        w["start"], w["end"] = round(s, 3), round(e, 3)
+        moved += 1
+    return out, moved

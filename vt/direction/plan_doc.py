@@ -57,6 +57,7 @@ class Moment(BaseModel):
     medium: Literal["made", "repeat", "card"] = "made"
     alternatives: list[Alt] = Field(default_factory=list)
     draw: str = ""                                # what the picture shows, in plain words: the person edits this
+    place: str = ""                               # one of Idea.places: where it happens; its description goes into the picture prompt
     why: str = ""                                 # the director's one line
     card: str = ""                                # a chapter label ("STEP 2") that sits on the picture
     turn: bool = False
@@ -80,6 +81,8 @@ class Idea(BaseModel):
     style: str = "cartoon"
     style_why: str = ""
     character: str = ""
+    places: dict[str, str] = Field(default_factory=dict)       # name -> how the place looks and how big its things are: every picture is painted alone
+    cast: dict[str, str] = Field(default_factory=dict)         # name -> how the person looks; a prompt gets the look of each name it mentions
     pace: Literal["punchy", "balanced", "calm"] = "balanced"
     hook: str = ""
     hook_strength: float = 0.0
@@ -188,10 +191,12 @@ def _moment_from_slot(slot, words_by_id: dict, style: str, character: str, still
     alts = [Alt(medium="repeat", why="Keeps the picture before it, moved a little: no drawing time."),
             Alt(medium="card", why=f"Shows the key word on a plain card: {emph or 'the first words'}.")]
     return Moment(id=slot.id, start=round(slot.start, 2), end=round(slot.end, 2), sentence_ids=[b.id for b in slot.beats], text=" ".join(b.text for b in slot.beats),
-                  words=refs, beat=beat, medium="made", alternatives=alts, draw=draw, why=why, card=slot.card, turn=slot.turn)
+                  words=refs, beat=beat, medium="made", alternatives=alts, draw=draw, why=why, card=slot.card, turn=slot.turn,
+                  place=next((getattr(n, "place", "") for n in slot.notes if n and n.draw == draw and getattr(n, "place", "")), "")
+                  or next((getattr(n, "place", "") for n in slot.notes if n and getattr(n, "place", "")), ""))      # the director's place for this picture
 
 
-def build(project, *, use_ai: bool = True, pace: str = "balanced") -> PlanDoc:
+def build(project, *, use_ai: bool = True, pace: str = "balanced", provider=None) -> PlanDoc:
     """The draft plan for a reel: read the script, one look, the moments. No picture is drawn and no GPU is touched. The reading is cached by the caller (reel_reading.json)."""
     from ..reel.plan import READING
     from ..reel.reading import Reading, read_script
@@ -202,7 +207,7 @@ def build(project, *, use_ai: bool = True, pace: str = "balanced") -> PlanDoc:
     if not beats:
         raise PlanError("there are no sentences to plan yet")
     reading_raw = read_json(project.dir / READING, None)
-    reading = Reading.model_validate(reading_raw) if reading_raw else read_script(beats, use_ai=use_ai)
+    reading = Reading.model_validate(reading_raw) if reading_raw else read_script(beats, use_ai=use_ai, provider=provider)
     style = meta.options.reel_style if meta.options.reel_style in STYLES else reading.style if reading.style in STYLES else "cartoon"
     reading.character = reading.character.strip() or FIGURE.get(style, "")
     write_json(project.dir / READING, reading.model_dump())
@@ -211,7 +216,7 @@ def build(project, *, use_ai: bool = True, pace: str = "balanced") -> PlanDoc:
     moments = [_moment_from_slot(s, words, style, reading.character) for s in slots]
     plan = PlanDoc(
         source=reading.source, created_at=now_iso(), still_seconds=measured_still_seconds(project),
-        idea=Idea(goal=_goal(reading, beats), kind=reading.kind, tone=_tone(reading.kind), style=style, style_why=reading.style_why, character=reading.character, pace=pace,
+        idea=Idea(goal=_goal(reading, beats), kind=reading.kind, tone=_tone(reading.kind), style=style, style_why=reading.style_why, character=reading.character, places=dict(reading.places), cast=dict(reading.cast), pace=pace,
                   hook=reading.hook.text, hook_strength=reading.hook.strength),
         moments=moments, notes=list(reading.warnings))
     return save(project.dir, plan)
@@ -310,7 +315,8 @@ def _common(t: str) -> bool:
 
 
 # ----------------------------------------------------------------------------- editing
-OPS = ("set_medium", "set_beat", "set_prompt", "choose_alternative", "lock", "unlock", "merge", "split", "set_style", "set_goal", "set_pace", "set_budget", "set_idea")
+OPS = ("set_medium", "set_beat", "set_prompt", "choose_alternative", "lock", "unlock", "merge", "split", "set_style", "set_goal", "set_pace", "set_budget", "set_idea",
+       "set_place", "set_moment_place", "set_cast")
 
 
 def apply_edit(plan: PlanDoc, op: dict[str, Any], project=None) -> list[str]:
@@ -425,6 +431,44 @@ def apply_edit(plan: PlanDoc, op: dict[str, Any], project=None) -> list[str]:
         notes.append(f"The look is now {STYLES[st]['label'].lower()}." + (f" {n} picture{'s' if n != 1 else ''} will be drawn again." if n else ""))
     elif kind == "set_goal":
         plan.idea.goal = str(op.get("text", "")).strip()[:300]
+    elif kind == "set_place":                     # define or change a place; every moment in it is drawn again
+        name, text = str(op.get("name", "")).strip()[:40], str(op.get("text", "")).strip()
+        if not name:
+            raise PlanError("Give the place a short name.")
+        if len(text) > 240:
+            raise PlanError("Describe the place in under 240 characters.")
+        if text:
+            plan.idea.places[name] = text
+        else:
+            plan.idea.places.pop(name, None)
+        for m in plan.moments:
+            if m.place == name:
+                if not text:
+                    m.place = ""
+                if not m.locked:
+                    m.media, m.status = "", "planned"
+        notes.append(f"Place “{name}” {'set' if text else 'removed'}.")
+    elif kind == "set_cast":                      # a person's look; every moment that names them is drawn again
+        name, text = str(op.get("name", "")).strip()[:30], str(op.get("text", "")).strip()
+        if not name:
+            raise PlanError("Give the person a name.")
+        if len(text) > 160:
+            raise PlanError("Describe the person in under 160 characters.")
+        if text:
+            plan.idea.cast[name] = text
+        else:
+            plan.idea.cast.pop(name, None)
+        for m in plan.moments:
+            if not m.locked and re.search(rf"\b{re.escape(name)}\b", m.draw, re.I):
+                m.media, m.status = "", "planned"
+        notes.append(f"{name} {'looks like this now' if text else 'has no description now'}.")
+    elif kind == "set_moment_place":
+        m = free(plan.moment(str(op.get("moment"))))
+        name = str(op.get("place", "")).strip()
+        if name and name not in plan.idea.places:
+            raise PlanError(f"There is no place “{name}”. Add it first (set_place).")
+        m.place, m.media, m.status = name, "", "planned"
+        notes.append(f"Moment {m.id[1:]} happens in {name or 'no named place'}.")
     elif kind == "set_idea":
         field = str(op.get("field"))
         if field not in ("audience", "tone", "character"):

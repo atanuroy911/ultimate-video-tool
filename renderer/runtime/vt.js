@@ -826,6 +826,12 @@
         } else inst.enter(tl, at, M, ctxBase, sc);
         if (e.fx && window.VTX.motionEnter && !(si === 0 && ji === 0 && at <= sc.start + 0.8)) window.VTX.motionEnter(e.fx, tl, w, at, sc.id + ":" + ji);   // its motion recipe, on top of its own entrance
         if (inst.hideInit) inst.hideInit.forEach((x) => x && gsap.set(x, { opacity: 0 }));
+        if (typeof e.until === "number" && e.until < sc.end - 0.3) {
+          // its line is over: it leaves and the picture behind gets the frame back (pacing.dwell; it used to stay until the scene ended)
+          const out = Math.max(at + 0.6, e.until);
+          tl.to(w, { opacity: 0, scale: 0.96, duration: 0.28, ease: "power2.in" }, out);
+          tl.set(w, { visibility: "hidden" }, out + 0.29);
+        }
       });
       if (sc.moves && window.VTX.motionScene) window.VTX.motionScene(sc.moves, tl, el, sc, W, H);         // opening, outro, camera and rhythm moves
     });

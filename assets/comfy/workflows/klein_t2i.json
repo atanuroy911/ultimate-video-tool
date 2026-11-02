@@ -1,0 +1,27 @@
+{
+  "id": "klein_t2i",
+  "label": "FLUX.2 Klein 4B (pictures)",
+  "kind": "image",
+  "version": 1,
+  "status": "verified",
+  "notes": "Text to picture, 4 steps, FLUX.2 Klein 4B distilled (Apache-2.0), from ComfyUI's own template image_flux2_klein_text_to_image. Verified on an RTX 3060 12 GB (2026-11-01): 9 s a picture warm at 720x1280, 40-55 s for the first (loads the model from an SSD). Followed place, scale and close-up directions best of Z-Image, Klein and Qwen-Image 2.1 on The Last Lamp's hardest shots. Loader node ids 1/2/3 match zimage_t2i, so picture sets (vt/engines/fit.py) swap files the same way.",
+  "frame_rule": {"fps": 1, "step": 1, "offset": 0},
+  "sizes": {"9:16": [720, 1280], "16:9": [1280, 720], "1:1": [1024, 1024]},
+  "manifest": {"prompt": [["4", "text"]], "width": [["8", "width"], ["10", "width"]], "height": [["8", "height"], ["10", "height"]], "seed": [["9", "noise_seed"]], "prefix": [["13", "filename_prefix"]]},
+  "output": "13",
+  "graph": {
+    "1": {"class_type": "UNETLoader", "inputs": {"unet_name": "flux-2-klein-4b.safetensors", "weight_dtype": "default"}},
+    "2": {"class_type": "CLIPLoader", "inputs": {"clip_name": "qwen_3_4b_fp8_mixed.safetensors", "type": "flux2", "device": "default"}},
+    "3": {"class_type": "VAELoader", "inputs": {"vae_name": "flux2-vae.safetensors"}},
+    "4": {"class_type": "CLIPTextEncode", "inputs": {"text": "a picture", "clip": ["2", 0]}},
+    "5": {"class_type": "ConditioningZeroOut", "inputs": {"conditioning": ["4", 0]}},
+    "6": {"class_type": "CFGGuider", "inputs": {"model": ["1", 0], "positive": ["4", 0], "negative": ["5", 0], "cfg": 1.0}},
+    "7": {"class_type": "KSamplerSelect", "inputs": {"sampler_name": "euler"}},
+    "8": {"class_type": "Flux2Scheduler", "inputs": {"steps": 4, "width": 720, "height": 1280}},
+    "9": {"class_type": "RandomNoise", "inputs": {"noise_seed": 1}},
+    "10": {"class_type": "EmptyFlux2LatentImage", "inputs": {"width": 720, "height": 1280, "batch_size": 1}},
+    "11": {"class_type": "SamplerCustomAdvanced", "inputs": {"noise": ["9", 0], "guider": ["6", 0], "sampler": ["7", 0], "sigmas": ["8", 0], "latent_image": ["10", 0]}},
+    "12": {"class_type": "VAEDecode", "inputs": {"samples": ["11", 0], "vae": ["3", 0]}},
+    "13": {"class_type": "SaveImage", "inputs": {"images": ["12", 0], "filename_prefix": "video_tool/still"}}
+  }
+}

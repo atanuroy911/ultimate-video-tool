@@ -78,6 +78,59 @@ def fetch(url: str, dest: Path, *, size: int, digest: str = "", progress: Callab
         progress(1.0)
         return dest
     dest.parent.mkdir(parents=True, exist_ok=True)
+    with _download_lock(dest):
+        return _fetch(url, dest, size=size, digest=digest, progress=progress, opener=opener)
+
+
+def _alive(pid: int) -> bool:
+    if pid <= 0:
+        return False
+    if os.name == "nt":
+        out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"], capture_output=True, text=True, creationflags=CREATE_NO_WINDOW).stdout
+        return str(pid) in out
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+
+
+class _download_lock:
+    """One download of a file at a time: two (the Studio and the terminal, a double click) appending to one .part corrupt it, the checksum
+    fails and the file is lost (seen on the owner's server, 2026-11-01). A lock left by a process that is gone is taken over."""
+
+    def __init__(self, dest: Path):
+        self.path = dest.with_suffix(dest.suffix + ".lock")
+
+    def __enter__(self):
+        for _ in range(2):
+            try:
+                fd = os.open(self.path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                os.write(fd, str(os.getpid()).encode())
+                os.close(fd)
+                return self
+            except FileExistsError:
+                try:
+                    pid = int(self.path.read_text().strip() or 0)
+                except (OSError, ValueError):
+                    pid = 0
+                if _alive(pid):
+                    raise RuntimeError(f"{self.path.stem} is already being downloaded (process {pid}); wait for it to finish")
+                self.path.unlink(missing_ok=True)
+        raise RuntimeError(f"could not lock {self.path}")
+
+    def __exit__(self, *exc):
+        self.path.unlink(missing_ok=True)
+
+
+def _fetch(url: str, dest: Path, *, size: int, digest: str, progress: Callable[[float], None], opener: Optional[Callable]) -> Path:
+    import httpx
+
+    if dest.exists() and dest.stat().st_size == size and (not digest or sha256(dest) == digest):
+        progress(1.0)
+        return dest
     part = dest.with_suffix(dest.suffix + ".part")
     have = part.stat().st_size if part.exists() else 0
     headers = {"Range": f"bytes={have}-"} if have else {}

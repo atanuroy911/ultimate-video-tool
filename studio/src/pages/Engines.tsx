@@ -6,6 +6,7 @@ import { useFetch } from "../hooks";
 import { toast } from "../store";
 import { Seg, Spinner } from "../ui";
 import SetupWizard from "../components/SetupWizard";
+import FindEngines from "../components/FindEngines";
 
 /* Settings → Engines: the programs that power the videos (language AI, pictures and clips, voices). Each one runs on this computer, on another computer, or not at all.
    Plain words, no ports; the address and key live behind a Step 1-2-3 sheet. */
@@ -65,6 +66,7 @@ export default function Engines() {
           </div>
         ))}
       </div>
+      <FindEngines onUsed={() => list.refetch()} />
       <ShareCard />
       {wizard && <SetupWizard onClose={() => { setWizard(false); list.refetch(); }} />}
       {editing && <EngineSheet card={editing} onClose={() => { setEditing(null); list.refetch(); }} />}

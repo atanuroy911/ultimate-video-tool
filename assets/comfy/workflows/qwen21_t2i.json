@@ -1,0 +1,27 @@
+{
+  "id": "qwen21_t2i",
+  "label": "Qwen-Image 2.1 Turbo (pictures)",
+  "kind": "image",
+  "version": 1,
+  "status": "verified",
+  "notes": "Text to picture, 8 steps, Qwen-Image 2.1 Turbo int8 with the w4a8 Qwen3-VL text reader, from ComfyUI's template image_qwen_image_2_1_turbo_t2i (prompt rewriter off). Verified on an RTX 3060 12 GB (2026-11-01): 42 s a picture warm at 720x1280. Knows real objects best (a lighthouse's beehive lens) but follows unusual directions less than FLUX.2 Klein. Loader node ids 1/2/3 match zimage_t2i.",
+  "frame_rule": {"fps": 1, "step": 1, "offset": 0},
+  "sizes": {"9:16": [720, 1280], "16:9": [1280, 720], "1:1": [1024, 1024]},
+  "manifest": {"prompt": [["4", "prompt"]], "width": [["10", "width"]], "height": [["10", "height"]], "seed": [["9", "noise_seed"]], "prefix": [["13", "filename_prefix"]]},
+  "output": "13",
+  "graph": {
+    "1": {"class_type": "UNETLoader", "inputs": {"unet_name": "qwen_image_2.1_turbo_int8_convrot.safetensors", "weight_dtype": "default"}},
+    "2": {"class_type": "CLIPLoader", "inputs": {"clip_name": "qwen3vl_8b_w4a8.safetensors", "type": "qwen_image", "device": "default"}},
+    "3": {"class_type": "VAELoader", "inputs": {"vae_name": "qwen_image_2.1_vae_bf16.safetensors"}},
+    "4": {"class_type": "TextEncodeQwenImage21", "inputs": {"clip": ["2", 0], "prompt": "a picture", "negative_prompt": "", "resolution": 1024}},
+    "5": {"class_type": "QwenImage21Cache", "inputs": {"model": ["1", 0], "device": "auto", "dtype": "default"}},
+    "6": {"class_type": "CFGGuider", "inputs": {"model": ["5", 0], "positive": ["4", 0], "negative": ["4", 1], "cfg": 1.0}},
+    "7": {"class_type": "KSamplerSelect", "inputs": {"sampler_name": "euler"}},
+    "8": {"class_type": "ManualSigmas", "inputs": {"sigmas": "1.0, 0.978453, 0.95418, 0.926626, 0.89508, 0.845148, 0.704534, 0.414568, 0"}},
+    "9": {"class_type": "RandomNoise", "inputs": {"noise_seed": 1}},
+    "10": {"class_type": "EmptyLatentImage", "inputs": {"width": 720, "height": 1280, "batch_size": 1}},
+    "11": {"class_type": "SamplerCustomAdvanced", "inputs": {"noise": ["9", 0], "guider": ["6", 0], "sampler": ["7", 0], "sigmas": ["8", 0], "latent_image": ["10", 0]}},
+    "12": {"class_type": "VAEDecode", "inputs": {"samples": ["11", 0], "vae": ["3", 0]}},
+    "13": {"class_type": "SaveImage", "inputs": {"images": ["12", 0], "filename_prefix": "video_tool/still"}}
+  }
+}

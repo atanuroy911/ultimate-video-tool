@@ -14,8 +14,34 @@ from __future__ import annotations
 import re
 from typing import Any, Optional
 
+from .util import read_json
+
 # area, id, rule, why, measured (a check below) or not (a rule for the director's judgement), source
 RULES: list[dict[str, Any]] = [
+    # the script: how the words are written (owner's reference script, 2026-11-01: "the entire script should be easy")
+    {"area": "script", "id": "script.title_first", "measured": True, "source": "owner's reference script, 2026-11-01",
+     "rule": "The video opens by saying its title out loud, as a question or a promise ('Why do billionaires pay less tax than you?').",
+     "why": "The first spoken line is the hook and the title at once: the viewer knows in two seconds what they will get."},
+    {"area": "script", "id": "script.easy", "measured": True, "source": "owner, 2026-11-01: 'easy as fuck'",
+     "rule": "Easy words in short sentences: about 12 words a sentence on average, none over 20, everyday words; every term is said in "
+             "plain words the moment it appears ('the price the tax counts from resets', not 'a step-up in basis').",
+     "why": "A viewer who has to decode a sentence scrolls; a short video has no time to re-read."},
+    {"area": "script", "id": "script.questions", "measured": True, "source": "owner's reference script, 2026-11-01",
+     "rule": "A question chain: each part ends on the question the viewer is now asking ('But then how does he buy a mansion?') and the next "
+             "part answers it; at least one question every 40 s.",
+     "why": "An open question is the reason to keep watching; answering it opens the next one."},
+    {"area": "script", "id": "script.characters", "measured": False, "source": "owner's reference script, 2026-11-01",
+     "rule": "Ideas happen to people: one everyday person the viewer is (Jack, a salary) and one contrast (Mr. Rich, shares), with names, "
+             "so every idea becomes something that happens to them. Give them a look once (plan cast) so every picture shows the same two.",
+     "why": "People remember stories about people; an abstract rule is forgotten."},
+    {"area": "script", "id": "script.toy_numbers", "measured": False, "source": "owner's reference script, 2026-11-01",
+     "rule": "Show the mechanism with a toy example in round numbers (one share, 100 dollars, then 200), then the real facts, which are only "
+             "the ones given or sourced; never invent a figure.",
+     "why": "Round numbers can be followed by ear; the real figures then land as proof."},
+    {"area": "script", "id": "script.takeaway", "measured": False, "source": "owner's reference script, 2026-11-01",
+     "rule": "Each part ends on one short takeaway line; that line is the one put on screen as a full-frame card (it leaves after its line), "
+             "and the video ends on the biggest question, not a summary.",
+     "why": "The takeaway is what gets screenshotted and remembered; a closing question invites comments and the next video."},
     # the hook: the first three seconds decide whether the rest is seen
     {"area": "hook", "id": "hook.frame0", "measured": True, "source": "reels; faceless-shorts make-short; retention-pass",
      "rule": "Frame 0 is fully composed and already shows the subject: something meaningful lands by 0.5 s. No fade from black, no logo, no intro.",
@@ -48,6 +74,16 @@ RULES: list[dict[str, Any]] = [
      "rule": "Every picture is the literal object in the line ('country' gets a map), never a metaphor; a picture whose meaning is unsure is "
              "replaced by the spoken word in big type.",
      "why": "A wrong-sense picture (a movie camera for 'screen') reads as an error."},
+    {"area": "sync", "id": "picture.place", "measured": True, "source": "owner review of The Last Lamp, 2026-11-01",
+     "rule": "Each picture is painted alone, by a model that never reads the other shots: every shot stands on its own. Give recurring places a "
+             "description once (plan.edit set_place) and each moment its place (set_moment_place). Every drawn shot says where it happens (inside the lantern room, on the stairs, on the shore) and, when a person is beside something "
+             "big, how big it is next to them ('the lens, taller than she is'; 'the lighthouse far behind her').",
+     "why": "'She polishes the glass of the lighthouse lamp' with no place drew a girl wiping a lighthouse the size of a toy: absurd scale reads as an error."},
+    {"area": "sync", "id": "picture.drawable", "measured": True, "source": "model bench on The Last Lamp (Z-Image, FLUX.2 Klein), 2026-11-01",
+     "rule": "Write what any picture model can draw: only what is visible, never what is absent ('the glass room at the top is pitch black', not 'the "
+             "lamp is not lit'); things as photographs usually show them, and for a rare pose or state a close-up of the detail that tells it ('her hand "
+             "turns a bicycle pedal fast, the wheel a blur above it'); one subject, one action, plain concrete words, no metaphors.",
+     "why": "Every model tried painted a lit lamp for 'unlit' and an upright bicycle for 'upside down'; a close-up of the telling detail is drawn right by all of them."},
     # pacing
     {"area": "pacing", "id": "pacing.change", "measured": True, "source": "reels (a picture every 2.3 s); i-hate-editing rules/motion.md",
      "rule": "Something new appears at least every 3 s, inside a scene as well as between scenes; about one picture per 7 spoken words.",
@@ -56,8 +92,10 @@ RULES: list[dict[str, Any]] = [
      "rule": "Never reveal two independent things at the same moment: one thing, a short pause (at least 0.35 s), then the next.",
      "why": "The eye cannot track both, so it tracks neither."},
     {"area": "pacing", "id": "pacing.dwell", "measured": False, "source": "i-hate-editing rules/motion.md",
-     "rule": "Everything placed on screen stays at least 1.5 s and at most 3 s as the main thing, except the final card.",
-     "why": "Under 1.5 s is a flicker nobody reads; over 3 s is a hold."},
+     "rule": "Everything placed on screen stays at least 1.5 s and at most 3 s as the main thing, except the final card. Text and cards over a "
+             "picture leave after their sentence and a full-frame card in a video with pictures hands the frame back to a picture (the composer "
+             "does both); give an element `until_word` to choose its exit word yourself.",
+     "why": "Under 1.5 s is a flicker nobody reads; over 3 s is a hold. A card that never left hid the pictures for the rest of the scene (owner, 2026-11-01)."},
     {"area": "pacing", "id": "pacing.variety", "measured": True, "source": "i-hate-editing rules/motion.md",
      "rule": "Vary the form: never the same scene layout more than 3 times in a row (statement, list, full-frame number, picture, chart...).",
      "why": "Repeating one layout reads as a template even when the words differ."},
@@ -202,6 +240,110 @@ def _forms(v: float) -> set[float]:
 
 
 # ----------------------------------------------------------------------------- the check
+PLACE = re.compile(r"\b(next to|in|inside|on|at|outside|under|beneath|beside|behind|near|across|through|along|atop|by|from|into|onto|over|against|down|up)\s+"
+                   r"(?:the|a|an|her|his|their|its|this|that)?\s*(?:\w+\s+){0,2}?(\w+)", re.I)
+BODY = {"face", "faces", "hand", "hands", "cheek", "cheeks", "head", "eyes", "eye", "shoulder", "shoulders", "lap", "arm", "arms", "back", "chest",
+        "fingers", "palm", "palms", "lips", "hair", "knees", "feet", "foot", "side"}
+BIG = re.compile(r"\b(lighthouse|tower|ship|boat|building|mountain|cliff|lens|bridge|castle|tree|statue|wave|train|church)s?\b", re.I)
+PERSON = re.compile(r"\b(girl|boy|man|woman|child|kid|grandfather|grandmother|person|she|he|mira|people)\b", re.I)
+SCALE = re.compile(r"\b(taller|shorter|bigger|smaller|larger|as (?:big|tall|large) as|dwarf\w*|towering|tower(?:s)? over|in the distance|far (?:away|behind|off)|"
+                   r"distant|tiny|close-up|close up|wide shot|from below|from above|at the top|at the foot)\b", re.I)
+# "the lighthouse lamp", "the lighthouse gallery": the big word only names which lamp; the thing in the picture is the lamp
+PART_OF = re.compile(r"\s+(lamp|gallery|door|stairs|staircase|rocks|tower|keeper|room|window|light|beam|wall|floor|key|lens)\b", re.I)
+# the person is in it or on it ("inside the lighthouse", "on one small fishing boat", "the stairs of the lighthouse"): the place is the size
+WITHIN = r"\b(?:in|inside|on|onto|aboard|atop|from|of|into|within|against)\s+(?:\w+\s+){0,4}?"
+
+
+def _big_beside(draw: str) -> Optional[str]:
+    """The big thing a person stands beside (not in, not on, not a part of), or None."""
+    for m in BIG.finditer(draw):
+        small = re.search(r"\b(small|little|tiny|toy|distant|faraway)\s+(?:\w+\s+){0,2}$", draw[:m.start()], re.I)      # already sized
+        if small or PART_OF.match(draw, m.end()) or re.search(WITHIN + re.escape(m.group(0)) + r"\b", draw, re.I):
+            continue
+        return m.group(0)
+    return None
+
+
+SENT_END = re.compile(r"(?<=[.!?।])\s+")
+LONG_WORD = 10                                    # letters: an English word this long is rarely an everyday word
+
+
+def script_problems(text: str, title: str = "", seconds: float = 0.0, language: str = "en") -> list[dict]:
+    """The measurable script rules on the spoken text (rules script.title_first, script.easy, script.questions)."""
+    out: list[dict] = []
+    sents = [x.strip() for x in SENT_END.split(re.sub(r"\s+", " ", text or "").strip()) if x.strip()]
+    if not sents:
+        return out
+    words_in = lambda x: re.findall(r"[\w'$%]+", x)                           # noqa: E731
+    tw = [w.lower() for w in words_in(title) if len(w) > 3]
+    first = {w.lower() for w in words_in(sents[0])}
+    if tw and sum(w in first for w in tw) < 0.6 * len(tw):
+        out.append({"rule": "script.title_first", "says": f"The first line ('{sents[0][:60]}') is not the title said out loud.",
+                    "fix": f"Open with the title as a question or a promise: '{title}'."})
+    lens = [len(words_in(x)) for x in sents]
+    avg = sum(lens) / len(lens)
+    if avg > 14:
+        out.append({"rule": "script.easy", "says": f"Sentences average {avg:.0f} words.", "fix": "Split them: about 12 words a sentence."})
+    for x, n in zip(sents, lens):
+        if n > 20:
+            out.append({"rule": "script.easy", "says": f"A {n}-word sentence: '{x[:70]}...'", "fix": "Make it two or three short sentences."})
+    if language == "en":
+        ws = [w for w in words_in(text) if w.isalpha()]
+        hard = sorted({w for w in ws if len(w) >= LONG_WORD})
+        if ws and len([w for w in ws if len(w) >= LONG_WORD]) / len(ws) > 0.04:
+            out.append({"rule": "script.easy", "says": f"Many long words ({', '.join(hard[:6])}).", "fix": "Say them in everyday words."})
+    if seconds > 45:
+        q = sum(x.endswith("?") for x in sents)
+        if q < seconds / 40:
+            out.append({"rule": "script.questions", "says": f"{q} question(s) in {seconds:.0f} s.",
+                        "fix": "End each part on the question the viewer now has; the next part answers it."})
+    return out
+
+
+ABSENT = re.compile(r"\b(not|no|never|without|unlit|nobody|nothing|empty of|missing|isn't|aren't|doesn't|don't|won't)\b", re.I)
+SIMILE = re.compile(r"\b(like (?:a|an|the|moths|ghosts|stars)\b|as if|as though)", re.I)
+
+
+WRITING = re.compile(r"\b(newspapers?|front page|headlines?|calendars?|signs?|signboards?|posters?|banners?|screens?|monitors?|labels?|menus?|"
+                     r"documents?|forms?|letters?|receipts?|invoices?|charts?|graphs?|counters?|scoreboards?|price tags?)\b", re.I)
+HIDDEN = re.compile(r"\b(closed|folded|from the side|far away|in the distance|blank|turned away|face down|blurred)\b", re.I)
+
+
+def drawable_problems(draws: list[tuple[str, str]]) -> list[dict]:
+    """Shot texts a picture model will misread: a negation (it paints the opposite) or a simile (it paints the comparison) (rule picture.drawable)."""
+    out = []
+    for sid, draw in draws:
+        m = ABSENT.search(draw or "")
+        if m:
+            out.append({"shot": sid, "says": f"Shot {sid} says '{m.group(0)}': picture models drop it and paint the opposite.",
+                        "fix": "Say what is visible instead ('pitch black', 'an empty table')."})
+        m = WRITING.search(draw or "")
+        if m and not HIDDEN.search(draw or ""):
+            out.append({"shot": sid, "says": f"Shot {sid} shows a {m.group(0)}: models scribble garbled letters on anything that carries writing.",
+                        "fix": "Choose another object, or show it closed, from the side or far away."})
+        m = SIMILE.search(draw or "")
+        if m:
+            out.append({"shot": sid, "says": f"Shot {sid} has a comparison ('{m.group(0)}...'): the model paints the thing it is compared to.",
+                        "fix": "Say plainly what is in the picture."})
+    return out
+
+
+def place_problems(draws: list[tuple[str, str]]) -> list[dict]:
+    """Shot directions with no place, or a person beside something big with no size between them (rule picture.place)."""
+    out = []
+    for sid, draw in draws:
+        if not draw:
+            continue
+        places = [m.group(2).lower() for m in PLACE.finditer(draw) if m.group(2).lower() not in BODY]
+        big = _big_beside(draw)
+        if not places:
+            out.append({"shot": sid, "says": f"Shot {sid} does not say where it happens.", "fix": "Name the place: inside which room, on what, outside where."})
+        elif big and PERSON.search(draw) and not SCALE.search(draw):
+            out.append({"shot": sid, "says": f"Shot {sid} puts a person beside a {big} without saying how big it is next to them.",
+                        "fix": "Say the size: 'taller than she is', 'far behind her', 'a close-up of ...'."})
+    return out
+
+
 def check(project) -> dict[str, Any]:
     """The measurable rules this planned video breaks: {"score", "violations": [...], "passed": [...], "skipped": [...]}."""
     from . import context as CX
@@ -302,6 +444,28 @@ def check(project) -> dict[str, Any]:
             bad("captions.chunks", c["start"], c["end"], f"Caption line '{' '.join(ws)}' breaks the phrase.", "Re-split the line (the composer does it).", "minor")
     if not any(x["rule"] == "captions.chunks" for x in v):
         passed.append("captions.chunks")
+    # picture.place: the approved shot list, when the video is drawn from one ------------------------------------------------------------
+    plan_doc = read_json(project.dir / "plan_doc.json", None)
+    if plan_doc:
+        places = (plan_doc.get("idea") or {}).get("places") or {}
+        shots = [(m.get("id", ""), " ".join(x for x in (m.get("draw", ""), places.get(m.get("place", ""), "")) if x))
+                 for m in plan_doc.get("moments", []) if m.get("medium", "made") == "made"]
+        for x in place_problems(shots):
+            bad("picture.place", 0.0, 0.0, x["says"], x["fix"])
+        if shots and not any(x["rule"] == "picture.place" for x in v):
+            passed.append("picture.place")
+        own = [(m.get("id", ""), m.get("draw", "")) for m in plan_doc.get("moments", []) if m.get("medium", "made") == "made"]
+        for x in drawable_problems(own):
+            bad("picture.drawable", 0.0, 0.0, x["says"], x["fix"], "minor")
+        if own and not any(x["rule"] == "picture.drawable" for x in v):
+            passed.append("picture.drawable")
+    # script.*: how the words are written -----------------------------------------------------------------------------------------------------
+    sp = script_problems(" ".join(b.text for b in beats.beats), getattr(meta, "title", ""), end - start, meta.language)
+    for x in sp:
+        bad(x["rule"], 0.0, 0.0, x["says"], x["fix"], "minor")
+    for rid in ("script.title_first", "script.easy", "script.questions"):
+        if not any(x["rule"] == rid for x in sp):
+            passed.append(rid)
     # ending.no_fluff -------------------------------------------------------------------------------------------------------------------
     tail = " ".join(w.text for w in kept[int(len(kept) * 0.8):])
     m = FLUFF.search(tail)

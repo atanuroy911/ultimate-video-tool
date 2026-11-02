@@ -125,21 +125,21 @@ class StillOut(BaseModel):
 def generated_still(ws: Workspace, inputs: StillIn) -> StillOut:
     import hashlib
 
-    from ...comfy import ComfyClient, generate_still, load_workflow
+    from ...comfy import ComfyClient, generate_still, picture_workflow
     from ...project import Project
-    from ...reel.style import FIGURE, STYLES, prompt_for
+    from ...reel.style import FIGURE, STYLES, drawing_style, prompt_for
     from ...util import read_json
     from .gen import _url
 
     project = Project(ws.root.name, ws.root.parent)
     meta = project.meta()
     reading = read_json(project.dir / "reel_reading.json", {}) or {}
-    style = meta.options.reel_style if meta.options.reel_style in STYLES else reading.get("style", "cartoon")
+    style = drawing_style(meta.options.reel_style if meta.options.reel_style in STYLES else reading.get("style", "cartoon"), meta.theme)
     prompt = prompt_for(inputs.draw, style, reading.get("character") or FIGURE.get(style, ""))
     seed = inputs.seed if inputs.seed is not None else int(hashlib.sha1(f"{project.id}:{inputs.scene}:{prompt}".encode()).hexdigest()[:7], 16)
     client = ComfyClient(_url(inputs.url))
     try:
-        item, record = generate_still(project, client, load_workflow("zimage_t2i"), prompt, aspect=meta.aspect, seed=seed, caption=inputs.draw[:80], scene=inputs.scene)
+        item, record = generate_still(project, client, picture_workflow(), prompt, aspect=meta.aspect, seed=seed, caption=inputs.draw[:80], scene=inputs.scene)
     finally:
         client.close()
     return StillOut(media=item.model_dump(mode="json"), record=record)

@@ -60,8 +60,27 @@ def gpu_memory_mb() -> int:
 
 
 def recommend_model() -> str:
-    """Biggest model that runs comfortably: 7B needs about 5 GB of graphics memory (or 8 GB of RAM, slowly)."""
-    return "qwen2.5:7b" if gpu_memory_mb() >= 5500 else "qwen2.5:3b"
+    """The biggest model that fits this computer's card with its context (vt/engines/fit.py LANGUAGE), else a small one on the processor."""
+    from .engines import fit
+
+    return fit.language_model(server_vram_gb())["model"]
+
+
+def server_vram_gb() -> float:
+    """The card of the computer Ollama runs on. This computer's when Ollama is here; for one elsewhere Ollama does not say, so the ComfyUI on
+    the same computer is asked (its /system_stats), else nothing is assumed (0: a small model)."""
+    url = settings()["ollama_url"]
+    if is_local(url):
+        return gpu_memory_mb() / 1024
+    host = urllib.parse.urlparse(url).hostname or ""
+    comfy = str((read_json(paths.SETTINGS, {}) or {}).get("comfy_url") or "")
+    if host and urllib.parse.urlparse(comfy).hostname == host:
+        try:
+            devs = httpx.get(comfy.rstrip("/") + "/system_stats", timeout=3).json().get("devices", [])
+            return max((float(d.get("vram_total", 0)) / 1e9 for d in devs if d.get("type") == "cuda"), default=0.0)
+        except Exception:                                               # noqa: BLE001
+            return 0.0
+    return 0.0
 
 
 _PREFER = [r"^gemma[34]", r"^qwen3", r"^qwen2\.5:(32|14|7)b(-instruct)?$", r"^llama3\.[123]:(8|70)b", r"^llama3:(8b|latest)", r"^mistral", r"^phi[34]", r"^qwen2\.5:3b", r"^llama3\.2"]
@@ -254,6 +273,45 @@ def ensure_ready(progress: ProgressFn = noop_progress, allow_download: Optional[
     return model
 
 
+_ROOM = {"at": 0.0}
+ROOM_GB = 6.0                                       # the language model and its context need about this much of the card
+
+
+def make_room(url: Optional[str] = None) -> bool:
+    """Before the local AI answers: when ComfyUI runs on the same computer and leaves less than ROOM_GB of the card free, ask it to unload
+    (the next picture loads its model again, ~40 s from an SSD). At most once a minute. Returns True when it asked."""
+    if time.time() - _ROOM["at"] < 60:
+        return False
+    _ROOM["at"] = time.time()
+    host = urllib.parse.urlparse(url or settings()["ollama_url"]).hostname or ""
+    comfy = str((read_json(paths.SETTINGS, {}) or {}).get("comfy_url") or "")
+    chost = urllib.parse.urlparse(comfy).hostname or ""
+    same = host == chost or (is_local(f"http://{host}") and is_local(f"http://{chost}"))
+    if not comfy or not same:
+        return False
+    try:
+        devs = [d for d in httpx.get(comfy.rstrip("/") + "/system_stats", timeout=3).json().get("devices", []) if d.get("type") == "cuda"]
+        if devs and min(float(d.get("vram_free", 0)) for d in devs) / 1e9 < ROOM_GB:
+            httpx.post(comfy.rstrip("/") + "/free", json={"unload_models": True, "free_memory": True}, timeout=10)
+            return True
+    except Exception:                                                   # noqa: BLE001
+        pass
+    return False
+
+
+def release(url: Optional[str] = None) -> list[str]:
+    """Unload the models this Ollama holds on its card, so a picture model on the same card gets the room (one-card computers). Best effort;
+    returns what was unloaded. The next question loads the model again in a few seconds."""
+    base = (url or settings()["ollama_url"]).rstrip("/")
+    try:
+        loaded = [m["name"] for m in httpx.get(base + "/api/ps", timeout=3).json().get("models", []) if m.get("size_vram")]
+        for name in loaded:
+            httpx.post(base + "/api/generate", json={"model": name, "keep_alive": 0}, timeout=30)
+        return loaded
+    except Exception:                                                   # noqa: BLE001
+        return []
+
+
 # --------------------------------------------------------------------------- chat
 def chat_json(messages: list[dict], schema: dict, *, model: Optional[str] = None, temperature: float = 0.2, num_ctx: int = 8192,
               timeout: float = 600, max_tokens: int = 2048) -> dict:
@@ -262,6 +320,7 @@ def chat_json(messages: list[dict], schema: dict, *, model: Optional[str] = None
     body = {"model": model or model_name(), "messages": messages, "stream": False, "think": False, "format": schema, "keep_alive": "10m",
             "options": {"temperature": temperature, "num_ctx": num_ctx, "num_predict": max_tokens}}
     try:
+        make_room(s["ollama_url"])                                     # one card: the pictures' models step aside while the AI reads
         r = httpx.post(s["ollama_url"] + "/api/chat", json=body, timeout=timeout)
         r.raise_for_status()
         return json.loads(r.json()["message"]["content"])

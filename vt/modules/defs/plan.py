@@ -59,7 +59,10 @@ def make(ws: Workspace, inputs: MakeIn) -> SummaryOut:
 
 
 class EditIn(BaseModel):
-    operation: dict[str, Any] = Field(description="One typed operation: {op: set_medium|set_beat|set_prompt|choose_alternative|lock|unlock|merge|split|set_style|set_goal|set_idea|set_pace|set_budget, ...}.")
+    operation: dict[str, Any] = Field(description="One typed operation: {op: set_medium|set_beat|set_prompt|choose_alternative|lock|unlock|merge|split|set_style|set_goal|set_idea|set_pace|set_budget|set_place|set_moment_place|set_cast, ...}. "
+                                                    "set_place {name, text}: a place every picture in it is painted with (how it looks, how big its things are next to a person); "
+                                                    "set_moment_place {moment, place}; set_cast {name, text}: how a named person looks, added to every picture that names them. "
+                                                    "Each picture is painted alone: give every moment its place and name its people.")
 
 
 class EditOut(SummaryOut):
@@ -132,14 +135,14 @@ class PreviewOut(BaseModel):
 )
 def preview_moment(ws: Workspace, inputs: PreviewIn) -> PreviewOut:
     from ...direction import plan_doc as PD
-    from ...reel.style import prompt_for
+    from ...reel.style import cast_for, drawing_style, prompt_for
 
     project = _project(ws)
     plan = PD.load(project.dir)
     if plan is None:
         raise PD.PlanError("There is no plan yet.")
     m = plan.moment(inputs.moment)
-    prompt = prompt_for(m.draw, plan.idea.style, plan.idea.character)
+    prompt = prompt_for(m.draw, drawing_style(plan.idea.style, project.meta().theme), cast_for(m.draw, plan.idea.cast) or plan.idea.character, plan.idea.places.get(m.place, ""))
     media = ""
     note = "These are the words the picture will be asked for. The real picture can look different."
     if inputs.still:
@@ -154,7 +157,7 @@ def _make_still(project, plan, m, prompt: str) -> tuple[str, str]:
     """One picture for the card, counted in the plan. Never raises: no server means words only, said plainly."""
     import hashlib
 
-    from ...comfy import ComfyError, generate_still, load_workflow
+    from ...comfy import ComfyError, generate_still, picture_workflow
     from ...reel.plan import reachable
     from ...util import read_json
     from ... import paths
@@ -165,7 +168,7 @@ def _make_still(project, plan, m, prompt: str) -> tuple[str, str]:
         return "", f"Words only: the picture server does not answer ({why})."
     seed = int(hashlib.sha1(f"{project.id}:{m.id}:{prompt}".encode()).hexdigest()[:7], 16)
     try:
-        item, _ = generate_still(project, client, load_workflow("zimage_t2i"), prompt, aspect=project.meta().aspect, seed=seed, caption=m.draw[:80], scene=f"preview-{m.id}", checked=True)
+        item, _ = generate_still(project, client, getattr(client, "workflow", None) or picture_workflow(), prompt, aspect=project.meta().aspect, seed=seed, caption=m.draw[:80], scene=f"preview-{m.id}", checked=True)
         return item.id, "One small picture, drawn now. Starting uses it again, so it costs nothing twice."
     except ComfyError as e:
         return "", f"Words only: the picture could not be drawn ({str(e)[:120]})."

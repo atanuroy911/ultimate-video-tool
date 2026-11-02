@@ -131,3 +131,29 @@ def load_workflow(workflow_id: str) -> Workflow:
     if not path.exists() or path.resolve().parent != WORKFLOW_DIR.resolve():
         raise KeyError(f"no workflow '{workflow_id}'")
     return _read(path)
+
+
+def picture_workflow(recipe: str = "", object_info: Optional[dict] = None) -> Workflow:
+    """The picture graph with the loaders of one picture set (vt/engines/fit.py). With no set named: the one saved for the picture server, else,
+    when the server's node catalogue is given, the best set whose files it already has, else the graph as written."""
+    from ..engines import fit
+
+    r = fit.BY_ID.get(recipe or str((_settings().get("picture_recipe") or "")))
+    if r is None and object_info:                                     # the best set whose files (and nodes) the server already has
+        r = next((x for x in fit.PICTURES if not w_with(load_workflow(x.workflow), x).problems(object_info)), None)
+    return w_with(load_workflow(r.workflow), r) if r else load_workflow("zimage_t2i")
+
+
+def w_with(w: Workflow, recipe) -> Workflow:
+    out = copy.deepcopy(w)
+    for nid, inputs in recipe.graph_inputs().items():
+        out.graph[nid]["inputs"].update(inputs)
+    out.label = f"{w.label}: {recipe.label}"
+    return out
+
+
+def _settings() -> dict:
+    try:
+        return json.loads(paths.SETTINGS.read_text(encoding="utf-8")) or {}
+    except (OSError, ValueError):
+        return {}

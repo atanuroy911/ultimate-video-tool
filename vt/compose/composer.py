@@ -57,6 +57,8 @@ READ_CPS = 17.0   # characters a second a viewer can still read (subtitling rese
 
 CHUNK_MAX = 4               # words a caption line holds at most: 2 to 3 reads best, 4 only to keep a phrase whole (vt/craft rules: captions)
 CAPTION_LAG = 0.06          # a line appears just after its first word is heard: early captions read as broken sync, late ones are invisible
+from ..stages.words import ABBREV  # noqa: E402
+
 FUNCTION_WORDS = set("""a an the and or but nor so of to in on at for with by from as than into onto about over under your my his her its our their
 this that these those is are was were be been am will would can could should to if then""".split())
 
@@ -143,7 +145,9 @@ def _tidy_chunks(chunks: list[list[Word]], cap: int) -> list[list[Word]]:
     ends on "the" or "your", no word stands alone, two or three words a line, never more than `cap` (vt/craft rules: captions)."""
     runs: list[list[Word]] = []
     for c in chunks:
-        if runs and not runs[-1][-1].text.rstrip().endswith((".", "!", "?", "।")) and c and c[0].start - runs[-1][-1].end < 0.45:
+        last = runs[-1][-1].text.strip() if runs else ""
+        title = last.endswith(".") and last.rstrip(".").lower() in ABBREV           # "Mr." | "Rich": one name, one line
+        if runs and (title or not last.endswith((".", "!", "?", "।"))) and c and c[0].start - runs[-1][-1].end < (1.2 if title else 0.45):
             runs[-1].extend(c)
         elif c:
             runs.append(list(c))
@@ -154,6 +158,8 @@ def _tidy_chunks(chunks: list[list[Word]], cap: int) -> list[list[Word]]:
         back = [0] * (n + 1)
         for i in range(1, n + 1):
             glue = 5.0 if i < n and _is_numberish(run[i - 1]) and not run[i - 1].text.rstrip().endswith((",", ".")) else 0.0   # "seventy | eight", "seven | days"
+            if i < n and run[i - 1].text.strip().rstrip(".").lower() in ABBREV and run[i - 1].text.strip().endswith("."):
+                glue += 9.0                                                                                              # never "Mr. | Rich"
             for j in range(max(0, i - cap), i):
                 c = best[j] + _line_cost(run[j:i], cap) + glue
                 if c < best[i]:
@@ -443,6 +449,29 @@ def paginate(scenes: list[dict], aspect: str) -> list[dict]:
     return out
 
 
+HOLD_MIN, HOLD_MAX = 1.5, 3.0                      # pacing.dwell: the main thing for 1.5 to 3 s, then the picture behind it again
+# full-frame text cards: in a video with pictures they say their line and give the frame back to a picture
+CARD_TYPES = {"title", "big_number", "value_card", "quote", "question", "cta", "definition", "keyword", "tag", "stat_row", "equation", "price_tag"}
+
+
+def _hand_cards_back(scenes: list[dict]) -> None:
+    """A card scene marked `_card_out` borrows the nearest picture (the one before it, else the one after), which fades in at that time
+    while the card's parts leave. Only in a video that has pictures: a video made of cards keeps its cards."""
+    pictured = [i for i, s in enumerate(scenes) if s.get("backdrop")]
+    for i, s in enumerate(scenes):
+        out = s.pop("_card_out", None)
+        if out is None or not pictured:
+            continue
+        j = max((k for k in pictured if k < i), default=None)
+        j = j if j is not None else min(k for k in pictured if k > i)
+        bd = dict(scenes[j]["backdrop"])
+        bd.pop("offset", None)                        # an A-roll's place in the recording belongs to its own scene
+        bd["from"] = out
+        s["backdrop"] = bd
+        for e in s["elements"]:
+            e["until"] = out
+
+
 def resolve_composition(sf: ScenesFile, tr: Transcript, beats: Beats, theme: Theme, aspect: str,
                         duration: float, icons: Optional[dict[str, str]] = None, media: Optional[dict] = None,
                         envelope: Optional[dict] = None, language: str = "bn") -> dict:
@@ -451,6 +480,7 @@ def resolve_composition(sf: ScenesFile, tr: Transcript, beats: Beats, theme: The
     kept = tr.kept()
 
     starts = scene_starts(sf, beats)
+    sentence_end = {wid: words_by_id[b.word_ids[-1]].end for b in beats.beats for wid in b.word_ids if b.word_ids and b.word_ids[-1] in words_by_id}
     scenes_out = []
     used_icons: set[str] = {"circle-help"}
     used_stickers: set[str] = set()
@@ -465,6 +495,13 @@ def resolve_composition(sf: ScenesFile, tr: Transcript, beats: Beats, theme: The
             at = min(max(w.start - 0.04, start + (0 if i == 0 else 0.05)), max(start, end - 0.3))
             d["at"] = round(at, 3)
             d.pop("at_word", None)
+            uw = d.pop("until_word", None)
+            if uw in words_by_id:
+                d["until"] = round(words_by_id[uw].end + 0.15, 3)
+            elif sc.backdrop is not None:                  # over a picture: leave after its sentence so the picture is seen again (pacing.dwell)
+                d["until"] = round(min(at + HOLD_MAX, max(at + HOLD_MIN, sentence_end.get(el.at_word, at) + 0.2)), 3)
+            if d.get("until", end) >= end - 0.35:          # the scene cuts first: no exit of its own
+                d.pop("until", None)
             els.append(d)
             _nested_assets(d, used_icons, used_stickers)
             if d["type"] == "icon":
@@ -494,6 +531,12 @@ def resolve_composition(sf: ScenesFile, tr: Transcript, beats: Beats, theme: The
                 first["at"] = round(min(start + 0.4, max(start, end - 0.3)), 3)
         scene_d = {"id": sc.id, "start": start, "end": end, "layout": sc.layout,
                    "transition_in": sc.transition_in, "tone": sc.tone, "elements": els}
+        if sc.backdrop is None and els and all(e["type"] in CARD_TYPES for e in els) and not sc.stick:
+            last = max(sc.elements, key=lambda e: words_by_id[e.at_word].start)
+            last_at = max(e["at"] for e in els)
+            out = min(last_at + HOLD_MAX, max(last_at + HOLD_MIN, sentence_end.get(last.at_word, last_at) + 0.2))
+            if out < end - 0.8:
+                scene_d["_card_out"] = round(out, 3)       # decided below, once it is known whether the video has pictures
         if sc.archetype:
             scene_d["archetype"] = sc.archetype
         if sc.backdrop:
@@ -511,6 +554,7 @@ def resolve_composition(sf: ScenesFile, tr: Transcript, beats: Beats, theme: The
             scene_d["archetype"] = "stick"
         scenes_out.append(scene_d)
 
+    _hand_cards_back(scenes_out)
     highlight = {wid for sc in sf.scenes for wid in sc.caption.highlight_words}
     cap = theme.caption
     max_chars = {"9:16": 40, "1:1": 34, "16:9": 52}[aspect]
@@ -709,7 +753,7 @@ def compose_project(project, aspect: Optional[str] = None, duration: Optional[fl
 
     theme = theme.model_copy(update={"currency": detect_currency(project.transcript(), meta.language, theme.currency)})
     cs = meta.options.caption_style
-    if cs in ("auto", "theme") and meta.options.look == "reel":
+    if cs in ("auto", "theme") and meta.options.look == "reel" and not (theme.style or "").startswith("lemo:"):
         cs = reel_caption_preset(project)                       # the reading decides: steps and lists light the key word, an argument shows one word at a time, a story shows short lines
     if cs == "auto":
         cs = "pop" if aspect == "9:16" else "theme"

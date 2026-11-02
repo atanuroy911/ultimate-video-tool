@@ -53,3 +53,7 @@ third_party/ai-youtube-shorts-generator/
 
 # our own copies of node etc. (scripts/setup.sh, the installers)
 /bin/
+
+# secrets: API keys live in the OS keychain or the server's data folder, never in the repository
+/.env
+/.env.*

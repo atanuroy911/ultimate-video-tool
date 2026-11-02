@@ -8,6 +8,6 @@ generate.py   the whole job: upload the still, run, wait, download, normalise to
 from .client import ComfyClient, ComfyError
 from .generate import generate_clip
 from .still import generate_still
-from .workflows import Workflow, list_workflows, load_workflow
+from .workflows import Workflow, list_workflows, load_workflow, picture_workflow
 
-__all__ = ["ComfyClient", "ComfyError", "Workflow", "generate_clip", "generate_still", "list_workflows", "load_workflow"]
+__all__ = ["ComfyClient", "ComfyError", "Workflow", "generate_clip", "generate_still", "list_workflows", "load_workflow", "picture_workflow"]

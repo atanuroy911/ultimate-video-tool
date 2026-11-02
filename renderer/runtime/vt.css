@@ -60,6 +60,13 @@ svg.bg-pat { overflow: visible; }
 .cap-pill .cap-inner { background: var(--cap-bg); border-radius: 999px; padding: calc(16px * var(--s)) calc(44px * var(--s)); }
 .cap-underline .cap-inner { padding: calc(10px * var(--s)) calc(10px * var(--s)); text-shadow: 0 3px 0 rgba(0,0,0,0.25); }
 .cap-none .cap-inner { padding: 0; }
+/* paper: the caption sits on the painting like ink on the sheet, no box; a wide halo in the paper colour keeps it readable over any picture */
+.cap.cap-paper .cap-inner { padding: 0; font-style: italic; letter-spacing: 0.01em; }
+.cap.cap-paper .w { color: var(--cap-ink); margin: 0 0.14em;
+  text-shadow: 0 0 calc(2px * var(--s)) var(--cap-bg), 0 0 calc(6px * var(--s)) var(--cap-bg), 0 0 calc(12px * var(--s)) var(--cap-bg),
+               0 0 calc(20px * var(--s)) var(--cap-bg), 0 0 calc(32px * var(--s)) var(--cap-bg), 0 0 calc(44px * var(--s)) var(--cap-bg); }
+.cap.cap-paper .w.hl { color: var(--hl-bg); padding: 0 0.06em; margin: 0 0.14em; }      /* the one emphasis word in the accent (not the general rule's white) */
+.cap.cap-paper .w.hl .pill { display: none; }
 /* pop: the short-form look. Big white words on a dark glass pill, readable over any picture or light theme, the spoken word in the accent colour */
 .cap-pop .cap-inner { padding: calc(10px * var(--s)) calc(26px * var(--s)); font-size: 1.28em; line-height: 1.25;
   background: rgba(17, 24, 39, 0.88); border-radius: calc(24px * var(--s));

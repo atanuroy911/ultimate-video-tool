@@ -70,6 +70,11 @@ class Hub:
         if self.loop and self.loop.is_running():
             asyncio.run_coroutine_threadsafe(self._send_all(msg), self.loop)
 
+    def send(self, ws: WebSocket, msg: dict) -> None:
+        """Thread-safe targeted send (director requests must reach one device, not every browser)."""
+        if self.loop and self.loop.is_running():
+            asyncio.run_coroutine_threadsafe(ws.send_text(json.dumps(msg, ensure_ascii=False)), self.loop)
+
 
 hub = Hub()
 jobs = JobManager(hub.emit)
@@ -110,16 +115,40 @@ async def _watch_files() -> None:
 
 @app.websocket("/ws")
 async def ws_endpoint(ws: WebSocket) -> None:
+    from .. import directors
+    from . import clients
+    from .serve import _token, is_local
+
     await ws.accept()
     hub.clients.add(ws)
+    known = clients.known(_token(ws.scope))
+    device_id = str((known or {}).get("id") or ("local-app" if is_local(ws.scope) else ""))
+    device_name = str((known or {}).get("name") or "This computer")
     try:
         await ws.send_text(json.dumps({"type": "hello", "jobs": [j.public() for j in jobs.jobs.values() if j.status in ("queued", "running")]}))
         while True:
-            await ws.receive_text()
+            try:
+                msg = json.loads(await ws.receive_text())
+            except (ValueError, TypeError):
+                continue
+            if not isinstance(msg, dict) or not device_id:
+                continue
+            if msg.get("type") in ("director", "director_announce") and msg.get("director") == "claude":
+                directors.broker.connect(device_id, device_name, version=str(msg.get("version", ""))[:80],
+                                         logged_in=bool(msg.get("logged_in")), send=lambda m, sock=ws: hub.send(sock, m))
+                hub.emit({"type": "directors_changed"})
+            elif msg.get("type") == "director_done":
+                directors.broker.finish(str(msg.get("request", "")), ok=bool(msg.get("ok")), error=str(msg.get("error", "")),
+                                        detail={"result": msg.get("result")})
+            elif msg.get("type") == "director_log":
+                hub.emit({"type": "director_log", "project": str(msg.get("project", "")), "message": str(msg.get("message", ""))[:500]})
     except WebSocketDisconnect:
         pass
     finally:
         hub.clients.discard(ws)
+        if device_id:
+            directors.broker.disconnect(device_id)
+            hub.emit({"type": "directors_changed"})
 
 
 @app.exception_handler(JobBusy)
@@ -283,6 +312,13 @@ def get_settings() -> dict:
     return _public_settings(load_settings())
 
 
+@app.get("/api/directors")
+def get_directors() -> dict:
+    from ..directors import listing
+
+    return listing()
+
+
 def _public_settings(s: dict) -> dict:
     """Settings for the browser: API keys never leave this computer's disk through the API (only whether they are set)."""
     engines = {i: {"mode": e.get("mode"), "url": e.get("url"), "has_key": bool(e.get("key"))} for i, e in (s.get("engines") or {}).items()}
@@ -293,7 +329,7 @@ def _public_settings(s: dict) -> dict:
 def put_settings(body: dict[str, Any]) -> dict:
     s = load_settings()
     for k in ("default_theme", "default_aspect", "default_pace", "default_music", "ui_language", "llm_mode", "ollama_url", "ollama_model", "llm_auto_download", "pexels_key", "pixabay_key",
-              "ai_provider", "ai_script", "openai_url", "openai_model", "openai_key", "anthropic_model", "anthropic_key", "claude_cli_path", "claude_cli_model", "claude_cli_daily_cap", "autopilot", "comfy_url", "plan_review"):
+              "ai_provider", "ai_script", "openai_url", "openai_model", "openai_key", "anthropic_model", "anthropic_key", "claude_cli_path", "claude_cli_model", "claude_cli_daily_cap", "autopilot", "comfy_url", "plan_review", "director_order", "director_wait_seconds"):
         if k in body:
             s[k] = body[k]
     write_json(SETTINGS_PATH, s)
@@ -973,7 +1009,7 @@ async def inspect_upload(file: Optional[UploadFile] = File(None), file_upload: s
 
 
 @app.post("/api/projects")
-async def create_project(audio: Optional[UploadFile] = File(None), audio_upload: str = Form(""), title: str = Form(""), language: str = Form("bn"),
+async def create_project(audio: Optional[UploadFile] = File(None), audio_upload: str = Form(""), title: str = Form(""), language: str = Form("en"),
                          aspect: str = Form("9:16"), theme: str = Form("paper"), pace: str = Form("normal"),
                          options: str = Form("{}"), start: Optional[str] = Form(None), usecase: str = Form("auto"), kind: str = Form("explainer")) -> dict:
     # NOTE: an omitted boolean form field arrives as False in recent FastAPI versions, so parse explicitly (default: start)
@@ -1022,9 +1058,9 @@ async def create_project(audio: Optional[UploadFile] = File(None), audio_upload:
 class ScriptBody(BaseModel):
     title: str = "Untitled"
     script: str
-    language: str = "bn"
+    language: str = "auto"
     engine: str = "edge"
-    voice: str = "bn-BD-NabanitaNeural"
+    voice: str = "en-US-AndrewNeural"
     rate: float = 1.0
     aspect: str = "9:16"
     theme: str = "paper"

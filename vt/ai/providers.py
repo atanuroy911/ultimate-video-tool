@@ -102,6 +102,7 @@ class OllamaProvider(Provider):
         body = {"model": self.model(), "messages": msgs, "stream": False, "think": False, "format": schema, "keep_alive": "10m",
                 "options": {"temperature": temperature, "num_ctx": 16384, "num_predict": max_tokens}}
         try:
+            llm.make_room(s["ollama_url"])                             # one card: the pictures' models step aside while the AI reads
             r = httpx.post(s["ollama_url"] + "/api/chat", json=body, timeout=timeout)
             r.raise_for_status()
             return r.json()["message"]["content"]

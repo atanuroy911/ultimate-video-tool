@@ -63,6 +63,19 @@ class ComfyClient:
         except ComfyError:
             pass
 
+    def relieve_memory(self, min_free_gb: float = 10.0) -> bool:
+        """Unload ComfyUI's cached models when the server's own RAM runs low. A model too big for the card is parked in system RAM between
+        runs; on a 30 GB machine that left 3 GB free and the box swapped until it fell over (the owner's GPU server, 2026-11-01).
+        Reloading costs seconds; a crash costs the whole video. Returns True when it asked for memory back."""
+        try:
+            ram_free = float(self.system_stats().get("system", {}).get("ram_free", 0)) / 1e9
+        except (ComfyError, ValueError, TypeError):
+            return False
+        if 0 < ram_free < min_free_gb:
+            self.free_memory()
+            return True
+        return False
+
     def queue(self) -> dict:
         return self._call("GET", "/queue").json()
 

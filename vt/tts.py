@@ -812,3 +812,19 @@ def list_engines() -> list[dict]:
                 ok, why = False, "transformers/torch are not installed"
         out.append({**e, "available": ok, "note": why})
     return out
+
+
+def match_script(script: str, language: str, engine: str, voice: str) -> tuple[str, str]:
+    """(language, voice) that fit the script's letters: English text gets English and an English voice of the same engine, Bangla text
+    Bangla and a Bangla voice. A voice that already fits is kept, so a chosen voice is never replaced without need."""
+    from . import langdetect
+
+    want = langdetect.from_text(script, default="en")
+    want = want if want in ("en", "bn") else language if language in ("en", "bn") else "en"
+    try:
+        voices = next(e for e in list_engines() if e["id"] == engine)["voices"]
+    except (StopIteration, KeyError):
+        return want, voice
+    if any(v["id"] == voice and v["lang"].startswith(want) for v in voices) or voice.lower().startswith(want + "-"):
+        return want, voice                                              # a voice of that language, listed or not (en-US-AndrewNeural), is kept
+    return want, next((v["id"] for v in voices if v["lang"].startswith(want)), voice)

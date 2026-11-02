@@ -37,6 +37,7 @@ class BeatNote(BaseModel):
     draw: str = Field(default="", description="what one picture should show for this sentence, in plain English, using only things the sentence says")
     emphasis: str = Field(default="", description="the one word of the sentence that carries it, copied exactly")
     turn: bool = Field(default=False, description="the sentence opens a new point: but, now, here is the secret, a question, a new step")
+    place: str = Field(default="", description="the name of the place (one of Reading.places) the picture happens in")
 
 
 class Jump(BaseModel):
@@ -49,6 +50,8 @@ class Reading(BaseModel):
     style: str = "cartoon"
     style_why: str = ""
     character: str = Field(default="", description="a generic recurring figure for a story or steps video, never a real person")
+    cast: dict[str, str] = Field(default_factory=dict, description="name -> how the person looks; every picture that names them gets the look")
+    places: dict[str, str] = Field(default_factory=dict, description="name -> what the place looks like and how big its main things are next to a person")
     hook: Hook = Field(default_factory=Hook)
     jumps: list[Jump] = Field(default_factory=list)
     notes: list[BeatNote] = Field(default_factory=list)
@@ -135,9 +138,20 @@ SYSTEM = (
     "You are the director of a short vertical video made from a spoken script. You read the script and decide what one picture should show for each "
     "sentence. You describe ONLY what the sentence says: never add a number, a name, a place or a claim that is not in it. Pictures show concrete things "
     "(a calculator for '20 percent', a bank for 'mortgage', a clock for 'time'). Write in plain English even if the script is in another language. "
-    "Never describe a real person's face or likeness; use a generic figure. Draw SCENES, not icons: for each sentence describe one scene in which the recurring "
+    "Never describe a real, famous person's face or likeness. People the script names (Jack, Mr. Rich, Mira) are characters: call them by their name in "
+    "every `draw` (never 'a figure', 'a man', 'someone') and give each a look once in `cast`. Pictures carry no words, letters, numbers or signs (the "
+    "captions say them): show an amount as things you can see (a thick stack of cash, a tall glass office tower), and avoid things that carry writing (a newspaper, a calendar, "
+    "a sign, a screen): models scribble garbled letters on them; if one is needed, show it closed, from the side or far away. Draw SCENES, not icons: for each sentence describe one scene in which the recurring "
     "figure does or shows what the sentence says, with the setting and the key object, for example 'the figure in a beige coat holds up a big check for 200,000 "
-    "dollars in front of a small brick apartment building'. Vary the setting and the camera (close, wide, from above) from one sentence to the next."
+    "dollars in front of a small brick apartment building'. Vary the setting and the camera (close, wide, from above) from one sentence to the next. "
+    "EACH PICTURE IS PAINTED ALONE by a painter who never reads the other sentences: every `draw` must stand on its own. Say where it happens (inside "
+    "which room, on what, outside where), who is there, what they do, and how big the main things are next to the person ('the lens, taller than she "
+    "is'; 'the lighthouse far behind her'). Never lean on an earlier sentence: not 'the glass', 'there', 'it', 'the same place'; name the thing again. "
+    "Write what ANY picture model can draw. Describe only what is visible, never what is absent: models drop 'not', 'no', 'without' and 'unlit' and paint "
+    "the opposite, so write 'the glass room at the top is pitch black', not 'the lamp is not lit'. Models draw things the way photographs usually show "
+    "them: for a rare pose or state (a bicycle upside down, a flame going out) frame the detail that tells it instead, usually a close-up ('her hand turns "
+    "a bicycle pedal fast, the spoked wheel a blur above it'; 'a thin trail of smoke rises from a blackened wick'). One subject, one action, plain "
+    "concrete words, no metaphors ('boats heading toward one warm light', not 'like moths to a candle')."
 )
 SCHEMA: dict = {
     "type": "object",
@@ -146,10 +160,13 @@ SCHEMA: dict = {
         "style": {"type": "string", "enum": list(STYLES)},
         "style_why": {"type": "string"},
         "character": {"type": "string"},
+        "cast": {"type": "array", "items": {"type": "object", "properties": {"name": {"type": "string"}, "looks": {"type": "string"}}, "required": ["name", "looks"]}},
+        "places": {"type": "array", "items": {"type": "object", "properties": {"name": {"type": "string"}, "looks": {"type": "string"}}, "required": ["name", "looks"]}},
         "hook_type": {"type": "string", "enum": ["question", "claim", "prohibition", "story", "other"]},
         "hook_strength": {"type": "number"},
         "notes": {"type": "array", "items": {"type": "object", "properties": {
-            "beat": {"type": "string"}, "draw": {"type": "string"}, "emphasis": {"type": "string"}, "turn": {"type": "boolean"}}, "required": ["beat", "draw", "emphasis", "turn"]}},
+            "beat": {"type": "string"}, "draw": {"type": "string"}, "emphasis": {"type": "string"}, "turn": {"type": "boolean"}, "place": {"type": "string"}},
+            "required": ["beat", "draw", "emphasis", "turn"]}},
     },
     "required": ["kind", "style", "notes"],
 }
@@ -160,11 +177,15 @@ def _prompt(window: list[Any], first: bool, kind_hint: str) -> str:
     head = (
         "Read these numbered sentences of a script. Decide the kind of video (steps, story, explanation, argument, list or opinion), a drawing style "
         "(cartoon: clean flat cartoon objects; line-art: calm pencil line drawings; comic: inked scenes of one world; photo: cinematic photographs), "
-        "and ALWAYS a short generic description of ONE recurring figure who appears in the pictures (age, clothes, hair; no real person; for a science or health topic a simple stick-like person is fine). Rate how strong the first sentence "
-        "is as a hook (0 to 1) and name its type.\n" if first else
+        "the `cast`: for every person the script names, their name and a short look (age, build, clothes, hair) that tells them apart at a glance; and "
+        "ALWAYS a short generic description of ONE recurring figure for when no one is named (no real person; for a science or health topic a simple stick-like person is fine). Rate how strong the first sentence "
+        "is as a hook (0 to 1) and name its type. When the pictures happen in a few recurring places, list them as `places`: a short name and how the place "
+        "looks, with the size of its main things next to a person (for a lighthouse story: 'lantern room: the glass room at the top of the lighthouse, "
+        "a brass lamp with a glass lens taller than a child, rain on the windows all round').\n" if first else
         f"This continues the same script (kind so far: {kind_hint}). Only fill the notes.\n")
     return (head + "For EVERY sentence give: `draw` (one concrete scene with the figure, at most 35 words, only things the sentence says), `emphasis` (the single word of the sentence "
-            "that carries it, copied exactly as written), and `turn` (true if the sentence opens a new point: but, now, here is the secret, a question, a new step).\n\n" + lines)
+            "that carries it, copied exactly as written), `turn` (true if the sentence opens a new point: but, now, here is the secret, a question, a new step), and `place` (the name of one of the places, "
+            "when the picture happens in one). Each `draw` is read alone: name the place and the size of things in it.\n\n" + lines)
 
 
 def _check(data: dict, window: list[Any]) -> list[str]:
@@ -217,6 +238,8 @@ def read_script(beats: list[Any], *, provider=None, use_ai: bool = True) -> Read
             base.kind = data.get("kind", base.kind)
             base.style, base.style_why = data.get("style", base.style), data.get("style_why", base.style_why)
             base.character = (data.get("character") or "")[:160]
+            base.cast = {str(c.get("name", "")).strip()[:30]: str(c.get("looks", ""))[:160] for c in (data.get("cast") or [])[:6] if c.get("name") and c.get("looks")}
+            base.places = {str(p.get("name", ""))[:40]: str(p.get("looks", ""))[:240] for p in (data.get("places") or [])[:8] if p.get("name") and p.get("looks")}
             base.hook = Hook(text=beats[0].text[:160], type=data.get("hook_type", base.hook.type), strength=max(0.0, min(1.0, float(data.get("hook_strength", base.hook.strength)))))
         for n in data.get("notes", []):
             if n.get("beat") in {b.id for b in window}:
@@ -224,7 +247,8 @@ def read_script(beats: list[Any], *, provider=None, use_ai: bool = True) -> Read
                 emph = n.get("emphasis", "")
                 if emph and emph.lower().strip(".,!?") not in {w.strip(".,!?") for w in words}:
                     emph = notes[n["beat"]].emphasis                                        # a word the sentence does not contain: keep the rules' word
-                notes[n["beat"]] = BeatNote(beat=n["beat"], draw=n.get("draw", "")[:300] or notes[n["beat"]].draw, emphasis=emph, turn=bool(n.get("turn")))
+                notes[n["beat"]] = BeatNote(beat=n["beat"], draw=n.get("draw", "")[:300] or notes[n["beat"]].draw, emphasis=emph, turn=bool(n.get("turn")),
+                                              place=str(n.get("place") or "") if str(n.get("place") or "") in base.places else "")
     base.notes = [notes[b.id] for b in beats]
     if len(base.jumps) >= 2 and base.kind not in ("steps", "story"):          # numbered turns ("Step one", "Day 26") are what steps and stories are: the words decide, not the model
         base.kind = rules_kind([b.text for b in beats])

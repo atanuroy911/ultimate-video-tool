@@ -16,7 +16,7 @@ from ..schema import Backdrop, Element, Scene, ScenesFile, Scrim, Title, validat
 from ..util import now_iso, read_json, write_json
 from .reading import Reading, read_script
 from .slots import Slot, build_slots
-from .style import FIGURE, STYLES, prompt_for
+from .style import FIGURE, STYLES, cast_for, drawing_style, prompt_for
 
 READING = "reel_reading.json"
 REPORT = "reel_report.json"
@@ -49,13 +49,25 @@ def _draw_for(slot: Slot) -> str:
     return picked.draw if picked and picked.draw else " ".join(b.text for b in slot.beats)[:120]
 
 
+def _workers() -> list[str]:
+    """Other ComfyUI servers to fall back on (the engine's workers, vt/engines/store.py)."""
+    try:
+        from ..engines import store
+
+        return store.load("comfy").all_urls()
+    except Exception:                                                   # noqa: BLE001
+        return []
+
+
 def reachable(url: str) -> tuple[Any, Optional[str]]:
-    """(client, None) when the picture workflow can run on the server, else (None, why)."""
-    from ..comfy import ComfyClient, ComfyError, load_workflow
+    """(client, None) when the picture workflow can run on the server, else (None, why). The client carries the workflow to use (client.workflow)."""
+    from ..comfy import ComfyClient, ComfyError, picture_workflow
 
     try:
         client = ComfyClient(url)
-        problems = load_workflow("zimage_t2i").problems(client.object_info())
+        info = client.object_info()
+        client.workflow = picture_workflow(object_info=info)            # the picture set chosen for this server's card (vt/engines/fit.py)
+        problems = client.workflow.problems(info)
     except ComfyError as e:
         return None, str(e)
     except Exception as e:                                              # noqa: BLE001
@@ -84,7 +96,7 @@ def slots_from_plan(plan, beats: list[Any]) -> list[Slot]:
 def build_reel_plan(project, *, progress: Progress = lambda f, m: None, use_ai: bool = True, generate: bool = True, comfy_url: Optional[str] = None,
                     cancelled: Callable[[], bool] = lambda: False, plan: Any = None, on_moment: Callable[[str, dict], None] = lambda mid, info: None) -> ScenesFile:
     from .. import paths
-    from ..comfy import ComfyError, generate_still, load_workflow
+    from ..comfy import ComfyError, generate_still, picture_workflow
 
     started = time.time()
     meta = project.meta()
@@ -99,12 +111,14 @@ def build_reel_plan(project, *, progress: Progress = lambda f, m: None, use_ai: 
         raw = read_json(project.dir / READING, None)
         reading = Reading.model_validate(raw) if raw else read_script(beats, use_ai=use_ai)
         style = plan.idea.style if plan.idea.style in STYLES else "cartoon"
+        style = drawing_style(style, meta.theme)
         reading.character = plan.idea.character
         slots = slots_from_plan(plan, beats)
         by_moment = {m.id: m for m in plan.moments}
     else:
         reading = read_script(beats, use_ai=use_ai)
         style = meta.options.reel_style if meta.options.reel_style in STYLES else reading.style if reading.style in STYLES else "cartoon"
+        style = drawing_style(style, meta.theme)                     # a film style draws the pictures too, not only the frame around them
         reading.character = reading.character.strip() or FIGURE.get(style, "")
         slots = build_slots(beats, reading)
         by_moment = {}
@@ -114,7 +128,12 @@ def build_reel_plan(project, *, progress: Progress = lambda f, m: None, use_ai: 
     if generate:
         url = comfy_url or str((read_json(paths.SETTINGS, {}) or {}).get("comfy_url") or "http://192.168.123.47:8188")
         client, why_not = reachable(url)
-    workflow = load_workflow("zimage_t2i") if client is not None else None
+    workflow = (getattr(client, "workflow", None) or picture_workflow()) if client is not None else None
+    if client is not None:
+        from .. import llm
+
+        llm.release()                                                   # the script is read: give the card to the pictures
+        getattr(client, "relieve_memory", lambda **k: False)(min_free_gb=4.0)                          # once, before the batch: unloading before every picture reloaded the model each time (2 min a picture)
     scenes: list[Scene] = []
     report: list[dict] = []
     todo = [s for s in slots if (by_moment[s.id].medium == "made" if s.id in by_moment else True)]      # every slot gets a picture, chapter cards included: one design language for the whole video
@@ -127,7 +146,9 @@ def build_reel_plan(project, *, progress: Progress = lambda f, m: None, use_ai: 
         medium = moment.medium if moment is not None else "made"
         if moment is not None:
             on_moment(slot.id, {"status": "waiting" if medium != "made" else "making"})
-        prompt = prompt_for(_draw_for(slot), style, reading.character)
+        place = plan.idea.places.get(moment.place, "") if (plan is not None and moment is not None and moment.place) else ""
+        cast = cast_for(_draw_for(slot), plan.idea.cast) if plan is not None else ""
+        prompt = prompt_for(_draw_for(slot), style, cast or reading.character, place)
         record: dict[str, Any] = {"slot": slot.id, "beats": [b.id for b in slot.beats], "seconds": round(slot.seconds, 2), "words": slot.words, "card": slot.card, "prompt": prompt}
         media_id: Optional[str] = None
         if medium == "repeat" and last_media:
@@ -139,18 +160,32 @@ def build_reel_plan(project, *, progress: Progress = lambda f, m: None, use_ai: 
             on_moment(slot.id, {"status": "ready"})
         elif client is not None and workflow is not None:
             seed = int(hashlib.sha1(f"{project.id}:{slot.id}:{prompt}".encode()).hexdigest()[:7], 16)
-            try:
-                item, rec = generate_still(project, client, workflow, prompt, aspect=meta.aspect, seed=seed, caption=_draw_for(slot)[:80], scene=slot.id, checked=True,
-                                           progress=lambda f, m, k=made: progress(0.08 + 0.84 * (k + f) / max(1, len(todo)), f"Drawing picture {k + 1} of {len(todo)}: {m}"),
-                                           cancelled=cancelled)
-                media_id = item.id
-                record.update(media=item.id, drawn_in=rec["seconds_taken"])
-                on_moment(slot.id, {"status": "ready", "media": item.id, "seconds_taken": rec["seconds_taken"]})
-            except ComfyError as e:
-                record["problem"] = str(e)[:200]
-                on_moment(slot.id, {"status": "failed", "problem": str(e)[:200]})
-                if e.kind == "cancelled":
-                    raise RuntimeError("cancelled") from e
+            for attempt in range(4):                                    # a GPU server that drops for a minute must not turn the rest of the video into text cards
+                try:
+                    if attempt:
+                        getattr(client, "relieve_memory", lambda **k: False)()                         # a retry after a failure: start the server from a known state
+                    item, rec = generate_still(project, client, workflow, prompt, aspect=meta.aspect, seed=seed, caption=_draw_for(slot)[:80], scene=slot.id, checked=True,
+                                               progress=lambda f, m, k=made: progress(0.08 + 0.84 * (k + f) / max(1, len(todo)), f"Drawing picture {k + 1} of {len(todo)}: {m}"),
+                                               cancelled=cancelled)
+                    media_id = item.id
+                    record.update(media=item.id, drawn_in=rec["seconds_taken"])
+                    record.pop("problem", None)
+                    on_moment(slot.id, {"status": "ready", "media": item.id, "seconds_taken": rec["seconds_taken"]})
+                    break
+                except ComfyError as e:
+                    if e.kind == "cancelled":
+                        raise RuntimeError("cancelled") from e
+                    record["problem"] = str(e)[:200]
+                    if attempt == 3:
+                        on_moment(slot.id, {"status": "failed", "problem": str(e)[:200]})
+                        break
+                    progress(0.08 + 0.84 * made / max(1, len(todo)), f"The picture server did not answer; trying again ({attempt + 1} of 3)")
+                    time.sleep(30 * (attempt + 1))
+                    for url in [client.url] + [w for w in _workers() if w != client.url]:      # the same server back, or another card
+                        again, _ = reachable(url)
+                        if again is not None:
+                            client, workflow = again, getattr(again, "workflow", None) or workflow
+                            break
             made += 1
         elif medium == "made":
             on_moment(slot.id, {"status": "failed", "problem": why_not or "pictures are switched off"})

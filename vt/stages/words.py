@@ -120,11 +120,14 @@ def _split_long(run: list[Word], max_words: int, max_seconds: float | None = Non
     if len(run) <= max_words and not (max_seconds and len(run) >= 4 and run[-1].end - run[0].start > max_seconds):
         return [run]
     lo, hi = max(1, int(len(run) * 0.3)), max(2, int(len(run) * 0.7))
-    best = max(range(lo, min(hi, len(run) - 1) + 1), key=lambda i: (run[i].start - run[i - 1].end) + (0.15 if run[i - 1].text.rstrip().endswith(SOFT) else 0.0))
+    best = max(range(lo, min(hi, len(run) - 1) + 1), key=lambda i: (run[i].start - run[i - 1].end) + (0.15 if run[i - 1].text.rstrip().endswith(SOFT) else 0.0)
+               - (9.0 if run[i - 1].text.strip().rstrip(".").lower() in ABBREV else 0.0))          # never between "Mr." and "Rich"
     return _split_long(run[:best], max_words, max_seconds) + _split_long(run[best:], max_words, max_seconds)
 
 
 SOFT = tuple(",;:—–")
+# a full stop after these ends no sentence (the voice also pauses a little after them)
+ABBREV = {"mr", "mrs", "ms", "dr", "prof", "st", "jr", "sr", "mt", "vs", "etc", "e.g", "i.e", "u.s", "u.k", "inc", "co", "ltd", "no", "fig", "approx"}
 
 
 def build_beats(tr: Transcript, max_words: int = 12, pause: float = 0.5, max_seconds: float | None = None) -> Beats:
@@ -137,7 +140,8 @@ def build_beats(tr: Transcript, max_words: int = 12, pause: float = 0.5, max_sec
         cur.append(w)
         nxt = ws[i + 1] if i + 1 < len(ws) else None
         gap = (nxt.start - w.end) if nxt else 99
-        if nxt is None or w.text.rstrip().endswith(SENTENCE_END) or gap > pause or (nxt.speaker != w.speaker):
+        abbrev = w.text.strip().rstrip(".").lower() in ABBREV and w.text.rstrip().endswith(".")       # "Mr. Rich" is one name, not two sentences
+        if nxt is None or (w.text.rstrip().endswith(SENTENCE_END) and not abbrev) or gap > (pause * 2.5 if abbrev else pause) or (nxt.speaker != w.speaker):
             runs.append(cur)
             cur = []
     groups = [g for r in runs for g in _split_long(r, max_words, max_seconds)]

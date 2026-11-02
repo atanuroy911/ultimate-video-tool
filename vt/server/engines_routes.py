@@ -139,3 +139,55 @@ def engine_place(engine_id: str, body: PlaceBody) -> dict:
     if body.choice != "off" and p.source == "off":
         raise HTTPException(409, p.note)
     return {"source": p.source, "url": p.url, "workers": p.workers, "note": p.note, "card": _card(engine_id, True)}
+
+
+# ------------------------------------------------------------------ every ComfyUI and Ollama on a computer, and making one ready (vt/engines/discover.py, prepare.py)
+class PrepareBody(BaseModel):
+    url: str = Field(min_length=8, max_length=300)
+    recipe: str = Field(default="", max_length=60, description="a picture set id (vt/engines/fit.py); empty = the one that fits the card")
+
+
+@router.get("/discover")
+def discover_here(host: str = "127.0.0.1", deep: bool = False, ports: str = "") -> dict:
+    """Every ComfyUI and Ollama at `host` (this server's computer by default), the card each runs on, and the picture set that fits it.
+    `next` says what the first-run screen should offer: choose one of those found, or install our own."""
+    from ..engines import discover
+
+    extra = [int(p) for p in ports.split(",") if p.strip().isdigit()]
+    found = discover.scan(host, deep=deep, ports=extra)
+    comfy = [i for i in found["instances"] if i["engine"] == "comfy"]
+    ollama = [i for i in found["instances"] if i["engine"] == "ollama"]
+    found["next"] = {"comfy": "choose" if comfy else "install", "ollama": "choose" if ollama else "install"}
+    return found
+
+
+@router.get("/discover/prepare")
+def prepare_plan(url: str, recipe: str = "") -> dict:
+    """What making this ComfyUI ready would download, and where. Touches nothing."""
+    from ..engines import prepare
+
+    try:
+        return prepare.plan(url, recipe)
+    except RuntimeError as e:
+        raise HTTPException(409, str(e))
+
+
+@router.post("/discover/prepare")
+def prepare_run(body: PrepareBody) -> dict:
+    """Download the picture set into the chosen ComfyUI's own model folders, check the workflow runs there, and use it (a job)."""
+    from ..engines import prepare
+    from .app import jobs
+
+    try:
+        plan = prepare.plan(body.url, body.recipe)
+    except RuntimeError as e:
+        raise HTTPException(409, str(e))
+    if plan["problems"]:
+        raise HTTPException(409, " ".join(plan["problems"]))
+
+    def work(cb):
+        out = prepare.prepare(body.url, body.recipe, lambda f, m: cb("comfy", f, m))
+        registry.forget("comfy")
+        return out
+
+    return jobs.submit("setup", None, f"Making {body.url.split('//')[-1]} ready for pictures", work, when_busy="reuse").public()

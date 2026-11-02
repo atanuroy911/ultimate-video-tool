@@ -264,7 +264,7 @@ export default function NewPage() {
 
   // the AI voice that reads a script
   const [engine, setEngine] = useState("edge");
-  const [voice, setVoiceRaw] = useState("bn-BD-NabanitaNeural");
+  const [voice, setVoiceRaw] = useState("en-US-AndrewNeural");
   const voiceChosenByPerson = useRef(false);
   const setVoice = (id: string) => {
     voiceChosenByPerson.current = true;

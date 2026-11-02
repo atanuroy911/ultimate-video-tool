@@ -2,17 +2,17 @@
   "name": "style-watercolor",
   "label": "Watercolor Brush",
   "color": {
-    "bg": "#F3E2C8",
-    "bg2": "#DDD0B5",
+    "bg": "#F8F4EC",
+    "bg2": "#EFE7D8",
     "ink": "#39502C",
     "muted": "#5A6A48",
-    "accent": "#A34A22",
+    "accent": "#C8442A",
     "accent2": "#B43D26",
     "card": "#E6D8BD",
     "card_border": "#39502C",
-    "caption_bg": "#E6D8BD",
-    "caption_ink": "#39502C",
-    "highlight_bg": "#A34A22",
+    "caption_bg": "#F8F4EC",
+    "caption_ink": "#2B2A26",
+    "highlight_bg": "#C8442A",
     "highlight_ink": "#FFFFFF",
     "tag_bg": "#B43D26",
     "tag_ink": "#FFFFFF",
@@ -24,7 +24,7 @@
       "Anek Bangla"
     ],
     "body": [
-      "Inter",
+      "Cormorant Garamond",
       "Hind Siliguri"
     ],
     "numeral": [
@@ -32,7 +32,7 @@
       "Anek Bangla"
     ],
     "caption": [
-      "Inter",
+      "Cormorant Garamond",
       "Hind Siliguri"
     ],
     "headline_weight": 700
@@ -50,7 +50,7 @@
   },
   "background": {
     "kind": "paper",
-    "grain": 0.25,
+    "grain": 0.3,
     "arcs": false,
     "pattern": 0.35,
     "animated": false
@@ -59,14 +59,14 @@
     "preset": "smooth"
   },
   "caption": {
-    "style": "box",
+    "style": "paper",
     "reveal": "line",
-    "weight": 800,
-    "size": 60,
+    "weight": 700,
+    "size": 88,
     "words_per_line": 3,
     "safe_bottom": {
-      "portrait": 380,
-      "landscape": 64
+      "portrait": 340,
+      "landscape": 56
     }
   },
   "style": "lemo:watercolor",

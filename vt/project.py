@@ -95,11 +95,17 @@ class Project:
         return self.dir / "script.json"
 
     @classmethod
-    def create_from_script(cls, title: str, script: str, *, voice_engine: str = "edge", voice: str = "bn-BD-NabanitaNeural", rate: float = 1.0,
-                           language: str = "bn", aspect: str = "9:16", theme: str = "paper", pace: str = "normal",
+    def create_from_script(cls, title: str, script: str, *, voice_engine: str = "edge", voice: str = "en-US-AndrewNeural", rate: float = 1.0,
+                           language: str = "en", aspect: str = "9:16", theme: str = "paper", pace: str = "normal",
                            options: Optional[dict] = None) -> "Project":
-        """A project whose voice is synthesised from `script` by the first pipeline stage ('voice')."""
+        """A project whose voice is synthesised from `script` by the first pipeline stage ('voice').
+        The script is spoken in the language of its letters whatever was asked: an English script read by a Bangla voice (or the other way
+        round) is never right, so the language and the voice are corrected to match the text."""
         import tempfile
+
+        from . import tts
+
+        language, voice = tts.match_script(script, language, voice_engine, voice)
 
         import numpy as np
         import soundfile as sf

@@ -51,6 +51,11 @@
     if (motion === "none") return;
     const span = Math.max(0.5, t1 - t0);
     const dx = (0.5 - fx) * 6, dy = (0.5 - fy) * 6;
+    if (motion === "drift-in" || motion === "drift-out") {          // calm looks (watercolour, ink): a slow eased drift, alternating in and out, never a fast zoom that shimmers on a painting
+      const a = motion === "drift-in" ? 1.0 : 1.06, b = motion === "drift-in" ? 1.06 : 1.0;
+      tl.fromTo(el, { scale: a, xPercent: 0, yPercent: 0 }, { scale: b, xPercent: dx / 3, yPercent: dy / 3, duration: span, ease: "sine.inOut" }, t0);
+      return;
+    }
     if (motion === "pan") tl.fromTo(el, { scale: 1.16, xPercent: -4, yPercent: dy / 2 }, { scale: 1.16, xPercent: 4, yPercent: dy / 2, duration: span, ease: "none" }, t0);
     else tl.fromTo(el, { scale: 1.02, xPercent: 0, yPercent: 0 }, { scale: 1.14, xPercent: dx, yPercent: dy, duration: span, ease: "none" }, t0);
   }
@@ -63,6 +68,8 @@
     const fx = b.fx != null ? b.fx : mn.m.fx != null ? mn.m.fx : 0.5, fy = b.fy != null ? b.fy : mn.m.fy != null ? mn.m.fy : 0.5;
     mn.node.style.objectPosition = Math.round(fx * 100) + "% " + Math.round(fy * 100) + "%";      // this scene's own framing (the head of the person in it)
     const bd = h("div", "bd");
+    if (D.theme && D.theme.caption && D.theme.caption.style === "paper" && mn.m.kind !== "video")
+      bd.classList.add("bd-paperfit");                   // a painting sits on the sheet: it fades into the paper below, where the caption lives (never over the subject)
     bd.appendChild(mn.node);
     if (mn.m.textBand) {                         // subtitles burned into the source: zoom from the top until they leave the frame (the face stays)
       bd.style.transformOrigin = "50% 0%";        // the crop already centres the head: zoom about the middle, from the top
@@ -74,7 +81,13 @@
     scrim.style.setProperty("--sc", s.ink === "dark" ? "255,255,255" : "0,0,0");   // a dark scrim sits under light text and vice versa
     bd.appendChild(scrim);
     sceneEl.insertBefore(bd, sceneEl.firstChild);
-    sceneEl.classList.add("has-backdrop", "ink-" + (s.ink || "light"));
+    const later = typeof b.from === "number" && b.from > sc.start;
+    sceneEl.classList.add("has-backdrop");
+    if (!later) sceneEl.classList.add("ink-" + (s.ink || "light"));   // a card that leaves before its picture arrives keeps its own ink (white on paper is unreadable)
+    if (later) {                                                    // a card said its line: the picture comes back under it (composer _hand_cards_back)
+      tl.set(bd, { opacity: 0 }, sc.start);
+      tl.to(bd, { opacity: 1, duration: 0.45, ease: "power1.out" }, b.from);
+    }
     if (mn.m.kind === "video") {
       mn.node.setAttribute("data-start", String(sc.start));
       mn.node.setAttribute("data-duration", String(Math.max(0.1, sc.end - sc.start)));
@@ -82,7 +95,10 @@
       mn.node.setAttribute("data-media-start", String(t0));
       X.registerVideo(mn.node, sc.start, sc.end, t0, mn.m.loop);
     }
-    cameraMove(tl, mn.node, sc.start, sc.end, mn.m.kind === "video" && b.motion === "kenburns" ? "none" : b.motion, fx, fy);
+    let move = mn.m.kind === "video" && b.motion === "kenburns" ? "none" : b.motion;
+    if (move === "kenburns" && D.theme && D.theme.motion && D.theme.motion.preset === "smooth")
+      move = (D.scenes || []).indexOf(sc) % 2 ? "drift-out" : "drift-in";
+    cameraMove(tl, mn.node, sc.start, sc.end, move, fx, fy);
     if (mn.m.kind === "video" && mn.m.shots && mn.m.shots.length && b.offset != null) {       // follow the face from camera cut to camera cut
       const fw = D.format.width, fh = D.format.height, vw = Math.min(1, (fw / fh) / ((mn.m.w || 16) / (mn.m.h || 9)));
       const aim = (hx) => (vw >= 0.999 ? 0.5 : Math.min(1, Math.max(0, (hx - vw / 2) / (1 - vw))));

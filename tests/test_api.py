@@ -384,7 +384,7 @@ def test_unknown_api_paths_are_404_not_405_and_versions_agree():
         r = getattr(c, method)("/api/projects/x/does-not-exist")
         assert r.status_code == 404 and "restart" in r.text.lower(), (method, r.status_code)
     assert c.get("/api/health").json()["api_version"] == API_VERSION
-    ts = (Path(__file__).resolve().parents[1] / "studio" / "src" / "api.ts").read_text(encoding="utf-8")
+    ts = (Path(__file__).resolve().parents[1] / "client" / "studio" / "src" / "api.ts").read_text(encoding="utf-8")
     assert int(re.search(r"EXPECTED_API = (\d+)", ts).group(1)) == API_VERSION
 
 
@@ -410,7 +410,7 @@ def test_every_endpoint_the_studio_calls_exists_with_that_method():
         if r.path.startswith("/api"):
             routes.append((r.path, set(r.methods)))
     pat = {m: re.compile("^" + re.sub(r"\{[^}]+\}", "[^/]+", p) + "$") for p, m in [(p, tuple(sorted(ms))) for p, ms in routes]}
-    src = Path(__file__).resolve().parents[1] / "studio" / "src"
+    src = Path(__file__).resolve().parents[1] / "client" / "studio" / "src"
     calls = set()
     for f in src.rglob("*.ts*"):
         t = f.read_text(encoding="utf-8")

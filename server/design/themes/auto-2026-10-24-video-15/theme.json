@@ -1,0 +1,76 @@
+{
+  "name": "auto-2026-10-24-video-15",
+  "label": "Blueprint · Deep ocean",
+  "color": {
+    "bg": "#08141f",
+    "bg2": "#0b3350",
+    "ink": "#e8f4ff",
+    "muted": "#838f9a",
+    "accent": "#3aa0ff",
+    "accent2": "#7ef0d4",
+    "card": "#10293d",
+    "card_border": "#e8f4ff",
+    "caption_bg": "#10293d",
+    "caption_ink": "#e8f4ff",
+    "highlight_bg": "#3aa0ff",
+    "highlight_ink": "#111111",
+    "tag_bg": "#7ef0d4",
+    "tag_ink": "#111111",
+    "arc": "rgba(232,244,255,0.12)"
+  },
+  "font": {
+    "headline": [
+      "Space Grotesk",
+      "Anek Bangla"
+    ],
+    "body": [
+      "Space Grotesk",
+      "Hind Siliguri"
+    ],
+    "numeral": [
+      "Space Grotesk",
+      "Anek Bangla"
+    ],
+    "caption": [
+      "Space Grotesk",
+      "Hind Siliguri"
+    ],
+    "headline_weight": 700
+  },
+  "shape": {
+    "radius": 6.0,
+    "stroke": 2.0,
+    "shadow": {
+      "x": 4.0,
+      "y": 4.0,
+      "color": "#e8f4ff",
+      "blur": 0.0
+    },
+    "card_tilt": 0.0
+  },
+  "background": {
+    "kind": "grid",
+    "grain": 0.0,
+    "arcs": false,
+    "pattern": 0.5,
+    "animated": true
+  },
+  "motion": {
+    "preset": "snappy"
+  },
+  "caption": {
+    "style": "box",
+    "reveal": "line",
+    "weight": 700,
+    "size": 58,
+    "words_per_line": 6,
+    "safe_bottom": {
+      "portrait": 300,
+      "landscape": 64
+    }
+  },
+  "currency": "৳",
+  "sfx": "pop",
+  "style": "blueprint",
+  "palette": "ocean"
+}

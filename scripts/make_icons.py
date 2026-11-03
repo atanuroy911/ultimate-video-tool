@@ -29,7 +29,7 @@ def draw(maskable: bool = False) -> Image.Image:
 
 
 def main() -> None:
-    pub, build = ROOT / "studio" / "public", ROOT / "desktop" / "build"
+    pub, build = ROOT / "client/studio/public", ROOT / "client/desktop/build"
     pub.mkdir(parents=True, exist_ok=True)
     build.mkdir(parents=True, exist_ok=True)
     a, m = draw(), draw(True)
@@ -42,7 +42,12 @@ def main() -> None:
     (pub / "favicon.svg").write_text(
         "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='#f26a1f'/>"
         "<path d='M12 8l11 7-11 7z' fill='white'/><rect x='9' y='24' width='14' height='2.4' rx='1.2' fill='#ffc83a'/></svg>", encoding="utf-8")
-    print("icons written")
+    server_build = ROOT / "server/desktop/build"
+    server_build.mkdir(parents=True, exist_ok=True)
+    a.save(server_build / "icon.png")
+    a.save(server_build / "icon.ico", sizes=[(16, 16), (32, 32), (48, 48), (256, 256)])
+    a.save(ROOT / "server/desktop/server-icon.png")
+    print("client and server icons written")
 
 
 if __name__ == "__main__":

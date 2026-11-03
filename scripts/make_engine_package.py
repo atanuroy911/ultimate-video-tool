@@ -23,15 +23,16 @@ import tarfile
 import zipfile
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "scripts"))
+REPO = Path(__file__).resolve().parents[1]
+ROOT = REPO / "server"
+sys.path.insert(0, str(REPO / "scripts"))
 FOLDER = "video-tool-engine"
 SKIP_DIRS = {"__pycache__", ".pytest_cache", "node_modules"}
 SKIP_SUFFIX = {".pyc", ".pyo"}
 # what the engine needs at run time besides the code: the picture/voice workflows and the model list (each is small)
 ASSET_DIRS = ["assets/comfy", "assets/voicestudio"]
 TOP_FILES = ["pyproject.toml", "uv.lock", "LICENSE", "LICENSE.txt", "LICENSE.md"]
-PACKAGING = ["install-engine.ps1", "install-engine.sh", "README-ENGINE.txt", "Dockerfile", "docker-compose.yml", "docker-entrypoint.sh"]
+PACKAGING = ["install-engine.ps1", "install-engine.sh", "check-engine.py", "README-ENGINE.txt", "Dockerfile", "docker-compose.yml", "docker-entrypoint.sh"]
 
 
 def _walk(base: Path):
@@ -41,7 +42,7 @@ def _walk(base: Path):
         yield p
 
 
-def collect(version: str) -> dict[str, bytes]:
+def collect(version: str, full: bool = False) -> dict[str, bytes]:
     """{path inside the archive: bytes}. Line endings of text files are kept as they are, except that the shell script is forced to LF (a CRLF script does not run on Linux)."""
     files: dict[str, bytes] = {}
     for p in _walk(ROOT / "vt"):
@@ -50,6 +51,13 @@ def collect(version: str) -> dict[str, bytes]:
         if (ROOT / d).is_dir():
             for p in _walk(ROOT / d):
                 files[f"{FOLDER}/{p.relative_to(ROOT).as_posix()}"] = p.read_bytes()
+    if full:
+        for directory in ('design', 'renderer/runtime', 'assets'):
+            for p in _walk(ROOT / directory):
+                if 'user' not in p.relative_to(ROOT).parts and not any(part.startswith('auto-') for part in p.relative_to(ROOT).parts):
+                    files[f"{FOLDER}/{p.relative_to(ROOT).as_posix()}"] = p.read_bytes()
+        for name in ('renderer/package.json','renderer/package-lock.json'):
+            files[f"{FOLDER}/{name}"] = (ROOT/name).read_bytes()
     for name in TOP_FILES:
         if (ROOT / name).is_file():
             files[f"{FOLDER}/{name}"] = (ROOT / name).read_bytes()
@@ -97,6 +105,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=str(ROOT / "dist"))
     ap.add_argument("--version", default="")
+    ap.add_argument("--full", action="store_true", help="Include processing renderer and visual assets. Never includes the separate client editor.")
     a = ap.parse_args()
     from set_version import current
 
@@ -105,7 +114,7 @@ def main() -> int:
         raise SystemExit(f"'{version}' is not a version")
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
-    files = collect(version)
+    files = collect(version, full=a.full)
     z, t = out / f"video-tool-engine-{version}.zip", out / f"video-tool-engine-{version}.tar.gz"
     write_zip(files, z)
     write_tar(files, t)

@@ -25,7 +25,7 @@ def _write(p: Path, text: str) -> None:
 
 
 def current() -> str:
-    m = re.search(r'^version\s*=\s*"([^"]+)"', _read(ROOT / "pyproject.toml"), re.M)
+    m = re.search(r'^version\s*=\s*"([^"]+)"', _read(ROOT / "server" / "pyproject.toml"), re.M)
     if not m:
         raise SystemExit("pyproject.toml has no version")
     return m.group(1)
@@ -36,27 +36,28 @@ def apply(version: str) -> list[str]:
     if not SEMVER.match(version):
         raise SystemExit(f"'{version}' is not a version like 1.2.0")
     changed = []
-    py = ROOT / "pyproject.toml"
+    py = ROOT / "server" / "pyproject.toml"
     t = _read(py)
     new = re.sub(r'^(version\s*=\s*)"[^"]+"', rf'\g<1>"{version}"', t, count=1, flags=re.M)
     if new != t:
         _write(py, new)
-        changed.append("pyproject.toml")
-    lock = ROOT / "uv.lock"
+        changed.append("server/pyproject.toml")
+    lock = ROOT / "server" / "uv.lock"
     if lock.exists():
         t = _read(lock)
         new = re.sub(r'(\[\[package\]\]\r?\nname = "video-tool"\r?\nversion = )"[^"]+"', rf'\g<1>"{version}"', t, count=1)
         if new != t:
             _write(lock, new)
-            changed.append("uv.lock")
-    pj = ROOT / "desktop" / "package.json"
-    if pj.exists():
-        t = _read(pj)
-        new = re.sub(r'^(\s*"version"\s*:\s*)"[^"]+"', rf'\g<1>"{version}"', t, count=1, flags=re.M)
-        if new != t:
-            _write(pj, new)
-            changed.append("desktop/package.json")
-        json.loads(new)                                          # still valid
+            changed.append("server/uv.lock")
+    for role in ('client','server'):
+        pj = ROOT / role / "desktop" / "package.json"
+        if pj.exists():
+            t = _read(pj)
+            new = re.sub(r'^(\s*"version"\s*:\s*)"[^"]+"', rf'\g<1>"{version}"', t, count=1, flags=re.M)
+            if new != t:
+                _write(pj, new)
+                changed.append(f"{role}/desktop/package.json")
+            json.loads(new)
     return changed
 
 

@@ -2265,6 +2265,21 @@
       "studio_form": true
     },
     {
+      "id": "style.story_kit",
+      "name": "Animated story kit",
+      "purpose": "Get the reusable animated-story kit, editable controls and code-free production workflow.",
+      "toolboxes": [
+        "autonomous",
+        "studio",
+        "full"
+      ],
+      "source": "vt/modules/defs/styles.py",
+      "requires": [],
+      "produces": [],
+      "effects": "none",
+      "studio_form": true
+    },
+    {
       "id": "text.build_transcript",
       "name": "Build stable word ids and sentence beats in cut-audio time",
       "purpose": "Build stable word ids and sentence beats in cut-audio time.",

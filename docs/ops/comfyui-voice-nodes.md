@@ -7,8 +7,8 @@ Why: the owner wants the pipeline to depend on **ComfyUI and Ollama only** ([pla
 ## State on 2026-10-28 (before the install)
 | Piece | State |
 |---|---|
-| App side: workflow kind `audio`, `vt/comfy/voice.py`, model choice `vt/comfy/voicing.py`, the `comfyvoice` voice engine, direction and vocal events (`vt/voice_direction.py`), workers (more ComfyUI servers of the same engine) | **done and tested** against a fake ComfyUI ([tests/test_comfy_voice.py](../../tests/test_comfy_voice.py), 6 tests) |
-| Workflows `assets/comfy/workflows/breeze_design.json`, `breeze_clone.json`, `breeze_direction.json` | written from the node pack's published source (node ids and inputs), **never run on a real server** (`status: unverified`) |
+| App side: workflow kind `audio`, `server/vt/comfy/voice.py`, model choice `server/vt/comfy/voicing.py`, the `comfyvoice` voice engine, direction and vocal events (`server/vt/voice_direction.py`), workers (more ComfyUI servers of the same engine) | **done and tested** against a fake ComfyUI ([tests/test_comfy_voice.py](../../tests/test_comfy_voice.py), 6 tests) |
+| Workflows `server/assets/comfy/workflows/breeze_design.json`, `breeze_clone.json`, `breeze_direction.json` | written from the node pack's published source (node ids and inputs), **never run on a real server** (`status: unverified`) |
 | OmniVoice workflows | **not written**: the pack's node ids are not published in its README; they must be read from `object_info` after install |
 | **The node packs on the GPU server** | **not installed. The permission system of the agent session refused to let it clone third-party code into the ComfyUI folder** (class: "untrusted code integration"; the same refusal as for ComfyUI-GGUF on 2026-10-26). It was **not worked around**. A person runs the script below, or allows the agent to |
 

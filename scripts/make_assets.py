@@ -12,8 +12,8 @@ import numpy as np
 import soundfile as sf
 
 ROOT = Path(__file__).resolve().parents[1]
-MUSIC = ROOT / "assets" / "music"
-SFX = ROOT / "assets" / "sfx"
+MUSIC = ROOT / "server" / "assets" / "music"
+SFX = ROOT / "server" / "assets" / "sfx"
 SR = 44100
 RNG = np.random.default_rng(11)
 
@@ -223,7 +223,7 @@ def main() -> None:
                       "license": "CC0 1.0 (synthesised for this project)"})
         print("music", spec["id"], round(len(x) / SR, 1), "s")
     (MUSIC / "index.json").write_text(json.dumps(index, ensure_ascii=False, indent=2), encoding="utf-8")
-    (ROOT / "assets" / "LICENSES.md").write_text(
+    (ROOT / "server" / "assets" / "LICENSES.md").write_text(
         "# Bundled audio\n\nAll files in `assets/sfx` and `assets/music` are synthesised by `scripts/make_assets.py` "
         "(numpy, no samples) and released under CC0 1.0. They are simple loops intended as quiet beds under speech.\n"
         "Add your own tracks to `assets/music/user/` (not distributed).\n", encoding="utf-8")

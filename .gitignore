@@ -37,6 +37,10 @@ translate_cache.json
 /SFX/
 desktop/node_modules/
 desktop/dist/
+desktop/dist-server/
+docs/evidence/pytest-*/
+docs/evidence/direction-render/direction-*/
+docs/evidence/studio-revamp.*
 
 # local secrets and machine state
 engine-hub.json
@@ -57,3 +61,14 @@ third_party/ai-youtube-shorts-generator/
 # secrets: API keys live in the OS keychain or the server's data folder, never in the repository
 /.env
 /.env.*
+
+# Independent product builds and generated resources
+/client/studio/dist/
+/client/desktop/dist/
+/server/desktop/dist/
+/server/dist/
+/server/design/fonts/
+/server/design/icons/lucide.json
+/server/design/icons/curated.json
+/server/assets/music/user/
+!server/assets/music/*.mp3

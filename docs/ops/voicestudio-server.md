@@ -9,7 +9,7 @@ Installed 2026-10-28 on `192.168.123.47` at the owner's request. Plan and reason
 | GPU | the **RTX 3060** (device `/dev/nvidia1`), passed in as a device; the NVIDIA container toolkit is **not** installed (installing it restarts Docker and every other container) |
 | Data volume (database, voices, settings, **models**) | `/mnt/bigdata/video-tool/voicestudio/data` mounted at `/app/omnivoice_data`; `HF_HOME` is inside it |
 | API key | `/mnt/bigdata/video-tool/voicestudio/voicestudio.env` (mode 600, one line `OMNIVOICE_API_KEY=...`). **Not in the repository, not in any log.** The app keeps its copy in its private `settings.json` |
-| Start script | `/mnt/bigdata/video-tool/voicestudio/run.sh`, versioned copy [assets/voicestudio/run.sh](../../assets/voicestudio/run.sh) |
+| Start script | `/mnt/bigdata/video-tool/voicestudio/run.sh`, versioned copy [server/assets/voicestudio/run.sh](../../server/assets/voicestudio/run.sh) |
 | LAN address | `http://192.168.123.47:3900` (UI and API; every request except `/health` needs the key) |
 | Public address | `https://voice.atanusroy.com` through the existing Cloudflare tunnel (`/etc/cloudflared/config.yml` got one rule: `voice.atanusroy.com -> http://127.0.0.1:3900`; the DNS record was added with `cloudflared tunnel route dns`; a backup of the old config is in `/mnt/bigdata/video-tool/backups/`) |
 | Environment | `OMNIVOICE_SERVER_MODE=1`, `OMNIVOICE_ANALYTICS_DISABLED=1`, `OMNIVOICE_GENERATE_TIMEOUT_S=900`, `OMNIVOICE_ALLOWED_HOSTS/PUBLIC_API_BASE/ALLOWED_ORIGINS` set to the public name |
@@ -31,7 +31,7 @@ From the PC, with the key in the environment: `curl -H "Authorization: Bearer $K
 
 ## If `/mnt/bigdata` is unavailable, or the drive is replaced
 Everything VoiceStudio owns is in one folder, so recovery is a copy plus a re-download:
-1. **Models are re-downloadable.** `python3 scripts/voicestudio_models.py --url http://192.168.123.47:3900 --key-env OMNIVOICE_API_KEY status` lists what is installed; `... restore` installs what [assets/voicestudio/model-manifest.json](../../assets/voicestudio/model-manifest.json) names (it reads the same list from the server's own `/models` catalogue and installs the entries marked wanted). Licence-gated models are listed and skipped unless `--accept-licences` is given *by a person*.
+1. **Models are re-downloadable.** `python3 scripts/voicestudio_models.py --url http://192.168.123.47:3900 --key-env OMNIVOICE_API_KEY status` lists what is installed; `... restore` installs what [server/assets/voicestudio/model-manifest.json](../../server/assets/voicestudio/model-manifest.json) names (it reads the same list from the server's own `/models` catalogue and installs the entries marked wanted). Licence-gated models are listed and skipped unless `--accept-licences` is given *by a person*.
 2. **User data is not re-downloadable** (cloned voices, projects, settings): back up `/mnt/bigdata/video-tool/voicestudio/data` (it is small, apart from `huggingface/`).
 3. **Move to the root drive later** (when the bigger drive arrives): stop the container, `rsync -a /mnt/bigdata/video-tool/voicestudio/ /home/roy/video-tool/voicestudio/`, change `VOICESTUDIO_BASE` in `run.sh` (or export it), run `run.sh`. Nothing else changes: the address, the key and the tunnel stay.
 4. **Rollback** of the public name: delete the `voice.atanusroy.com` block from `/etc/cloudflared/config.yml` (restore the backup), `sudo systemctl restart cloudflared`, remove the CNAME in Cloudflare.

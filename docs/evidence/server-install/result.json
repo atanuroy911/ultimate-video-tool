@@ -1,0 +1,28 @@
+{
+  "server_ui": {
+    "status": 200,
+    "projects": 0
+  },
+  "comfy": {
+    "status": 200,
+    "nodes": 1061
+  },
+  "best_voice": {
+    "engine": "comfyvoice",
+    "voice": "design:auto"
+  },
+  "voice_generated": {
+    "seconds": 2.24,
+    "elapsed": 123.8
+  },
+  "picture_generated": {
+    "workflow": "FLUX.2 Klein 4B (pictures): FLUX.2 Klein 4B",
+    "seconds": 86.0,
+    "file": "media/stille84ab5ec5b7657a2.jpg"
+  },
+  "renderer": {
+    "frame": "/home/roy/ultimate-video-tool-server/qa/frames/frame-00-at-1s.png",
+    "bytes": 900380
+  },
+  "complete": true
+}

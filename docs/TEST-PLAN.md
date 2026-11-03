@@ -17,7 +17,7 @@ What it takes to say "this video tool works" and to keep saying it. It covers th
 | **L2 Component with fake servers** | the clients and the routing work against a pretend ComfyUI, VoiceStudio and Ollama: health, errors in words, caching, workers, direction dialects, keys never returned | same | `tests/test_voicestudio.py`, `tests/test_comfy_voice.py`, `tests/test_comfy.py`, `tests/test_voice_direction.py`, `tests/test_reel.py` | seconds |
 | **L3 Equivalence** | the module path gives byte-identical output to the old pipeline; a second run changes nothing | `pytest tests/test_modules_equivalence.py` | | minutes |
 | **L4 Slow** | real frames are rendered, the real speech model runs, goldens match | `pytest -m slow` | `tests/golden/`, the slow marks | about 15 minutes, CPU |
-| **L5 Browser** | every Studio screen behaves: New flow, editor, Settings, Engines, Details log, dashboard | `node studio/e2e/<suite>.mjs` against the scratch server | `studio/e2e/` (about 28 suites) | 10 to 40 minutes |
+| **L5 Browser** | every Studio screen behaves: New flow, editor, Settings, Engines, Details log, dashboard | `node client/studio/e2e/<suite>.mjs` against the scratch server | `client/studio/e2e/` (about 28 suites) | 10 to 40 minutes |
 | **L6 Live engines smoke** | the real servers are reachable and each does one real job | `python scripts/run_all_checks.py --live` | `scripts/run_all_checks.py` | about 15 minutes of GPU |
 | **L7 End-to-end videos** | a real script becomes a real video through the real servers | `python scripts/run_reel_check.py` and the acceptance corpus (section 4) | `docs/evidence/` | 5 to 30 minutes each |
 | **L8 Human review** | the video makes sense, sounds right, looks right, and a viewer would not leave | the checklist (section 5), by a person | evidence tables | 5 minutes a video |
@@ -29,7 +29,7 @@ One command, with flags, that runs what can be run and writes `docs/evidence/<da
 | Step | Command | Needs |
 |---|---|---|
 | docs | `python scripts/check_docs.py` | nothing |
-| types and build | `tsc --noEmit`, `npm run build` in `studio/` | node |
+| types and build | `tsc --noEmit`, `npm run build` in `client/studio/` | node |
 | unit | `pytest -q -m "not slow"` | nothing |
 | slow | `pytest -q -m slow` (flag `--slow`) | ffmpeg, a browser |
 | browser | the suites listed in `scripts/collect_evidence.py` against a scratch server it starts and stops itself (flag `--e2e`) | a browser |
@@ -112,7 +112,7 @@ Run on a Windows machine with only a GPU driver, and again on one with no GPU:
 ## 9. What exists today, and the gaps (so the plan is honest)
 | Layer | Today | Gap |
 |---|---|---|
-| L1 to L4 | 880 or so fast tests pass, 65 slow pass | L1 gaps: `vt/doctor.py`, `vt/visuals/icons.py`, `vt/visuals/terms.py`, `vt/shorts/prompts.py` have no tests (P10-14) |
+| L1 to L4 | 880 or so fast tests pass, 65 slow pass | L1 gaps: `server/vt/doctor.py`, `server/vt/visuals/icons.py`, `server/vt/visuals/terms.py`, `server/vt/shorts/prompts.py` have no tests (P10-14) |
 | L5 | 13 of 24 older suites pass, 11 are stale or fail ([STATUS](STATUS.md) section 6); new suites `editor_simple`, `log`, `engines` pass | P10-06, P10-11, P10-12 |
 | L6, L7 | the battery's `--live` step runs (health of three engines and one real sentence from each of the five voice workflows on both ComfyUI servers); a voiced reel by hand | the acceptance corpus A1 to A10 is not written yet (T-2) |
 | L8 | the owner looks at videos; no checklist is filled | T-3 |
@@ -124,6 +124,6 @@ Run on a Windows machine with only a GPU driver, and again on one with no GPU:
 | T-1 | `scripts/run_all_checks.py` with the steps of section 2 | **DONE 2026-10-28**: writes `docs/evidence/<date>/checks.md`; skipped steps say why; its first live run found the OmniVoice vocabulary bug ([evidence](evidence/2026-10-28/checks.md)) |
 | T-2 | the acceptance scripts and a runner (`scripts/run_acceptance.py`) | A1 to A10 produce videos and judge reports **PARTLY DONE 2026-10-28 (all ten were run through a real Studio and the GPU server; 4 pass the automatic judges (A1, A4, A5, A8), 6 fail (A2, A3, A6, A7, A9, A10); no person has rated any, so the gate is not met; see [acceptance.md](evidence/2026-10-28/acceptance.md))**: `scripts/run_acceptance.py`, `tests/acceptance/`; the other eight are still to run |
 | T-3 | the checklist as a form in the Studio (a Result-page sheet) that saves to the project | a person fills it in under a minute **DONE 2026-10-28**: the Result page's *Rate it* sheet saves to `checklist.json` |
-| T-4 | the judges of section 3 as modules with tests on fixture videos (a green-frame video must fail) | each judge has a passing and a failing fixture **DONE 2026-10-28**: `vt/judges.py`, each judge with a passing and a failing fixture video (`tests/test_judges.py`) |
+| T-4 | the judges of section 3 as modules with tests on fixture videos (a green-frame video must fail) | each judge has a passing and a failing fixture **DONE 2026-10-28**: `server/vt/judges.py`, each judge with a passing and a failing fixture video (`tests/test_judges.py`) |
 | T-5 | the non-functional tests of section 6 | a table of measured numbers in evidence **PARTLY DONE 2026-10-28:** `scripts/measure_nonfunctional.py` ([numbers](evidence/2026-10-28/nonfunctional.md)): start-up, API speed, judge time and memory; the long-video memory, power-cut and two-machine tests are not run |
 | T-6 | the clean-machine run | the checklist of section 7 passes on two machines |

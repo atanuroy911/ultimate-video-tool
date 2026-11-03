@@ -1,0 +1,6 @@
+2026-11-03 final Windows server upgrade: installer exit 0.
+Installed app.asar: internal engine frame and log view verified.
+GET http://127.0.0.1:8790/manage?embedded=1: HTTP 200.
+Content-Security-Policy: frame-ancestors self/file/loopback (actual policy preserved in source).
+Native window: Ultimate Video Tool Server, enumerated. Accessibility/monitor capture unavailable; no native visual acceptance.
+Linux GTK/WebKit manager deployed under /home/roy; internal settings/log views, existing engines preserved.

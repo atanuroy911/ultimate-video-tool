@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageFilter
 
-OUT = Path(__file__).resolve().parents[1] / "design" / "textures" / "paper-grain.png"
+OUT = Path(__file__).resolve().parents[1] / "server" / "design" / "textures" / "paper-grain.png"
 
 
 def main() -> None:

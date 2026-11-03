@@ -23,7 +23,7 @@ Contents: 1 Architecture · 2 The contracts (module, artifact, call, result, slo
                                          │
                       ┌──────────────────┴───────────────────┐
                       │               EXECUTOR                │  validate inputs → resolve prerequisites → check budget →
-                      │  (vt/modules/executor.py)             │  take resource locks → run → validate outputs → write
+                      │  (server/vt/modules/executor.py)             │  take resource locks → run → validate outputs → write
                       │                                       │  artifacts + provenance → log the call → emit events
                       └───────▲────────────────▲─────────────┘
                               │                │
@@ -212,10 +212,10 @@ The director never receives all ~145 schemas at once.
 `autonomous` (default for zero-click): everything except deleting, posting externally, overwriting a named export. `studio` (a person is present): adds destructive edits with confirmation. `full`: adds `publish.dispatch` and external posting, requires an explicit setting. A module declares which toolboxes include it.
 
 ### 3.5 The director's standing prompt (versioned, tested)
-Fixed sections, in this order: its job and the audio-first principle; the grounding rule; how to read results (summaries, refs, `fix`); the budget and the cost kinds; the checkpoint protocol; the rules of cutting from the audio-first plan §4 (hook ≤ 3 s, cut on impact onsets, vary the lengths); the toolbox profile; five worked traces (including the `fake` / `powerful` pair). It is a file under `vt/direction/prompts/` with a version, loaded by tests; a change must not lower the evaluation scores (audio-first plan §6).
+Fixed sections, in this order: its job and the audio-first principle; the grounding rule; how to read results (summaries, refs, `fix`); the budget and the cost kinds; the checkpoint protocol; the rules of cutting from the audio-first plan §4 (hook ≤ 3 s, cut on impact onsets, vary the lengths); the toolbox profile; five worked traces (including the `fake` / `powerful` pair). It is a file under `server/vt/direction/prompts/` with a version, loaded by tests; a change must not lower the evaluation scores (audio-first plan §6).
 
 ### 3.6 External directors (already half-built)
-`vt/mcp/server.py` is today a hand-written list of 31 tools plus four prompts and one resource (the component catalogue) (`plan_this_video`, `make_stick_figure_video`, `direct_whole_video`, `improve_scene`). The registry generates the MCP tool list; the existing 31 names stay as **aliases** that call modules, so Claude Code and Codex configurations keep working. New: `meta.catalog` and `meta.describe` over MCP, the same state card, the call log. An external assistant is therefore a director with no code of ours in the loop, which is also the cheapest way to try a stronger director.
+`server/vt/mcp/server.py` is today a hand-written list of 31 tools plus four prompts and one resource (the component catalogue) (`plan_this_video`, `make_stick_figure_video`, `direct_whole_video`, `improve_scene`). The registry generates the MCP tool list; the existing 31 names stay as **aliases** that call modules, so Claude Code and Codex configurations keep working. New: `meta.catalog` and `meta.describe` over MCP, the same state card, the call log. An external assistant is therefore a director with no code of ours in the loop, which is also the cheapest way to try a stronger director.
 
 ---
 
@@ -299,7 +299,7 @@ Columns: **module** · what it does · inputs → outputs · cost · **wraps** (
 ### 4.6 `cut.*`: where the picture changes (audio-first plan §4)
 | Module | Does | Cost | New work |
 |---|---|---|---|
-| `cut.propose` | candidate cuts from `impact.map` under the pacing curve and the goal | f | **new** (`vt/cutplan.py`) |
+| `cut.propose` | candidate cuts from `impact.map` under the pacing curve and the goal | f | **new** (`server/vt/cutplan.py`) |
 | `cut.validate` | checks the rules (hook ≤ 3 s, cut on onset, min and max length, varied lengths, centre of interest) and returns fixes | f | **new** |
 | `cut.apply` | writes the slots to `cutplan`; one undo step | i | **new** |
 | `cut.snap_quiet` | nudge a cut to the nearest quiet, still moment without moving its impact | f | **new** (Berthouzoz et al.) |
@@ -412,7 +412,7 @@ Columns: **module** · what it does · inputs → outputs · cost · **wraps** (
 
 ## 5. Recipes (stored plans) and one worked example
 
-A **recipe** is a saved plan: a DAG of module calls with parameters and checkpoints. Recipes are data (`vt/recipes/*.json`), not code, so a style, a preset or a customer's house look is a file.
+A **recipe** is a saved plan: a DAG of module calls with parameters and checkpoints. Recipes are data (`server/vt/recipes/*.json`), not code, so a style, a preset or a customer's house look is a file.
 
 | Recipe | What it is |
 |---|---|
@@ -448,7 +448,7 @@ Every line is a row in `calls.jsonl` with its `why`; the Studio shows the same l
 Sizes: S ≈ a day, M ≈ 2–4 days, L ≈ a week or more of focused work. "Codex" = suited to the hand-off; "Claude" = needs design judgement.
 
 **Phase 0. The contract spike** (M, Claude). Prove the design on three modules before building anything else.
-* Files: `vt/modules/{__init__,registry,workspace,executor,calls,envelope,budget,resources,tickets,toolspec}.py`; `tests/test_modules_*.py`.
+* Files: `server/vt/modules/{__init__,registry,workspace,executor,calls,envelope,budget,resources,tickets,toolspec}.py`; `tests/test_modules_*.py`.
 * Do: the `@module` decorator and lint; `Workspace` over a project folder (artifact refs, hashing, provenance, staleness, versions); `Executor.call` (validate, prerequisites, cache, budget, locks, run, validate, record, event); `calls.jsonl`; the result envelope; tool-schema export to Anthropic / OpenAI / Gemini / MCP shapes. Three real modules: `project.inspect_source`, `audio.find_retakes`, `audio.prosody`.
 * Gate: the three modules called through the executor, over MCP and by `vt call`; cache hit on the second call; a missing prerequisite produces `needs_input` with the producing module named; replay rebuilds identical artifacts; lint passes; registry import adds < 100 ms (heavy libraries load only on call).
 
@@ -817,4 +817,4 @@ Settings: `plan_review` (`always` / `when_expensive` / `never`), `plan_review_ti
 | `visuals/picker`, `lexicon`, `icons`, `emoji`, `search`, `embed`, `translate` | `understand.visual_for_word`, `fill.sticker_icon`; `understand.impact_map` (the picker's score is an input) |
 | `visuals/terms` | `understand.key_terms` |
 | renderer `runtime/*.js` | not modules: the engine behind `render.*` and `timeline.compose` (layout guard, motion, stick and cartoon engines) |
-| `design/*` (themes, profiles, icons, fonts, terms, textures) | Data |
+| `server/design/*` (themes, profiles, icons, fonts, terms, textures) | Data |

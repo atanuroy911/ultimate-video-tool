@@ -33,7 +33,7 @@ The application folder has historically held a redundant `models/` copy on the r
 * `override.conf` (existing): `CUDA_VISIBLE_DEVICES=0`
 * `10-video-tool.conf` (new): `CUDA_DEVICE_ORDER=PCI_BUS_ID` (so "0" is the V100 in the same order as `nvidia-smi`), cache variables pointing at `/mnt/bigdata`, and an `ExecStart` that runs the venv's python with
   `--extra-model-paths-config …/extra_model_paths.yaml --input-directory … --output-directory … --temp-directory … --user-directory …`
-* [`20-bigdata-boot.conf`](../../assets/comfy/systemd/20-bigdata-boot.conf): `RequiresMountsFor` makes systemd mount `/mnt/bigdata` before starting ComfyUI; `ConditionPathIsMountPoint` prevents ComfyUI from starting against an unmounted directory. Installed and service-restarted on 2026-10-27; [boot audit](../evidence/2026-10-27/comfy-boot-persistence.md).
+* [`20-bigdata-boot.conf`](../../server/assets/comfy/systemd/20-bigdata-boot.conf): `RequiresMountsFor` makes systemd mount `/mnt/bigdata` before starting ComfyUI; `ConditionPathIsMountPoint` prevents ComfyUI from starting against an unmounted directory. Installed and service-restarted on 2026-10-27; [boot audit](../evidence/2026-10-27/comfy-boot-persistence.md).
 
 To remove only the boot guard, delete `20-bigdata-boot.conf`, then `systemctl daemon-reload` and `systemctl restart comfyui`. Rolling back to the original storage layout also requires removing `10-video-tool.conf`, but would leave the current models on `/mnt/bigdata`; restore the model location before using that older service command.
 
@@ -69,7 +69,7 @@ Wan 2.2: ~60 s warm. LTX-2.3: ~126 s warm, ~530 s the first time (29.5 GB to loa
 
 ## Model recovery
 
-The 20 large model files (124,563,203,317 bytes) are listed in [`assets/comfy/model-manifest.json`](../../assets/comfy/model-manifest.json). Each entry records its ComfyUI relative path, exact size, SHA-256 published in the upstream Hugging Face LFS metadata, and a download URL pinned to a repository commit. The matching [`scripts/restore_comfy_models.py`](../../scripts/restore_comfy_models.py) lists, verifies, and downloads files with a resumable `.part` file. It checks the size and hash before replacing a completed download. It will not overwrite an existing mismatched file. The [recovery guide](../../assets/comfy/MODEL-RECOVERY.md), manifest, and script are also copied to `/home/roy/video-tool-model-recovery/`, so they remain accessible from the server user's home even if this workspace is unavailable.
+The 20 large model files (124,563,203,317 bytes) are listed in [`server/assets/comfy/model-manifest.json`](../../server/assets/comfy/model-manifest.json). Each entry records its ComfyUI relative path, exact size, SHA-256 published in the upstream Hugging Face LFS metadata, and a download URL pinned to a repository commit. The matching [`scripts/restore_comfy_models.py`](../../scripts/restore_comfy_models.py) lists, verifies, and downloads files with a resumable `.part` file. It checks the size and hash before replacing a completed download. It will not overwrite an existing mismatched file. The [recovery guide](../../server/assets/comfy/MODEL-RECOVERY.md), manifest, and script are also copied to `/home/roy/video-tool-model-recovery/`, so they remain accessible from the server user's home even if this workspace is unavailable.
 
 ```bash
 python3 /home/roy/video-tool-model-recovery/restore_comfy_models.py list

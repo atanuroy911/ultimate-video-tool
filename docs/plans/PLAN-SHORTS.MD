@@ -2,7 +2,7 @@
 
 > **Reference & Foundation**:
 > - [Anil-matcha/AI-Youtube-Shorts-Generator](https://github.com/Anil-matcha/AI-Youtube-Shorts-Generator) (MIT Licensed, cloned into `third_party/ai-youtube-shorts-generator`): Virality scoring criteria, 20-min chunking with overlap, content density classifier, hook sentence extraction, and NMS score deduplication.
-> - **Video Tool Core**: Word-timed Whisper ASR (`vt/stages/asr.py`), face-tracking shot reframing (`vt/aroll.py`), multi-provider LLM engine with caching (`vt/ai/providers.py`), NVENC GPU acceleration (`vt/gpu.py`), and Studio timeline editor.
+> - **Video Tool Core**: Word-timed Whisper ASR (`server/vt/stages/asr.py`), face-tracking shot reframing (`server/vt/aroll.py`), multi-provider LLM engine with caching (`server/vt/ai/providers.py`), NVENC GPU acceleration (`server/vt/gpu.py`), and Studio timeline editor.
 
 ---
 
@@ -12,13 +12,13 @@
 sequenceDiagram
     autonumber
     actor Creator as User in Studio
-    participant NewUI as studio/src/pages/New.tsx
-    participant ShortsUI as studio/src/pages/ShortsExtractor.tsx
-    participant API as vt/server/shorts_routes.py
-    participant Ingest as vt/ingest.py (yt-dlp)
-    participant ASR as vt/stages/asr.py (Whisper)
-    participant Detector as vt/shorts/detector.py (Virality LLM)
-    participant Splitter as vt/shorts/splitter.py (Project Generator)
+    participant NewUI as client/studio/src/pages/New.tsx
+    participant ShortsUI as client/studio/src/pages/ShortsExtractor.tsx
+    participant API as server/vt/server/shorts_routes.py
+    participant Ingest as server/vt/ingest.py (yt-dlp)
+    participant ASR as server/vt/stages/asr.py (Whisper)
+    participant Detector as server/vt/shorts/detector.py (Virality LLM)
+    participant Splitter as server/vt/shorts/splitter.py (Project Generator)
     participant Projects as DATA/projects/ (Child Projects)
 
     Creator->>NewUI: Enters YouTube URL or uploads long video (5–60 min)
@@ -62,8 +62,8 @@ Adapted from `third_party/ai-youtube-shorts-generator/shorts_generator/highlight
 
 ## 3. Sub-Module Breakdown
 
-### 3.1 Backend: `vt/shorts/`
-- **`vt/shorts/prompts.py`**:
+### 3.1 Backend: `server/vt/shorts/`
+- **`server/vt/shorts/prompts.py`**:
   - `CONTENT_TYPE_PROMPT`: Classifies video type (podcast, interview, tutorial, lecture, commentary, vlog) and density (low, medium, high).
   - `VIRALITY_SYSTEM_PROMPT`: Structured schema instruction returning:
     ```json
@@ -80,26 +80,26 @@ Adapted from `third_party/ai-youtube-shorts-generator/shorts_generator/highlight
       ]
     }
     ```
-- **`vt/shorts/detector.py`**:
+- **`server/vt/shorts/detector.py`**:
   - `chunk_transcript()`: 20-minute sliding windows with 60-second overlap for videos > 30 minutes.
   - `detect_highlights()`: Calls `vt.ai.providers.complete_json()` (with automatic fallback to local Ollama / Claude / OpenAI / Gemini).
   - `dedupe_highlights()`: NMS algorithm dropping highlights overlapping > 50% with higher-scoring moments.
   - `snap_to_sentences()`: Refines timestamps against Whisper word-level timing.
-- **`vt/shorts/splitter.py`**:
+- **`server/vt/shorts/splitter.py`**:
   - `create_short_project(parent_pid, highlight, target_aspect="9:16")`:
     - Copies sliced media (lossless or re-encoded with `h264_nvenc`).
     - Filters transcript words to range `[start_time, end_time]` and shifts timestamps by `-start_time`.
     - Generates 9:16 project config with A-roll face tracking enabled (`options.aroll = True`).
     - Configures kinetic captions and auto-theme.
 
-### 3.2 Server Endpoints: `vt/server/shorts_routes.py`
+### 3.2 Server Endpoints: `server/vt/server/shorts_routes.py`
 - `POST /api/shorts/detect`: Analyzes a YouTube link or existing project ID; streams progress via Job runner.
 - `GET /api/projects/{pid}/shorts`: Returns detected highlights for a project.
 - `POST /api/projects/{pid}/shorts/generate`: Slices selected highlights into new child projects.
 - `POST /api/projects/{pid}/shorts/batch-export`: Slices and directly renders 9:16 vertical MP4s.
 
-### 3.3 Studio Frontend: `studio/src/pages/ShortsExtractor.tsx`
-- Mode selector in `studio/src/pages/New.tsx`: "✂️ Extract Shorts from YouTube/Video".
+### 3.3 Studio Frontend: `client/studio/src/pages/ShortsExtractor.tsx`
+- Mode selector in `client/studio/src/pages/New.tsx`: "✂️ Extract Shorts from YouTube/Video".
 - Candidate Highlights View:
   - Viral Score pill (Color coded: 90+ Emerald, 80-89 Purple, 70-79 Blue).
   - Hook quote callout.
@@ -112,22 +112,22 @@ Adapted from `third_party/ai-youtube-shorts-generator/shorts_generator/highlight
 
 ## 4. Implementation Steps
 
-1. **Step 1: Core Engine (`vt/shorts/prompts.py`, `vt/shorts/detector.py`)**
-   - Port and modernize highlight prompts, chunking, and deduplication into `vt/shorts/`.
+1. **Step 1: Core Engine (`server/vt/shorts/prompts.py`, `server/vt/shorts/detector.py`)**
+   - Port and modernize highlight prompts, chunking, and deduplication into `server/vt/shorts/`.
    - Integrate with `vt.ai.providers` for multi-LLM execution.
    - Add sentence boundary snapping with Whisper timestamps.
 
-2. **Step 2: Project Slicer (`vt/shorts/splitter.py`)**
+2. **Step 2: Project Slicer (`server/vt/shorts/splitter.py`)**
    - Create child project generator that slices media, re-bases timestamps, and creates valid `project.json` and `plan.json`.
    - Ensure NVENC GPU acceleration is used for video trimming.
 
-3. **Step 3: Server API Integration (`vt/server/shorts_routes.py` & `vt/server/app.py`)**
+3. **Step 3: Server API Integration (`server/vt/server/shorts_routes.py` & `server/vt/server/app.py`)**
    - Add background job execution for long video analysis.
    - Register endpoints in FastAPI app.
 
-4. **Step 4: Frontend UI (`studio/src/pages/ShortsExtractor.tsx`)**
+4. **Step 4: Frontend UI (`client/studio/src/pages/ShortsExtractor.tsx`)**
    - Build UI for browsing, auditioning, and generating shorts.
-   - Wire into `studio/src/pages/New.tsx` and `studio/src/pages/Review.tsx`.
+   - Wire into `client/studio/src/pages/New.tsx` and `client/studio/src/pages/Review.tsx`.
 
 5. **Step 5: Testing & Verification**
    - Unit tests for detector, boundary snapping, and deduplication.

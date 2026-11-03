@@ -122,7 +122,8 @@ def main() -> None:
     links = check_links(problems)
     paths = check_paths(problems)
     phases = check_roadmap(problems)
-    check_facts(problems, "--fix-facts" in sys.argv)
+    if '--structural-only' not in sys.argv:
+        check_facts(problems, "--fix-facts" in sys.argv)
     print(f"checked {links} links, {paths} paths/tests in the strict docs, {phases} roadmap phases")
     for pr in problems:
         print("PROBLEM:", pr)

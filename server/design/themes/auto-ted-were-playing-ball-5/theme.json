@@ -1,0 +1,76 @@
+{
+  "name": "auto-ted-were-playing-ball-5",
+  "label": "Soft cards · Deep ocean",
+  "color": {
+    "bg": "#08141f",
+    "bg2": "#0b3350",
+    "ink": "#e8f4ff",
+    "muted": "#838f9a",
+    "accent": "#3aa0ff",
+    "accent2": "#7ef0d4",
+    "card": "#10293d",
+    "card_border": "#e8f4ff",
+    "caption_bg": "#10293d",
+    "caption_ink": "#e8f4ff",
+    "highlight_bg": "#3aa0ff",
+    "highlight_ink": "#111111",
+    "tag_bg": "#7ef0d4",
+    "tag_ink": "#111111",
+    "arc": "rgba(232,244,255,0.12)"
+  },
+  "font": {
+    "headline": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "body": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "numeral": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "caption": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "headline_weight": 700
+  },
+  "shape": {
+    "radius": 34.0,
+    "stroke": 0.0,
+    "shadow": {
+      "x": 0.0,
+      "y": 14.0,
+      "color": "rgba(0,0,0,0.55)",
+      "blur": 36.0
+    },
+    "card_tilt": 0.0
+  },
+  "background": {
+    "kind": "mesh",
+    "grain": 0.0,
+    "arcs": false,
+    "pattern": 0.5,
+    "animated": false
+  },
+  "motion": {
+    "preset": "smooth"
+  },
+  "caption": {
+    "style": "pill",
+    "reveal": "line",
+    "weight": 700,
+    "size": 58,
+    "words_per_line": 6,
+    "safe_bottom": {
+      "portrait": 300,
+      "landscape": 64
+    }
+  },
+  "currency": "৳",
+  "sfx": "pop",
+  "style": "soft",
+  "palette": "ocean"
+}

@@ -27,7 +27,7 @@ The engine registry stays: the server may still use a ComfyUI, an Ollama or a Vo
  │ connection screen             │  mDNS _videotool._tcp  │ /.well-known/video-tool  (name, version, needs pairing)  │
  │   found on this network: ...  │ ◄────────────────────► │ /api/pair                (code -> token)                 │
  │   or type an address          │                        │ /api/*  /ws              (token on every request)        │
- │ pair once (6-digit code)      │  HTTP + WS + token     │ the Studio UI (studio/dist), served by the server        │
+ │ pair once (6-digit code)      │  HTTP + WS + token     │ the Studio UI (client/studio/dist), served by the server        │
  │ then: the Studio, loaded      │ ─────────────────────► │ projects, pipeline, render (Node, FFmpeg, Chrome)        │
  │   from the server             │                        │ MCP over HTTP (vt-mcp --http, same token)                │
  │ remembers servers + tokens    │                        │ engines: Ollama, ComfyUI, VoiceStudio (here or remote)   │
@@ -36,12 +36,12 @@ The engine registry stays: the server may still use a ComfyUI, an Ollama or a Vo
 
 | | Client | Server |
 |---|---|---|
-| Contains | `desktop/` (Electron shell: connection screen, saved servers, OS keychain for tokens, menus) and the PWA manifest | `vt/`, `renderer/`, `assets/`, `design/`, `studio/dist` (served), the engine installers |
+| Contains | `client/desktop/` (Electron shell: connection screen, saved servers, OS keychain for tokens, menus) and the PWA manifest | `server/vt/`, `server/renderer/`, `server/assets/`, `server/design/`, `client/studio/dist` (served), the engine installers |
 | Needs | nothing (Electron bundles its runtime) | Python 3.11 + locked packages, Node 20, FFmpeg; a GPU is optional |
 | Installs as | `.exe` / `.dmg` / `.AppImage`, about 100 MB | the setup wizard or the Engine package (zip, Docker image), as in PLAN-PACKAGING |
 | Runs as | a window | a service (`vt server service --install`), or started by the client on the same computer |
 
-**Same computer.** The client looks at `127.0.0.1:8765` first. If a server is installed there but not running, it starts it (as `desktop/main.js` does
+**Same computer.** The client looks at `127.0.0.1:8765` first. If a server is installed there but not running, it starts it (as `client/desktop/main.js` does
 today). Loopback needs no pairing.
 
 **Discovery.** The server announces `_videotool._tcp.local` with its name, version and port (the `zeroconf` package). The client lists what it hears and also
@@ -54,9 +54,9 @@ exists) with the token, instead of starting a local Python. On the server comput
 
 | Folder | Half | Note |
 |---|---|---|
-| `desktop/` | client | becomes the connection-first shell |
-| `studio/` | client source, server-served | built into `studio/dist`, which the server serves; the client never bundles its own copy |
-| `vt/`, `renderer/`, `assets/`, `design/`, `packaging/engine/` | server | |
+| `client/desktop/` | client | becomes the connection-first shell |
+| `client/studio/` | client source, server-served | built into `client/studio/dist`, which the server serves; the client never bundles its own copy |
+| `server/vt/`, `server/renderer/`, `server/assets/`, `server/design/`, `server/packaging/engine/` | server | |
 | `scripts/`, `tests/`, `docs/` | both | |
 
 The boundary comes first (two entry points, two installers, auth); moving folders into `client/` and `server/` is a separate, mechanical commit afterwards,
@@ -69,13 +69,13 @@ because `pyproject.toml`, the tests and `scripts/check_docs.py` name today's pat
 | **CS1 One server** | `vt server` = `vt studio` + the Engine hub in one process: one port, one pairing, one service. `vt studio` and `vt engine run` stay as aliases | the Studio and a paired engine client both work against one `vt server` | `tests/test_server_merge.py`; the existing API and hub tests pass unchanged |
 | **CS2 Auth** | token on every `/api` and `/ws` route except `/.well-known`, `/api/pair` and static files; loopback is exempt | a request from another address without a token gets 401; with it, 200 | `tests/test_server_auth.py` |
 | **CS3 Discovery** | mDNS announce + UDP fallback on the server; `GET /.well-known/video-tool` | a second process on the LAN lists the server within 2 s | `tests/test_discovery.py` (loopback multicast) |
-| **CS4 Thin client** | `desktop/` connection screen, saved servers, keychain, same-computer auto start; the Python bootstrap moves to the server installer | the client installs and runs on a computer with no Python, pairs, and makes a video on the server | `studio/e2e/connect.mjs`; a two-computer run logged in evidence |
+| **CS4 Thin client** | `client/desktop/` connection screen, saved servers, keychain, same-computer auto start; the Python bootstrap moves to the server installer | the client installs and runs on a computer with no Python, pairs, and makes a video on the server | `client/studio/e2e/connect.mjs`; a two-computer run logged in evidence |
 | **CS5 Files** | resumable uploads (chunks + offset) and streamed downloads; upload progress in the New flow | a 1 GB podcast uploads over Wi-Fi and survives a dropped connection | `tests/test_upload_resume.py` |
 | **CS6 MCP over the network** | `.mcp.json` template for a remote server; the Studio's *Use your own AI assistant* shows the remote form | Claude Code on the client plans a video on the server | one live run logged |
 | **CS7 Repo layout** | move folders to `client/` and `server/`; fix paths, CI and docs | `check_docs.py` clean, every suite passes | CI |
 
 **Progress (2026-10-31).** CS1 and CS2 are built together, because a Studio listening beyond loopback without a token is not safe to ship.
-- `vt server` ([vt/server/serve.py](../../vt/server/serve.py)) runs the Studio, the pipeline and the engine contract (`/.well-known/vt-engine`, `/v1/*`, `/gw/*`) on one
+- `vt server` ([server/vt/server/serve.py](../../server/vt/server/serve.py)) runs the Studio, the pipeline and the engine contract (`/.well-known/vt-engine`, `/v1/*`, `/gw/*`) on one
   port (8765). It uses one key, the hub identity, so pairing survives restarts. One pairing code serves both `/api/pair` (Studio clients; sets the `vt_token`
   cookie) and `/v1/pair` (engine clients). `vt engine pair --port 8765` prints a new code.
 - `vt studio` is now `vt server --host 127.0.0.1` without starting engines. With that host, nothing changes for the desktop app.
@@ -88,19 +88,19 @@ because `pyproject.toml`, the tests and `scripts/check_docs.py` name today's pat
   `hub.reset_key()`, and then every client pairs again.
 
 **Progress: CS3 and the first part of CS4 (2026-10-31).**
-- Discovery ([vt/server/discovery.py](../../vt/server/discovery.py)): `vt server` announces `_videotool._tcp` (zeroconf) and answers `VIDEO-TOOL? 1` on UDP 8767
+- Discovery ([server/vt/server/discovery.py](../../server/vt/server/discovery.py)): `vt server` announces `_videotool._tcp` (zeroconf) and answers `VIDEO-TOOL? 1` on UDP 8767
   with its card. `vt servers` and `GET /api/servers` list what answers. The desktop app asks by UDP broadcast on every IPv4 network of the computer
-  ([desktop/discover.js](../../desktop/discover.js)), so it needs no Python. Verified by `tests/test_discovery.py` (including a real mDNS announce
+  ([client/desktop/discover.js](../../client/desktop/discover.js)), so it needs no Python. Verified by `tests/test_discovery.py` (including a real mDNS announce
   heard on loopback) and a live run: the Node client found the Python server on the LAN and Tailscale addresses.
 - Engine placement: `vt server --comfy/--ollama/--voicestudio auto|existing|own|off`
-  ([vt/engines/placement.py](../../vt/engines/placement.py)), and the same choice on the Engines page. *Existing* uses a service already on its usual
+  ([server/vt/engines/placement.py](../../server/vt/engines/placement.py)), and the same choice on the Engines page. *Existing* uses a service already on its usual
   ports and never starts, stops or changes it. *Own* runs our copy on its own port (Ollama 11444+, ComfyUI 8288+), so both can share one computer.
-- Pairing without commands: a browser on another computer gets the Studio page and a **Connect** screen (`studio/src/Pair.tsx`) that asks for the
+- Pairing without commands: a browser on another computer gets the Studio page and a **Connect** screen (`client/studio/src/Pair.tsx`) that asks for the
   code. The server's Engines page shows **This server** with its addresses and a **New pairing code** button (`POST /api/server/code`, only from the
   server computer itself).
-- Desktop app: on first start it asks where to run (`desktop/connect.html`): this computer (the old behaviour), a server found on the network, or a
+- Desktop app: on first start it asks where to run (`client/desktop/connect.html`): this computer (the old behaviour), a server found on the network, or a
   typed address. It remembers the choice, and File > Connect to another server changes it.
-- Each paired device gets its own token (`vt/server/clients.py`, only hashes kept). The This server card lists them with **Revoke**; the server key
+- Each paired device gets its own token (`server/vt/server/clients.py`, only hashes kept). The This server card lists them with **Revoke**; the server key
   still serves engine clients.
 - `vt server --start-at-login` and the card's **Start by itself** register a login service (systemd user unit, launchd agent, or Windows task)
   with the same engines and port. On Linux, starting at boot with nobody logged in also needs `loginctl enable-linger` once; the owner decides.
@@ -111,15 +111,15 @@ because `pyproject.toml`, the tests and `scripts/check_docs.py` name today's pat
 - Still to do in CS4: the Python bootstrap moved out of the client installer; the Electron
   flow checked on a computer without Python.
 
-**Progress: CS5 (2026-10-31).** Files of 8 MB or more go up in 8 MB chunks ([vt/server/uploads.py](../../vt/server/uploads.py)). After a drop
+**Progress: CS5 (2026-10-31).** Files of 8 MB or more go up in 8 MB chunks ([server/vt/server/uploads.py](../../server/vt/server/uploads.py)). After a drop
 the Studio asks the server how far it got and carries on, also after a page reload (the upload id is kept per file in the browser). A chunk sent
 twice is refused with the right offset, so nothing is doubled. `POST /api/inspect` and `POST /api/projects` take the finished upload by id, so a
-video that is looked at first is sent only once. Unused uploads are removed after two days. `studio/src/api.ts` `upload()` does this by itself,
+video that is looked at first is sent only once. Unused uploads are removed after two days. `client/studio/src/api.ts` `upload()` does this by itself,
 so the New flow and the Shorts page did not change. Verified by `tests/test_upload_resume.py`. Not yet verified: a real 1 GB file over Wi-Fi with
 the connection cut.
 
 **Progress: CS6 (2026-10-31).** `vt server` serves the MCP tools at `/mcp` on its own port (`install_mcp` in
-[vt/server/serve.py](../../vt/server/serve.py)), only when it listens beyond this computer. `/mcp` always needs a key, even from this computer:
+[server/vt/server/serve.py](../../server/vt/server/serve.py)), only when it listens beyond this computer. `/mcp` always needs a key, even from this computer:
 the tools can do anything, and a web page could otherwise reach them through localhost. On the server itself the stdio form needs none. The AI
 assistants page (on another device, or on the server under *An assistant on another computer*) makes a key for one assistant and shows the
 `claude mcp add --transport http ...` line and the `.mcp.json`. Each key is a paired device, revoked in the same list. On a remote device the

@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "server"))
 
 
 def safe(fn):
@@ -45,17 +45,17 @@ def measure() -> dict[str, object]:
     facts["Video Script vocabulary"] = safe(f_script_cat)
     facts["animals recognised (distinct emoji)"] = safe(lambda: len(set(__import__("vt.script.animals", fromlist=["x"]).ANIMALS.values())))
     facts["shotcraft cards mapped"] = safe(lambda: len(__import__("vt.compose.motion", fromlist=["x"]).CARDS))
-    motion = (ROOT / "renderer/runtime/vt-motion.js").read_text(encoding="utf-8")
+    motion = (ROOT / "server/renderer/runtime/vt-motion.js").read_text(encoding="utf-8")
     reg = {name: len(set(re.findall(rf'^\s*{name}\["([\w-]+)"\]\s*=', motion, re.M))) for name in ("T", "R", "S")}
     facts["motion recipes in vt-motion.js"] = {"text entrances (T)": reg["T"], "transitions (R)": reg["R"], "scene moves (S)": reg["S"], "total": sum(reg.values())}
-    themes = [p.name for p in (ROOT / "design/themes").iterdir() if p.is_dir()]
+    themes = [p.name for p in (ROOT / "server/design/themes").iterdir() if p.is_dir()]
     facts["themes (design/themes)"] = {"built in": sorted(n for n in themes if not n.startswith("auto-")), "auto-generated for projects": len([n for n in themes if n.startswith("auto-")])}
-    facts["use-case profiles"] = len(list((ROOT / "design/profiles").glob("*.json")))
-    facts["music tracks (assets/music)"] = len([p for p in (ROOT / "assets/music").glob("*") if p.suffix.lower() in (".mp3", ".wav", ".m4a", ".ogg")])
-    facts["sfx files (assets/sfx)"] = len([p for p in (ROOT / "assets/sfx").rglob("*") if p.is_file() and p.suffix.lower() in (".mp3", ".wav", ".m4a", ".ogg")])
-    facts["cartoon characters / scenes (assets/cartoon)"] = (len(list((ROOT / "assets/cartoon/characters").glob("*.svg"))), len(list((ROOT / "assets/cartoon/scenes").glob("*.*"))))
-    facts["ComfyUI workflow assets"] = [p.name for p in sorted((ROOT / "assets/comfy/workflows").glob("*.json"))]
-    facts["MCP tools / prompts"] = (len(re.findall(r"@tool\s*\n\s*def ", (ROOT / "vt/mcp/server.py").read_text(encoding="utf-8"))), len(re.findall(r"@server\.prompt", (ROOT / "vt/mcp/server.py").read_text(encoding="utf-8"))))
+    facts["use-case profiles"] = len(list((ROOT / "server/design/profiles").glob("*.json")))
+    facts["music tracks (assets/music)"] = len([p for p in (ROOT / "server/assets/music").glob("*") if p.suffix.lower() in (".mp3", ".wav", ".m4a", ".ogg")])
+    facts["sfx files (assets/sfx)"] = len([p for p in (ROOT / "server/assets/sfx").rglob("*") if p.is_file() and p.suffix.lower() in (".mp3", ".wav", ".m4a", ".ogg")])
+    facts["cartoon characters / scenes (assets/cartoon)"] = (len(list((ROOT / "server/assets/cartoon/characters").glob("*.svg"))), len(list((ROOT / "server/assets/cartoon/scenes").glob("*.*"))))
+    facts["ComfyUI workflow assets"] = [p.name for p in sorted((ROOT / "server/assets/comfy/workflows").glob("*.json"))]
+    facts["MCP tools / prompts"] = (len(re.findall(r"@tool\s*\n\s*def ", (ROOT / "server/vt/mcp/server.py").read_text(encoding="utf-8"))), len(re.findall(r"@server\.prompt", (ROOT / "server/vt/mcp/server.py").read_text(encoding="utf-8"))))
 
     def f_routes():
         from vt.server.app import app
@@ -73,12 +73,12 @@ def measure() -> dict[str, object]:
         from vt import models
         return len(models.MODELS) if hasattr(models, "MODELS") else "n/a"
     facts["downloadable models (vt/models.py)"] = safe(f_models)
-    src = list((ROOT / "vt").rglob("*.py"))
+    src = list((ROOT / "server/vt").rglob("*.py"))
     facts["python source"] = {"files": len([p for p in src if "__pycache__" not in p.parts]), "lines": sum(len(p.read_text(encoding="utf-8", errors="replace").splitlines()) for p in src if "__pycache__" not in p.parts)}
-    facts["renderer runtime (js+css) lines"] = sum(len(p.read_text(encoding="utf-8", errors="replace").splitlines()) for p in (ROOT / "renderer/runtime").glob("*") if p.is_file())
-    tsx = [p for p in (ROOT / "studio/src").rglob("*") if p.suffix in (".ts", ".tsx")]
-    facts["studio source"] = {"files": len(tsx), "lines": sum(len(p.read_text(encoding="utf-8", errors="replace").splitlines()) for p in tsx), "pages": [p.stem for p in sorted((ROOT / "studio/src/pages").glob("*.tsx"))]}
-    facts["browser suites (studio/e2e, not helpers)"] = len([p for p in (ROOT / "studio/e2e").glob("*.mjs") if not p.name.startswith("_") and p.name != "common.mjs"])
+    facts["renderer runtime (js+css) lines"] = sum(len(p.read_text(encoding="utf-8", errors="replace").splitlines()) for p in (ROOT / "server/renderer/runtime").glob("*") if p.is_file())
+    tsx = [p for p in (ROOT / "client/studio/src").rglob("*") if p.suffix in (".ts", ".tsx")]
+    facts["studio source"] = {"files": len(tsx), "lines": sum(len(p.read_text(encoding="utf-8", errors="replace").splitlines()) for p in tsx), "pages": [p.stem for p in sorted((ROOT / "client/studio/src/pages").glob("*.tsx"))]}
+    facts["browser suites (studio/e2e, not helpers)"] = len([p for p in (ROOT / "client/studio/e2e").glob("*.mjs") if not p.name.startswith("_") and p.name != "common.mjs"])
     facts["pytest files"] = len(list((ROOT / "tests").glob("test_*.py")))
     facts["pytest functions"] = sum(len(re.findall(r"^\s*(?:async )?def test_", p.read_text(encoding="utf-8", errors="replace"), re.M)) for p in (ROOT / "tests").glob("test_*.py"))
 

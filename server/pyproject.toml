@@ -1,0 +1,118 @@
+[project]
+name = "video-tool"
+version = "1.0.0"
+description = "Voice recording -> faceless motion-graphics explainer video (Bangla/Banglish first). Open-source stack."
+requires-python = ">=3.11,<3.12"
+# Everything a user needs is here: there is no "install this extra to get feature X" for a shipped feature.
+dependencies = [
+  "pydantic>=2.7",
+  "typer>=0.12",
+  "rich>=13",
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "python-multipart>=0.0.9",
+  "numpy>=2.0",
+  "soundfile>=0.12",
+  "httpx>=0.27",
+  "jsonschema>=4",
+  "mcp>=2.3,<3",
+  "keyring>=25",
+  "pillow>=10",            # media bin, contrast engine, icons
+  "scipy>=1.11",           # resampling for the offline voice
+  "yt-dlp>=2025.1.1",       # links (YouTube etc.): audio and subtitles
+  "edge-tts>=6.1",         # online neural voices for typed scripts
+  "kokoro-onnx==0.6.1",    # offline English and Hindi voices (model downloaded on first use)
+  "espeakng-loader>=0.2.4",   # kokoro's phonemes (its own dependency list is replaced below, see tool.uv.dependency-metadata)
+  "phonemizer>=3.4.0",
+  "deep-translator>=1.11", # Bangla and other languages -> English for the picture dictionary
+  "wordfreq>=3.1",         # which words are common enough to skip
+  "opencv-python-headless>=4.9,<5",   # face detection: keeps text off faces on photos
+  # speech recognition, sound tagging, voice cloning, cutout: one set of libraries, one ONNX Runtime, one torch
+  "faster-whisper==1.2.1",
+  "ctranslate2>=4.5",
+  "transformers>=5.0",
+  "tokenizers>=0.22",
+  "torch>=2.6,<2.8",          # the build (CUDA 12.8 / 12.4 / 11.8 / CPU) is an extra below, chosen per machine by vt/gpu_detect.py
+  "torchaudio>=2.6,<2.8",
+  "huggingface_hub>=0.25",
+  "sentencepiece",
+  "uroman",
+  "av>=11",
+  "onnxruntime-gpu>=1.22,<1.27; sys_platform != 'darwin'",     # the only ONNX Runtime; never install `onnxruntime` next to it. Below 1.27: from 1.27 it needs CUDA 13, and it must share the CUDA 12 of the torch wheel (vt/gpu.py)
+  "onnxruntime>=1.22; sys_platform == 'darwin'",
+  "zeroconf>=0.136",       # vt server announces itself on the network; clients list what they hear (vt/server/discovery.py)
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "nltk>=3.9"]
+# one GPU build per machine (exactly one of these; the installers ask `python -m vt.gpu_detect`)
+cu128 = ["torch==2.7.1", "torchaudio==2.7.1"]      # RTX 50 (Blackwell) and newest drivers
+cu124 = ["torch==2.6.0", "torchaudio==2.6.0"]      # Maxwell to Hopper, driver 525+ (the default)
+cu118 = ["torch==2.6.0", "torchaudio==2.6.0"]      # older drivers (452+); speech recognition on the CPU
+cpu = ["torch==2.6.0", "torchaudio==2.6.0"]        # no NVIDIA GPU, macOS    # nltk only to rebuild the part-of-speech list (scripts/build_pos.py)
+
+[project.scripts]
+vt = "vt.cli:app"
+vt-mcp = "vt.mcp.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["vt"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+# --- locked installs (uv) ---------------------------------------------------------------------------------------------------------------------------
+# torch from the CUDA 12.4 wheels on Windows and Linux, so a fresh install has the GPU build without a manual reinstall.
+[tool.uv]
+conflicts = [[{ extra = "cu128" }, { extra = "cu124" }, { extra = "cu118" }, { extra = "cpu" }]]
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu118"
+url = "https://download.pytorch.org/whl/cu118"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cu128", extra = "cu128", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
+  { index = "pytorch-cu124", extra = "cu124", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
+  { index = "pytorch-cu118", extra = "cu118", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
+  { index = "pytorch-cpu", extra = "cpu", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
+]
+torchaudio = [
+  { index = "pytorch-cu128", extra = "cu128", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
+  { index = "pytorch-cu124", extra = "cu124", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
+  { index = "pytorch-cu118", extra = "cu118", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
+  { index = "pytorch-cpu", extra = "cpu", marker = "sys_platform == 'win32' or sys_platform == 'linux'" },
+]
+
+# kokoro-onnx and faster-whisper both ask for the CPU `onnxruntime`; with `onnxruntime-gpu` installed two ONNX Runtimes would fight over one module name.
+# Their dependency lists are given here without it (the app installs the right one itself, above).
+[[tool.uv.dependency-metadata]]
+name = "kokoro-onnx"
+version = "0.6.1"
+requires-dist = ["espeakng-loader>=0.2.4", "numpy>=2.0.2", "phonemizer>=3.4.0"]
+
+[[tool.uv.dependency-metadata]]
+name = "faster-whisper"
+version = "1.2.1"
+requires-dist = ["ctranslate2>=4.0,<5", "huggingface-hub>=0.21", "tokenizers>=0.13,<1", "av>=11", "tqdm"]

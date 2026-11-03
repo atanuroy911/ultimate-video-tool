@@ -18,7 +18,7 @@ Status: **plan**, 2026-11-01. The owner asked:
 
 The server cannot start a program on the client, so the client does the starting. The connection already exists:
 - Pairing gives the client a device token.
-- The desktop app registers Video Tool with the local Claude through `desktop/mcp-bridge.js`, which reaches the server's `/mcp` with that token.
+- The desktop app registers Video Tool with the local Claude through `client/desktop/mcp-bridge.js`, which reaches the server's `/mcp` with that token.
 
 What is new is the server asking for a director.
 

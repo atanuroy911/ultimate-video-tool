@@ -40,8 +40,9 @@ def test_the_pytorch_build_follows_the_card():
 
 def test_setup_state_is_resumable_and_validated(data):
     assert setup.state()["step"] == "welcome" and setup.state()["done"] is False
-    s = setup.save(step="choose", choices={"comfy": "remote", "ollama": "local"}, models_dir="/mnt/bigdata", bundles=["pictures", "bogus"])
-    assert s["step"] == "choose" and s["choices"]["comfy"] == "remote" and s["models_dir"] == "/mnt/bigdata" and s["bundles"] == ["pictures"]
+    destination=str(data/'model-store')  # storage paths belong to the OS executing the server
+    s = setup.save(step="choose", choices={"comfy": "remote", "ollama": "local"}, models_dir=destination, bundles=["pictures", "bogus"])
+    assert s["step"] == "choose" and s["choices"]["comfy"] == "remote" and s["models_dir"] == destination and s["bundles"] == ["pictures"]
     assert setup.state()["choices"]["ollama"] == "local"                       # survives a restart: it is in the settings file
     with pytest.raises(ValueError):
         setup.save(step="nowhere")
@@ -134,8 +135,12 @@ def test_the_setup_api(data):
 
     with TestClient(app) as c:
         o = c.get("/api/setup").json()
+        assert isinstance(o["bundles"],list) and "bundle_catalog" in o
+        roundtrip=c.put('/api/setup',json={'choices':o['recommended'],'bundles':o['bundles']})
+        assert roundtrip.status_code==200,roundtrip.text
         assert o["step"] == "welcome" and {"hardware", "recommended", "engines", "steps"} <= set(o) and {e["id"] for e in o["engines"]} == {"ollama", "comfy", "voicestudio"}
-        assert c.put("/api/setup", json={"step": "storage", "models_dir": "/mnt/bigdata"}).json()["models_dir"] == "/mnt/bigdata"
+        destination=str(data/'model-store')
+        assert c.put("/api/setup", json={"step": "storage", "models_dir": destination}).json()["models_dir"] == destination
         assert c.put("/api/setup", json={"step": "x"}).status_code == 422
         assert c.get("/api/setup/plan?engines=toaster").status_code == 404
         plan = c.get("/api/setup/plan?engines=comfy&bundles=pictures").json()

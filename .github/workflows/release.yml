@@ -29,18 +29,22 @@ jobs:
       publish: ${{ steps.v.outputs.publish }}
     steps:
       - id: v
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
         run: |
-          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then v="${GITHUB_REF_NAME#v}"; p=true; else v="${{ inputs.version }}"; p=false; fi
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then v="${GITHUB_REF_NAME#v}"; p=true; else v="$REQUESTED_VERSION"; p=false; fi
+          [[ "${v#v}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || exit 1
           echo "version=${v#v}" >> "$GITHUB_OUTPUT"
           echo "publish=$p" >> "$GITHUB_OUTPUT"
 
   app:
-    name: App installer (${{ matrix.os }})
+    name: ${{ matrix.edition }} installer (${{ matrix.os }})
     needs: [ci, version]
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
+        os: [windows-latest, ubuntu-latest]
+        edition: [client, server]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -51,30 +55,36 @@ jobs:
       - name: Version
         shell: bash
         run: python scripts/set_version.py "${{ needs.version.outputs.version }}"
-      - name: Generated assets (fonts, icons, texture, sounds)
+      - name: Processing assets (server only)
+        if: matrix.edition == 'server'
         shell: bash
         run: |
           pip install pillow numpy soundfile
-          cd renderer && npm install --no-audit --no-fund && node scripts/build-fonts.mjs && node scripts/build-icons.mjs && cd ..
+          cd server/renderer && npm ci --no-audit --no-fund && node scripts/build-fonts.mjs && node scripts/build-icons.mjs && cd ../..
           python scripts/make_texture.py
           python scripts/make_assets.py
-          python scripts/make_icons.py
-      - name: Studio
+      - name: Client editor (client only)
+        if: matrix.edition == 'client'
         shell: bash
-        run: cd studio && npm ci --no-audit --no-fund && npm run build
+        run: cd client/studio && npm ci --no-audit --no-fund && npm run build
       - name: Installer
         shell: bash
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
-        run: cd desktop && npm install --no-audit --no-fund && npx electron-builder --publish never
+        run: |
+          cd ${{ matrix.edition }}/desktop
+          npm ci --no-audit --no-fund
+          npm run dist
       - uses: actions/upload-artifact@v4
         with:
-          name: app-${{ matrix.os }}
+          name: app-${{ matrix.edition }}-${{ matrix.os }}
           path: |
-            desktop/dist/*.exe
-            desktop/dist/*.dmg
-            desktop/dist/*.AppImage
-            desktop/dist/*.deb
+            client/desktop/dist/*.exe
+            client/desktop/dist/*.AppImage
+            client/desktop/dist/*.deb
+            server/desktop/dist/*.exe
+            server/desktop/dist/*.AppImage
+            server/desktop/dist/*.deb
           if-no-files-found: error
 
   engine:
@@ -167,7 +177,8 @@ jobs:
           files: out/*
           generate_release_notes: true
           body: |
-            **Video Tool** (the app): `.exe` for Windows, `.dmg` for macOS, `.AppImage` or `.deb` for Linux.
-            **Video Tool Engine** (the server for a GPU computer): `video-tool-engine-*.zip` or `.tar.gz`, or `docker pull ghcr.io/${{ github.repository_owner }}/video-tool-engine:${{ needs.version.outputs.version }}`.
-            Both halves on one computer: install the app, then Settings, Engines, "Run setup". The engine on another computer: unpack the package there, run its install script, then pair (README-ENGINE.txt).
-            Nothing is code-signed: Windows and macOS will warn on first open.
+            **Ultimate Video Tool**: Windows `.exe` and Linux `.AppImage` / `.deb`.
+            **Ultimate Video Tool Server**: separately installable Windows and Linux edition with server management, pairing and processing APIs; no editor bundle.
+            **Headless GPU helper** (the server for a GPU computer): `video-tool-engine-*.zip` or `.tar.gz`, or `docker pull ghcr.io/${{ github.repository_owner }}/video-tool-engine:${{ needs.version.outputs.version }}`.
+            Install the client to edit locally or connect to a server. Install the Server edition on the computer doing the processing; its manager connects engines and approves client devices. Headless GPU helpers remain available as archives.
+            Nothing is code-signed: Windows may warn on first open.

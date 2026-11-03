@@ -1,0 +1,299 @@
+{
+  "version": 1,
+  "historyId": "29dcf79f-0aa2-4786-8319-20ae0d217ff5",
+  "currentRevision": null,
+  "pendingChanges": false,
+  "files": {
+    "data.json": {
+      "hash": "06c4c6bd7b756e1468faf703b3f26784cf6ba5dd5a35cd527c235ffac7875eb5",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\06\\06c4c6bd7b756e1468faf703b3f26784cf6ba5dd5a35cd527c235ffac7875eb5"
+    },
+    "fonts/anek-bangla-bengali-400-normal.woff2": {
+      "hash": "4fdb1a989e9060e351fb7c6b848d0b82c2c68a3c170fed3b5c287f9aa314f0cf",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\4f\\4fdb1a989e9060e351fb7c6b848d0b82c2c68a3c170fed3b5c287f9aa314f0cf"
+    },
+    "fonts/anek-bangla-bengali-600-normal.woff2": {
+      "hash": "8baeb9732aca99a944c9081cbb20768334460e3cbf06962de8cba110f1ff6889",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\8b\\8baeb9732aca99a944c9081cbb20768334460e3cbf06962de8cba110f1ff6889"
+    },
+    "fonts/anek-bangla-bengali-700-normal.woff2": {
+      "hash": "869cfa876eac2fd993866912a1a1a5c41e4deba79430da3084ac890239b86451",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\86\\869cfa876eac2fd993866912a1a1a5c41e4deba79430da3084ac890239b86451"
+    },
+    "fonts/anek-bangla-bengali-800-normal.woff2": {
+      "hash": "1a51ac19740e0ebb7177ba01761f3405c10cb8946ffb41c127a1f1692145fb5e",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\1a\\1a51ac19740e0ebb7177ba01761f3405c10cb8946ffb41c127a1f1692145fb5e"
+    },
+    "fonts/anek-bangla-latin-400-normal.woff2": {
+      "hash": "8028b0f5ddce1ee14a4b08825417f9455f4455f8c57b7b79ae154e57fb62bbf2",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\80\\8028b0f5ddce1ee14a4b08825417f9455f4455f8c57b7b79ae154e57fb62bbf2"
+    },
+    "fonts/anek-bangla-latin-600-normal.woff2": {
+      "hash": "2ce64730b19f5b7c32c3f83dc2afb65cc2274be452c2c8d6e213cb33b54112a6",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\2c\\2ce64730b19f5b7c32c3f83dc2afb65cc2274be452c2c8d6e213cb33b54112a6"
+    },
+    "fonts/anek-bangla-latin-700-normal.woff2": {
+      "hash": "edf25c740e28d4b9bbb2d32abf34527804f1e03a71f978b3064ba6e56d5719a1",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\ed\\edf25c740e28d4b9bbb2d32abf34527804f1e03a71f978b3064ba6e56d5719a1"
+    },
+    "fonts/anek-bangla-latin-800-normal.woff2": {
+      "hash": "b1224136f28e99f4322697a410b6aef59f1e3b10dacc29ea79f4799c579adace",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\b1\\b1224136f28e99f4322697a410b6aef59f1e3b10dacc29ea79f4799c579adace"
+    },
+    "fonts/anek-bangla-latin-ext-400-normal.woff2": {
+      "hash": "7d80432e5fac15ca91f15104c7fa5720c8276693bdf7742404b03252fde1c73b",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\7d\\7d80432e5fac15ca91f15104c7fa5720c8276693bdf7742404b03252fde1c73b"
+    },
+    "fonts/anek-bangla-latin-ext-600-normal.woff2": {
+      "hash": "431dd1358b687b9d05a532423b33ea0bc56be70849157c915905f1e6ab590bd3",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\43\\431dd1358b687b9d05a532423b33ea0bc56be70849157c915905f1e6ab590bd3"
+    },
+    "fonts/anek-bangla-latin-ext-700-normal.woff2": {
+      "hash": "3c9ff95fa25e6bcd022f8ca1ecf4eb8def7b4c57e07af3ff3652813b8d4fd18e",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\3c\\3c9ff95fa25e6bcd022f8ca1ecf4eb8def7b4c57e07af3ff3652813b8d4fd18e"
+    },
+    "fonts/anek-bangla-latin-ext-800-normal.woff2": {
+      "hash": "6281c2a1e165e03a94f297377b0fa3e65c18493a169822c19cf775c152f40b67",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\62\\6281c2a1e165e03a94f297377b0fa3e65c18493a169822c19cf775c152f40b67"
+    },
+    "fonts/fonts.css": {
+      "hash": "d738726d52ba42256215801cb975cb8d40d269e259050fa990a0c534d2139ada",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\d7\\d738726d52ba42256215801cb975cb8d40d269e259050fa990a0c534d2139ada"
+    },
+    "fonts/hind-siliguri-bengali-400-normal.woff2": {
+      "hash": "8ae56aab7628191d874faef495d5229138187e8ed6061ede100fe362104faa91",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\8a\\8ae56aab7628191d874faef495d5229138187e8ed6061ede100fe362104faa91"
+    },
+    "fonts/hind-siliguri-bengali-500-normal.woff2": {
+      "hash": "7f39fcb7fe45615aacae18c5f34e6da557bf8ad1222b1568402e1e2d80979038",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\7f\\7f39fcb7fe45615aacae18c5f34e6da557bf8ad1222b1568402e1e2d80979038"
+    },
+    "fonts/hind-siliguri-bengali-600-normal.woff2": {
+      "hash": "b92b5da6d4f4f6de315f093f26a4e20d7ce7876a7db3ae7dda6a92fc5c3cc7c4",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\b9\\b92b5da6d4f4f6de315f093f26a4e20d7ce7876a7db3ae7dda6a92fc5c3cc7c4"
+    },
+    "fonts/hind-siliguri-bengali-700-normal.woff2": {
+      "hash": "b6033f70da8e37d5b8a3065b0eaefaafa6003f72309864b0eeddaa926eb472c3",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\b6\\b6033f70da8e37d5b8a3065b0eaefaafa6003f72309864b0eeddaa926eb472c3"
+    },
+    "fonts/hind-siliguri-latin-400-normal.woff2": {
+      "hash": "cdc41415f366ef2966fc77e90d51391dec03657a6ed397fe59efd5ce34cf9549",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\cd\\cdc41415f366ef2966fc77e90d51391dec03657a6ed397fe59efd5ce34cf9549"
+    },
+    "fonts/hind-siliguri-latin-500-normal.woff2": {
+      "hash": "50c07c577a7c527c2d471089cf3473bb90c7f010f8dfa343a45cf9e81fb4c5e8",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\50\\50c07c577a7c527c2d471089cf3473bb90c7f010f8dfa343a45cf9e81fb4c5e8"
+    },
+    "fonts/hind-siliguri-latin-600-normal.woff2": {
+      "hash": "c39d0db6f570276765a06728ce87d83be5808ae403475ed6b49a64c02915805c",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\c3\\c39d0db6f570276765a06728ce87d83be5808ae403475ed6b49a64c02915805c"
+    },
+    "fonts/hind-siliguri-latin-700-normal.woff2": {
+      "hash": "e8f0fc0cabf50652d414fcb76a02c6a21d6bcfc19adcfd14453088a9dae1d970",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\e8\\e8f0fc0cabf50652d414fcb76a02c6a21d6bcfc19adcfd14453088a9dae1d970"
+    },
+    "fonts/hind-siliguri-latin-ext-400-normal.woff2": {
+      "hash": "fc45397ed829e3f30f1637a08d21b3bad1405ba51a292eb7ec3db090437a09ec",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\fc\\fc45397ed829e3f30f1637a08d21b3bad1405ba51a292eb7ec3db090437a09ec"
+    },
+    "fonts/hind-siliguri-latin-ext-500-normal.woff2": {
+      "hash": "ec42abf143517f67937db7717190cb58ba0466d56885a839147aec26fa008435",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\ec\\ec42abf143517f67937db7717190cb58ba0466d56885a839147aec26fa008435"
+    },
+    "fonts/hind-siliguri-latin-ext-600-normal.woff2": {
+      "hash": "d35fe137c42fb9051ef9c0c2cc7fc4dfd9bf2be32b791456b5cca2e6d8bd1414",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\d3\\d35fe137c42fb9051ef9c0c2cc7fc4dfd9bf2be32b791456b5cca2e6d8bd1414"
+    },
+    "fonts/hind-siliguri-latin-ext-700-normal.woff2": {
+      "hash": "2854fe9d8b669ebe4c24ab11f1d4863d5b39b4a46b876aeb4ff6e6954dcf1b3e",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\28\\2854fe9d8b669ebe4c24ab11f1d4863d5b39b4a46b876aeb4ff6e6954dcf1b3e"
+    },
+    "fonts/inter-latin-400-normal.woff2": {
+      "hash": "8909904ab6c872eb994093482a88a28eca2cd95912d7b6fecd72103b0dc07edc",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\89\\8909904ab6c872eb994093482a88a28eca2cd95912d7b6fecd72103b0dc07edc"
+    },
+    "fonts/inter-latin-500-normal.woff2": {
+      "hash": "f3779f1efccc4bdcdf9c0a02ab95bf6bd092ed09c48c08cedc725889edd1d19f",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\f3\\f3779f1efccc4bdcdf9c0a02ab95bf6bd092ed09c48c08cedc725889edd1d19f"
+    },
+    "fonts/inter-latin-600-normal.woff2": {
+      "hash": "f9a06e79cd3a2a20951c0f0e28f66dd0e6d3fda73911d640a2125c8fcb78f21a",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\f9\\f9a06e79cd3a2a20951c0f0e28f66dd0e6d3fda73911d640a2125c8fcb78f21a"
+    },
+    "fonts/inter-latin-700-normal.woff2": {
+      "hash": "6f56409fd3d64bb85f7d070bce20749db2d66b6d63cec586cc22d1c761be2491",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\6f\\6f56409fd3d64bb85f7d070bce20749db2d66b6d63cec586cc22d1c761be2491"
+    },
+    "fonts/inter-latin-800-normal.woff2": {
+      "hash": "a7d0a50f15d389cad679238466bdb5fc9787aa0715719064ce25abaff042820d",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\a7\\a7d0a50f15d389cad679238466bdb5fc9787aa0715719064ce25abaff042820d"
+    },
+    "fonts/inter-latin-ext-400-normal.woff2": {
+      "hash": "6744a7f509ebc6ab220a6cd4ea77e898adf014f03d88dcda5d45d8a9feefb4e9",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\67\\6744a7f509ebc6ab220a6cd4ea77e898adf014f03d88dcda5d45d8a9feefb4e9"
+    },
+    "fonts/inter-latin-ext-500-normal.woff2": {
+      "hash": "2c6fbc42d315528beb06c1096df45487bf4186c4b78b8111d12c9c951f8acca2",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\2c\\2c6fbc42d315528beb06c1096df45487bf4186c4b78b8111d12c9c951f8acca2"
+    },
+    "fonts/inter-latin-ext-600-normal.woff2": {
+      "hash": "e4bdf67b0cd15ca9e184509275be95db942195d3cc2b17f6a0452f2adf75d0bf",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\e4\\e4bdf67b0cd15ca9e184509275be95db942195d3cc2b17f6a0452f2adf75d0bf"
+    },
+    "fonts/inter-latin-ext-700-normal.woff2": {
+      "hash": "143f9504f1377012aa3e39c90c4354ef429cb0494b9ac0e1437f1a81e5412236",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\14\\143f9504f1377012aa3e39c90c4354ef429cb0494b9ac0e1437f1a81e5412236"
+    },
+    "fonts/inter-latin-ext-800-normal.woff2": {
+      "hash": "eade55593308b9e4916dd7f47826929ce3e40cad85a2b338d56e5fd1e7bf8e5e",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\ea\\eade55593308b9e4916dd7f47826929ce3e40cad85a2b338d56e5fd1e7bf8e5e"
+    },
+    "index.html": {
+      "hash": "b8eb98f53b94750a6a5ca57abeb52cba9bbaada3452f0e41ee5718cb4b054932",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\b8\\b8eb98f53b94750a6a5ca57abeb52cba9bbaada3452f0e41ee5718cb4b054932"
+    },
+    "runtime/gsap.min.js": {
+      "hash": "92bb9a96476f983d212a2bc4f54c889039c1696dd4461d40a736860938570fbb",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\92\\92bb9a96476f983d212a2bc4f54c889039c1696dd4461d40a736860938570fbb"
+    },
+    "runtime/vt-cartoon.js": {
+      "hash": "b0125c1978257b92ef0fa80a34ab6560edbd70795741a309f185ebe844964e94",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\b0\\b0125c1978257b92ef0fa80a34ab6560edbd70795741a309f185ebe844964e94"
+    },
+    "runtime/vt-diagrams.css": {
+      "hash": "4d3afa2f4e5a986156c12b1be2920cdbd91671adf051117e31be43ac8ee69932",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\4d\\4d3afa2f4e5a986156c12b1be2920cdbd91671adf051117e31be43ac8ee69932"
+    },
+    "runtime/vt-diagrams.js": {
+      "hash": "052630025a2138ed8fe8477b5608394b75dddc8cdbe1abd924b10cb538fcb870",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\05\\052630025a2138ed8fe8477b5608394b75dddc8cdbe1abd924b10cb538fcb870"
+    },
+    "runtime/vt-info.css": {
+      "hash": "28baa3ac0c08040c28a3dc8803fd13802005577ba450376d0b7d97c647b6eefb",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\28\\28baa3ac0c08040c28a3dc8803fd13802005577ba450376d0b7d97c647b6eefb"
+    },
+    "runtime/vt-info.js": {
+      "hash": "84e98fcca023f212ace8e88759bea5141183cf8e93740335dfee56974bb5e4ac",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\84\\84e98fcca023f212ace8e88759bea5141183cf8e93740335dfee56974bb5e4ac"
+    },
+    "runtime/vt-keyframes.js": {
+      "hash": "5d3ed79db9755b8f5be10ae4c16ebd5f1013bc553d776fb885a87abf725c5d3c",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\5d\\5d3ed79db9755b8f5be10ae4c16ebd5f1013bc553d776fb885a87abf725c5d3c"
+    },
+    "runtime/vt-layers.css": {
+      "hash": "faa53a3777599a62cb7d32db7c7dfd24f0a05a2b92968d4d2096c2d076a8e01f",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\fa\\faa53a3777599a62cb7d32db7c7dfd24f0a05a2b92968d4d2096c2d076a8e01f"
+    },
+    "runtime/vt-layers.js": {
+      "hash": "ac4708b99a9bf3362e32ca8fb40dcbf0e0d492bd1ef5b7cee9f728a858886a92",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\ac\\ac4708b99a9bf3362e32ca8fb40dcbf0e0d492bd1ef5b7cee9f728a858886a92"
+    },
+    "runtime/vt-media.css": {
+      "hash": "b5c268a33efc39f7f4ae7bfa1bfaf4e72b4f26891579437e3c57ccec1c9c38b1",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\b5\\b5c268a33efc39f7f4ae7bfa1bfaf4e72b4f26891579437e3c57ccec1c9c38b1"
+    },
+    "runtime/vt-media.js": {
+      "hash": "3c5534ce2c511b952137d060703b8d001ae7f27a0faa9580344af731da103227",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\3c\\3c5534ce2c511b952137d060703b8d001ae7f27a0faa9580344af731da103227"
+    },
+    "runtime/vt-motion.js": {
+      "hash": "fbb80b80ad11d7ae8f63d0df1860c97d95f172a8a571db7c2c00eb9bf4ab688d",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\fb\\fbb80b80ad11d7ae8f63d0df1860c97d95f172a8a571db7c2c00eb9bf4ab688d"
+    },
+    "runtime/vt-stick.css": {
+      "hash": "69054c2ee89ca5a119b048861cac738031513d94057b4d3087b1d7a27fad2071",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\69\\69054c2ee89ca5a119b048861cac738031513d94057b4d3087b1d7a27fad2071"
+    },
+    "runtime/vt-stick.js": {
+      "hash": "5456e58612ff0eb4eed68270c498ede66412ecb5f14722575286410107e8c603",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\54\\5456e58612ff0eb4eed68270c498ede66412ecb5f14722575286410107e8c603"
+    },
+    "runtime/vt.css": {
+      "hash": "5d6d1a020b37401a68a13960a1c0d8a9aedb06eaa780d1c91f8715a2c5211a50",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\5d\\5d6d1a020b37401a68a13960a1c0d8a9aedb06eaa780d1c91f8715a2c5211a50"
+    },
+    "runtime/vt.js": {
+      "hash": "42dc201648a305292d15d2f3c1dfb8d3b40e1436eba02fd8fc0ade89d71c9be3",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\42\\42dc201648a305292d15d2f3c1dfb8d3b40e1436eba02fd8fc0ade89d71c9be3"
+    },
+    "textures/paper-grain.png": {
+      "hash": "c448bb9acf731140cd0323453e3bcbf3637b16f94aa43f4efc26cd58a0886275",
+      "content": "C:\\Users\\Roy\\.cache\\hyperframes\\history\\29dcf79f-0aa2-4786-8319-20ae0d217ff5\\blobs\\c4\\c448bb9acf731140cd0323453e3bcbf3637b16f94aa43f4efc26cd58a0886275"
+    }
+  },
+  "revisions": {},
+  "checks": {
+    "latest": null,
+    "revisions": {},
+    "unversioned": []
+  },
+  "snapshots": {
+    "latest": {
+      "revision": null,
+      "id": "b10f94bf-9ba4-4023-bc8e-939947d1ef6b-2"
+    },
+    "revisions": {},
+    "unversioned": [
+      {
+        "scope": "full",
+        "id": "b10f94bf-9ba4-4023-bc8e-939947d1ef6b-0",
+        "image": "C:\\Users\\Roy\\Desktop\\ultimate-video-tool\\docs\\evidence\\visual-motion\\16x9-split\\frames\\frame-00-at-1s.png",
+        "time": 1,
+        "metadata": {
+          "width": 1920,
+          "height": 1080,
+          "zoomScale": 1,
+          "browserGpuMode": "software",
+          "warnings": [],
+          "partial": false
+        },
+        "createdAt": 1793669426777,
+        "contentHash": "aa16397aa4b0e19902423ecc3cd0942c3eafd0e95df9efe93eaf42c940869bac",
+        "revision": null,
+        "inputFingerprint": "18dbeeee3f912d33a27767ead83423f9ef7f1e4eb86bb00c26f4526de9deadb1",
+        "inputScope": "local-project-files",
+        "attribution": "unversioned"
+      },
+      {
+        "scope": "full",
+        "id": "b10f94bf-9ba4-4023-bc8e-939947d1ef6b-1",
+        "image": "C:\\Users\\Roy\\Desktop\\ultimate-video-tool\\docs\\evidence\\visual-motion\\16x9-split\\frames\\frame-01-at-2.5s.png",
+        "time": 2.5,
+        "metadata": {
+          "width": 1920,
+          "height": 1080,
+          "zoomScale": 1,
+          "browserGpuMode": "software",
+          "warnings": [],
+          "partial": false
+        },
+        "createdAt": 1793669426777,
+        "contentHash": "e42d9afbd6271caad819b6204b64054616b51a9ac03c9e8b2214ff554c518705",
+        "revision": null,
+        "inputFingerprint": "18dbeeee3f912d33a27767ead83423f9ef7f1e4eb86bb00c26f4526de9deadb1",
+        "inputScope": "local-project-files",
+        "attribution": "unversioned"
+      },
+      {
+        "scope": "full",
+        "id": "b10f94bf-9ba4-4023-bc8e-939947d1ef6b-2",
+        "image": "C:\\Users\\Roy\\Desktop\\ultimate-video-tool\\docs\\evidence\\visual-motion\\16x9-split\\frames\\frame-02-at-3s.png",
+        "time": 3,
+        "metadata": {
+          "width": 1920,
+          "height": 1080,
+          "zoomScale": 1,
+          "browserGpuMode": "software",
+          "warnings": [],
+          "partial": false
+        },
+        "createdAt": 1793669426777,
+        "contentHash": "aff54b1080f3e3cb89845cee964767cb913b7ed18fdfeedde4fa4b76757dea13",
+        "revision": null,
+        "inputFingerprint": "18dbeeee3f912d33a27767ead83423f9ef7f1e4eb86bb00c26f4526de9deadb1",
+        "inputScope": "local-project-files",
+        "attribution": "unversioned"
+      }
+    ]
+  }
+}

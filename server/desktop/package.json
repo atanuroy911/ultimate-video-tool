@@ -1,0 +1,106 @@
+{
+  "name": "ultimate-video-tool-server",
+  "productName": "Ultimate Video Tool Server",
+  "version": "1.0.0",
+  "description": "Processing API, engine management and native server controls. Install the editor client separately.",
+  "author": "Ultimate Video Tool",
+  "license": "Apache-2.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --publish never",
+    "dist:server": "electron-builder --publish never",
+    "dist:dir": "electron-builder --dir --publish never",
+    "test": "node test-server-control.js && node test-server-port.js && node test-bootstrap-update.js"
+  },
+  "dependencies": {
+    "ffmpeg-static": "^5.2.0",
+    "ffprobe-static": "^3.1.0"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "app.videotool.server",
+    "productName": "Ultimate Video Tool Server",
+    "copyright": "Apache-2.0",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "bootstrap.js",
+      "server-control.js",
+      "server-port.js",
+      "server-manager.js",
+      "server-manager-preload.js",
+      "server-manager.html",
+      "server-manager-ui.js",
+      "server-icon.png",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "node_modules/ffmpeg-static/**",
+      "node_modules/ffprobe-static/**"
+    ],
+    "extraResources": [
+      {
+        "from": "..",
+        "to": "app-src",
+        "filter": [
+          "vt/**/*",
+          "design/**/*",
+          "assets/**/*",
+          "renderer/**/*",
+          "pyproject.toml",
+          "uv.lock",
+          "README.md",
+          "!**/__pycache__/**",
+          "!**/*.pyc",
+          "!renderer/node_modules/**",
+          "!assets/music/user/**",
+          "!design/themes/auto-*/**"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "include": "build/installer.nsh",
+      "deleteAppDataOnUninstall": false,
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Ultimate Video Tool Server"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.video",
+      "icon": "build/icon.png"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "AudioVideo",
+      "icon": "build/icon.png",
+      "maintainer": "Ultimate Video Tool"
+    },
+    "artifactName": "Ultimate-Video-Tool-Server-${version}-${os}-${arch}.${ext}"
+  }
+}

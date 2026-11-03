@@ -1,0 +1,14 @@
+[
+  {
+    "role": "client",
+    "file": "client/desktop/dist/Ultimate-Video-Tool-1.0.0-win-x64.exe",
+    "bytes": 82014755,
+    "sha256": "ec53769510ee3f548c5eadcb1bec5fb533d781076ad02da4d45e040d397127b7"
+  },
+  {
+    "role": "server",
+    "file": "server/desktop/dist/Ultimate-Video-Tool-Server-1.0.0-win-x64.exe",
+    "bytes": 236666210,
+    "sha256": "dc6cb1ebd88a29cffb5ad382df85803242e9329e866b9c2dfca67ef0a0d823f8"
+  }
+]

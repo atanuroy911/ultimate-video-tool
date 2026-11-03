@@ -1,0 +1,76 @@
+{
+  "name": "auto-2026-10-22-schools",
+  "label": "Calm waves · Sky",
+  "color": {
+    "bg": "#eaf2ff",
+    "bg2": "#cfe0ff",
+    "ink": "#10223f",
+    "muted": "#728095",
+    "accent": "#2d66f2",
+    "accent2": "#ffb703",
+    "card": "#ffffff",
+    "card_border": "#10223f",
+    "caption_bg": "#ffffff",
+    "caption_ink": "#10223f",
+    "highlight_bg": "#2d66f2",
+    "highlight_ink": "#ffffff",
+    "tag_bg": "#ffb703",
+    "tag_ink": "#111111",
+    "arc": "rgba(16,34,63,0.09)"
+  },
+  "font": {
+    "headline": [
+      "Inter",
+      "Noto Sans Bengali"
+    ],
+    "body": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "numeral": [
+      "Inter",
+      "Noto Sans Bengali"
+    ],
+    "caption": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "headline_weight": 700
+  },
+  "shape": {
+    "radius": 36.0,
+    "stroke": 0.0,
+    "shadow": {
+      "x": 0.0,
+      "y": 10.0,
+      "color": "rgba(0,0,0,0.28)",
+      "blur": 30.0
+    },
+    "card_tilt": 0.0
+  },
+  "background": {
+    "kind": "waves",
+    "grain": 0.0,
+    "arcs": false,
+    "pattern": 0.4,
+    "animated": true
+  },
+  "motion": {
+    "preset": "smooth"
+  },
+  "caption": {
+    "style": "pill",
+    "reveal": "line",
+    "weight": 700,
+    "size": 58,
+    "words_per_line": 6,
+    "safe_bottom": {
+      "portrait": 300,
+      "landscape": 64
+    }
+  },
+  "currency": "৳",
+  "sfx": "pop",
+  "style": "calm",
+  "palette": "sky"
+}

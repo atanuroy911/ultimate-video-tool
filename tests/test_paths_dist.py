@@ -10,6 +10,7 @@ from vt import util
 def fake_tool(d, name):
     f = d / (name + (".exe" if sys.platform == "win32" else ""))
     f.write_bytes(b"x")
+    f.chmod(0o755)
     return f
 
 
@@ -19,6 +20,7 @@ def test_the_programs_own_bin_comes_before_path(tmp_path, monkeypatch):
     own.mkdir()
     other.mkdir()
     a, b = fake_tool(own, "ffmpeg"), fake_tool(other, "ffmpeg")
+    monkeypatch.delenv("VT_BIN", raising=False)
     monkeypatch.setenv("PATH", str(other) + os.pathsep + os.environ["PATH"])
     assert os.path.normcase(util.find_tool("ffmpeg")) == os.path.normcase(str(b))   # nothing of ours: PATH
     monkeypatch.setenv("VT_BIN", str(own))
@@ -36,6 +38,7 @@ def test_a_product_layout_is_found_by_position(tmp_path, monkeypatch):
     monkeypatch.delenv("VT_BIN", raising=False)
     assert util.find_tool("node") == str(n)
     assert util.tool_dirs() == [tmp_path / "bin"]
+    n.unlink()  # On Linux the executable itself is named node; replace the fixture with the unpacked layout.
     (tmp_path / "bin" / "node").mkdir()
     n2 = fake_tool(tmp_path / "bin" / "node", "npx")
     assert util.find_tool("npx") == str(n2)                                           # node is unpacked whole into bin/node

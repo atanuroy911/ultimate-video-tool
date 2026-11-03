@@ -5,6 +5,24 @@ bottom) for details of what was done. When you stop, update both: what you did, 
 
 ## Latest continuation — 2026-11-03
 
+**Current hardware authorization: remote GPU server `192.168.123.47` only. GPU-by-default production behavior does not authorize running the client PC GPU. Do not run local GPU workloads/tests without explicit permission. One eight-second local RTX 4050 test was mistakenly run and has exited; owner explicitly corrected this.**
+
+**Current queue: [docs/ACTIVE-WORK.md](docs/ACTIVE-WORK.md). Finish the recordings before switching tasks.** Client dev UI is now `http://127.0.0.1:5173` connected to independent `.47:8790`; older :8878 notes below are historical. First recording's corrected subtitles and baseline text-motion MP4s are exported and decoded/visually inspected in `dist/recording-acceptance/exports`. Second recording's two versions remain in progress; a separate music version is queued afterward. The later full-screen motion-cutaway experiment is explicitly deferred.
+
+**Owner requirements: preserve the original 1920×1080 canvas and ordinary overlay captions; do not invent an added caption band. Use available GPU acceleration, including in production QA.** Earlier QA forced CPU and was corrected. Normal export defaults were already GPU-on; UI acceleration is now automatic, with fallback progress and a saved acceleration report. NVIDIA selection tests actual encoding, respects CUDA selection, and pins Linux browser drawing through Vulkan to the same card. On `.47`, RTX 3060 NVENC and browser Vulkan/RTX 3060 passed a real eight-second source-frame test. The initial hardware probe picked V100 for browser drawing; it ended and the device-selection bug was fixed. Do not claim that initial probe used only RTX. Existing ComfyUI/Ollama and unrelated training services were not restarted.
+
+See [recording export correction](docs/evidence/recording-export-correction.md): the real video factory must be visible to HyperFrames' inline-script media detection, or known-duration exports skip video extraction and freeze frame zero despite working snapshots. Failed output was quarantined. Current validation: 32 focused Python checks, 23 timeline checks and Studio build passed. Remaining jobs use `scripts/lab/start_recording_edits.py --full-pipeline`; status/downloads use `scripts/lab/fetch_recording_progress.py`. The old custom preparation runner is not an end-to-end pipeline test. SSH credentials remain transient environment values.
+
+Fresh remote server installed per explicit owner request: [home-server notes](docs/ops/home-server-2026-11-03.md). UI http://192.168.123.47:8790, home-only `/home/roy/ultimate-video-tool-server`, own user service enabled/active at login. Existing ComfyUI/Ollama reused without changing their installs/services. Private Python CPU env and private Node/renderer installed; zero user projects imported. Real Breeze voice, Klein image, rendered frame and 1080×1920 H.264/AAC export passed; frame inspected. New Video default is Best available voice with plain-language provider/model labels; actual ready engine is resolved and recorded, Director voice modules share the policy. Scene defaults follow it too. 28 + 19 focused tests pass; final voice/Direction check and Studio build pass. Test video and JSON evidence in docs/evidence/server-install. Linger=no, so automatic startup is at login, not promised before login. No credentials stored. User chose existing ComfyUI, so no second ComfyUI was installed.
+
+**Latest visual follow-up: browser access is restored.** IAB works; local test Studio restarted on :8878, launcher 35572. Tested the disposable copy: Direction draft retention; picture/voice controls; live RUN → SPRINT and Escape restoration; Video settings returns to caption details; animated Typewriter preview; template insertion, Slide animation points and two undos restoring the original scene. Inspected desktop 1440×900 and mobile 400×760. Compacted tool navigation and Direction tabs after observing excessive header height; latest production build passes. Share selection works for an unexported video, Accounts onboarding and Shorts source screens inspected. Old browser-blocked notes below are historical. Remaining gates: full options/drag acceptance, actual scene regeneration quality, installers/Linux CI/release. IAB test tab marked for continuation; viewport reset.
+
+Newest checkpoint: read [skills and Direction audit](docs/AUDIT-SKILLS-DIRECTION-2026-11-03.md) before older status below. Shared motion keyframes/templates, reusable story controls, Share/Shorts redesign and Direction panel are implemented in the working tree. Direction exposes per-scene instructions, actual recorded provenance, picture/video model choices and voice regeneration. Voice replacement preserves the exact cut clock, scene timing and anchored components; shorter narration retains hidden word anchors; one undo restores voice/mutes/captions. Generation guards preserve intervening scene edits. Direction drafts/jobs survive tool switches within the current app session.
+
+Follow-up rendering is complete: direction-render/contact-sheet.png was inspected and shows updated “Run every day.” in all three formats; undo restores original data exactly. Docs checker passes. Live :8878 Direction endpoint works on the disposable copy. A final regression covers narration following moved scene boundaries instead of stale beat ownership. See direction-timing.xml for its result.
+
+Latest checks: broad pre-Direction non-slow checkpoint 1,172 passed / 4 skipped; latest focused Direction/voice/motion/words/pipeline selection 33 passed, Studio build and 19 Node checks pass. Real story (9 frames) and motion (18 measured frames) checks passed earlier. Cua still reports local browser use disabled; do not claim fresh interactive acceptance. New caption-render check is scripts/qa_direction.py; inspect its log/result/contact sheet before claiming that pass. Installer files predate these changes; rebuild/reinstall and Linux CI/release remain outstanding. Preserve user uploads and existing working-tree edits. No commits/pushes this round.
+
 Read docs/AUDIT-2026-11-03.md for the current vision-to-product audit and docs/evidence/capability-inventory.json for all 165 modules / 40 components. Older task statuses below and in the October docs are historical.
 
 - Implemented unrestricted visual timing: exact scene edges/splits, independent element/action/caption ranges and transforms, stable action indices, caption undo, sound extraction, renderer library examples, opaque dropdowns, working Video settings toggle, responsive one-editor layout. Removed five-visual/six-sound truncation. Manual visuals survive automatic people-avoidance and scene splits retain actions once.
@@ -20,16 +38,16 @@ Read docs/AUDIT-2026-11-03.md for the current vision-to-product audit and docs/e
 
 Video Tool turns a typed script, a voice recording or a link into a faceless short video. Retention is the metric: every change should make
 people watch longer. The parts:
-- `vt/`: Python package (FastAPI server, pipeline, director, renderer driver, MCP).
-- `renderer/`: HyperFrames HTML/GSAP compositions rendered by Chrome.
-- `studio/`: React web UI, served by the server.
-- `desktop/`: Electron shell.
+- `server/vt/`: Python package (FastAPI server, pipeline, director, renderer driver, MCP).
+- `server/renderer/`: HyperFrames HTML/GSAP compositions rendered by Chrome.
+- `client/studio/`: React web UI, served by the server.
+- `client/desktop/`: Electron shell.
 
 Engines: Ollama (the local AI), ComfyUI (pictures, clips, some voices), Edge TTS / other voices.
 
 ## The owner's standing rules (do not break)
 
-1. **UI wraps everything.** Users never run commands after install. Every capability is one function in `vt/`, exposed as an `/api`
+1. **UI wraps everything.** Users never run commands after install. Every capability is one function in `server/vt/`, exposed as an `/api`
    route for the Studio, a `vt` CLI command, and, where useful, an MCP tool or module. Never ship a CLI-only feature.
 2. **Never install into global Python.** Use `.venv` and `.tools/uv.exe` (Windows) / `.tools/uv` (Linux).
 3. **Windows and Linux** now, macOS later.
@@ -76,7 +94,7 @@ with ffmpeg and node on PATH.
 
 - ComfyUI and Ollama **share the 3060 and take turns**: `llm.release()` unloads the AI before pictures, `llm.make_room()` unloads
   ComfyUI before the AI.
-- Our server install: `/mnt/bigdata/video-tool-server/app` (a copy of `vt/`; sync with a tarball through `put.py`). Never touch
+- Our server install: `/mnt/bigdata/video-tool-server/app` (a copy of `server/vt/`; sync with a tarball through `put.py`). Never touch
   `/mnt/bigdata/video-tool` except the model folders.
 
 **This PC's settings:** Ollama `http://192.168.123.47:11434`, ComfyUI `http://192.168.123.47:8188`, `picture_recipe=klein-4b`.
@@ -85,13 +103,13 @@ with ffmpeg and node on PATH.
 
 | Area | Files |
 |---|---|
-| Client/server, pairing, MCP bridge | `docs/plans/PLAN-CLIENT-SERVER.MD`, `vt/server/serve.py`, `vt/server/clients.py`, `vt/server/discovery.py`, `desktop/` |
-| Find/choose a ComfyUI, VRAM fit, picture sets | `vt/engines/discover.py`, `fit.py`, `prepare.py`; `vt engine find / use`; Studio `components/FindEngines.tsx`; `/api/discover` |
-| Picture graphs | `assets/comfy/workflows/klein_t2i.json` (default), `qwen21_t2i.json`, `zimage_t2i.json`; `vt/comfy/workflows.py picture_workflow()` |
-| Reel director (pictures per moment) | `vt/reel/reading.py` (the local AI director's prompt), `vt/reel/plan.py`, `vt/reel/style.py` (`prompt_for`, `cast_for`) |
-| Plan document (places, cast, moments) | `vt/direction/plan_doc.py` (ops `set_place`, `set_moment_place`, `set_cast`, `set_prompt`, `merge`, `set_medium`, …) |
-| Craft rules and checks | `vt/craft.py`: areas `script`, `hook`, `sync` (`picture.place`, `picture.drawable`), `pacing`, `captions`… |
-| Hand-back (text leaves the picture) | `vt/compose/composer.py` (`until`, `_hand_cards_back`), `renderer/runtime/vt.js`, `vt-media.js`; `tests/test_handback.py` |
+| Client/server, pairing, MCP bridge | `docs/plans/PLAN-CLIENT-SERVER.MD`, `server/vt/server/serve.py`, `server/vt/server/clients.py`, `server/vt/server/discovery.py`, `client/desktop/` |
+| Find/choose a ComfyUI, VRAM fit, picture sets | `server/vt/engines/discover.py`, `fit.py`, `prepare.py`; `vt engine find / use`; Studio `components/FindEngines.tsx`; `/api/discover` |
+| Picture graphs | `server/assets/comfy/workflows/klein_t2i.json` (default), `qwen21_t2i.json`, `zimage_t2i.json`; `server/vt/comfy/workflows.py picture_workflow()` |
+| Reel director (pictures per moment) | `server/vt/reel/reading.py` (the local AI director's prompt), `server/vt/reel/plan.py`, `server/vt/reel/style.py` (`prompt_for`, `cast_for`) |
+| Plan document (places, cast, moments) | `server/vt/direction/plan_doc.py` (ops `set_place`, `set_moment_place`, `set_cast`, `set_prompt`, `merge`, `set_medium`, …) |
+| Craft rules and checks | `server/vt/craft.py`: areas `script`, `hook`, `sync` (`picture.place`, `picture.drawable`), `pacing`, `captions`… |
+| Hand-back (text leaves the picture) | `server/vt/compose/composer.py` (`until`, `_hand_cards_back`), `server/renderer/runtime/vt.js`, `vt-media.js`; `tests/test_handback.py` |
 | Lab scripts | `scripts/lab/` (`draw_render.py`, `bench_models.py`, `director_run.py`, `claude_direct_billionaire.py`, `places_lamp.py`, patch_*.py history) |
 | Lab outputs | `C:\Users\Roy\Videos\Video Tool Lab\` (`story/one-gpu/` has the videos judged on 2026-11-01) |
 
@@ -122,7 +140,7 @@ steps before the next. Do not stop halfway to ask; the only questions are about 
 
 1. **Understand.** Read the task, the plan file it names, and the code it touches. Write a short plan in WORKLOG.md: what you will
    change, how you will know it works.
-2. **Build it everywhere it belongs.** One function in `vt/`, then:
+2. **Build it everywhere it belongs.** One function in `server/vt/`, then:
    - an `/api` route;
    - the Studio UI (a screen or control a person can use, typechecked and built);
    - a `vt` CLI command;
@@ -188,9 +206,9 @@ Anything less is "in progress", and the next agent must be able to see exactly w
 
    Today English uses Edge TTS: clean but flat, because its free endpoint only changes speed. The parts for expression exist but are not
    on by default:
-   - `vt/voice_direction.py`: per-sentence delivery notes `{...}` and sounds `(laugh)`; `suggest()` lets the director write notes.
-   - Breeze TTS 2 on ComfyUI 8188 (`assets/comfy/workflows/breeze_direction.json`, `breeze_design.json`, verified on the 3060 on Oct 28).
-   - The one-narrator lock (`vt/voice_lock.py`).
+   - `server/vt/voice_direction.py`: per-sentence delivery notes `{...}` and sounds `(laugh)`; `suggest()` lets the director write notes.
+   - Breeze TTS 2 on ComfyUI 8188 (`server/assets/comfy/workflows/breeze_direction.json`, `breeze_design.json`, verified on the 3060 on Oct 28).
+   - The one-narrator lock (`server/vt/voice_lock.py`).
 
    Do:
    - **The director writes delivery notes from the script's structure:**
@@ -232,7 +250,7 @@ Anything less is "in progress", and the next agent must be able to see exactly w
    - MCP from the owner's PC to the server.
 9. **Round 8, the suite and leftovers.**
    - Full pytest. Music-catalogue regression repaired on 2026-11-02: preference/variety tests now use an isolated catalogue, with explicit fallback and real bundled-track checks (5/5 pass).
-   - Remove the 64 `design/themes/auto-*` folders left by old projects.
+   - Remove the 64 `server/design/themes/auto-*` folders left by old projects.
    - The gemma4 context step (~150 s), post-plan QA time (~6 min), Studio timeline smoothness.
 10. **Not before the owner says:** `docs/plans/PLAN-CLOUD-AI.MD` (OpenRouter key kept in the OS keychain, budget, cloud director/critic,
    collage promo video type). Plan only.
@@ -275,9 +293,37 @@ The broader UI audit/full suite is not certified complete; see the current edito
 - Check with: `python -c "import pathlib;print([p for p in pathlib.Path('vt').rglob('*.py') if chr(8) in p.read_text(encoding='utf-8')])"`
 
 **Voices and timing:**
-- Script voices' word times drift. `fit_script_words` (`vt/stages/align.py`) puts typed words back on the speech; never let a typed word
+- Script voices' word times drift. `fit_script_words` (`server/vt/stages/align.py`) puts typed words back on the speech; never let a typed word
   be dropped.
-- Abbreviations ("Mr.") must not end sentences or caption lines: `ABBREV` in `vt/stages/words.py`.
+- Abbreviations ("Mr.") must not end sentences or caption lines: `ABBREV` in `server/vt/stages/words.py`.
 
 **The local AI director (gemma4):** it still writes "a figure" in some shots. A cast fallback figure then appears and confuses the
 story. Consider having the reel director refuse a shot without a named person when the plan has a cast.
+
+## Client/server architecture correction — 2026-11-03 (latest)
+
+The desktop always keeps its native Node loopback companion for local Claude/Codex. The selected processing server (local or remote) owns projects, engines, storage and rendering. Do not restore page-lifetime-only assistant registration or install the GPU stack merely to connect remotely. See docs/plans/PLAN-CLIENT-SERVER-2026-11-03.md and docs/evidence/client-server-acceptance.md for implementation/evidence/limits.
+
+Remote /home/roy/ultimate-video-tool-server on :8790 has current backend and Studio; existing ComfyUI/Ollama were connected and the fitted Klein files/workflow verified in the UI without downloads. Setup is four steps with server identity, separate install/model roots and GPU choice. Existing engine storage is constrained to that engine's indexed/configured folders; a new arbitrary folder requires a managed copy. Real signed-in Codex MCP list_projects through the native companion passed; both Claude/Codex readiness registered.
+
+Native Node tests and focused Python checkpoints pass; current Studio build and final Windows NSIS build pass. Installer is client/desktop/dist/Ultimate-Video-Tool-1.0.0-win-x64.exe, unsigned; SHA256 fdfcf3e7b19dec65b1b44e64a9d7352cabc1ab27bd2de93edc7842bd8e363eaa. A per-user upgrade smoke test and additional regression selection are underway at this checkpoint; inspect latest evidence before claiming those passed. No full clean GPU stack or Linux desktop installation accepted, no release/push. Preserve unrelated training, user projects and all existing uncommitted changes.
+
+Final architecture acceptance: architecture-acceptance-final.xml reports 45 passed / 0 failed. All three native Node checks and docs checker pass. Windows installer upgrade exited 0, installed companion files verified. Previous connection choice preserved in connection-before-server-architecture.json; current desktop choice targets http://192.168.123.47:8790 as authorized. Installed app startup log confirms that target and its Studio window is enumerated. Native window inspection hit app approval timeout, so do not claim native visual acceptance; browser setup/connection/model readiness/final Done were visibly verified. No verification processes intentionally left running.
+
+## Product directory split — latest, 2026-11-03
+
+Owner explicitly rejected a workspace bundled with the server. This supersedes the combined server-edition architecture above. Physical roots are client/ (studio + desktop client/companion/protected UI proxy) and server/ (vt + renderer + design/assets + desktop server manager + packaging + pyproject/uv.lock). No root symlinks. Root pyproject is pytest configuration only; root .venv is retained as the existing test tool environment. User projects/data remain in their original locations; no storage ownership migration was inferred.
+
+Client now loads its own built UI through a session-protected loopback transport, with isolated per-processing-server Electron cookie partitions; API/media/WebSockets go to the selected server. It ships only ws as a production dependency and no Python/server bootstrap/resources. Server API no longer has an editor SPA fallback. Its / and /manage are standalone management pages, and native managers use Engine settings, not Open workspace.
+
+Remote .47 API now serves management only; old app/studio files were moved to a separate /home/roy legacy backup. Linux GTK manager remains a user-home app/tray control (Electron sandbox unavailable; no system security changes). Both Windows products have separate manifests/locks/builds; inspected client resources are app.asar + studio, inspected server resources are app.asar + app-src with no Studio. Final installers built (client ~82MB, server ~237MB); per-user upgrade smoke test is underway. Preserve old data.
+
+Node transport, companion, Director runner, server ports/control/bootstrap tests pass. Developer scripts implemented with private Node/uv/Python, role selection, updates, isolated dev data, launchers and JSON readiness. Real isolated client-only install/update with spaces and preserved data passes, plus PS parse/check. Full clean Linux development installation not yet accepted. Backend tests and final docs/installer checks still underway; inspect product-split-final.xml/log and package logs. Local Vite :5173 is running client UI against .47; paired and visually confirmed projects + New flow. IAB server tab is management; local client tab is the separate editor. Do not claim every historical task/test or native UI audit is complete.
+
+### Contained server controls — latest checkpoint
+
+Owner requires Engine settings to stay inside the app. Removed external browser/log-editor launches from both native managers. Windows uses an internal loopback-only engine frame and internal log view with Back; Linux GPU server uses its existing GTK/WebKit 4.1 libraries in the same window, also with internal logs. Embedded content cannot access Electron native-control IPC. Linux manager update is deployed, with manager/WebKit process checks; only the isolated Video Tool user service was refreshed. Existing engines and training remain untouched.
+
+Product acceptance now has 54 focused Python passes, 12 overlapping source/package guards and 9 storage/caption/path passes. Real isolated client developer install/update passes on Windows and Linux. Contained-manager Node tests run the actual UI-state code and verify Back navigation, internal logs/settings, no external browser and IPC boundary. Independent client/server Windows upgrades completed; latest containment server upgrade exited 0, installed internal engine/log views were inspected in app.asar and its API restarted successfully with the existing environment/data. See docs/evidence/product-split-acceptance.md for current evidence and limits. Native controls have not all been clicked visually; do not claim a full native UI audit or GitHub release.
+
+Final Windows server build includes the embedding policy; installed /manage?embedded=1 returns 200 with frame-ancestors restricted to self/file/loopback. Native window enumerated (Ultimate Video Tool Server); accessibility/monitor capture failed, so no native screenshot/click-through accepted. Extra three boundary tests passed (contained-product-boundary.xml); process lingered after reporting and was stopped. Server API healthy at :8790, PID 33308 at this checkpoint. Final artifact hashes are in product-split-artifacts.json. Vite :5173 remains available for client review; preserve unrelated local Python training/dashboard and remote engine services.

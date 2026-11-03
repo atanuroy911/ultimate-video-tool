@@ -1,0 +1,27 @@
+
+> video-tool-desktop@1.0.0 dist:server
+> electron-builder --config server-build.cjs --publish never --win nsis
+
+  • electron-builder  version=25.1.8 os=10.0.26300
+  • loaded configuration  file=C:\Users\Roy\Desktop\ultimate-video-tool\desktop\server-build.cjs
+  • executing @electron/rebuild  electronVersion=33.4.11 arch=x64 buildFromSource=false appDir=./
+  • installing native dependencies  arch=x64
+  • completed installing native dependencies
+  • packaging       platform=win32 arch=x64 electron=33.4.11 appOutDir=dist-server\win-unpacked
+  • updating asar integrity executable resource  executablePath=dist-server\win-unpacked\Ultimate Video Tool Server.exe
+  • signing with signtool.exe  path=dist-server\win-unpacked\Ultimate Video Tool Server.exe
+  • no signing info identified, signing is skipped  signHook=false cscInfo=null
+  • signing with signtool.exe  path=dist-server\win-unpacked\resources\app.asar.unpacked\node_modules\ffprobe-static\bin\win32\x64\ffprobe.exe
+  • signing with signtool.exe  path=dist-server\win-unpacked\resources\app.asar.unpacked\node_modules\ffprobe-static\bin\win32\ia32\ffprobe.exe
+  • signing with signtool.exe  path=dist-server\win-unpacked\resources\app.asar.unpacked\node_modules\ffmpeg-static\ffmpeg.exe
+  • no signing info identified, signing is skipped  signHook=false cscInfo=null
+  • no signing info identified, signing is skipped  signHook=false cscInfo=null
+  • no signing info identified, signing is skipped  signHook=false cscInfo=null
+  • building        target=nsis file=dist-server\Ultimate-Video-Tool-Server-1.0.0-win-x64.exe archs=x64 oneClick=false perMachine=false
+  • signing with signtool.exe  path=dist-server\win-unpacked\resources\elevate.exe
+  • no signing info identified, signing is skipped  signHook=false cscInfo=null
+  • signing with signtool.exe  path=dist-server\__uninstaller-nsis-ultimate-video-tool-server.exe
+  • no signing info identified, signing is skipped  signHook=false cscInfo=null
+  • signing with signtool.exe  path=dist-server\Ultimate-Video-Tool-Server-1.0.0-win-x64.exe
+  • no signing info identified, signing is skipped  signHook=false cscInfo=null
+  • building block map  blockMapFile=dist-server\Ultimate-Video-Tool-Server-1.0.0-win-x64.exe.blockmap

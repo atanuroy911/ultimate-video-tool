@@ -33,13 +33,13 @@ The runbook (exact commands, paths, update, rollback, what is on which disk, how
 
 ## 3. How it fits our app
 ```
- Studio (React)  ->  our server (FastAPI)  ->  vt/voicestudio/client.py  ->  VoiceStudio on the GPU machine (REST + MCP)
+ Studio (React)  ->  our server (FastAPI)  ->  server/vt/voicestudio/client.py  ->  VoiceStudio on the GPU machine (REST + MCP)
                              ^                                                   ^
  the director (modules, MCP) ┘                                                   └ also reachable by the person at voice.atanusroy.com
 ```
-* **`vt/voicestudio/`** (new): `client.py` (health, voices, speak, clone, design, transcribe, models, jobs; a bearer key; clear errors in words), `settings.py` (`voicestudio_url`, `voicestudio_key`), `cache.py` (a spoken sentence is cached by text, voice, language, speed and engine version, so asking twice never renders twice).
-* **A TTS engine in `vt/tts.py`**: id `voicestudio` next to `edge`, `kokoro`, `clone`, `mms`. The existing script-to-voice path (one sentence at a time, real length known, which the audio-first plan needs) then works with every VoiceStudio voice with no other change.
-* **Modules** (group `voice.*`, registered in `vt/modules/defs/voice.py`, toolbox `autonomous`, `studio`, `full`):
+* **`server/vt/voicestudio/`** (new): `client.py` (health, voices, speak, clone, design, transcribe, models, jobs; a bearer key; clear errors in words), `settings.py` (`voicestudio_url`, `voicestudio_key`), `cache.py` (a spoken sentence is cached by text, voice, language, speed and engine version, so asking twice never renders twice).
+* **A TTS engine in `server/vt/tts.py`**: id `voicestudio` next to `edge`, `kokoro`, `clone`, `mms`. The existing script-to-voice path (one sentence at a time, real length known, which the audio-first plan needs) then works with every VoiceStudio voice with no other change.
+* **Modules** (group `voice.*`, registered in `server/vt/modules/defs/voice.py`, toolbox `autonomous`, `studio`, `full`):
   | Module | Does | Cost | Notes |
   |---|---|---|---|
   | `voice.health` | server up, GPU, engine, queue | instant | the state card the director reads first |
@@ -59,16 +59,16 @@ The runbook (exact commands, paths, update, rollback, what is on which disk, how
   4. **The editor**: *Change the voice of this sentence* in the scene's panel, and *Say it again* with a different speed or feeling; one undo step.
   5. **Dubbing and long-form (audiobook) screens** (phase V5): pick a video, pick a language, see the plan (the sentences, the voice), approve, run; progress and the Details log as everywhere else.
   6. **"Open the full VoiceStudio"** inside our app: an embedded frame of `voice.atanusroy.com` (or the LAN address) for everything we have not rebuilt natively yet, with the key passed in the URL fragment as its docs describe. This is how "the whole VoiceStudio" is available from day one, while the native screens replace the frame piece by piece.
-* **The director.** The audio-first plan decides audio first. With `voice.speak` the director can choose the voice from the content (a calm woman for a health explainer, a brisk man for steps), set a speed that lands a sentence on its slot, re-speak a single sentence without redoing the video, give a second speaker another voice, and look at `voice.health` before it starts. The reading step (`vt/reel/reading.py`) gains a `voice` suggestion beside `style` and `character`.
+* **The director.** The audio-first plan decides audio first. With `voice.speak` the director can choose the voice from the content (a calm woman for a health explainer, a brisk man for steps), set a speed that lands a sentence on its slot, re-speak a single sentence without redoing the video, give a second speaker another voice, and look at `voice.health` before it starts. The reading step (`server/vt/reel/reading.py`) gains a `voice` suggestion beside `style` and `character`.
 
 ## 4. Phases
 | Phase | What | Done when | Verify |
 |---|---|---|---|
 | **V0 Install and expose** (today) | the container on the 3060, data on `/mnt/bigdata`, key set, `/health` 200, the OpenAPI saved, the tunnel route and DNS, a first sentence spoken | `curl http://192.168.123.47:3900/health` is 200 from the PC; a WAV comes back; the UI opens at `https://voice.atanusroy.com/` with the key | `docs/evidence/2026-10-28/voicestudio-install.md` |
 | **V0b Model recovery** | `scripts/voicestudio_models.py` and the ops runbook, tested by listing and pre-fetching | a fresh container with an empty data folder is brought back to the same models by the script alone | the script's own check |
-| **V1 Client and engine** | `vt/voicestudio/client.py`, the `voicestudio` engine in `vt/tts.py`, settings keys | the New flow makes a video voiced by VoiceStudio; the cache hit is instant | `tests/test_voicestudio.py` (a fake server), one real run logged |
-| **V2 Modules** (**BUILT 2026-10-28**: `voice.list`, `speak`, `speak_script`, `describe`, `design`, `clone` in `vt/modules/defs/voice.py`, `tests/test_modules_voice.py`; fakes for the engines; a real spoken run through each is not done; no per-engine GPU lock yet) | `voice.*` registered, lint clean, equivalence with the engine, GPU lock | `vt call voice.speak` and MCP `module_call` work; a failure falls back to the old engine and says so | `tests/test_modules_voice.py` |
-| **V3 Native screens** | Settings -> Voice, the Voices page, the voice step with samples, per-sentence re-voice | a person with no help clones a voice from a recording and uses it in a new video | `studio/e2e/voices.mjs`, screenshots looked at |
+| **V1 Client and engine** | `server/vt/voicestudio/client.py`, the `voicestudio` engine in `server/vt/tts.py`, settings keys | the New flow makes a video voiced by VoiceStudio; the cache hit is instant | `tests/test_voicestudio.py` (a fake server), one real run logged |
+| **V2 Modules** (**BUILT 2026-10-28**: `voice.list`, `speak`, `speak_script`, `describe`, `design`, `clone` in `server/vt/modules/defs/voice.py`, `tests/test_modules_voice.py`; fakes for the engines; a real spoken run through each is not done; no per-engine GPU lock yet) | `voice.*` registered, lint clean, equivalence with the engine, GPU lock | `vt call voice.speak` and MCP `module_call` work; a failure falls back to the old engine and says so | `tests/test_modules_voice.py` |
+| **V3 Native screens** | Settings -> Voice, the Voices page, the voice step with samples, per-sentence re-voice | a person with no help clones a voice from a recording and uses it in a new video | `client/studio/e2e/voices.mjs`, screenshots looked at |
 | **V4 Director use** | `voice` suggestion in the reading; speed fitted to slots; a voice per speaker; `voice.speak_script` for the audio-first voice step | the reel pipeline speaks its script with a voice chosen from the content | evidence video |
 | **V5 Dubbing and long form** | `voice.dub`, audiobook screen, chapters | a short video dubbed into a second language keeps timing and voice | evidence video |
 | **V6 Move to the bigger drive** | when the owner's new drive is in, run the runbook's "move back" section | models and data on the root drive, nothing else changed | the runbook's checks |

@@ -42,7 +42,7 @@ reads `.env` silently on every start; that is a one-time import.
 | Linux desktop | Secret Service, through gnome-keyring or KWallet (`keyring`) |
 | Linux headless (the GPU server: no keyring daemon) | `<data>/secrets/openrouter.key`, file mode 600, folder 700, owned by the service user; documented as "protected by file permissions" |
 
-- `vt/secrets.py` holds `get(name)`, `set(name, value)`, `delete(name)`, `where(name)` (for the UI: "Windows Credential Manager"), and `masked(name)` ("sk-or-…3f9a").
+- `server/vt/secrets.py` holds `get(name)`, `set(name, value)`, `delete(name)`, `where(name)` (for the UI: "Windows Credential Manager"), and `masked(name)` ("sk-or-…3f9a").
 - It is one module so the other keys move there too. Today `settings.json` holds `openai_key` and the engine keys **in plain text**; they migrate with a one-time move.
 
 **Rules that never bend:**
@@ -65,7 +65,7 @@ reads `.env` silently on every start; that is a one-time import.
 
 ## 3. Cloud boosters (each optional, each with the local path as fallback)
 
-One provider class, `OpenRouterProvider`. It's the existing `OpenAIProvider` (OpenAI-compatible) pointed at `https://openrouter.ai/api/v1`, with the key from `vt/secrets.py`, budget accounting, and model choice by role. Roles, with a Settings choice of model per role:
+One provider class, `OpenRouterProvider`. It's the existing `OpenAIProvider` (OpenAI-compatible) pointed at `https://openrouter.ai/api/v1`, with the key from `server/vt/secrets.py`, budget accounting, and model choice by role. Roles, with a Settings choice of model per role:
 
 | Role | What it does | Local fallback today |
 |---|---|---|
@@ -91,7 +91,7 @@ The prompt's output, made a repeatable type:
   - Pictures go through ComfyUI, or the cloud when chosen.
   - Cut-outs come from BiRefNet background removal (Comfy-Org has it; a local GPU job).
   - Hand-drawn doodles come from the icon set in line style.
-  - Paper textures already exist (`design/textures`).
+  - Paper textures already exist (`server/design/textures`).
 - **Voice and music:** the voice role; local music (ACE-Step) or the music library.
 - **Animation:** our HTML/GSAP renderer with a new theme pack `style-collage`:
   - a cut-out entrance (slide plus rotate plus a paper shadow);
@@ -105,7 +105,7 @@ The prompt's output, made a repeatable type:
 
 ## 5. Steps (each tested before the next)
 
-1. `vt/secrets.py` (keyring + headless fallback + migration of plain-text keys), redaction filter, tests.
+1. `server/vt/secrets.py` (keyring + headless fallback + migration of plain-text keys), redaction filter, tests.
 2. Key setup in the wizard, Settings, the CLI and the `.env` import; the test call; the "one-time setup" notice; never-returned API (test: no route ever returns the key).
 3. Budget: estimate, live accounting, hard stop, Progress display; tests with a fake OpenRouter.
 4. `OpenRouterProvider` with roles; wire writer and director; fallback tests.

@@ -1,0 +1,74 @@
+{
+  "name": "style-silkscreen-poster",
+  "label": "Silkscreen Travel Poster",
+  "color": {
+    "bg": "#F6CD98",
+    "bg2": "#DCB98D",
+    "ink": "#1F2A3C",
+    "muted": "#5E5A57",
+    "accent": "#735419",
+    "accent2": "#9D3929",
+    "card": "#E7C292",
+    "card_border": "#1F2A3C",
+    "caption_bg": "#E7C292",
+    "caption_ink": "#1F2A3C",
+    "highlight_bg": "#735419",
+    "highlight_ink": "#FFFFFF",
+    "tag_bg": "#9D3929",
+    "tag_ink": "#FFFFFF",
+    "arc": "rgba(31,42,60,0.08)"
+  },
+  "font": {
+    "headline": [
+      "Big Shoulders Display",
+      "Anek Bangla"
+    ],
+    "body": [
+      "Big Shoulders Display",
+      "Hind Siliguri"
+    ],
+    "numeral": [
+      "Big Shoulders Display",
+      "Anek Bangla"
+    ],
+    "caption": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "headline_weight": 800
+  },
+  "shape": {
+    "radius": 18,
+    "stroke": 3,
+    "shadow": {
+      "x": 0,
+      "y": 8,
+      "color": "rgba(0,0,0,0.18)",
+      "blur": 24
+    },
+    "card_tilt": 0
+  },
+  "background": {
+    "kind": "dots",
+    "grain": 0.12,
+    "arcs": false,
+    "pattern": 0.35,
+    "animated": false
+  },
+  "motion": {
+    "preset": "bouncy"
+  },
+  "caption": {
+    "style": "box",
+    "reveal": "line",
+    "weight": 800,
+    "size": 60,
+    "words_per_line": 3,
+    "safe_bottom": {
+      "portrait": 380,
+      "landscape": 64
+    }
+  },
+  "style": "lemo:silkscreen-poster",
+  "picture": "emoji"
+}

@@ -1,0 +1,97 @@
+{
+  "name": "video-tool-desktop",
+  "productName": "Ultimate Video Tool",
+  "version": "1.0.0",
+  "description": "Turn a voice recording or a typed script into a faceless explainer video. Free and open source.",
+  "author": "Ultimate Video Tool",
+  "license": "Apache-2.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --publish never",
+    "dist:client": "electron-builder --publish never",
+    "dist:dir": "electron-builder --dir --publish never",
+    "test": "node test-client-companion.js && node test-director-runner.js && node test-transport.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "app.videotool.studio",
+    "productName": "Ultimate Video Tool",
+    "copyright": "Apache-2.0",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "transport.js",
+      "discover.js",
+      "assistants.js",
+      "director-runner.js",
+      "codex-runner.js",
+      "client-companion.js",
+      "assistant-status-worker.js",
+      "assistant-command.js",
+      "mcp-bridge.js",
+      "preload.js",
+      "main-preload.js",
+      "connect.html",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "mcp-bridge.js"
+    ],
+    "extraResources": [
+      {
+        "from": "../studio/dist",
+        "to": "studio",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "include": "build/installer.nsh",
+      "deleteAppDataOnUninstall": false,
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Ultimate Video Tool"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.video",
+      "icon": "build/icon.png"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "AudioVideo",
+      "icon": "build/icon.png",
+      "maintainer": "Ultimate Video Tool"
+    },
+    "artifactName": "Ultimate-Video-Tool-${version}-${os}-${arch}.${ext}"
+  }
+}

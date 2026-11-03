@@ -165,7 +165,7 @@ def test_overdub_says_the_words_again_in_my_voice_mutes_the_original_and_places_
     assert c.post("/api/projects/reference/voice/overdub", json={"text": "x", "voice": "nobody", "start": 1, "end": 2}).status_code == 404
     assert c.post("/api/projects/reference/voice/overdub", json={"text": "x", "voice": "me", "start": 5, "end": 4}).status_code == 422
     assert c.post("/api/projects/reference/voice/overdub", json={"text": "x", "voice": "me", "start": 1, "end": dur + 50}).status_code == 422
-    job = c.post("/api/projects/reference/voice/overdub", json={"text": "The right word", "voice": "me", "start": 2.0, "end": 3.0}).json()
+    job = c.post("/api/projects/reference/voice/overdub", json={"text": "The right word", "voice": "me", "start": 2.0, "end": 4.0}).json()
     for _ in range(300):
         j = c.get(f"/api/jobs/{job['id']}").json()
         if j["status"] in ("done", "error"):
@@ -177,8 +177,8 @@ def test_overdub_says_the_words_again_in_my_voice_mutes_the_original_and_places_
     assert clip["start"] == 2.0 and abs(clip["dur"] - 2.0) < 0.2 and any(t["name"] == "My voice" for t in doc["tracks"])
     assert AE.load(ref)["mutes"]                                                                     # the original words are silenced
     assert L.audio_clips(ref)[0]["path"].endswith(".m4a")                                           # and the new ones go into the mix
-    # a second one at the same time goes after the first, never on top of it
-    job2 = c.post("/api/projects/reference/voice/overdub", json={"text": "Another", "voice": "me", "start": 2.5, "end": 3.0, "mute": False}).json()
+    # A second one stays at the requested time on its own track; it never silently slides later.
+    job2 = c.post("/api/projects/reference/voice/overdub", json={"text": "Another", "voice": "me", "start": 2.5, "end": 4.5, "mute": False}).json()
     for _ in range(300):
         j = c.get(f"/api/jobs/{job2['id']}").json()
         if j["status"] in ("done", "error"):
@@ -186,4 +186,4 @@ def test_overdub_says_the_words_again_in_my_voice_mutes_the_original_and_places_
         time.sleep(0.2)
     assert j["status"] == "done", j
     clips = sorted((x for x in L.load(ref)["clips"] if x["type"] == "audio"), key=lambda x: x["start"])
-    assert len(clips) == 2 and clips[1]["start"] >= clips[0]["start"] + clips[0]["dur"] - 0.001
+    assert len(clips) == 2 and clips[1]["start"] == 2.5 and clips[1]["track"] != clips[0]["track"]

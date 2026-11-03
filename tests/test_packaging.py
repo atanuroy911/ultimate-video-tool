@@ -21,18 +21,20 @@ def _load(name):
 
 def test_one_version_is_written_to_every_file(tmp_path, monkeypatch):
     sv = _load("set_version")
-    (tmp_path / "desktop").mkdir()
-    (tmp_path / "pyproject.toml").write_bytes(b'[project]\r\nname = "video-tool"\r\nversion = "0.1.0"\r\n')
-    (tmp_path / "uv.lock").write_bytes(b'[[package]]\nname = "other"\nversion = "9.9.9"\n\n[[package]]\nname = "video-tool"\nversion = "0.1.0"\nsource = { editable = "." }\n')
-    (tmp_path / "desktop" / "package.json").write_bytes(b'{\n  "name": "x",\n  "version": "1.0.0"\n}\n')
+    (tmp_path / "client/desktop").mkdir(parents=True)
+    (tmp_path / "server/desktop").mkdir(parents=True)
+    (tmp_path / "server/pyproject.toml").write_bytes(b'[project]\r\nname = "video-tool"\r\nversion = "0.1.0"\r\n')
+    (tmp_path / "server/uv.lock").write_bytes(b'[[package]]\nname = "other"\nversion = "9.9.9"\n\n[[package]]\nname = "video-tool"\nversion = "0.1.0"\nsource = { editable = "." }\n')
+    for role in ('client','server'):
+        (tmp_path / role / "desktop/package.json").write_bytes(b'{\n  "name": "x",\n  "version": "1.0.0"\n}\n')
     monkeypatch.setattr(sv, "ROOT", tmp_path)
     assert sv.current() == "0.1.0"
     changed = sv.apply("v2.3.4")
-    assert set(changed) == {"pyproject.toml", "uv.lock", "desktop/package.json"}
-    assert b'version = "2.3.4"\r\n' in (tmp_path / "pyproject.toml").read_bytes()                 # line endings kept
-    lock = (tmp_path / "uv.lock").read_text()
+    assert set(changed) == {"server/pyproject.toml", "server/uv.lock", "client/desktop/package.json", "server/desktop/package.json"}
+    assert b'version = "2.3.4"\r\n' in (tmp_path / "server/pyproject.toml").read_bytes()
+    lock = (tmp_path / "server/uv.lock").read_text()
     assert 'name = "other"\nversion = "9.9.9"' in lock and 'name = "video-tool"\nversion = "2.3.4"' in lock          # only our own entry
-    assert json.loads((tmp_path / "desktop" / "package.json").read_text())["version"] == "2.3.4"
+    assert json.loads((tmp_path / "client/desktop/package.json").read_text())["version"] == "2.3.4"
     assert sv.apply("2.3.4") == []                                                                  # nothing to do the second time
     with pytest.raises(SystemExit):
         sv.apply("two point oh")
@@ -103,7 +105,8 @@ def test_the_workflows_are_valid_and_wired_together():
     assert "ci" in jobs["app"]["needs"] and "ci" in jobs["engine"]["needs"]
     assert set(jobs["publish"]["needs"]) >= {"app", "engine", "engine-smoke", "engine-image"}   # nothing is published unless every part built
     assert jobs["publish"]["if"] == "needs.version.outputs.publish == 'true'"
-    assert [o for o in jobs["app"]["strategy"]["matrix"]["os"]] == ["windows-latest", "macos-latest", "ubuntu-latest"]
+    assert jobs["app"]["strategy"]["matrix"]["os"] == ["windows-latest", "ubuntu-latest"]
+    assert jobs["app"]["strategy"]["matrix"]["edition"] == ["client", "server"]
 
 
 def test_the_scripts_the_workflows_call_exist():
@@ -112,6 +115,6 @@ def test_the_scripts_the_workflows_call_exist():
 
     for rel in set(re.findall(r"(?:python3?|uv run python) (scripts/[\w./-]+\.py)", text)):
         assert (ROOT / rel).is_file(), rel
-    for rel in ("packaging/engine/install-engine.sh", "packaging/engine/install-engine.ps1", "studio/package-lock.json", "desktop/package.json", "renderer/scripts/build-fonts.mjs",
-                "renderer/scripts/build-icons.mjs"):
+    for rel in ("server/packaging/engine/install-engine.sh", "server/packaging/engine/install-engine.ps1", "client/studio/package-lock.json", "client/desktop/package.json", "server/renderer/scripts/build-fonts.mjs",
+                "server/renderer/scripts/build-icons.mjs"):
         assert (ROOT / rel).is_file(), rel

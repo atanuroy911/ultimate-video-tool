@@ -1,0 +1,76 @@
+{
+  "name": "auto-31-lab-explainer-general",
+  "label": "Bold outline · Mint",
+  "color": {
+    "bg": "#eaf6ef",
+    "bg2": "#c9ecd9",
+    "ink": "#12332a",
+    "muted": "#738b83",
+    "accent": "#12a36b",
+    "accent2": "#ffd166",
+    "card": "#ffffff",
+    "card_border": "#12332a",
+    "caption_bg": "#ffffff",
+    "caption_ink": "#12332a",
+    "highlight_bg": "#12a36b",
+    "highlight_ink": "#111111",
+    "tag_bg": "#ffd166",
+    "tag_ink": "#111111",
+    "arc": "rgba(18,51,42,0.09)"
+  },
+  "font": {
+    "headline": [
+      "Inter",
+      "Anek Bangla"
+    ],
+    "body": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "numeral": [
+      "Inter",
+      "Anek Bangla"
+    ],
+    "caption": [
+      "Inter",
+      "Hind Siliguri"
+    ],
+    "headline_weight": 800
+  },
+  "shape": {
+    "radius": 22.0,
+    "stroke": 4.0,
+    "shadow": {
+      "x": 7.0,
+      "y": 7.0,
+      "color": "#12332a",
+      "blur": 0.0
+    },
+    "card_tilt": -3.0
+  },
+  "background": {
+    "kind": "paper",
+    "grain": 0.4,
+    "arcs": true,
+    "pattern": 0.5,
+    "animated": false
+  },
+  "motion": {
+    "preset": "snappy"
+  },
+  "caption": {
+    "style": "box",
+    "reveal": "line",
+    "weight": 700,
+    "size": 58,
+    "words_per_line": 6,
+    "safe_bottom": {
+      "portrait": 300,
+      "landscape": 64
+    }
+  },
+  "currency": "৳",
+  "sfx": "pop",
+  "style": "brutalist",
+  "palette": "mint"
+}

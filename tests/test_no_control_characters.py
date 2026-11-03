@@ -3,13 +3,13 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SKIP = ("node_modules", ".venv", "third_party", "dist", "__pycache__", "projects", "models", "desktop", "tests/golden", "qa_")
+SKIP = ("node_modules", ".venv", "third_party", "dist", "__pycache__", "projects", "models", "tests/golden", "qa_")
 ALLOWED = {9, 10, 13}                      # tab, newline, carriage return
 
 
 def test_no_source_file_contains_a_control_character():
     bad = []
-    for sub, exts in (("vt", {".py"}), ("renderer/runtime", {".js", ".css"}), ("studio/src", {".ts", ".tsx", ".css"}), ("tests", {".py"}), ("scripts", {".py", ".ps1"}), ("studio/e2e", {".mjs"}), ("docs", {".md", ".MD"})):
+    for sub, exts in (("server/vt", {".py"}), ("server/renderer/runtime", {".js", ".css"}), ("client/studio/src", {".ts", ".tsx", ".css"}), ("client/desktop", {".js", ".html"}), ("server/desktop", {".js", ".html"}), ("tests", {".py"}), ("scripts", {".py", ".ps1", ".sh", ".mjs"}), ("client/studio/e2e", {".mjs"}), ("docs", {".md", ".MD"})):
         for p in (ROOT / sub).rglob("*"):
             rel = str(p.relative_to(ROOT)).replace("\\", "/")
             if not p.is_file() or p.suffix not in exts or any(s in rel for s in SKIP):

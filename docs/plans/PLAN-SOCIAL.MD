@@ -12,10 +12,10 @@
 sequenceDiagram
     autonumber
     actor Creator as User in Studio
-    participant ResultUI as studio/src/pages/Result.tsx
-    participant HubUI as studio/src/pages/SocialHub.tsx
-    participant SocialAPI as vt/server/social_routes.py
-    participant Worker as vt/social/worker.py (Background Queue)
+    participant ResultUI as client/studio/src/pages/Result.tsx
+    participant HubUI as client/studio/src/pages/SocialHub.tsx
+    participant SocialAPI as server/vt/server/social_routes.py
+    participant Worker as server/vt/social/worker.py (Background Queue)
     participant DB as DATA/social/social.db (SQLite WAL)
     participant MetaAPI as Meta Graph API (FB & IG Reels)
     participant YTAPI as YouTube Data API v3
@@ -44,7 +44,7 @@ sequenceDiagram
 
 ## 2. Platform Adapter Architecture & Raw Code Foundations
 
-All adapters inherit from `BaseSocialAdapter` in `vt/social/adapters/base.py`:
+All adapters inherit from `BaseSocialAdapter` in `server/vt/social/adapters/base.py`:
 
 ```python
 class BaseSocialAdapter(ABC):
@@ -71,7 +71,7 @@ class BaseSocialAdapter(ABC):
 
 ---
 
-### 2.1 Facebook Pages & Reels Adapter (`vt/social/adapters/facebook.py`)
+### 2.1 Facebook Pages & Reels Adapter (`server/vt/social/adapters/facebook.py`)
 *Derived from `facebook_api.py` & `scripts/refresh_token.py` in `social-auto-engine`.*
 
 #### Token Strategy (Never-Expiring Page Access Tokens)
@@ -102,7 +102,7 @@ For 9:16 vertical videos under 90s, the adapter uploads to Facebook Reels:
 
 ---
 
-### 2.2 Instagram Reels Adapter (`vt/social/adapters/instagram.py`)
+### 2.2 Instagram Reels Adapter (`server/vt/social/adapters/instagram.py`)
 *Derived from `instagram_api.py` in `social-auto-engine`.*
 
 Instagram Business Accounts are linked to a Facebook Page. Publishing follows the official **Two-Step Container Flow**:
@@ -130,7 +130,7 @@ Instagram Business Accounts are linked to a Facebook Page. Publishing follows th
 
 ---
 
-### 2.3 YouTube Shorts & Videos Adapter (`vt/social/adapters/youtube.py`)
+### 2.3 YouTube Shorts & Videos Adapter (`server/vt/social/adapters/youtube.py`)
 *Derived from `youtube_api.py` in `social-auto-engine`.*
 
 #### Token Strategy
@@ -171,7 +171,7 @@ Standard Google OAuth 2.0 with `prompt=consent` and `access_type=offline`. The s
 
 ---
 
-### 2.4 TikTok Adapter (`vt/social/adapters/tiktok.py`)
+### 2.4 TikTok Adapter (`server/vt/social/adapters/tiktok.py`)
 *Derived from `tiktok_api.py` in `social-auto-engine`.*
 
 1. **Initialize Video Upload**:
@@ -321,7 +321,7 @@ Right below the video export player and AI Kit, an interactive card:
 
 ---
 
-### 4.2 Central Social Hub (`studio/src/pages/SocialHub.tsx`)
+### 4.2 Central Social Hub (`client/studio/src/pages/SocialHub.tsx`)
 Accessible via the sidebar / navigation at `/social`:
 
 #### Tab 1: Task Flow (Concrete Tasks Table — Inspired by VidiBot)
@@ -355,9 +355,9 @@ Accessible via the sidebar / navigation at `/social`:
 
 ---
 
-## 5. Background Task Engine (`vt/social/worker.py`)
+## 5. Background Task Engine (`server/vt/social/worker.py`)
 
-A singleton background worker running inside the FastAPI server process (leveraging `asyncio` and `vt/server/jobs.py`):
+A singleton background worker running inside the FastAPI server process (leveraging `asyncio` and `server/vt/server/jobs.py`):
 1. **Concurrency Pool**: 2 concurrent uploads at a time to prevent saturating bandwidth.
 2. **Platform Rate Limiter**:
    - Meta: Max 5 concurrent uploads.
@@ -373,31 +373,31 @@ A singleton background worker running inside the FastAPI server process (leverag
 ## 6. Phased Implementation Roadmap
 
 ### Phase 1: Core Social Backend & Database
-1. Create `vt/social/models.py` with Pydantic models for `SocialAccount`, `SocialGroup`, `SocialBatch`, and `SocialTask`.
-2. Create `vt/social/db.py` handling SQLite WAL connection, migrations, and CRUD operations.
-3. Create `vt/social/worker.py` for background job execution and status updates.
-4. Implement `vt/social/adapters/mock.py` so the complete flow can be tested end-to-end without live credentials.
+1. Create `server/vt/social/models.py` with Pydantic models for `SocialAccount`, `SocialGroup`, `SocialBatch`, and `SocialTask`.
+2. Create `server/vt/social/db.py` handling SQLite WAL connection, migrations, and CRUD operations.
+3. Create `server/vt/social/worker.py` for background job execution and status updates.
+4. Implement `server/vt/social/adapters/mock.py` so the complete flow can be tested end-to-end without live credentials.
 
 ### Phase 2: Live Platform Adapters
-1. `vt/social/adapters/facebook.py`: Meta Graph API video & Reels upload + token refresh.
-2. `vt/social/adapters/instagram.py`: Two-step container flow for Instagram Reels.
-3. `vt/social/adapters/youtube.py`: YouTube Data API v3 resumable chunked upload.
-4. `vt/social/adapters/tiktok.py`: TikTok Content Posting API chunked upload.
+1. `server/vt/social/adapters/facebook.py`: Meta Graph API video & Reels upload + token refresh.
+2. `server/vt/social/adapters/instagram.py`: Two-step container flow for Instagram Reels.
+3. `server/vt/social/adapters/youtube.py`: YouTube Data API v3 resumable chunked upload.
+4. `server/vt/social/adapters/tiktok.py`: TikTok Content Posting API chunked upload.
 
-### Phase 3: REST API Endpoints (`vt/server/social_routes.py`)
+### Phase 3: REST API Endpoints (`server/vt/server/social_routes.py`)
 1. Account management: `GET /api/social/accounts`, `POST /api/social/accounts/connect/{platform}`, `DELETE /api/social/accounts/{id}`.
 2. Group management: `GET /api/social/groups`, `POST /api/social/groups`, `DELETE /api/social/groups/{id}`.
 3. Dispatch & Queue: `POST /api/projects/{pid}/social/dispatch`, `GET /api/social/tasks`, `POST /api/social/tasks/{id}/retry`, `POST /api/social/tasks/{id}/cancel`.
 4. Logs & History: `GET /api/social/logs`.
 
 ### Phase 4: Studio UI Integration
-1. Update `studio/src/pages/Result.tsx` with the "Publish to Social Group" modal & dispatch trigger.
-2. Create `studio/src/pages/SocialHub.tsx` with:
+1. Update `client/studio/src/pages/Result.tsx` with the "Publish to Social Group" modal & dispatch trigger.
+2. Create `client/studio/src/pages/SocialHub.tsx` with:
    - Task Flow Table (live status badges, animated progress bars, retry buttons).
    - Execution Logs Table (direct post links, timestamps, error inspection).
    - Accounts & Groups Manager.
-3. Register `/social` in `studio/src/main.tsx` and add icon to `studio/src/Shell.tsx`.
-4. Add English and Bengali translations to `studio/src/i18n.ts`.
+3. Register `/social` in `client/studio/src/main.tsx` and add icon to `client/studio/src/Shell.tsx`.
+4. Add English and Bengali translations to `client/studio/src/i18n.ts`.
 
 ### Phase 5: Verification & Quality Assurance
 1. Test dispatching a rendered project to a mock group of 4 channels (YouTube, TikTok, Facebook, Instagram).

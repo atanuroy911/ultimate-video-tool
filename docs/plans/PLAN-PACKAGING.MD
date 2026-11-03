@@ -6,22 +6,22 @@ Owner's request (2026-10-28): GitHub Actions that compile the **client** and the
 
 | Product | Who installs it | What it is | Download |
 |---|---|---|---|
-| **Video Tool** (the app) | everyone | the window (Studio), the video pipeline, **and the ability to set the engines up on the same computer** (`vt/engines/installers.py`, the setup wizard) | `.exe` (Windows), `.dmg` (macOS), `.AppImage` / `.deb` (Linux), built with Electron from `desktop/` |
+| **Video Tool** (the app) | everyone | the window (Studio), the video pipeline, **and the ability to set the engines up on the same computer** (`server/vt/engines/installers.py`, the setup wizard) | `.exe` (Windows), `.dmg` (macOS), `.AppImage` / `.deb` (Linux), built with Electron from `client/desktop/` |
 | **Video Tool Engine** (the server) | the owner of a GPU computer | no window. Downloads and starts Ollama and ComfyUI (and their models), and offers them to other computers at one address with one key | `video-tool-engine-<version>.zip` / `.tar.gz` (Windows, Linux, macOS), and the Docker image `ghcr.io/<owner>/video-tool-engine` |
 
-Both run the **same code** (`vt/`). The engine package is that code without the Studio, the renderer and the designs: 218 files, under 1 MB, no models and no Python. The Python, the locked packages and the models are fetched on the target computer.
+Both run the **same code** (`server/vt/`). The engine package is that code without the Studio, the renderer and the designs: 218 files, under 1 MB, no models and no Python. The Python, the locked packages and the models are fetched on the target computer.
 
 ### Where each half runs
 | Layout | What to do |
 |---|---|
-| **Everything on one computer** | Install **Video Tool**. First run: the setup wizard, "Set it up here" for Language AI and Pictures (`vt/engines/setup.py`). Nothing else. |
+| **Everything on one computer** | Install **Video Tool**. First run: the setup wizard, "Set it up here" for Language AI and Pictures (`server/vt/engines/setup.py`). Nothing else. |
 | **Window on one computer, engines on another** | On the GPU computer install the **Engine** package. On the other one install **Video Tool**, then Settings, Engines, "Another Video Tool computer": the address and the code the engine printed. Language AI and Pictures connect through the same key. |
 | **One computer is both, and shares** | Install **Video Tool**; in Settings, Engines, "Share this computer", press Start sharing. A second computer pairs to it. "Start at login" keeps it running. |
 | **Existing servers** (Ollama, ComfyUI, VoiceStudio already running somewhere) | Settings, Engines, "Connect to my server": each address by hand, as before. |
 
 ## 2. The Engine hub
 
-`vt engine run` (code: `vt/engines/hub.py`, `vt/engines/server.py`):
+`vt engine run` (code: `server/vt/engines/hub.py`, `server/vt/engines/server.py`):
 
 ```
 other computer ──HTTP + key──►  gateway :8790  ──127.0.0.1──►  Ollama :11434
@@ -33,7 +33,7 @@ other computer ──HTTP + key──►  gateway :8790  ──127.0.0.1──�
 
 * The services listen **only on 127.0.0.1**. Port 8790 is the one open port; everything behind it needs the key.
 * The **key is made once** (`<data>/engine-hub.json`) so a restart does not unpair anyone. Each start prints a **pairing code that works once**; `vt engine pair` (or the Studio's "New code") makes another. Deleting `engine-hub.json` revokes every paired computer.
-* Pairing returns the key and the list of services; the Studio saves **Ollama and ComfyUI as remote engines** at `http://<hub>/gw/<key>/ollama` and `.../comfy`, so every existing code path (`vt/llm.py`, `vt/comfy/client.py`) works unchanged: they only see a different base address. This is a deliberate trade: the key travels in the path, not a header, because those clients take a plain address.
+* Pairing returns the key and the list of services; the Studio saves **Ollama and ComfyUI as remote engines** at `http://<hub>/gw/<key>/ollama` and `.../comfy`, so every existing code path (`server/vt/llm.py`, `server/vt/comfy/client.py`) works unchanged: they only see a different base address. This is a deliberate trade: the key travels in the path, not a header, because those clients take a plain address.
 * The first start asks the operating system's firewall for permission on port 8790 (Windows: allow private networks; Linux: `ufw allow 8790/tcp`).
 * Not encrypted. Use it on your own network, or put a tunnel or VPN in front for the internet (the owner's `voice.atanusroy.com` already works this way).
 * Commands: `vt engine plan | setup | run | pair | status | service`. `setup` is resumable and checksummed (the E5 installers); `service --install` writes a scheduled task (Windows), a user service (Linux) or a launch agent (macOS), no administrator rights.
@@ -49,13 +49,13 @@ Two workflows in `.github/workflows/`:
 | `ci.yml` | every push to `main`, every pull request, and called by the release | **Python tests** (`pytest -m "not slow"` on the locked packages, via `uv`); **Studio** (`tsc` and `vite build`); **Docs check**; **Engine package**: build it, unpack it as a user would, then on **Ubuntu and Windows** run the real install script (`uv` installs Python 3.11 and the locked packages) and prove `vt engine run` answers `/.well-known/vt-engine` |
 | `release.yml` | a tag `v*`, or by hand (a manual run builds everything and publishes nothing) | runs `ci.yml` first; **writes the tag's version into every file** (`scripts/set_version.py`); builds the **app installers** on Windows, macOS and Linux; builds the **Engine package** and installs it again on Ubuntu and Windows from the downloaded artifact; builds the **Docker image** (pushed to ghcr.io only for a tag); then **one release** with every file and `SHA256SUMS.txt`. Nothing is published unless every part built. |
 
-Files: `scripts/set_version.py`, `scripts/make_engine_package.py`, `packaging/engine/` (`install-engine.ps1`, `install-engine.sh`, `Dockerfile`, `docker-compose.yml`, `docker-entrypoint.sh`, `README-ENGINE.txt`).
+Files: `scripts/set_version.py`, `scripts/make_engine_package.py`, `server/packaging/engine/` (`install-engine.ps1`, `install-engine.sh`, `Dockerfile`, `docker-compose.yml`, `docker-entrypoint.sh`, `README-ENGINE.txt`).
 
 ### The Engine package, step by step (what the install script does)
 1. Copy the program to `<dir>/app`.
 2. `uv` (fetched from astral.sh if absent) installs **Python 3.11** and the **locked packages** (`uv sync --frozen`) into `<dir>/venv`.
 3. `vt engine plan`: what this computer can do and what will be downloaded (nothing yet).
-4. `vt engine setup --yes`: Ollama and a small language model; ComfyUI with its own Python and the PyTorch wheel for the card (cu126 for Volta, cu128 for Blackwell; `torch_index`); the picture models from `assets/comfy/model-manifest.json`, **resumable, size-checked, SHA-256-checked**.
+4. `vt engine setup --yes`: Ollama and a small language model; ComfyUI with its own Python and the PyTorch wheel for the card (cu126 for Volta, cu128 for Blackwell; `torch_index`); the picture models from `server/assets/comfy/model-manifest.json`, **resumable, size-checked, SHA-256-checked**.
 5. Optional `--service`: start at login. Then `run-engine.cmd` / `run-engine.sh`.
 `-Check` / `--check` stops after step 3 and starts the engine without services to prove it answers: this is what CI runs.
 

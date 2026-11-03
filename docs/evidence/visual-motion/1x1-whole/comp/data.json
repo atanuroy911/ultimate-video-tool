@@ -1,0 +1,163 @@
+{
+  "comp_id": "root",
+  "format": {
+    "width": 1080,
+    "height": 1080,
+    "fps": 30,
+    "aspect": "1:1"
+  },
+  "duration": 4,
+  "theme": {
+    "name": "paper",
+    "label": "Paper",
+    "color": {
+      "bg": "#f1efe8",
+      "ink": "#1a1a1a",
+      "muted": "#6e6c66",
+      "accent": "#f26a1f",
+      "accent2": "#ffc83a",
+      "card": "#e3eee0",
+      "card_border": "#1a1a1a",
+      "caption_bg": "#ffffff",
+      "caption_ink": "#1a1a1a",
+      "highlight_bg": "#f26a1f",
+      "highlight_ink": "#ffffff",
+      "tag_bg": "#ffc83a",
+      "tag_ink": "#1a1a1a",
+      "arc": "rgba(40,40,30,0.09)"
+    },
+    "font": {
+      "headline": [
+        "Inter",
+        "Anek Bangla"
+      ],
+      "body": [
+        "Inter",
+        "Hind Siliguri"
+      ],
+      "numeral": [
+        "Inter",
+        "Anek Bangla"
+      ],
+      "caption": [
+        "Inter",
+        "Hind Siliguri"
+      ],
+      "headline_weight": 800
+    },
+    "shape": {
+      "radius": 22.0,
+      "stroke": 4.0,
+      "shadow": {
+        "x": 7.0,
+        "y": 7.0,
+        "color": "#1a1a1a",
+        "blur": 0
+      },
+      "card_tilt": -3.0
+    },
+    "background": {
+      "kind": "paper",
+      "grain": 0.4,
+      "arcs": true,
+      "pattern": 0.5,
+      "animated": false
+    },
+    "motion": {
+      "preset": "snappy"
+    },
+    "caption": {
+      "style": "box",
+      "reveal": "line",
+      "weight": 700,
+      "size": 58,
+      "words_per_line": 6,
+      "safe_bottom": {
+        "portrait": 300,
+        "landscape": 64
+      }
+    },
+    "currency": "৳",
+    "sfx": "pop",
+    "style": "",
+    "palette": "",
+    "picture": "emoji"
+  },
+  "icons": {
+    "circle-help": "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <path d=\"M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3\" /> <path d=\"M12 17h.01\" />"
+  },
+  "stickers": {},
+  "scenes": [
+    {
+      "id": "s1",
+      "start": 0.0,
+      "end": 4,
+      "layout": "stack",
+      "transition_in": "fade",
+      "tone": 0,
+      "elements": [
+        {
+          "edited": false,
+          "start": 0.0,
+          "end": 4.0,
+          "scale": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "keyframes": [
+            {
+              "time": 0.0,
+              "x": 0.2,
+              "y": 0.5,
+              "scale": 1,
+              "rotation": 0,
+              "opacity": 1,
+              "ease": "smooth"
+            },
+            {
+              "time": 4.0,
+              "x": 0.8,
+              "y": 0.5,
+              "scale": 1,
+              "rotation": 0,
+              "opacity": 1,
+              "ease": "linear"
+            }
+          ],
+          "entrance": "auto",
+          "type": "shape",
+          "shape": "circle",
+          "color": "#ff00ff",
+          "label": "",
+          "width": 0.15,
+          "rounded": true,
+          "at": 0.0,
+          "free": true,
+          "until": 4.0,
+          "_i": 0
+        }
+      ],
+      "transition_effect": "auto",
+      "camera_move": "auto"
+    }
+  ],
+  "captions": [
+    {
+      "start": 0.06,
+      "end": 4.35,
+      "words": [
+        {
+          "id": "w1",
+          "text": "Move",
+          "start": 0.0,
+          "end": 4.0,
+          "hl": false
+        }
+      ]
+    }
+  ],
+  "cues": [],
+  "media": {},
+  "envelope": null,
+  "language": "en",
+  "captions_enabled": false
+}

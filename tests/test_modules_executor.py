@@ -93,12 +93,20 @@ def test_async_ticket_can_cancel_before_artifact_commit(tmp_path):
         _REGISTRY.pop("test.blocking", None)
 
 
-def test_prerequisite_chain_uses_classic_stages_for_subtitles(projects_dir):
+def test_prerequisite_chain_uses_classic_stages_for_subtitles(projects_dir, tmp_path):
     from pathlib import Path
     from vt.project import Project
     from vt.util import write_json
 
-    source = Path(__file__).resolve().parents[1] / "samples" / "audio" / "bn_plain.mp3"
+    # The transcript is supplied below; this exercises orchestration, not ASR accuracy.
+    # A generated audio fixture also works in a clean checkout without private sample recordings.
+    import wave
+    source = tmp_path / "source.wav"
+    with wave.open(str(source), "wb") as f:
+        f.setnchannels(1)
+        f.setsampwidth(2)
+        f.setframerate(16000)
+        f.writeframes(b"\0\0" * 32000)
     p = Project.create("prerequisites", source, language="en", theme="paper")
     write_json(p.dir / "subs.raw.json", {"words": [
         {"text": "hello", "start": 0.1, "end": 0.5},

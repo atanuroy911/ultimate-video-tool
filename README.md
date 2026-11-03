@@ -1,3 +1,9 @@
+# Independent client and server
+
+The products are now physically and independently packaged in **client/** and **server/**. The client owns the editor and local Claude/Codex companion. The server owns processing, engines, rendering assets and its management panel; it does not ship or serve the editor.
+
+See [client instructions](client/README.md), [server instructions](server/README.md), and [agent-friendly development installation](docs/DEVELOPMENT-INSTALL.md). Windows and Linux developer scripts are scripts/dev-install.ps1 and scripts/dev-install.sh. Earlier instructions below are historical unless updated to the split roots.
+
 # Video Tool
 
 Documentation starts at [docs/README.md](docs/README.md): the phased [roadmap](docs/ROADMAP.md), the [implementation status with evidence](docs/STATUS.md), and the [handoff guide](docs/HANDOFF.md). The vision and owner rules are in [plan.md](plan.md).
@@ -23,9 +29,9 @@ It is not a timeline editor. You review a transcript and a list of scenes, fix w
 
 | You want | Do this |
 |---|---|
-| **A normal app** (Windows, macOS, Linux) | Download the installer from the Releases page (built by `.github/workflows/release.yml`; the Windows one is `desktop/dist/Video Tool Setup x.y.z.exe` after `cd desktop && npm run dist`). The first start sets up its own Python, Node and speech libraries inside your user folder (10 to 20 minutes, internet needed once, no administrator rights). Your videos, models and themes live in a separate data folder and survive updates. The installers are not code-signed, so Windows SmartScreen and macOS Gatekeeper show a one-time warning ("More info" > "Run anyway"; on macOS right-click > Open). |
+| **A normal app** (Windows, macOS, Linux) | Download the installer from the Releases page (built by `.github/workflows/release.yml`; the Windows one is `client/desktop/dist/Video Tool Setup x.y.z.exe` after `cd desktop && npm run dist`). The first start sets up its own Python, Node and speech libraries inside your user folder (10 to 20 minutes, internet needed once, no administrator rights). Your videos, models and themes live in a separate data folder and survive updates. The installers are not code-signed, so Windows SmartScreen and macOS Gatekeeper show a one-time warning ("More info" > "Run anyway"; on macOS right-click > Open). |
 | **A server for the models** (a GPU computer) | The **Video Tool Engine** package from the Releases page (`.zip` / `.tar.gz`, or the Docker image): run its install script, it downloads Ollama, ComfyUI and the models, then prints an address and a pairing code. Pair it in the app: Settings, Engines. See [docs/plans/PLAN-PACKAGING.MD](docs/plans/PLAN-PACKAGING.MD). The app and the engine can be on the same computer or on two. |
-| **From the browser** | Run the app (below), open it in Chrome or Edge and choose **Install** in the address bar: it becomes a desktop/phone app (PWA). |
+| **From the browser** | Run the app (below), open it in Chrome or Edge and choose **Install** in the address bar: it becomes a client/desktop/phone app (PWA). |
 | **From source** | The quick start below. |
 
 ## Quick start (Windows, from source)
@@ -71,7 +77,7 @@ Shortcuts in Review: `Space` play · `←` `→` previous/next word · `J` `K` p
 ## Kinds of video, infographics, cartoons and your own media
 
 Choose **Auto** or one of: **Product showcase**, **Storytelling**, **Discussion**, **Education** (a **General** picture-per-sentence style also exists).
-Each kind is a profile in `design/profiles/*.json` (pacing, which scene types it favours, looks, transitions, sound) that you can edit or copy.
+Each kind is a profile in `server/design/profiles/*.json` (pacing, which scene types it favours, looks, transitions, sound) that you can edit or copy.
 
 * **Scene director** (rules, no AI needed): every sentence gets a role (question, definition, step, price, call to action, quote, comparison, list, date,
   story...) in Bangla or English, sentences are grouped into scenes by pace, and each scene is shown as the best fitting of 21 scene types: big number, percentage
@@ -117,7 +123,7 @@ The connector also lets Claude create projects, fix transcript words, edit scene
 
 ## AI directors, your own assistant, and stick-figure videos
 
-The app can let an AI write the whole plan (the **Video Script**, `vt/script/`): scenes, graphics, and for stick-figure videos a cast, a set and timed actions.
+The app can let an AI write the whole plan (the **Video Script**, `server/vt/script/`): scenes, graphics, and for stick-figure videos a cast, a set and timed actions.
 The built-in rules always remain the fallback, so a video is made even when no AI answers.
 
 - **Settings → AI that directs your videos**: local Ollama (default), any OpenAI-compatible service, or the Claude API (your own key, kept on this computer).
@@ -155,14 +161,14 @@ The built-in rules always remain the fallback, so a video is made even when no A
 * **Cut out** (media bin): removes the background of a picture and adds a transparent PNG that can go on a layer above other pictures.
 * **Clean up the voice** (Export page): less hiss and hum, clearer, more even.
 * **Layers**: text, pictures, video clips and sounds on extra tracks of the timeline; Ctrl+C / Ctrl+V copy a clip, each picture or text clip can have a slow zoom or slide.
-* **Optional Concat engine** (`tools/concat`, AGPL-3.0): a GPU video engine driven headless (`vt/concat_client.py`, `scripts/spike_concat.py`). Nothing needs it yet.
+* **Optional Concat engine** (`tools/concat`, AGPL-3.0): a GPU video engine driven headless (`server/vt/concat_client.py`, `scripts/spike_concat.py`). Nothing needs it yet.
 
 ## Banglish (Bangla with English words)
 
 * The speech model is a **Bangla fine-tune of Whisper medium** (`bengaliAI/tugstugi_bengaliai-asr_whisper-medium`, converted to
   CTranslate2, fp16 on the GPU). On synthetic clips it beat `large-v3` by a wide margin for Bangla (7–15% vs ~50% word error).
 * It writes English words in Bangla script (ফ্ল্যাট, নেট ইয়েল্ড). Each project chooses how they appear:
-  **Keep English letters** (default: `flat`, `net yield`) or **Bangla script**. A starter dictionary is in `design/terms.json`;
+  **Keep English letters** (default: `flat`, `net yield`) or **Bangla script**. A starter dictionary is in `server/design/terms.json`;
   add your own pairs per project in *Banglish & advanced → Glossary* (`yield=ইয়েল্ড`). Your edits and glossary always win.
 * Words the model is unsure about are underlined in the transcript; *Next to check* cycles through them.
 
@@ -190,29 +196,29 @@ vt models list|pull <name> | vt themes | vt music | vt doctor | vt demo
 | Assets | Fonts SIL OFL, icons Lucide (ISC), music/SFX synthesised by `scripts/make_assets.py` (CC0) | Everything redistributable. |
 
 ```
-vt/                  Python package: stages/ (audio, asr, chunks, align, words, terms), planner/, compose/, render/,
+server/vt/                  Python package: stages/ (audio, asr, chunks, align, words, terms), planner/, compose/, render/,
                      server/ (FastAPI + jobs), mcp/ (Claude connector), pipeline.py, planning.py, scene_ops.py, cli.py
-renderer/runtime/    vt.js + vt.css: the in-page engine that builds the video from data (components, transitions, captions)
-design/              themes/*.json, fonts (generated), icons (generated), terms.json, textures/
-studio/              React app (src/) and browser tests (e2e/)
-assets/              music + sfx (generated)         samples/   demo project builder and test audio
+server/renderer/runtime/    vt.js + vt.css: the in-page engine that builds the video from data (components, transitions, captions)
+server/design/              themes/*.json, fonts (generated), icons (generated), terms.json, textures/
+client/studio/              React app (src/) and browser tests (e2e/)
+server/assets/              music + sfx (generated)         samples/   demo project builder and test audio
 projects/            your videos (one folder each: input, transcript.json, scenes.json, composition/, exports/)
 models/              downloaded speech models        tests/     70 Python tests
 ```
 
 **Data contract:** `scenes.json` lists scenes with elements anchored to **word ids** (`"at_word": "w17"`), never to seconds, so plans survive
 spelling fixes and re-cuts. Captions always come from the transcript. Every component's fields and limits are defined once
-(`vt/schema.py`) and drive validation, the Studio's forms and Claude's task.
+(`server/vt/schema.py`) and drive validation, the Studio's forms and Claude's task.
 
-**Adding a component:** a pydantic model in `vt/schema.py`, an example in `vt/planner/catalogue.py`, a builder in `renderer/runtime/vt.js`
-and CSS in `vt.css`. The catalogue test fails until all four agree; add the element to `vt/compose/specimen.py` to see it in the Theme editor.
+**Adding a component:** a pydantic model in `server/vt/schema.py`, an example in `server/vt/planner/catalogue.py`, a builder in `server/renderer/runtime/vt.js`
+and CSS in `vt.css`. The catalogue test fails until all four agree; add the element to `server/vt/compose/specimen.py` to see it in the Theme editor.
 
 ## Tests
 
 ```powershell
 .venv\Scripts\python -m pytest -m "not slow"     # 61 fast tests (cuts, words, schema, planner, director, contrast, media, stock, visuals, designer, TTS, local AI planner, composer, API, MCP over stdio…)
 .venv\Scripts\python -m pytest -m slow           # 9 tests: real speech model + pixel-compared renders (tests/golden)
-cd studio; npm run e2e; npm run e2e:editor; npm run e2e:design; npm run e2e:phase2; npm run e2e:journey; npm run e2e:export   # browser checks (see studio/e2e/README.md)
+cd studio; npm run e2e; npm run e2e:editor; npm run e2e:design; npm run e2e:phase2; npm run e2e:journey; npm run e2e:export   # browser checks (see client/studio/e2e/README.md)
 python scripts/asr_bakeoff.py bn-medium,large-v3 samples/audio/banglish.mp3   # model comparison
 ```
 
@@ -241,7 +247,7 @@ python scripts/asr_bakeoff.py bn-medium,large-v3 samples/audio/banglish.mp3   # 
   `scripts/make_sample_audio.py`, which sends the sample text to Microsoft's online voices). Expect more errors on noisy rooms and
   accents; the review screen exists for that.
 * Bangla app-interface text is a first draft and should be reviewed by a native speaker. The bundled music and effects are simple
-  synthesised loops; they were not auditioned by ear. Drop your own tracks into `assets/music/user/`.
+  synthesised loops; they were not auditioned by ear. Drop your own tracks into `server/assets/music/user/`.
 * Windows is the tested platform. Single user, local only. Preview plays voice only (music and effects are mixed on export).
 # Shorts and social publishing
 

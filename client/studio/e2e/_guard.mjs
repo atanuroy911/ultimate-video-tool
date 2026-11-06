@@ -1,7 +1,7 @@
 import { chromium } from "playwright-core";
 import { pathToFileURL } from "node:url";
 import { chromePath } from "./common.mjs";
-const b = await chromium.launch({ executablePath: chromePath() });
+const b = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 for (const src of process.argv.slice(2)) {
   const p = await b.newPage({ viewport: { width: 1080, height: 1920 }, deviceScaleFactor: 0.25 });
   await p.goto(pathToFileURL(src).href);

@@ -41,8 +41,9 @@
 .cn-has-labels .cn-actor { width: calc(27% * var(--k, 1)); }
 .cn.cn-scene { border-radius: 0; }
 .cn-scene .cn-stage { width: 100%; height: 100%; aspect-ratio: auto; border: 0; border-radius: 0; box-shadow: none; }
-.cn-scene .cn-actor { bottom: 27%; width: min(calc(34% * var(--k, 1)), calc(var(--scene-height) * .32 * var(--k, 1))); }
+.cn-scene .cn-actor { bottom: 31%; width: min(calc(34% * var(--k, 1)), calc(var(--scene-height) * .32 * var(--k, 1))); }
 .a169 .cn-scene .cn-actor { bottom: 14%; }
+.a11 .cn-scene .cn-actor { bottom: 18%; }
 .cn-char { width: 100%; height: auto; overflow: visible; display: block; }
 .cn-name { position: absolute; left: 50%; bottom: -2%; transform: translateX(-50%); background: var(--tag-bg); color: var(--tag-ink); border-radius: 999px; padding: 0 .7em; font-weight: 700; font-size: calc(30px * var(--s)); line-height: 1.5; white-space: nowrap; }
 .cn-prop { position: absolute; bottom: 6%; width: 12%; }

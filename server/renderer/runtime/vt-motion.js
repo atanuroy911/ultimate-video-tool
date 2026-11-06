@@ -28,7 +28,11 @@
       const frag = document.createDocumentFragment();
       n.nodeValue.split(/(\s+)/).forEach((part) => {
         if (!part) return;
-        if (/^\s+$/.test(part)) { frag.appendChild(document.createTextNode(part)); return; }
+        if (/^\s+$/.test(part)) {                 // the space stays inside the word before it: GSAP lifts a word out of a hidden scene and puts it back before the next element, past any loose space
+          const before = frag.lastChild;
+          (before && before.nodeType === 1 ? before : frag).appendChild(document.createTextNode(part));
+          return;
+        }
         const word = document.createElement("span");
         word.className = "mw";
         if (unit === "char") graphemes(part).forEach((g) => { const c = document.createElement("span"); c.className = "mc"; c.textContent = g; word.appendChild(c); spans.push(c); });

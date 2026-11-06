@@ -100,7 +100,7 @@ def slice_short_project(
         child_video = child.dir / "input.mp4"
         use_nvenc = gpu.has_nvenc()
         vcodec = "h264_nvenc" if use_nvenc else "libx264"
-        vopts = ["-preset", "p4", "-cq", "22"] if use_nvenc else ["-preset", "fast", "-crf", "22"]
+        vopts = [*gpu.nvenc_device(), "-preset", "p4", "-cq", "22"] if use_nvenc else ["-preset", "fast", "-crf", "22"]
 
         video_cmd = [
             ffmpeg, "-y", "-hide_banner", "-loglevel", "error",

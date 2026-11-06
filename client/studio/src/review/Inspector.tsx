@@ -12,7 +12,12 @@ import type { Catalogue, ComponentSpec, El, Scene, SceneTime, Word } from "../ty
 import ComponentLibrary from "./ComponentLibrary";
 import { newSceneElement } from "./componentOps";
 import SchemaForm from "./SchemaForm";
+import { applyGesture, type Start } from "./gestures.ts";
+import { repositionMotion } from "./motionMath";
+import type { GestureEvent } from "./TransformHandles";
 import ShowAs from "./ShowAs";
+import StoryEditor from "./story/StoryEditor";
+import JsonField from "./JsonField";
 import type { Review } from "./useReview";
 
 function summary(e: El): string {
@@ -40,7 +45,7 @@ export default forwardRef<InspectorHandle, {
   const [els, setEls] = useState<El[]>(scene.elements);
   const [open, setOpen] = useState<Set<number>>(new Set([0]));
   const [tab, setTab] = useState<InspectorTab>("elements");
-  const [elementTab, setElementTab] = useState<"content"|"position"|"timing"|"motion">("content");
+  const [elementTab, setElementTab] = useState<"content"|"position"|"timing"|"motion"|"json">("content");
   const [menu, setMenu] = useState(false);
   const [hint, setHint] = useState("");
   const [alts, setAlts] = useState<1 | 2 | 3>(1);
@@ -90,6 +95,31 @@ export default forwardRef<InspectorHandle, {
     if (immediate) flush();
     else timer.current = window.setTimeout(flush, 500);
   };
+
+  // the handles on the picture (Preview): a hand moves, sizes, turns or pins the selected element; the elements saved here are what the page draws
+  const live = useRef({ els, commit, time: props.time, scene, r });
+  live.current = { els, commit, time: props.time, scene, r };
+  const hand = useRef<null | { index: number; start: Start }>(null);
+  useEffect(() => {
+    const on = (ev: Event) => {
+      const d = (ev as CustomEvent<GestureEvent>).detail, now = live.current;
+      if (d.scene !== now.scene.id) return;
+      if (d.phase === "start") {
+        const el = now.els[d.index];
+        hand.current = el ? { index: d.index, start: { el, center: d.center, frame: d.frame, size: d.size } } : null;
+        return;
+      }
+      const h = hand.current;
+      if (!h || !d.gesture || h.index !== d.index) return;
+      const span = now.r.sc.data?.elements?.[`${now.scene.id}:${d.index}`];
+      const patch = applyGesture(h.start, d.gesture);
+      const el = { ...h.start.el, start: h.start.el.start ?? span?.start ?? now.time?.start ?? 0, end: h.start.el.end ?? span?.end ?? now.time?.end ?? now.r.timing.duration, ...repositionMotion(h.start.el, patch, 0.45) };
+      now.commit(now.els.map((x, j) => (j === d.index ? el : x)), d.phase === "end");
+      if (d.phase === "end") hand.current = null;
+    };
+    window.addEventListener("vt-element-gesture", on);
+    return () => window.removeEventListener("vt-element-gesture", on);
+  }, []);
 
   const specs = new Map((cat?.elements ?? []).map((c) => [c.type, c]));
   const wordLite = props.words.map((w) => ({ id: w.id, text: w.text, start: w.start }));
@@ -174,13 +204,28 @@ export default forwardRef<InspectorHandle, {
                     <Trash2 size={14} />
                   </button>
                 </div>
-                {isOpen && spec && (
+                {isOpen && e.type === "story" && (
                   <div className="el-body">
-                    <Seg value={elementTab} onChange={setElementTab} label="Element controls" options={[{value:'content',label:'Content'},{value:'position',label:'Position'},{value:'motion',label:'Motion'},{value:'timing',label:'Timing'}]}/>
+                    <StoryEditor value={e} onChange={(v, now) => commit(els.map((x, j) => (j === i ? v : x)), now)} cast={(r.plan as any)?.story_cast ?? {}}
+                      projectId={r.id} onCastSaved={() => r.reloadAll()} aspect={r.aspect} language={(r.project.data as any)?.language ?? "en"}
+                      start={props.time?.start ?? 0} end={props.time?.end ?? r.timing.duration} seek={props.seek} media={r.project.data?.media ?? []} />
+                  </div>
+                )}
+                {isOpen && spec && e.type !== "story" && (
+                  <div className="el-body">
+                    <Seg value={elementTab} onChange={setElementTab} label="Element controls" options={[{value:'content',label:'Content'},{value:'position',label:'Position'},{value:'motion',label:'Motion'},{value:'timing',label:'Timing'},{value:'json',label:'JSON'}]}/>
+                    {elementTab==="json"&&<JsonField title="Everything about this visual (checked when saved)" rows={14} value={e} set={(v)=>{if(v&&typeof v==="object"&&v.type)commit(els.map((x,j)=>j===i?v:x));}}/>}
                     {elementTab==="motion"&&<MotionEditor value={e} seek={props.seek} start={e.start??r.sc.data?.elements?.[`${scene.id}:${i}`]?.start??props.time?.start??0} end={e.end??r.sc.data?.elements?.[`${scene.id}:${i}`]?.end??props.time?.end??r.timing.duration} onChange={keyframes=>commit(els.map((x,j)=>j===i?{...x,keyframes}:x))}/>}
-                    {elementTab==="motion"&&<label className="field"><span>Entrance</span><select value={e.entrance??'auto'} onChange={ev=>commit(els.map((x,j)=>j===i?{...x,entrance:ev.target.value}:x))}><option value="auto">Automatic</option><option value="none">No added effect</option>{cat?.motion?.entrances.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></label>}
+                    {elementTab==="motion"&&<label className="field"><span>Entrance</span><select value={e.entrance??'auto'} onChange={ev=>commit(els.map((x,j)=>j===i?{...x,entrance:ev.target.value}:x))}><option value="auto">Automatic</option><option value="none">Already in place</option>{cat?.motion?.entrances.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></label>}
                     {(elementTab==="position"||elementTab==="timing")&&<VisualControls section={elementTab} value={e} start={r.sc.data?.elements?.[`${scene.id}:${i}`]?.start ?? props.time?.start ?? 0} end={r.sc.data?.elements?.[`${scene.id}:${i}`]?.end ?? props.time?.end ?? r.timing.duration} total={r.timing.duration} onChange={v=>commit(els.map((x,j)=>j===i?v:x))}/>}
                     {(elementTab==="content"||elementTab==="timing")&&<SchemaForm section={elementTab} media={r.project.data?.media??[]} spec={spec} value={e} words={wordLite} icons={props.icons} playheadWord={props.playheadWord} onChange={(v) => commit(els.map((x, j) => (j === i ? v : x)))} />}
+                    {e.type === "cartoon" && <details className="scene-json" open={!!e.extras?.length}>
+                      <summary>Story-engine extras ({e.extras?.length ?? 0}): numbers, icons, a beating heart… at their words</summary>
+                      <StoryEditor extrasOnly value={{ ...e, bg: { type: "plain", color: "transparent" }, items: e.extras ?? [] } as any}
+                        onChange={(v: any, now) => commit(els.map((x, j) => (j === i ? { ...x, extras: v.items } : x)), now)} cast={{}} projectId={r.id}
+                        onCastSaved={() => r.reloadAll()} aspect={r.aspect} language={(r.project.data as any)?.language ?? "en"}
+                        start={props.time?.start ?? 0} end={props.time?.end ?? r.timing.duration} seek={props.seek} media={r.project.data?.media ?? []} />
+                    </details>}
                     <button className="btn sm" onClick={()=>{commit([...els.slice(0,i+1),{...structuredClone(e),id:undefined},...els.slice(i+1)],true);setOpen(new Set([i+1]));}}>Duplicate visual</button>
                   </div>
                 )}
@@ -231,6 +276,12 @@ export default forwardRef<InspectorHandle, {
       }}/><button className="btn sm" onClick={()=>r.splitAt(scene.id, (props.time!.start+props.time!.end)/2)}>Split this scene in half</button></div>}
 
         <ShowAs r={r} id={r.project.data?.id ?? ""} scene={scene} media={r.project.data?.media ?? []} />
+        <details className="scene-json">
+          <summary>Everything about this scene as JSON</summary>
+          <JsonField title="Layout, transitions, camera, backdrop, captions, sounds and more (beats and timing move with the timeline)" rows={12}
+            value={Object.fromEntries(Object.entries(scene).filter(([k]) => !["id", "beats", "start", "elements"].includes(k)))}
+            set={(v) => { if (v && typeof v === "object") { const { id: _i, beats: _b, start: _s, elements: _e, ...rest } = v as any; r.patchScene(scene.id, rest); } }} />
+        </details>
 
         <div className="col" style={{ gap: 6 }}>
           <h3>Layout</h3>
@@ -251,12 +302,19 @@ export default forwardRef<InspectorHandle, {
         {([['transition_effect','Transition style','transitions'],['camera_move','Camera movement','cameras']] as const).map(([key,label,group])=><label className="field" key={key}><span>{label}</span><select value={scene[key]??'auto'} onChange={e=>r.patchScene(scene.id,{[key]:e.target.value})}><option value="auto">Automatic</option><option value="none">None</option>{cat?.motion?.[group].map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></label>)}
 
         <div className="col" style={{ gap: 6 }}>
+          <label className="field">
+            <span>Caption height · {scene.caption.y == null ? "Usual place" : `${Math.round(scene.caption.y * 100)}% down`}</span>
+            <div className="row">
+              <input className="grow" type="range" min={10} max={82} step={1} aria-label="Caption height for this scene" value={Math.round((scene.caption.y ?? 0.78) * 100)} onChange={(e) => r.patchScene(scene.id, { caption: { ...scene.caption, y: Number(e.target.value) / 100 } })} />
+              {scene.caption.y != null && <button type="button" className="btn sm" onClick={() => { const { y: _, ...rest } = scene.caption; r.patchScene(scene.id, { caption: rest }); }}>Reset</button>}
+            </div>
+          </label>
           <h3>Caption highlight</h3>
           <div className="row wrap">
             {hlWords.map((w) => (
               <span key={w.id} className="chip accent bn">
                 {w.text}
-                <button className="btn ghost icon sm" style={{ width: 18, height: 18 }} aria-label={`Remove highlight ${w.text}`} onClick={() => r.patchScene(scene.id, { caption: { highlight_words: scene.caption.highlight_words.filter((x) => x !== w.id) } })}>
+                <button className="btn ghost icon sm" style={{ width: 18, height: 18 }} aria-label={`Remove highlight ${w.text}`} onClick={() => r.patchScene(scene.id, { caption: { ...scene.caption, highlight_words: scene.caption.highlight_words.filter((x) => x !== w.id) } })}>
                   <X size={11} />
                 </button>
               </span>
@@ -265,7 +323,7 @@ export default forwardRef<InspectorHandle, {
             <button
               className="btn sm"
               disabled={!props.playheadWord || !props.words.some((w) => w.id === props.playheadWord) || scene.caption.highlight_words.includes(props.playheadWord!)}
-              onClick={() => r.patchScene(scene.id, { caption: { highlight_words: [...scene.caption.highlight_words, props.playheadWord].slice(-3) } })}
+              onClick={() => r.patchScene(scene.id, { caption: { ...scene.caption, highlight_words: [...scene.caption.highlight_words, props.playheadWord].slice(-3) } })}
             >
               + Word at playhead
             </button>

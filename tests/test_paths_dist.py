@@ -65,7 +65,8 @@ def test_the_renderer_is_pointed_at_the_products_own_ffmpeg_ffprobe_and_chrome(t
     (tmp_path / "chrome" / "x" / "y" / f"chrome-headless-shell{exe}").write_bytes(b"x")
     monkeypatch.setenv("VT_BIN", str(tmp_path))
     for k in ("HYPERFRAMES_FFMPEG_PATH", "HYPERFRAMES_FFPROBE_PATH", "HYPERFRAMES_BROWSER_PATH", "PRODUCER_HEADLESS_SHELL_PATH"):
-        monkeypatch.delenv(k, raising=False)
+        monkeypatch.setenv(k, "")                                                         # records what the variable was, even when it was absent: use_product_binaries sets os.environ directly, and a bare delenv of an absent variable records nothing, so the fake Chrome used to outlive this test and broke every later render
+        monkeypatch.delenv(k)
     got = H.use_product_binaries()
     assert got["HYPERFRAMES_FFMPEG_PATH"].endswith(f"ffmpeg{exe}") and got["HYPERFRAMES_FFPROBE_PATH"].endswith(f"ffprobe{exe}")
     assert "chrome-headless-shell" in got["HYPERFRAMES_BROWSER_PATH"] and os.environ["PRODUCER_HEADLESS_SHELL_PATH"] == got["HYPERFRAMES_BROWSER_PATH"]
@@ -74,3 +75,10 @@ def test_the_renderer_is_pointed_at_the_products_own_ffmpeg_ffprobe_and_chrome(t
         monkeypatch.delenv(k, raising=False)
     fallback = H.use_product_binaries()                                                       # nothing of ours: ffmpeg/ffprobe fall back to the system's, Chrome is left to HyperFrames
     assert "HYPERFRAMES_BROWSER_PATH" not in fallback and not any(str(tmp_path) in v for v in fallback.values())
+
+
+def test_the_fake_chrome_of_the_test_above_does_not_outlive_it():
+    """pytest runs this straight after the test above. A path into pytest's temp folder here is the leak that once made every later render test fail with
+    `spawn .../chrome-headless-shell EACCES`: use_product_binaries sets os.environ directly, so a bare monkeypatch.delenv of an absent variable restored nothing."""
+    for k in ("HYPERFRAMES_FFMPEG_PATH", "HYPERFRAMES_FFPROBE_PATH", "HYPERFRAMES_BROWSER_PATH", "PRODUCER_HEADLESS_SHELL_PATH"):
+        assert "pytest-of" not in os.environ.get(k, ""), f"{k} still points into a finished test's temp folder: {os.environ[k]}"

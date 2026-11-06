@@ -3,7 +3,7 @@ import { chromium } from "playwright-core";
 import fs from "node:fs";
 import { base, chromePath } from "./common.mjs";
 fs.mkdirSync("e2e/out/ui", { recursive: true });
-const browser = await chromium.launch({ executablePath: chromePath() });
+const browser = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 for (const [vn, vp] of [["desktop", { width: 1440, height: 900 }], ["phone", { width: 390, height: 844 }]]) {
   const page = await (await browser.newContext({ viewport: vp, colorScheme: "light" })).newPage();
   await page.goto(base + "/settings", { waitUntil: "networkidle" });

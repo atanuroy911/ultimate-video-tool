@@ -3,7 +3,7 @@
 import { chromium } from "playwright-core";
 import { base, chromePath, walkToReady } from "./common.mjs";
 
-const browser = await chromium.launch({ executablePath: chromePath() });
+const browser = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 const page = await (await browser.newContext({ viewport: { width: 1280, height: 900 } })).newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
@@ -48,7 +48,7 @@ console.log("The kind of video, and reading from a script");
   await page.keyboard.press("Escape");
   void go;
   // reading from a script: a browser with a fake microphone; the script stays in view, large, while recording
-  const mic = await chromium.launch({ executablePath: chromePath(), args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] });
+  const mic = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu", "--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] });
   const p2 = await (await mic.newContext({ viewport: { width: 1280, height: 900 }, permissions: ["microphone"] })).newPage();
   await p2.goto(base + "/new", { waitUntil: "domcontentloaded" });
   await p2.locator("textarea[aria-label='Link or script']").fill("Never put your money in one place. Keep three months of bills in savings.");

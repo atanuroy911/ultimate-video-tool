@@ -27,7 +27,7 @@ def test_field_limits_are_enforced():
 
 def test_catalogue_describes_every_component():
     cat = component_catalogue()
-    assert len(cat) == len(ELEMENT_MODELS) == 40
+    assert len(cat) == len(ELEMENT_MODELS) == 41
     for c in cat:
         assert c["description"] and c["use_when"] and c["example"]["type"] == c["type"]
         assert "at_word" in c["required"]

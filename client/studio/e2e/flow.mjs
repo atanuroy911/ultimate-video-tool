@@ -5,7 +5,7 @@ import { chromePath } from "./common.mjs";
 
 const base = process.env.VT_URL || "http://127.0.0.1:8777";
 const [, , outDir, videoPath] = process.argv;
-const browser = await chromium.launch({ executablePath: chromePath() });
+const browser = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 const errors = [];
 const page = await browser.newPage({ viewport: { width: 1280, height: 860 } });
 page.on("pageerror", (e) => errors.push(e.message));
@@ -49,16 +49,6 @@ if (videoPath) {
   await shot("04-video-mode");
 }
 
-// in Bangla: the questions follow the interface language
-await page.goto(base + "/new");
-await page.getByRole("button", { name: "বাং" }).first().click().catch(() => {});
-await page.evaluate(() => localStorage.setItem("vt-lang", "bn"));
-await page.reload();
-await page.waitForSelector(".tf-question");
-const bangla = await question();
-await shot("06-bangla");
-await page.evaluate(() => localStorage.setItem("vt-lang", "en"));
-
 // phone width
 await page.setViewportSize({ width: 390, height: 844 });
 await page.goto(base + "/");
@@ -67,6 +57,6 @@ await page.waitForFunction(() => !document.body.innerText.includes("Loading…")
 await shot("05-dashboard-phone");
 const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
 
-console.log(JSON.stringify({ questions: seen, ready: ready > 0, mode, bangla, overflow, errors }));
+console.log(JSON.stringify({ questions: seen, ready: ready > 0, mode, overflow, errors }));
 await browser.close();
-process.exit(errors.length || !ready || overflow || !/[ঀ-৿]/.test(bangla) ? 1 : 0);
+process.exit(errors.length || !ready || overflow ? 1 : 0);

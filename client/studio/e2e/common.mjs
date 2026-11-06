@@ -10,7 +10,7 @@ export const base = process.env.VT_URL || "http://127.0.0.1:8765";
 
 export function chromePath() {
   if (process.env.VT_CHROME) return process.env.VT_CHROME;
-  const bin = path.join(repo, "renderer", "node_modules", "hyperframes", "bin", "hyperframes.mjs");
+  const bin = path.join(repo, "..", "server", "renderer", "node_modules", "hyperframes", "bin", "hyperframes.mjs");
   const out = execFileSync(process.execPath, [bin, "browser", "path"], {
     encoding: "utf8",
     env: { ...process.env, HYPERFRAMES_NO_TELEMETRY: "1", DO_NOT_TRACK: "1" },

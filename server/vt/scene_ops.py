@@ -166,9 +166,10 @@ def boundary_choices(sf: ScenesFile, beats: Beats, duration: float) -> dict[str,
 
 
 def patch_scene(sf: ScenesFile, sid: str, patch: dict[str, Any]) -> ScenesFile:
-    """Apply layout / transition_in / elements / caption changes (validated by pydantic)."""
+    """Change anything about a scene except where it sits in the narration (validated by pydantic). Beats and the exact start have their own
+    operations (split / merge / move), because they must stay in order across scenes."""
     i = _find(sf, sid)
-    allowed = {"layout", "transition_in", "elements", "caption", "backdrop", "tone"}
+    allowed = {"layout", "transition_in", "transition_effect", "camera_move", "elements", "caption", "backdrop", "tone", "archetype", "role", "stick", "sfx"}
     bad = set(patch) - allowed
     if bad:
         raise OpError(f"cannot change {sorted(bad)}; use split/merge/move for beats")

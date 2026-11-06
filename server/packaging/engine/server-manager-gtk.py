@@ -18,6 +18,7 @@ gi.require_version('Gtk','3.0')
 from gi.repository import Gtk, Gio, GLib, Gdk
 
 CONFIG=Path(__file__).with_name('server-manager-config.json')
+GPU_MARKER=Path.home().joinpath('.config','ultimate-video-tool-server','gpu-question-shown')    # the question about the graphics cards is opened by itself once, the first time
 config=json.loads(CONFIG.read_text())
 root=Path(config['root']).resolve()
 if not root.is_relative_to(Path.home().resolve()):raise RuntimeError('Server data must be in your home folder.')
@@ -73,13 +74,12 @@ class Manager(Gtk.Application):
         self.workspace=self.button('Engine settings',self.engine_settings,True);row.pack_start(self.workspace,False,False,0)
         self.toggle=self.button('Start server',lambda:self.change('stop' if self.running else 'start'));row.pack_start(self.toggle,False,False,0)
         self.restart=self.button('Restart',lambda:self.change('restart'));row.pack_start(self.restart,False,False,0)
-        pair=self.card(outer,'Connect a client');pair.pack_start(self.label('Open Ultimate Video Tool on your other PC. Choose this server, then enter its one-use connection code.'),False,False,0)
+        pair=self.card(outer,'Connect a client');pair.pack_start(self.label('Open Ultimate Video Tool on your other PC. Choose this server, or type its address. Nothing else is needed.'),False,False,0)
         self.address=self.label('');pair.pack_start(self.address,False,False,0)
         row=Gtk.Box(spacing=8);pair.pack_start(row,False,False,0)
-        self.connect_button=self.button('Get connection code',self.code,True);row.pack_start(self.connect_button,False,False,0)
-        self.copy_button=self.button('Copy address',self.copy);row.pack_start(self.copy_button,False,False,0)
-        self.code_label=self.label('');self.code_label.get_style_context().add_class('code');pair.pack_start(self.code_label,False,False,0)
-        pair.pack_start(self.label('A code works once. Creating another code replaces the previous one; approved clients stay connected.'),False,False,0)
+        self.copy_button=self.button('Copy address',self.copy,True);row.pack_start(self.copy_button,False,False,0)
+        self.gpu_card=self.card(outer,'Graphics cards');self.gpu_text=self.label('');self.gpu_card.pack_start(self.gpu_text,False,False,0)
+        self.gpu_button=self.button('Choose graphics cards',self.gpu_settings,True);self.gpu_card.pack_start(self.gpu_button,False,False,0);self.gpu_card.set_no_show_all(True);self.gpu_card.hide()
         settings=self.card(outer,'Programs and models');settings.pack_start(self.label('Open server settings to connect ComfyUI and Ollama or choose installation and model folders. Stopping this server leaves your existing engines running.'),False,False,0)
         self.auto=Gtk.CheckButton(label='Start when I sign in');self.auto.set_active(Path.home().joinpath('.config/autostart/ultimate-video-tool-server.desktop').exists());self.auto.connect('toggled',self.auto_changed);settings.pack_start(self.auto,False,False,0)
         settings.pack_start(self.label('Close this window to keep the server in the tray.'),False,False,0)
@@ -92,7 +92,7 @@ class Manager(Gtk.Application):
         self.refresh();GLib.timeout_add_seconds(5,self.refresh)
     def make_tray(self):
         menu=Gtk.Menu();self.tray_items={}
-        for title,fn in [('Open server manager',self.show),('Engine settings',self.engine_settings),('Connect a client',self.code),('Start server',lambda:self.change('start')),('Stop server',lambda:self.change('stop')),('Quit server',lambda:self.change('quit'))]:
+        for title,fn in [('Open server manager',self.show),('Engine settings',self.engine_settings),('Graphics cards',self.gpu_settings),('Copy address',self.copy),('Start server',lambda:self.change('start')),('Stop server',lambda:self.change('stop')),('Quit server',lambda:self.change('quit'))]:
             item=Gtk.MenuItem(label=title);item.connect('activate',lambda _,fn=fn:fn());menu.append(item);self.tray_items[title]=item
         menu.show_all()
         try:
@@ -105,7 +105,7 @@ class Manager(Gtk.Application):
         if self.tray:self.window.hide();return True
         self.quit();return False
     def overview(self):self.stack.set_visible_child_name('overview');self.show()
-    def engine_settings(self):
+    def engine_settings(self,tab=''):
         if not self.stack.get_child_by_name('engines'):
             try:
                 try:gi.require_version('WebKit2','4.1')
@@ -125,8 +125,10 @@ class Manager(Gtk.Application):
             self.engine_browser.connect('decide-policy',navigation)
             self.engine_browser.connect('create',lambda *_:None)
             panel.pack_start(self.engine_browser,True,True,0);self.stack.add_named(panel,'engines')
-            self.engine_browser.load_uri(base+'/manage?embedded=1')
+            self.engine_browser.load_uri(base+'/manage?embedded=1'+tab)
+        elif tab:self.engine_browser.load_uri(base+'/manage?embedded=1'+tab)
         self.stack.set_visible_child_name('engines');self.show()
+    def gpu_settings(self):self.engine_settings('#cards')
     def show_log(self):
         if not self.stack.get_child_by_name('logs'):
             panel=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=12);panel.set_border_width(18)
@@ -151,22 +153,30 @@ class Manager(Gtk.Application):
         if self.checking:return True
         self.checking=True
         def check():
-            try:return request('/api/server')
-            except Exception:return None
-        def apply(info):
+            try:info=request('/api/server')
+            except Exception:return None,None
+            try:gpus=request('/api/system/gpus')
+            except Exception:gpus=None
+            return info,gpus
+        def apply(result):
+            info,gpus=result
             self.checking=False;self.running=info is not None;self.addresses=(info or {}).get('addresses',[])
             self.status.set_text(('Working…' if self.pending else 'Running' if self.running else 'Stopped'))
             self.address.set_text('\n'.join(self.addresses) or 'Start the server to see its address.')
             self.toggle.set_label('Stop server' if self.running else 'Start server')
             self.toggle.set_sensitive(not self.pending);self.restart.set_sensitive(self.running and not self.pending)
-            for button in [self.workspace,self.connect_button,self.copy_button]:button.set_sensitive(self.running and not self.pending)
-            for title in ['Engine settings','Connect a client']:self.tray_items[title].set_sensitive(self.running and not self.pending)
+            for button in [self.workspace,self.copy_button]:button.set_sensitive(self.running and not self.pending)
+            for title in ['Engine settings','Graphics cards','Copy address']:self.tray_items[title].set_sensitive(self.running and not self.pending)
+            cards=gpus.get('cards') if isinstance(gpus,dict) else None
+            many=bool(self.running and isinstance(cards,list) and len(cards)>=2 and isinstance(gpus.get('needs_choice'),bool))
+            self.gpu_card.set_visible(many);self.gpu_button.set_sensitive(not self.pending)
+            if many:
+                self.gpu_text.set_text('Nobody has chosen which graphics cards Video Tool may use. Until you do, it uses one card only.' if gpus['needs_choice'] else 'Video Tool may use: '+(', '.join(c['name'] for c in cards if c.get('allowed')) or 'no card (the processor)')+'.')
+                if gpus['needs_choice'] and not GPU_MARKER.exists() and not self.background:
+                    GPU_MARKER.parent.mkdir(parents=True,exist_ok=True);GPU_MARKER.write_text('shown');self.gpu_settings()
             self.tray_items['Start server'].set_visible(not self.running);self.tray_items['Stop server'].set_visible(self.running)
             return False
         self.work(check,apply);return True
-    def code(self):
-        self.show()
-        self.work(lambda:request('/api/server/code',True),lambda result:self.code_label.set_text(result['code']))
     def change(self,action):
         if self.pending:return
         self.pending=True;self.message.set_text('Please wait…');self.refresh()
@@ -175,7 +185,7 @@ class Manager(Gtk.Application):
             if action in ('start','restart'):service('start')
             return action
         def done(action):
-            self.pending=False;self.message.set_text('');self.code_label.set_text('');self.refresh()
+            self.pending=False;self.message.set_text('');self.refresh()
             if action=='quit':self.quit()
             return False
         self.work(run,done)

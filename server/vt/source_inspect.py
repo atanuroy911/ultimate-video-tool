@@ -35,6 +35,15 @@ def frame_at(path: Path, seconds: float, width: int = 480) -> np.ndarray | None:
     return np.frombuffer(pixels[: width * height * 3], np.uint8).reshape(height, width, 3)
 
 
+def default_recording_edit(info: dict, chosen: str = "auto") -> str:
+    """The recording mode a new project starts in. The person's own choice ('subtitles' or 'screen') always stands. 'auto' becomes 'subtitles' for a video that
+    shows a picture without a person talking to the camera (a screen recording or tutorial: the viewer needs that picture untouched, with captions), and stays
+    'auto' for a talking head or audio, which the normal editing suits."""
+    if chosen in ("subtitles", "screen"):
+        return chosen
+    return "subtitles" if info.get("mode") == "video" and info.get("has_picture") else "auto"
+
+
 def inspect_source(path: Path) -> dict:
     """The mode of a recording, with what was seen: {mode, has_picture, face_share, duration, width, height}."""
     from .director.media import detect_faces

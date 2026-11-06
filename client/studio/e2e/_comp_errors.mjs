@@ -4,7 +4,7 @@ import { chromePath } from "./common.mjs";
 import { pathToFileURL } from "node:url";
 import path from "node:path";
 
-const browser = await chromium.launch({ executablePath: chromePath() });
+const browser = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 const page = await browser.newPage();
 page.on("pageerror", (e) => console.log("PAGEERROR", e.message.slice(0, 300), (e.stack || "").split("\n").slice(0, 4).join(" | ")));
 page.on("console", (m) => m.type() === "error" && console.log("CONSOLE", m.text().slice(0, 300)));

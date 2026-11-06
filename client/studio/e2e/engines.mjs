@@ -5,7 +5,7 @@ import { base, chromePath } from "./common.mjs";
 
 const api = async (p, o) => (await fetch(base + p, o)).json();
 const before = await api("/api/engines?health=false");
-const browser = await chromium.launch({ executablePath: chromePath() });
+const browser = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 const page = await (await browser.newContext({ viewport: { width: 1280, height: 1000 } })).newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push("pageerror: " + e.message));

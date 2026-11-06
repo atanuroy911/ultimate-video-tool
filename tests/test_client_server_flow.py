@@ -48,8 +48,8 @@ def test_new_comfy_install_uses_selected_gpu_and_best_fitted_picture_files(tmp_p
     assert not any(x['path'].endswith('z_image_turbo_bf16.safetensors') for x in inst.manifest())
 
 
-def test_other_clients_cannot_finish_a_run_and_disconnect_releases_it():
-    broker=directors.DirectorBroker();sent=[];result={}
+def test_other_clients_cannot_finish_a_run_and_a_computer_that_never_returns_releases_it():
+    broker=directors.DirectorBroker(grace=0);sent=[];result={}
     broker.connect('home','Home',logged_in=True,send=sent.append)
     thread=threading.Thread(target=lambda:result.update(broker.request('home','demo','Direct',10)))
     thread.start()
@@ -58,4 +58,4 @@ def test_other_clients_cannot_finish_a_run_and_disconnect_releases_it():
         threading.Event().wait(.005)
     assert not broker.finish(sent[0]['request'],ok=True,device_id='another-device')
     broker.disconnect('home');thread.join(1)
-    assert not thread.is_alive() and result['ok'] is False and 'disconnected' in result['reason']
+    assert not thread.is_alive() and result['ok'] is False and 'lost its connection' in result['reason']

@@ -9,7 +9,7 @@ pytestmark = pytest.mark.skipif(shutil.which("nvidia-smi") is None, reason="no N
 
 
 def test_onnx_runtime_has_cuda_and_never_tensorrt():
-    p = gpu.onnx_providers()
+    p = [x[0] if isinstance(x, tuple) else x for x in gpu.onnx_providers()]                 # a pinned card comes as ("CUDAExecutionProvider", {"device_id": n})
     assert p[0] == "CUDAExecutionProvider" and p[-1] == "CPUExecutionProvider" and "TensorrtExecutionProvider" not in p
     assert gpu.onnx_providers(gpu=False) == ["CPUExecutionProvider"]
 

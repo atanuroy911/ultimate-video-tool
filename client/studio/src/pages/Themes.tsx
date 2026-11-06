@@ -221,7 +221,7 @@ export default function ThemesPage() {
               <a className="btn" href={`/api/themes/${name}/export`}><Download size={14} /> Export</a>
               {!BUILTIN.has(name) && <button className="btn danger" onClick={remove}><Trash2 size={14} /> Delete</button>}
             </div>
-            {BUILTIN.has(name) && <div className="banner small">This is a built-in theme. Change anything to try it out, then choose <strong>Save as new…</strong> to keep your version.</div>}
+            {BUILTIN.has(name) && <div className="banner small"><span>This is a built-in theme. Change anything to try it out, then choose <strong>Save as new…</strong> to keep your version.</span></div>}
 
             <DesignStudio draft={draft} onApply={setDraft} onPatch={set} />
 

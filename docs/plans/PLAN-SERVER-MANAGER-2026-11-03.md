@@ -4,6 +4,6 @@ The server must be an application people can find and control, rather than only 
 
 The packaged server edition owns its processing child. The existing Linux home install is attached through a small local configuration and controls only its named user systemd service. Both use the same manager window and loopback HTTP controller. Installation creates a Start/Applications entry; the Linux home deployment also creates a desktop shortcut and user login launcher. All remote writes stay under /home/roy. No operating-system packages, existing engine settings, training processes, or system-wide services are changed.
 
-The native manager keeps pairing-code generation on the server's loopback interface. The client pairing screen explains approval, identifies the address and points to Connect a client in this manager. No code is exposed to unpaired remote clients.
+(2026-11-05: pairing codes are gone. The manager's "Connect a client" card shows the address and a Copy address button; a computer on the network types the address and is in. See PLAN-PERFECT.MD decision 7.)
 
 Acceptance: exercise start/stop/restart against an isolated backend, check IPC sender/loopback boundaries, build the Windows server installer, deploy and verify the Linux Applications/tray manager on the actual GPU server, and inspect the shared manager layout. Keep native UI limitations separate from process/API checks.

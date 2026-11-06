@@ -49,7 +49,7 @@ function Snippet({ label, text }: { label: string; text: string }) {
 const onServerItself = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
 
 type AssistantRow = { id: string; label: string; installed: boolean; connected: boolean; to: string | null; restart: boolean };
-type DesktopAssistants = { status: () => Promise<AssistantRow[]>; connect: (id: string, remote?: { url: string; token: string }) => Promise<{ note: string }> };
+type DesktopAssistants = { status: () => Promise<AssistantRow[]>; connect: (id: string, remote?: { url: string; token?: string }) => Promise<{ note: string }> };
 const desktop = (window as any).vtDesktop?.assistants as DesktopAssistants | undefined;
 
 /** One click per assistant (vt/assistants.py on the server computer; desktop/assistants.js when this app is a client of a server elsewhere). */
@@ -72,7 +72,7 @@ function OneClickAssistants() {
       let note: string;
       if (mode === "here") note = (await post<{ note: string }>(on ? `/api/assistants/${r.id}/connect` : `/api/assistants/${r.id}/disconnect`)).note;
       else {
-        const key = await post<{ url: string; token: string }>("/api/server/assistant", { name: `${r.label} on this device` });
+        const key = await post<{ url: string; token?: string }>("/api/server/assistant", { name: `${r.label} on this device` });
         note = (await desktop!.connect(r.id, { url: key.url, token: key.token })).note;
       }
       toast(note, "ok", 8000);
@@ -106,11 +106,11 @@ function OneClickAssistants() {
   );
 }
 
-/** An assistant on another computer (or this device, when the Studio comes from a server elsewhere) uses the server's tools at /mcp with
- *  a key of its own (docs/plans/PLAN-CLIENT-SERVER.MD CS6). The key shows once and is listed, and revoked, with the paired devices. */
+/** An assistant on another computer (or this device, when the Studio comes from a server elsewhere) uses the server's tools at /mcp. On the server's own
+ *  network it needs no key (docs/plans/PLAN-CLIENT-SERVER.MD CS6; docs/plans/PLAN-PERFECT.MD decision 7). */
 function NetworkAssistant() {
   const server = useFetch<{ exposed: boolean }>("/api/server");
-  const [made, setMade] = useState<{ url: string; token: string; mcp_json: unknown } | null>(null);
+  const [made, setMade] = useState<{ url: string; mcp_json: unknown } | null>(null);
   const [busy, setBusy] = useState(false);
   if (!server.data?.exposed) return null;
   const make = async () => {
@@ -127,15 +127,15 @@ function NetworkAssistant() {
     <div className="col" style={{ gap: 10 }} data-testid="network-assistant">
       <span style={{ fontWeight: 600 }}>{onServerItself ? "An assistant on another computer" : "An assistant on this device"}</span>
       <span className="small muted">
-        Claude Code, Cursor and others on {onServerItself ? "another computer" : "this device"} can use this server's tools over the network.
-        Each one gets its own key; you can revoke it on the server's Engines page, under This server.
+        Claude Code, Cursor and others on {onServerItself ? "another computer" : "this device"} can use this server's tools over the network. Nothing to sign in to: the
+        computer only has to be on the same network as this server.
       </span>
-      {!made && <div><button className="btn sm primary" disabled={busy} onClick={make} data-testid="make-assistant-key">{busy ? <Spinner /> : "Make a key for an assistant"}</button></div>}
+      {!made && <div><button className="btn sm primary" disabled={busy} onClick={make} data-testid="make-assistant-key">{busy ? <Spinner /> : "Show how to connect an assistant"}</button></div>}
       {made && (
         <>
-          <Snippet label="Claude Code: run once on that computer" text={`claude mcp add --transport http video-tool ${made.url} --header "Authorization: Bearer ${made.token}"`} />
+          <Snippet label="Claude Code: run once on that computer" text={`claude mcp add --transport http video-tool ${made.url}`} />
           <Snippet label="Or put this in .mcp.json (Claude Code, Cursor and others)" text={JSON.stringify(made.mcp_json, null, 2)} />
-          <span className="small muted">Copy it now: the key is not shown again. Make another one any time.</span>
+          <span className="small muted">Run it once on that computer. It works as long as that computer can reach this server.</span>
         </>
       )}
     </div>
@@ -226,14 +226,14 @@ export default function AIAssistants() {
     {
       id: "auto",
       icon: <Cpu size={18} />,
-      title: "Free AI on a computer",
-      subtitle: "Private; can use this computer or your GPU server",
+      title: "Local AI (Ollama)",
+      subtitle: "Private; runs on the server or your GPU server",
     },
     {
       id: "claude_cli",
       icon: <Star size={18} />,
-      title: "Claude on this computer",
-      subtitle: "Uses your Claude login — no key to paste",
+      title: "Claude on the server",
+      subtitle: "Uses a Claude login on the server computer. Claude on your own PC is set in the list above",
     },
     {
       id: "best",
@@ -265,7 +265,7 @@ export default function AIAssistants() {
     <>
       <section className="card card-pad col" style={{ gap: 16 }} aria-label="AI model">
         <div className="row">
-          <h2 className="grow">AI that directs your videos</h2>
+          <h2 className="grow">AI services the server can call</h2>
           {st.data && (
             <span className={`chip ${st.data.available ? "ok" : "warn"}`}>
               {st.data.available ? <Check size={12} /> : null} {st.data.provider}{st.data.model ? ` · ${st.data.model}` : ""}{st.data.available ? "" : " · not available"}
@@ -273,7 +273,7 @@ export default function AIAssistants() {
           )}
         </div>
         <p className="muted" style={{ margin: 0 }}>
-          The AI writes the whole plan — scenes, characters, actions, on-screen graphics. Built-in rules always back it up, so a video is made even when AI is off.
+          Used by the server itself, after the directors above. Built-in rules always back it up, so a video is made even when AI is off.
         </p>
 
         <div className="provider-grid" role="radiogroup" aria-label="AI provider">

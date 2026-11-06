@@ -1,4 +1,4 @@
-import { Check, ChevronLeft, ChevronRight, CornerDownLeft, Mic, Music, Pause, Play, RotateCcw, Scissors, SlidersHorizontal, Sparkles, Square, Upload, UserSquare, Video, Volume2, VolumeX } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, CornerDownLeft, Mic, Music, Pause, Play, RotateCcw, Scissors, SlidersHorizontal, Sparkles, Square, Subtitles, Upload, UserSquare, Video, Volume2, VolumeX } from "lucide-react";
 import { useFetch, useMusic, useThemes } from "../hooks";
 import { useT } from "../i18n";
 import { Group, Row, Steps } from "../ds";
@@ -19,7 +19,10 @@ interface VoiceEngine {
 }
 import { Seg, Spinner } from "../ui";
 import CatalogList from "../review/CatalogList";
+import ElementExample from "../review/ElementExample";
+import PictureChoices from "../components/PictureChoices";
 import { STYLE_DEFINITIONS } from "./StyleThumbnails";
+import { OptionPage, OptionsHub, optionDef, type OptionId, type OptionsCtx } from "./NewOptions";
 
 /* ------------------------------------------------------------------ recorder */
 type RecState = "idle" | "recording" | "paused" | "recorded";
@@ -159,7 +162,7 @@ function useRecorder() {
    The backend still has every expert control, but those choices stay behind Customize on the final screen. */
 type SourceKind = "voice" | "file" | "link" | "script";
 type SourceMode = "talking_head" | "video" | "audio";
-type VideoStyle = "auto" | "reel" | "explainer" | "stick" | "cartoon" | "emoji" | "mixed";
+type VideoStyle = "auto" | "reel" | "explainer" | "stick" | "cartoon" | "story" | "emoji" | "mixed";
 type StepId = "source" | "mode" | "style" | "director" | "shape" | "look" | "sound" | "voice" | "ready";
 type DirectorInfo = { id: string; label: string; available: boolean; note: string };
 type DirectorsResponse = { directors: DirectorInfo[] };
@@ -170,7 +173,7 @@ const isVideoFile = (f: File | null) => !!f && (/^video\//.test(f.type) || /\.(m
 const rememberedStyle = (): VideoStyle => {
   try {
     const saved = localStorage.getItem("vt-new-style");
-    return saved === "reel" || saved === "stick" || saved === "emoji" || saved === "cartoon" || saved === "explainer" || saved === "mixed" ? saved : "auto";
+    return saved === "reel" || saved === "stick" || saved === "emoji" || saved === "cartoon" || saved === "story" || saved === "explainer" || saved === "mixed" ? saved : "auto";
   } catch {
     return "auto";
   }
@@ -191,6 +194,15 @@ function Choice(props: { letter: string; selected: boolean; title: string; about
   );
 }
 
+/* what each style looks like, in a few words: the closed list of choices has no room for the full description, which shows under it */
+const CARTOON_LOOKS = [
+  { value: "ink", title: "Ink outlines", about: "Bold dark outlines, like a comic." },
+  { value: "classic", title: "Classic colour", about: "Clean flat colour, no outlines." },
+  { value: "paper", title: "Paper cutout", about: "Cut-paper edges and soft shadows." },
+  { value: "illustrated", title: "Original illustrated cast", about: "The planner draws each scene its own way." },
+];
+const STYLE_SHORT: Record<string, string> = { auto: "AI picks per scene", reel: "AI draws a picture per sentence", mixed: "real footage + animated graphics", explainer: "animated titles, icons, charts", stick: "stick figures act it out", cartoon: "Cartoon 1: characters in painted places", story: "Cartoon 2: a drawn storybook, props appear on the words", emoji: "big emoji react to each line" };
+
 const STYLE_CHOICES: { value: VideoStyle; title: string; about: string }[] = [
   { value: "auto", title: "tf.style.auto", about: "tf.style.auto.about" },
   { value: "reel", title: "tf.style.reel", about: "tf.style.reel.about" },
@@ -198,6 +210,7 @@ const STYLE_CHOICES: { value: VideoStyle; title: string; about: string }[] = [
   { value: "explainer", title: "tf.style.explainer", about: "tf.style.explainer.about" },
   { value: "stick", title: "tf.style.stick", about: "tf.style.stick.about" },
   { value: "cartoon", title: "tf.style.cartoon", about: "tf.style.cartoon.about" },
+  { value: "story", title: "tf.style.story", about: "tf.style.story.about" },
   { value: "emoji", title: "tf.style.emoji", about: "tf.style.emoji.about" },
 ];
 const SHAPE_CHOICES = [
@@ -221,6 +234,8 @@ export default function NewPage() {
   /* ---- answers */
   const [typedText, setTypedText] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [subtitles, setSubtitles] = useState<File | null>(null);       // the recording's own .srt: its words and timing replace speech recognition
+  const subtitlesInput = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const trimmedText = typedText.trim();
@@ -325,7 +340,9 @@ export default function NewPage() {
   const steps: StepId[] = useMemo(() => {
     return ["source", "shape", "ready"];
   }, []);
+  const [reviewScript, setReviewScript] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
+  const [detail, setDetail] = useState<OptionId | null>(null);       // the option page that is open on the last screen
   const step = steps[Math.min(stepIndex, steps.length - 1)];
   const scriptTooLong = source === "script" && trimmedText.length > 5000;
   const canContinue = step !== "source" || (!!source && recorder.state !== "recording" && recorder.state !== "paused" && !inspecting && !scriptTooLong);
@@ -342,15 +359,16 @@ export default function NewPage() {
     return map;
   }, [glossary]);
   const projectOptions = () => ({
-    remove_fillers: removeFillers, remove_retakes: removeRetakes, target_length: targetLength, caption_style: captions, music: musicTrack || null,
+    review_script: reviewScript, remove_fillers: removeFillers, remove_retakes: removeRetakes, target_length: targetLength, caption_style: captions, music: musicTrack || null,
     sfx: soundEffects !== "off", sfx_level: soundEffects, script_policy: scriptPolicy, speakers, glossary: glossaryMap, asr_model: speechModel,
     aroll: speakerStays ? "auto" : "off", voice_direction: voiceDirection,
     director,
-    ...(hasPicture&&recordingEdit!=='auto'?{recording_edit:recordingEdit,aroll:'auto',look:'classic',remove_fillers:false,remove_retakes:false,target_length:'keep',music:null,sfx:false,sound_events:'off',speakers:'off'}:{}),
+    ...(hasPicture&&recordingEdit!=='auto'?{recording_edit:recordingEdit,aroll:'auto',look:'classic',remove_fillers:false,remove_retakes:false,target_length:'keep',sound_events:'off',speakers:'off'}:{}),
     ...(style === "cartoon" ? {cartoon_template:cartoonTemplate} : {}),
     ...(style === "reel" && (!hasPicture||recordingEdit==='auto') ? { look: "reel", plan_review: planReview, end_card: endCard.trim() } : {}),
+    ...(style === "story" && (!hasPicture||recordingEdit==='auto') ? { look: "story" } : {}),
   });
-  const kind = style === "auto" || style === "reel" ? "explainer" : style;
+  const kind = style === "auto" || style === "reel" || style === "story" ? "explainer" : style;
   const [starting, setStarting] = useState(false);
   const [uploadShare, setUploadShare] = useState(0);
   const [linkMessage, setLinkMessage] = useState("");
@@ -396,6 +414,7 @@ export default function NewPage() {
         form.append("audio", blob, blob instanceof File ? blob.name : "recording.webm");
         form.append("title", title.trim());
         Object.entries(common).forEach(([key, value]) => form.append(key, value));
+        if (subtitles) form.append("subtitles", subtitles);
         if (pictures.length) form.append("start", "false");
         form.append("options", JSON.stringify(projectOptions()));
         const res = await upload<{ project: ProjectSummary }>("/api/projects", form, setUploadShare);
@@ -424,9 +443,12 @@ export default function NewPage() {
       const typing = e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement;
       if (e.key === "Enter" && !e.shiftKey && !(e.target instanceof HTMLTextAreaElement && step === "source" && !LINK.test(trimmedText))) {
         if (typing && step === "ready") return;
+        if (detail) { e.preventDefault(); setDetail(null); return; }
         if (e.target instanceof HTMLButtonElement) return;
         e.preventDefault();
         step === "ready" ? start() : goNext();
+      } else if (e.key === "Escape" && detail) {
+        setDetail(null);
       } else if (e.key === "Escape" && stepIndex > 0 && !fineTuning) {
         goBack();
       } else if (!typing && !e.metaKey && !e.ctrlKey && /^[a-e]$/i.test(e.key)) {
@@ -488,6 +510,16 @@ export default function NewPage() {
   const languageGuess = source === "script" ? (scriptLanguage === "bn" ? t("tf.lang.script.bn") : t("tf.lang.script.en")) : t("tf.lang.speech");
 
   /* ---- the screens */
+  const optionsCtx = (): OptionsCtx => ({
+    source, hasPicture, language, setLanguage, languageGuess, style, setStyle, styleTitle: t(STYLE_CHOICES.find((c) => c.value === style)?.title ?? "tf.style.auto"),
+    recordingEdit, setRecordingEdit, director, setDirector, directors: directors?.directors || [{ id: "best", label: "Best available", available: true, note: "Uses your fallback order." }],
+    theme, setTheme, themes: (themes || []).filter((th) => !th.name.startsWith("auto-")) as any,
+    musicTrack, setMusicTrack, music: (music || []) as any, previewingTrack, toggleTrackPreview, captions, setCaptions, pace, setPace,
+    removeFillers, setRemoveFillers, removeRetakes, setRemoveRetakes, targetLength, setTargetLength, soundEffects, setSoundEffects, glossary, setGlossary,
+    pictures, addPictures: () => pictureInput.current?.click(), removePicture: (i) => setPictures((list) => list.filter((_, j) => j !== i)),
+    reviewScript, setReviewScript, endCard, setEndCard, voiceSummary: `${chosenEngine?.label ?? "Automatic"}${voice && voice !== "auto" ? ` · ${chosenEngine?.voices.find((v) => v.id === voice)?.label ?? voice}` : ""}`,
+    legacy: (id) => screens[id].body(),
+  });
   const screens: Record<StepId, { question: string; hint?: string; body: () => React.ReactNode }> = {
     source: {
       question: t("tf.source.q"),
@@ -526,10 +558,23 @@ export default function NewPage() {
           </div>
           {!recording && recorder.state !== "recorded" && (
             file ? (
-              <div className="row file-chip">
-                {isVideoFile(file) ? <Video size={16} /> : <Music size={16} />} <strong className="grow">{file.name}</strong>
-                {inspecting && <span className="small muted row" style={{ gap: 6 }}><Spinner size={13} /> {t("tf.looking")}</span>}
-                <button className="btn sm ghost" onClick={() => setFile(null)}>{t("tf.remove")}</button>
+              <div className="col" style={{ gap: 8, width: "100%" }}>
+                <div className="row file-chip">
+                  {isVideoFile(file) ? <Video size={16} /> : <Music size={16} />} <strong className="grow">{file.name}</strong>
+                  {inspecting && <span className="small muted row" style={{ gap: 6 }}><Spinner size={13} /> {t("tf.looking")}</span>}
+                  <button className="btn sm ghost" onClick={() => { setFile(null); setSubtitles(null); }}>{t("tf.remove")}</button>
+                </div>
+                <input ref={subtitlesInput} type="file" accept=".srt,.vtt" hidden aria-label="Choose a subtitle file" onChange={(e) => { setSubtitles(e.target.files?.[0] || null); e.target.value = ""; }} />
+                {subtitles ? (
+                  <div className="row file-chip" data-testid="srt-chip">
+                    <Subtitles size={16} /> <span className="grow"><strong>{subtitles.name}</strong><span className="small muted" style={{ display: "block" }}>Your words and timing will be used. No transcription.</span></span>
+                    <button className="btn sm ghost" onClick={() => setSubtitles(null)}>{t("tf.remove")}</button>
+                  </div>
+                ) : (
+                  <button type="button" className="btn ghost sm" style={{ alignSelf: "flex-start" }} onClick={() => subtitlesInput.current?.click()} data-testid="srt-add">
+                    <Subtitles size={14} /> Add your subtitles (.srt) and skip transcription
+                  </button>
+                )}
               </div>
             ) : (
               <>
@@ -639,7 +684,7 @@ export default function NewPage() {
             );
           })}
         </div>
-        {style==="cartoon"&&<label className="field" style={{marginTop:18}}>Character look<select value={cartoonTemplate} onChange={e=>setCartoonTemplate(e.target.value)}><option value="ink">Ink outlines</option><option value="classic">Classic colour</option><option value="paper">Paper cutout</option><option value="illustrated">Original illustrated cast</option></select><span className="small muted">Reusable characters and ten environments. Change scenes, props and text in the editor.</span></label>}</>
+        {style==="cartoon"&&<div style={{marginTop:18}}><h3 className="field-title">Character look</h3><PictureChoices label="Character look" value={cartoonTemplate} onChange={setCartoonTemplate} options={CARTOON_LOOKS.map((l)=>({...l,visual:<ElementExample kind="cartoon" look={l.value}/>}))}/><p className="small muted">Each picture is drawn by the same engine as your video. Change scenes, props and text later in the editor.</p></div>}</>
       ),
     },
     director: {
@@ -742,42 +787,7 @@ export default function NewPage() {
             <Row label="Posting as"><span className="tf-val">{t(SHAPE_CHOICES.find((c) => c.value === aspect)!.title)}</span></Row>
             <Row label="Video name (optional)" stack><input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="The app can name it for you" className="bn" aria-label={t("tf.row.name")} /></Row>
           </Group>
-          <section className="tf-customize">
-            <div className="tf-customize-title"><SlidersHorizontal size={17} /><span className="grow"><strong>Want to choose?</strong><small>Leave anything on Automatic and the app decides for you.</small></span></div>
-            <div className="col tf-customize-body">
-              <Row label="Language" stack><span className="small muted">{languageGuess}</span><Seg value={language} onChange={setLanguage} label={t("tf.row.language")} options={(["auto", "bn", "en"] as const).map((v) => ({ value: v, label: v === "auto" ? t(LANGUAGE_LABEL[v]) : LANGUAGE_LABEL[v] }))} /></Row>
-              <Row label="Visual style"><select value={style} onChange={(e) => setStyle(e.target.value as VideoStyle)}>{STYLE_CHOICES.map((c) => <option key={c.value} value={c.value}>{t(c.title)}</option>)}</select></Row>
-              {hasPicture&&<Row label="Edit this recording" stack><select aria-label="Recording edit" value={recordingEdit} onChange={e=>setRecordingEdit(e.target.value as typeof recordingEdit)}><option value="auto">Automatic edit</option><option value="subtitles">Keep my video · subtitles only</option><option value="screen">Screen recording · supporting graphics</option></select><span className="small muted">Keep the full picture and pauses. Captions use your selected style; supporting graphics overlay the video.</span></Row>}
-              <Row label="AI director"><select value={director} onChange={(e) => setDirector(e.target.value)}>{(directors?.directors || [{ id: "best", label: "Automatic", available: true, note: "" }]).map((d) => <option key={d.id} value={d.id} disabled={!d.available}>{d.id === "best" ? "Best available director (recommended)" : d.label}</option>)}</select></Row>
-              <Row label="Look"><select value={theme} onChange={(e) => setTheme(e.target.value)}><option value="auto">Automatic</option>{(themes || []).filter((th) => !th.name.startsWith("auto-")).map((th) => <option key={th.name} value={th.name}>{th.label || th.name}</option>)}</select></Row>
-              <Row label="Music"><select value={musicTrack} onChange={(e) => setMusicTrack(e.target.value)}><option value="auto">Automatic</option><option value="">No music</option>{(music || []).map((m) => <option key={m.id} value={m.id}>{m.title}</option>)}</select></Row>
-              <Row label="Captions"><select aria-label="Caption style" value={captions} onChange={e=>setCaptions(e.target.value)}>{[["auto","Automatic"],["pop","Bold short lines"],["theme","Match the theme"],["word","One word at a time"],["keyword","Emphasize key words"],["box","Boxed"],["pill","Rounded background"],["underline","Underline"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></Row>
-              {style==="reel" && <Row label="Closing line" stack><input value={endCard} maxLength={40} onChange={e=>setEndCard(e.target.value)} placeholder="Optional, e.g. Save this for later" aria-label="Closing line"/><span className="small muted">Shown over the last picture. Leave blank to keep only your script.</span></Row>}
-              {source === "script" && <>
-                <Row label="Voice provider"><select value={engine} aria-label="Voice provider" onChange={(e) => {
-                  setEngine(e.target.value);
-                  voiceChosenByPerson.current = false;
-                  setVoiceRaw(engines?.find(x => x.id === e.target.value)?.voices[0]?.id ?? "");
-                }}>{(engines || []).map(e => <option key={e.id} value={e.id} disabled={!e.available}>{e.label}{e.available ? "" : " — unavailable"}</option>)}</select></Row>
-                <Row label="Voice"><select value={voice} onChange={(e) => setVoice(e.target.value)} aria-label="Voice">{(chosenEngine?.voices || []).map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}</select></Row>
-                <Row label={`Speaking speed · ${rate.toFixed(2)}×`}><input type="range" min={0.7} max={1.4} step={0.05} value={rate} onChange={e => setRate(+e.target.value)} aria-label="Speaking speed" /></Row>
-                <Row label="Voice expression"><Seg value={voiceDirection} onChange={setVoiceDirection} label="Voice expression" options={[{value:"auto",label:"Expressive"},{value:"off",label:"Plain"}]} /></Row>
-                <Row label="Listen first"><button type="button" className="btn" disabled={samplingVoice || !chosenEngine?.available || !voice} onClick={hearVoice}>{samplingVoice ? <Spinner /> : <Volume2 size={14} />} Preview voice</button></Row>
-              </>}
-              <Row label="Pace"><Seg value={pace} onChange={setPace} label="Pace" options={[{ value: "calm", label: "Calm" }, { value: "normal", label: "Normal" }, { value: "fast", label: "Fast" }]} /></Row>
-              <Row label="Clean up speech" stack>
-                <label className="row"><input type="checkbox" checked={removeFillers} onChange={(e) => setRemoveFillers(e.target.checked)} /> Remove “um”, “uh” and long pauses</label>
-                <label className="row"><input type="checkbox" checked={removeRetakes} onChange={(e) => setRemoveRetakes(e.target.checked)} /> Keep the best take when a line is repeated</label>
-              </Row>
-              <Row label="Length"><select value={targetLength} onChange={(e) => setTargetLength(e.target.value as typeof targetLength)}><option value="auto">Automatic</option><option value="keep">Keep the full recording</option><option value="60">About 60 seconds</option><option value="90">About 90 seconds</option></select></Row>
-              <Row label="Sound effects"><select value={soundEffects} onChange={(e) => setSoundEffects(e.target.value as typeof soundEffects)}><option value="off">None</option><option value="subtle">A little</option><option value="normal">Normal</option><option value="rich">More</option></select></Row>
-              <Row label="Words the app may mishear" stack><input value={glossary} onChange={(e) => setGlossary(e.target.value)} placeholder="Names or unusual words, separated by commas" /></Row>
-              <Row label="Your own pictures" stack>
-                <input ref={pictureInput} type="file" accept="image/*" multiple hidden onChange={(e) => setPictures(Array.from(e.target.files || []))} />
-                <button type="button" className="btn" onClick={() => pictureInput.current?.click()}><Upload size={14} /> {pictures.length ? `${pictures.length} selected` : "Choose pictures"}</button>
-              </Row>
-            </div>
-          </section>
+          <OptionsHub c={optionsCtx()} onOpen={setDetail} />
           <button className="btn primary lg" disabled={starting || (source === "script" && !chosenEngine?.available)} onClick={start}>
             {starting ? <Spinner /> : <Sparkles size={16} />}{" "}
             {starting ? (source === "link" ? linkMessage || "Downloading…" : uploadShare > 0 && uploadShare < 1 ? `Uploading ${Math.round(uploadShare * 100)}%` : "Starting…") : "Make my video"}
@@ -798,6 +808,15 @@ export default function NewPage() {
     >
       <div className="tf-progress" aria-hidden><i style={{ width: `${((stepIndex + 1) / steps.length) * 100}%` }} /></div>
       <div className="tf-screen" key={step}>
+        {detail ? (
+          <>
+            <button type="button" className="btn ghost opt-back" onClick={() => setDetail(null)}><ChevronLeft size={16} /> Back to your choices</button>
+            <h1 className="tf-question">{optionDef(detail).question}</h1>
+            {optionDef(detail).hint && <p className="tf-hint muted">{optionDef(detail).hint}</p>}
+            <OptionPage id={detail} c={optionsCtx()} />
+            <div className="row tf-nav"><span className="grow" /><button className="btn primary" onClick={() => setDetail(null)}>Done <Check size={14} /></button></div>
+          </>
+        ) : (<>
         <span className="tf-count small muted">{t("new.stepof").replace("{i}", String(stepIndex + 1)).replace("{n}", String(steps.length))}</span>
         <h1 className="tf-question">{screen.question}</h1>
         {screen.hint && <p className="tf-hint muted">{screen.hint}</p>}
@@ -810,6 +829,7 @@ export default function NewPage() {
           </div>
         )}
         {step === "ready" && <button className="btn ghost" style={{ alignSelf: "flex-start" }} onClick={goBack}><ChevronLeft size={16} /> Change where it will be posted</button>}
+        </>)}
       </div>
 
       {fineTuning && (

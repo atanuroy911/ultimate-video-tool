@@ -25,7 +25,7 @@ def run_classic(pipeline, stages: list[str], *, force: bool = False) -> None:
     for name in stages:
         pipeline._say(name, 0.0, LABELS[name])
         executor.call(f"pipeline.{name}", {"force": force}, caller="rules",
-                      why="Classic recipe", force=True, raise_errors=True,
+                      why="", force=True, raise_errors=True,
                       skip_prerequisites=True)
         pipeline._say(name, 1.0, "done")
         if getattr(pipeline, "pause_reason", None):                  # the plan is waiting for the person's approval: the later stages must not run

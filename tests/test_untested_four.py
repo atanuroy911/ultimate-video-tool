@@ -13,7 +13,7 @@ from vt.visuals import icons, terms
 def test_the_doctor_reports_every_check_with_a_fix_for_each_failure(monkeypatch):
     rows = doctor.run_checks()
     names = [r["name"] for r in rows]
-    assert len(names) == len(set(names)) and {"Python 3.11", "FFmpeg", "Node 20+", "Studio build", "Voices (script to speech)", "Local AI (scene planner)"} <= set(names)
+    assert len(names) == len(set(names)) and {"Python 3.11", "FFmpeg", "Node 20+", "Voices (script to speech)", "Local AI (scene planner)"} <= set(names)
     for r in rows:
         assert set(r) == {"name", "ok", "detail", "fix"} and isinstance(r["ok"], bool)
         assert r["ok"] or r["fix"], f"{r['name']} fails without saying how to fix it"

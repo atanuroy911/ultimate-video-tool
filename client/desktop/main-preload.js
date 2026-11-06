@@ -1,15 +1,18 @@
-// The Studio window: only the one-click assistant connection is offered to the page (desktop/assistants.js).
+// The Studio window: the one-click assistant connection (desktop/assistants.js), the helper that keeps Claude and Codex ready (desktop/helper.js),
+// and choosing another server. Nothing else of the desktop is offered to the page.
 const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("vtDesktop", {
   assistants: {
     status: () => ipcRenderer.invoke("assistants-status"),
     connect: (id, remote) => ipcRenderer.invoke("assistants-connect", id, remote),
   },
-  director: {
-    managed: true,
-    status: () => ipcRenderer.invoke("director-status"),
-    run: (task) => ipcRenderer.invoke("director-run", task),
-    onLog: (fn) => { const listener = (_event, value) => fn(value); ipcRenderer.on("director-log", listener); return () => ipcRenderer.removeListener("director-log", listener); },
+  helper: {
+    status: () => ipcRenderer.invoke("helper-status"),
+    start: () => ipcRenderer.invoke("helper-start"),
+    stop: () => ipcRenderer.invoke("helper-stop"),
+    refresh: () => ipcRenderer.invoke("helper-refresh"),
+    removeServer: (address) => ipcRenderer.invoke("helper-remove-server", address),
+    setAutostart: (on) => ipcRenderer.invoke("helper-autostart", !!on),
   },
-  companion:{status:()=>ipcRenderer.invoke('companion-status'),chooseServer:()=>ipcRenderer.invoke('choose-processing-server'),codexStatus:()=>ipcRenderer.invoke('codex-status')},
+  server: { choose: () => ipcRenderer.invoke("choose-processing-server") },
 });

@@ -178,7 +178,7 @@ jobs:
           generate_release_notes: true
           body: |
             **Ultimate Video Tool**: Windows `.exe` and Linux `.AppImage` / `.deb`.
-            **Ultimate Video Tool Server**: separately installable Windows and Linux edition with server management, pairing and processing APIs; no editor bundle.
+            **Ultimate Video Tool Server**: separately installable Windows and Linux edition with server management and processing APIs; no editor bundle.
             **Headless GPU helper** (the server for a GPU computer): `video-tool-engine-*.zip` or `.tar.gz`, or `docker pull ghcr.io/${{ github.repository_owner }}/video-tool-engine:${{ needs.version.outputs.version }}`.
             Install the client to edit locally or connect to a server. Install the Server edition on the computer doing the processing; its manager connects engines and approves client devices. Headless GPU helpers remain available as archives.
             Nothing is code-signed: Windows may warn on first open.

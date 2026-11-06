@@ -17,7 +17,9 @@ from ..util import now_iso, read_json, write_json
 from .compile import to_json_schema
 from .models import VideoScript
 from .prompt import build_prompt
-from .validate import repair_script, validate_script
+from . import repairs as REPAIRS
+from .repairs import repairer
+from .validate import validate_script
 
 HISTORY = 12
 
@@ -93,8 +95,9 @@ def talk(p: Project, message: str, provider: Optional[ai.Provider] = None, say: 
     icons = all_icon_names()
     media = {m.id for m in meta.planner_media()}
     say(0.1, "The director is reading your note")
+    notes: list[dict] = []
     data = ai.complete_json(user, schema, system=system, provider=provider, max_tokens=8000, timeout=600, cache=False, retries=1,
-                            repair=lambda d: repair_script(d, tr, beats, pk),
+                            repair=repairer(tr, beats, pk, notes),
                             check=lambda d: validate_script(d, tr, beats, icons, media))
     new = VideoScript.model_validate(data)
     new.kind = pk
@@ -114,6 +117,10 @@ def talk(p: Project, message: str, provider: Optional[ai.Provider] = None, say: 
         reply = "I could not make that work: " + "; ".join(res.get("errors", [])[:3])
         ok = False
     else:
+        try:
+            REPAIRS.record(p, notes, "the AI")                                              # Details, Problems: what the script became
+        except Exception:                                                                   # noqa: BLE001
+            pass
         reply = changes(cur, new)
         save_report(p, new, tr, beats, f"chat: {message[:60]}")
         ok = True

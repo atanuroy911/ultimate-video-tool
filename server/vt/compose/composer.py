@@ -15,7 +15,7 @@ from .. import paths
 from ..cues import build_cues
 from ..visuals import emoji as emo
 from ..visuals import icons as icon_sets
-from ..schema import Beats, Cuts, ScenesFile, Theme, Transcript, Word
+from ..schema import Beats, Cuts, ScenesFile, Theme, Transcript, Word, has_transform
 from ..util import read_json, write_json
 
 FORMATS = {
@@ -352,6 +352,9 @@ def _prop_art(st: dict) -> dict:
     return out
 
 
+AI_PLANNERS = ("llm", "claude", "assistant")        # plans an AI directed: the local AI, Claude, Codex. A scene of such a plan is marked `directed` and nothing of it is hidden, shrunk or dropped by code
+
+
 def _keep_clear_of_people(scene_d: dict, sc, media: dict, aspect: str) -> None:
     """Nothing is placed on a person. A scene with a picture of people gets its elements into the largest empty rectangle outside the captions' zone (a `stage` override for the
     renderer); when there is no room worth using, the elements are dropped for this shape and the picture stays clear. (vt/people.py)"""
@@ -378,6 +381,9 @@ def _keep_clear_of_people(scene_d: dict, sc, media: dict, aspect: str) -> None:
     # the captions live in the lower part (9:16: above the platform buttons' zone, lower 30 %; wide pictures: the lower 20 %): never use it
     rect = PE.largest_free_rect(occ, 0.04, 0.66 if tall else 0.78, 0.30 if tall else 0.22, 0.12 if tall else 0.20)
     if rect is None:
+        if scene_d.get("directed"):                      # an AI put these elements here: they stay, and the facts say there is no room beside the person (the director moves them)
+            scene_d["no_room_beside_person"] = True
+            return
         scene_d["elements"] = []
         scene_d["cleared_for_person"] = True
         return
@@ -495,7 +501,11 @@ def resolve_composition(sf: ScenesFile, tr: Transcript, beats: Beats, theme: The
         start = starts[i]
         end = starts[i + 1] if i + 1 < len(starts) else round(duration, 3)
         els = []
+        story = None
         for el in sc.elements:
+            if el.type == "story":                     # Cartoon 2 draws the whole frame itself (runtime/vt-story.js); its times are already video seconds
+                story = _story_data(el, media or {})
+                continue
             d = el.model_dump(exclude_none=True)
             w = words_by_id[el.at_word]
             at = min(max(w.start - 0.04, start + (0 if i == 0 else 0.05)), max(start, end - 0.3))
@@ -508,7 +518,7 @@ def resolve_composition(sf: ScenesFile, tr: Transcript, beats: Beats, theme: The
                 d["until"] = round(min(at + HOLD_MAX, max(at + HOLD_MIN, sentence_end.get(el.at_word, at) + 0.2)), 3)
             if d.get("until", end) >= end - 0.35:          # the scene cuts first: no exit of its own
                 d.pop("until", None)
-            if el.keyframes or el.start is not None or el.end is not None or el.x is not None or el.y is not None or el.scale != 1 or el.rotation != 0 or el.opacity != 1:
+            if el.keyframes or el.start is not None or el.end is not None or el.x is not None or el.y is not None or el.scale != 1 or el.rotation != 0 or el.opacity != 1 or has_transform(el.transform):
                 d["free"] = True
                 d["at"] = round(el.start if el.start is not None else at, 3)
                 d["until"] = round(el.end if el.end is not None else max(d["at"] + .1, end), 3)
@@ -546,6 +556,8 @@ def resolve_composition(sf: ScenesFile, tr: Transcript, beats: Beats, theme: The
         scene_d["camera_move"] = sc.camera_move
         if sc.start is not None or any(e.edited for e in sc.elements):
             scene_d["edited"] = True
+        elif sf.planner in AI_PLANNERS:
+            scene_d["directed"] = True                  # decision 1: code never hides, shrinks or drops what an AI put on screen; it measures and tells the director
         if not scene_d.get("edited") and sc.backdrop is None and els and all(e["type"] in CARD_TYPES for e in els) and not sc.stick:
             last = max(sc.elements, key=lambda e: words_by_id[e.at_word].start)
             last_at = max(e["at"] for e in els)
@@ -561,9 +573,20 @@ def resolve_composition(sf: ScenesFile, tr: Transcript, beats: Beats, theme: The
         _keep_clear_of_people(scene_d, sc, media or {}, aspect)
         if sc.sfx:
             scene_d["sfx"] = [{"t": round(words_by_id[c["at_word"]].start, 3), "id": c["id"]} for c in sc.sfx if c.get("at_word") in words_by_id]
+        if story is not None:
+            scene_d["story"] = story
+            scene_d["archetype"] = "story"
+        overlay = [it for e in els if e["type"] == "cartoon" for it in e.get("extras", [])]
+        if overlay:                                    # Cartoon 1 with story-engine extras on top (vt/story/motifs.py)
+            scene_d["story_overlay"] = [{k: v for k, v in it.items() if not (k == "move" and not v)} for it in overlay]
         if sc.stick:
             st = dict(sc.stick)
             st["t0"], st["t1"] = start, end
+            if st.get("set") and not st["set"].get("art"):                                  # decoration the kind of place brings (a classroom's board, door, window) that no action or shot names: nobody placed it
+                from ..script import catalogue as C
+
+                named = {a.get(k) for a in st.get("actions", []) for k in ("target", "prop")} | {(st.get("camera") or {}).get("focus")}
+                st["set"] = {**st["set"], "scenery": [n for n in C.SETS.get(st["set"].get("kind"), ()) if n in st["set"].get("props", []) and n not in named]}
             st["propArt"] = _prop_art(st)
             scene_d["stick"] = st
             scene_d["archetype"] = "stick"
@@ -586,6 +609,12 @@ def resolve_composition(sf: ScenesFile, tr: Transcript, beats: Beats, theme: The
                     chunk["start"], chunk["end"] = a, b
                 captions.extend(chunks)
     captions.sort(key=lambda c: c["start"])
+    caption_heights = {sc.id: sc.caption.y for sc in sf.scenes if sc.caption.y is not None}
+    if caption_heights:
+        for c in captions:
+            at = next((s["id"] for s in scenes_out if s["start"] <= c["start"] < s["end"]), None)
+            if at in caption_heights:
+                c["y"] = caption_heights[at]
 
     scenes_out = paginate(scenes_out, aspect)
     thinned = build_cues(scenes_out)
@@ -603,7 +632,27 @@ def resolve_composition(sf: ScenesFile, tr: Transcript, beats: Beats, theme: The
         "media": media or {},
         "envelope": envelope,
         "language": language,
+        **({"story_cast": {k: v.model_dump(exclude_none=True) for k, v in sf.story_cast.items()},
+            "story_fonts": {"head": _font_stack(theme.font.headline, "serif"), "body": _font_stack(theme.font.body, "sans-serif")}}
+           if any(e.type == "story" or (e.type == "cartoon" and e.extras) for sc in sf.scenes for e in sc.elements) else {}),
     }
+
+
+def _font_stack(families: list[str], generic: str) -> str:
+    return ", ".join([f"'{f}'" for f in families] + [generic])
+
+
+def _story_data(el, media: dict) -> dict:
+    """A story element as the story engine reads it. A picture item names a media id; the page needs that file's path."""
+    d = el.model_dump(exclude_none=True)
+    items = []
+    for it in d.get("items", []):
+        if it.get("type") == "image" and it.get("src") in media:
+            it = {**it, "src": media[it["src"]].get("src", it["src"])}
+        if not it.get("move"):
+            it.pop("move", None)
+        items.append(it)
+    return {"bg": d.get("bg") or {"type": "plain"}, "items": items, "tag": d.get("tag", ""), "push": d.get("push", 0.05), "speak": d.get("speak", {})}
 
 
 def layers_for_composition(project, duration: float) -> list[dict]:
@@ -709,6 +758,7 @@ _HTML = """<!doctype html>
 <script src="runtime/vt-motion.js"></script>
 <script src="runtime/vt-keyframes.js"></script>
 <script src="runtime/vt-world.js"></script>
+<script src="runtime/vt-story.js"></script>
 <script type="module">
 import * as THREE from './runtime/three.module.js';
 window.THREE = THREE;
@@ -724,7 +774,7 @@ def write_composition(out_dir: Path, data: dict, theme: Theme, title: str = "Vid
     out_dir.mkdir(parents=True, exist_ok=True)
     rt = out_dir / "runtime"
     rt.mkdir(exist_ok=True)
-    for name in ("vt.js", "vt.css", "vt-info.js", "vt-info.css", "vt-cartoon.js", "vt-media.js", "vt-media.css", "vt-layers.js", "vt-layers.css", "vt-diagrams.js", "vt-diagrams.css", "vt-stick.js", "vt-stick.css", "vt-motion.js", "vt-keyframes.js", "vt-world.js"):
+    for name in ("vt.js", "vt.css", "vt-info.js", "vt-info.css", "vt-cartoon.js", "vt-media.js", "vt-media.css", "vt-layers.js", "vt-layers.css", "vt-diagrams.js", "vt-diagrams.css", "vt-stick.js", "vt-stick.css", "vt-motion.js", "vt-keyframes.js", "vt-world.js", "vt-story.js"):
         _sync(paths.RUNTIME / name, rt / name)
     three = paths.RENDERER / "node_modules" / "three"
     for name in ("three.module.js", "three.core.js"):

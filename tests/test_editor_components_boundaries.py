@@ -51,7 +51,7 @@ def test_overflowing_edge_or_merge_never_discards_visuals():
 
 def test_every_library_starter_validates_and_has_a_group():
     specs = component_catalogue()
-    assert len(specs) == 40
+    assert len(specs) == 41
     for spec in specs:
         assert spec["category"] != "More"
         Scene(id="s", beats=["b1"], elements=[spec["starter"]])

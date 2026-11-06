@@ -1,3 +1,4 @@
+import { hasTransform } from "./transformMath.ts";
 type Edit = {kind:"element";scene:string;index:number;patch:Record<string,any>} | {kind:"edge";left:string;right:string;t:number} | {kind:"word";id:string;start:number;end:number;text?:string} | {kind:"action";scene:string;index:number;start:number;end:number} | {kind:"clear"};
 const send = (detail:Edit) => window.dispatchEvent(new CustomEvent("vt-preview-edit",{detail}));
 export const previewElement=(scene:string,index:number,patch:Record<string,any>)=>send({kind:"element",scene,index,patch});
@@ -22,7 +23,7 @@ export function applyPreviewEdit(data:any, edit:Edit):any {
         if (Math.abs((edit.patch.end-(el.end??el.until??sc.end))-delta)<.002)
           e.keyframes=el.keyframes.map((p:any)=>({...p,time:Math.round((p.time+delta)*1000)/1000}));
       }
-      if(e.keyframes?.length || e.start!=null || e.end!=null || e.x!=null || e.y!=null || e.scale!==undefined && e.scale!==1 || e.rotation || e.opacity!==undefined && e.opacity!==1) {
+      if(e.keyframes?.length || e.start!=null || e.end!=null || e.x!=null || e.y!=null || e.scale!==undefined && e.scale!==1 || e.rotation || e.opacity!==undefined && e.opacity!==1 || hasTransform(e.transform)) {
         e.free=true; e.at=e.start??e.at; e.until=e.end??e.until??sc.end;
       }
       return e;

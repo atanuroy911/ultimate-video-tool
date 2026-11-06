@@ -297,6 +297,28 @@ def checks(plan: PlanDoc) -> list[str]:
     return out
 
 
+def picture_shots(project, plan: PlanDoc) -> list[dict]:
+    """The pictures that will be made for this plan, each with the exact words it will be asked for (what a director reads and checks)."""
+    from ..reel.style import cast_for, drawing_style, prompt_for
+
+    style = drawing_style(plan.idea.style, project.meta().theme)
+    shots = []
+    for moment in (m for m in plan.moments if m.medium == "made"):
+        place = plan.idea.places.get(moment.place, "")
+        character = cast_for(moment.draw, plan.idea.cast) or plan.idea.character
+        shots.append({"id": moment.id, "draw": moment.draw, "place": moment.place, "place_description": place, "prompt": prompt_for(moment.draw, style, character, place)})
+    return shots
+
+
+def open_picture_issues(project, plan: PlanDoc) -> list[dict]:
+    """What the picture checks (craft: picture.place and picture.drawable) still say about the pictures that will be made. They only report: nothing here changes the plan."""
+    from .. import craft
+
+    shots = picture_shots(project, plan)
+    return ([{"rule": "picture.place", **x} for x in craft.place_problems([(s["id"], " ".join(x for x in (s["draw"], s["place_description"]) if x)) for s in shots])]
+            + [{"rule": "picture.drawable", **x} for x in craft.drawable_problems([(s["id"], s["draw"]) for s in shots])])
+
+
 def ungrounded(plan: PlanDoc, m: Moment) -> str:
     """The first number or longer word in the moment's picture text that the speech never says ('' when it all comes from the speech)."""
     have = {_norm(w.text) for x in plan.moments for w in x.words}

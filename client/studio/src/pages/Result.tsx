@@ -72,7 +72,7 @@ export default function ResultPage() {
   };
   // any job on this video: the first render, another shape, a new look, a request to the director
   const mine = Object.values(useStore(jobsStore)).filter((j) => j.project === id).sort((a, b) => (a.id < b.id ? 1 : -1));
-  const job = mine.find((j) => j.status === "queued" || j.status === "running") || null;
+  const job = mine.find((j) => j.kind !== "thumbs" && (j.status === "queued" || j.status === "running")) || null;   // thumbnails are a background chore: they never block this page
   const lastDirector = mine.find((j) => j.kind === "director");
   const lastAutofix = mine.find((j) => j.kind === "autofix");
   useEffect(() => {
@@ -206,7 +206,7 @@ export default function ResultPage() {
               )}
             </div>
             {(director.data?.messages || []).slice(-4).map((m, i) => (
-              <span key={i} className={`small bn ${m.from === "director" ? "" : "muted"}`}>{m.from === "director" ? "🎬 " : m.from === "person" ? "You: " : "Viewer test: "}{m.text}</span>
+              m.from === "viewer test" ? <ViewerNotes key={i} text={m.text} /> : <span key={i} className={`small bn ${m.from === "director" ? "" : "muted"}`}><span className="who-says">{m.from === "director" ? "Director: " : "You: "}</span>{m.text}</span>
             ))}
             <form className="row" style={{ gap: 6 }} onSubmit={(e) => { e.preventDefault(); ask(note); }}>
               <input className="grow bn" value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. make it funnier, less talking" aria-label="Note for the director" disabled={busy} />
@@ -282,5 +282,22 @@ export default function ResultPage() {
       </div>
       <RedoModal id={id!} title={p.title} open={redoOpen} onClose={() => setRedoOpen(false)} />
     </div>
+  );
+}
+
+/** The viewer test's findings as a short list, one line for each moment. */
+function ViewerNotes({ text }: { text: string }) {
+  const body = text.includes(": ") ? text.slice(text.indexOf(": ") + 2) : text;
+  const notes = body.split(/;\s+(?=at \d|scene )/).map((n) => n.trim().replace(/\.$/, "")).filter(Boolean);
+  return (
+    <details className="small muted bn">
+      <summary><span className="who-says">Viewer test</span> found {notes.length} {notes.length === 1 ? "moment" : "moments"} people may skip</summary>
+      <ul className="viewer-notes">
+        {notes.map((n, i) => {
+          const m = /^at (\d+(?:\.\d+)?)-(\d+(?:\.\d+)?) s: (.*)$/s.exec(n) || /^scene \S+ \(at (\d+(?:\.\d+)?) s\): ()(.*)$/s.exec(n);
+          return <li key={i}><time>{m ? `${Number(m[1]).toFixed(0)}s` : ""}</time><span>{m ? m[3] : n}</span></li>;
+        })}
+      </ul>
+    </details>
   );
 }

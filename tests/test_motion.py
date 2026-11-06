@@ -15,7 +15,7 @@ def _registry():
 
 
 def test_every_one_of_the_124_cards_is_mapped_to_a_recipe_that_exists():
-    cards = json.loads((paths.ROOT / "third_party" / "video-shotcraft" / "index.json").read_text(encoding="utf-8"))["cards"]
+    cards = json.loads((paths.ROOT.parent / "third_party" / "video-shotcraft" / "index.json").read_text(encoding="utf-8"))["cards"]
     reg = _registry()
     names = {c["name"] for c in cards}
     assert len(names) == 124 and names <= set(MO.CARDS), sorted(names - set(MO.CARDS))

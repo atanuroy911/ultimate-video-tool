@@ -169,9 +169,18 @@ def start_server(url: Optional[str] = None, wait: float = 40.0, *, program_dir=N
     chosen=(read_json(paths.SETTINGS,{}) or {}).get('models_dir')
     env = {**os.environ, "OLLAMA_HOST": f"{host.hostname}:{host.port or 11434}", "OLLAMA_MODELS": str(model_dir or ((Path(chosen) if chosen else paths.DATA/'models') / 'ollama')),
            "OLLAMA_KEEP_ALIVE": "10m"}
-    if gpu is not None:env.update(CUDA_DEVICE_ORDER='PCI_BUS_ID',CUDA_VISIBLE_DEVICES=str(gpu))
+    from . import gpuassign
+    env.update(gpuassign.child_env(gpu) if gpu is not None else gpuassign.job_env("ai"))     # only a card Video Tool may use: the one chosen for this job, or a number given
+    if (program_dir or model_dir) and not WIN:                                          # our own copy keeps its identity key and history in its own folder, not in the person's home folder
+        home = paths.DATA / "engines" / "ollama-home"
+        home.mkdir(parents=True, exist_ok=True)
+        env["HOME"] = str(home)
     kw: dict[str, Any] = {"creationflags": 0x08000000 | 0x00000008} if WIN else {"start_new_session": True}   # detached: survives this process
-    subprocess.Popen([str(exe), "serve"], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, **kw)
+    proc = subprocess.Popen([str(exe), "serve"], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, **kw)
+    if getattr(proc, "pid", None):
+        from .engines import pids
+
+        pids.remember("ollama", proc.pid, host.port or 11434)                          # so a change of card can restart exactly this program, and nothing else
     t0 = time.time()
     while time.time() - t0 < wait:
         if reachable(url):
@@ -330,10 +339,18 @@ def chat_json(messages: list[dict], schema: dict, *, model: Optional[str] = None
     s = settings()
     body = {"model": model or model_name(), "messages": messages, "stream": False, "think": False, "format": schema, "keep_alive": "10m",
             "options": {"temperature": temperature, "num_ctx": num_ctx, "num_predict": max_tokens}}
+    from .ai import talk
+
+    began = time.time()
+    system = "\n\n".join(m["content"] for m in messages if m["role"] == "system")
+    prompt = "\n\n".join(m["content"] for m in messages if m["role"] != "system")
     try:
         make_room(s["ollama_url"])                                     # one card: the pictures' models step aside while the AI reads
         r = httpx.post(s["ollama_url"] + "/api/chat", json=body, timeout=timeout)
         r.raise_for_status()
-        return json.loads(r.json()["message"]["content"])
+        answer = r.json()["message"]["content"]
+        talk.record("ollama", body["model"], system=system, prompt=prompt, answer=answer, seconds=time.time() - began)
+        return json.loads(answer)
     except (httpx.HTTPError, KeyError, json.JSONDecodeError) as e:
+        talk.record("ollama", body["model"], system=system, prompt=prompt, seconds=time.time() - began, error=f"{type(e).__name__}: {e}")
         raise LLMUnavailable(f"The local AI did not answer ({type(e).__name__}: {str(e)[:120]}).") from e

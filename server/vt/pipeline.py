@@ -3,12 +3,16 @@ from __future__ import annotations
 
 import json
 import logging
+import math
+import threading
 import time
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
 from typing import Optional
 
-from . import paths
+from . import layout_check, paths
 from .compose import FORMATS, compose_project, to_srt
+from .compose.composer import AI_PLANNERS
 from .planner import plan_rules
 from .planner.catalogue import all_icon_names
 from .project import Project, load_theme
@@ -23,6 +27,8 @@ log = logging.getLogger(__name__)
 REEL_HOLD_S = 3.0                     # the three-second rule: something changes on screen at least this often (longer videos breathe: x1.6, see vt/reel/slots.py)
 AUTO_LANGUAGES = ["bn", "en"]          # what "auto" chooses between: the two languages the whole app (speech, captions, voices) is built for
 LEAD_IN_MAX, LEAD_IN_KEEP = 3.0, 0.6       # seconds of non-speech allowed before the first word, and how much of it is kept
+# what each stage usually takes on a first run, in seconds: the pace of the bar while a stage has nothing to report (Pipeline._tick_progress)
+STAGE_SECONDS = {"voice": 60, "preprocess": 6, "silence": 3, "asr": 120, "cuts": 4, "sounds": 5, "aroll": 5, "words": 3, "context": 60, "tighten": 3, "plan": 120, "compose": 40}
 ORDER = ["voice", "preprocess", "silence", "asr", "cuts", "sounds", "aroll", "words", "context", "tighten", "plan", "compose"]
 LABELS = {
     "voice": "Speaking the script",
@@ -60,9 +66,66 @@ class Pipeline:
         self.p = project
         self.progress = progress
         self.pause_reason: Optional[str] = None                      # set by a stage that must wait for the person (the plan review): the later stages do not run
+        self._say_lock = threading.Lock()
+        self._stage, self._frac, self._msg = "", 0.0, ""
+        self._reported, self._reported_frac = time.time(), 0.0
+        self._failed: dict[str, str] = {}                            # directors that did not finish this video, and why: the next one takes it (a plan is never left half made)
 
     def _say(self, stage: str, frac: float, msg: str = "") -> None:
+        """A stage's progress never runs backward, whichever step inside it reports."""
+        from .ai import talk
+
+        with self._say_lock:
+            if stage != self._stage:
+                self._stage, self._frac, self._msg = stage, 0.0, ""
+                talk.set_stage(stage)
+            self._frac = max(self._frac, float(frac))
+            self._msg = msg or self._msg
+            self._reported = time.time()
+            self._reported_frac = self._frac
+            frac = self._frac
         self.progress(stage, frac, msg)
+
+    def _tick_progress(self, stop: threading.Event) -> None:
+        """While a stage works with nothing to report (a model reading, a file being cut) the bar keeps moving toward what the stage usually takes.
+        It slows as it nears the end and stays below it: only the stage itself says done."""
+        while not stop.wait(1.0):
+            with self._say_lock:
+                stage, msg = self._stage, self._msg
+                waited = time.time() - self._reported
+                if not stage or self._frac >= 1.0:
+                    continue
+                base = self._reported_frac
+                frac = max(self._frac, base + (0.95 - base) * (1 - math.exp(-waited / STAGE_SECONDS.get(stage, 30))))
+                self._frac = frac
+            try:
+                self.progress(stage, frac, msg)
+            except Exception:              # the job was cancelled: the stage itself stops at its next report
+                return
+
+    def director(self) -> str:
+        """The one who directs this video: what the person chose, or the first available in their order when they left it on Best."""
+        from . import directors
+
+        requested = self.p.meta().options.director or "best"
+        available = {d["id"]: d for d in directors.listing()["directors"]}
+        return next((d for d in directors.candidates(requested) if available.get(d, {}).get("available") and d not in self._failed), "local")
+
+    @staticmethod
+    def _why_not_requested(requested: str, chosen: str, available: dict) -> str:
+        """Empty, unless the person picked a director who could not take the video: then one plain line saying so and who directed it instead."""
+        if requested in ("", "best", chosen):
+            return ""
+        asked = available.get(requested) or {}
+        note = str(asked.get("note") or "").strip().rstrip(".")
+        instead = (available.get(chosen) or {}).get("label") or chosen
+        return f"{asked.get('label') or requested} was not available{' (' + note + ')' if note else ''}, so {instead} directed this video."
+
+    def _director_provider(self, chosen: str):
+        """Every AI step of the video (understanding it, directing the voice, planning) asks this one, so one mind directs the whole video."""
+        from .ai import providers as AIP
+
+        return AIP.provider_for(chosen)
 
     # ------------------------------------------------------------------ driver
     def run(self, from_stage: Optional[str] = None, to_stage: Optional[str] = None, force: bool = False) -> None:
@@ -81,13 +144,21 @@ class Pipeline:
         from . import gpu
 
         gpu.prepare()                          # one set of CUDA libraries (torch's) before any stage loads a GPU library in its own order
+        from .ai import providers as AIP, talk
+
         self.p.update_meta(status="processing")
+        provider = self._director_provider(self.director())
+        stop = threading.Event()
+        threading.Thread(target=self._tick_progress, args=(stop,), daemon=True).start()
         try:
-            run_classic(self, stages, force=force)
+            with talk.for_project(self.p.dir), (AIP.use_provider(provider) if provider is not None else nullcontext()):
+                run_classic(self, stages, force=force)
             self.p.update_meta(status="review" if self.pause_reason == "plan" else "planned")
         except Exception:
             self.p.update_meta(status="error")   # the job keeps the failing stage as its current stage, so the UI can mark it
             raise
+        finally:
+            stop.set()
 
     def _fresh(self, name: str, h: str, force: bool, *outputs: Path) -> bool:
         return (not force) and self.p.stage_done(name, h) and all(o.exists() for o in outputs)
@@ -178,12 +249,14 @@ class Pipeline:
             if self._fresh("asr", h, force, p.raw_transcript_path):
                 return
             raw = read_json(subs)
-            silences, dur, _, _ = A.find_silences(p.asr_wav, 0.2, (read_json(p.dir / "cuts.silence.json") or {}).get("threshold_db"), return_db=True)
-            words, dropped = snap_words(raw["words"], silences, dur)
-            raw["words"] = words or raw["words"]
-            raw["snap_dropped"] = dropped
+            dropped = 0
+            if not raw.get("exact"):                                     # the person's own subtitle file is followed as written (ingest.attach_subtitles)
+                silences, dur, _, _ = A.find_silences(p.asr_wav, 0.2, (read_json(p.dir / "cuts.silence.json") or {}).get("threshold_db"), return_db=True)
+                words, dropped = snap_words(raw["words"], silences, dur)
+                raw["words"] = words or raw["words"]
+                raw["snap_dropped"] = dropped
             write_json(p.raw_transcript_path, raw)
-            p.mark_stage("asr", h, words=len(raw["words"]), model="subtitles", dropped=dropped)
+            p.mark_stage("asr", h, words=len(raw["words"]), model=raw.get("model") or "subtitles", dropped=dropped)
             return
         if meta.language == "auto":
             meta = self._detect_language()
@@ -474,7 +547,9 @@ class Pipeline:
                         continue
                 if who == "local" and status.get("available"):
                     try:
-                        plan = PD.build(p)
+                        from .ai.providers import OllamaProvider
+
+                        plan = PD.build(p, provider=OllamaProvider())
                         directors.record(p, who, requested=requested, fallback_reason=fallback_reason)
                         break
                     except Exception as e:  # the rules below are the engine-free final fallback
@@ -496,12 +571,64 @@ class Pipeline:
         PD.save(p.dir, plan)
         return plan
 
+    def _plan_story(self, meta) -> None:
+        """Cartoon 2: the rule draft, then the chosen director. An AI on the server redesigns it scene by scene; a director on the person's
+        computer gets the draft as a task (get_story_task / submit_story) and submits the whole story. Whoever answered is recorded."""
+        from contextlib import nullcontext
+
+        from . import directors
+        from .ai import providers as AIP
+        from .story import service as ST
+
+        p = self.p
+        requested = meta.options.director or "best"
+        available = {d["id"]: d for d in directors.listing()["directors"]}
+        chosen = next((d for d in directors.candidates(requested) if available.get(d, {}).get("available")), "local")
+        provider = None
+        if chosen == "claude-server":
+            provider = AIP.ClaudeCLIProvider()
+        elif chosen == "local" and AIP.ai_enabled():
+            provider = AIP.OllamaProvider()
+        elif not chosen.startswith(("claude@", "codex@")) and AIP.ai_enabled():
+            provider = AIP.current_provider()
+        self._say("plan", 0.05, "Drawing the story")
+        with (AIP.use_provider(provider) if provider is not None else nullcontext()):
+            sf, how, notice = ST.plan_story(p, provider=provider, progress=lambda f, m: self._say("plan", 0.1 + 0.8 * f, m))
+        p.save_scenes(sf)
+        actual = "rules" if how == "rules" else chosen
+        if chosen.startswith(("claude@", "codex@")):
+            self._say("plan", 0.92, f"Waiting for {available[chosen].get('label', 'the director on your computer')}")
+            result = directors.broker.request(chosen.split("@", 1)[1], p.id, directors.client_story_prompt(p.id), directors.settings()["wait_seconds"],
+                                              assistant=chosen.split("@", 1)[0])
+            outside = p.scenes()
+            if result.get("ok") and outside is not None and outside.planner in ("claude", "assistant"):
+                directors.record(p, chosen, requested=requested)
+            else:
+                reason = result.get("reason") or result.get("error") or "The director on your computer did not submit a story."
+                directors.record(p, actual, requested=requested, fallback_reason=reason)
+                notice = notice or reason
+        else:
+            directors.record(p, actual, requested=requested, fallback_reason=notice if actual == "rules" else "")
+        write_json(p.dir / "ai_notice.json", {"at": now_iso(), "message": notice}) if notice else (p.dir / "ai_notice.json").unlink(missing_ok=True)
+        (p.dir / "plan_notice.json").unlink(missing_ok=True)
+        write_json(p.dir / "plan_basis.json", self._word_basis())
+        p.mark_stage("plan", "story", scenes=len(sf.scenes), usecase="story")
+
     def stage_plan(self, force: bool = False) -> None:
         """Keep an existing plan (user edits / Claude), remapped if sentences moved; draft with rules only as a last resort."""
         p = self.p
         meta = p.meta()
+        if meta.options.music == "auto":                        # the track that suits what the video is about (vt/musicpick.py)
+            from . import context as CX
+            from .musicpick import pick
+
+            ctx = CX.load(p)
+            meta.options.music = pick(ctx.mood if ctx else None, p.id)
+            p.save_meta(meta)
         if meta.options.recording_edit != 'auto' and not p.scenes():
             from .screen_recording import base_plan, supporting_graphics
+            if meta.theme == 'auto':                          # this path never designs a look: a recording keeps its own picture, so only the captions need one, and a quiet one
+                meta = p.update_meta(theme='minimal')
             recording_plan=base_plan(p)
             if meta.options.recording_edit=='screen':
                 try:recording_plan=supporting_graphics(p,recording_plan)
@@ -511,13 +638,6 @@ class Pipeline:
             write_json(p.dir / 'plan_basis.json',self._word_basis())
             p.mark_stage('plan','protected-recording',scenes=1)
             return
-        if meta.options.music == "auto":                        # the track that suits what the video is about (vt/musicpick.py)
-            from . import context as CX
-            from .musicpick import pick
-
-            ctx = CX.load(p)
-            meta.options.music = pick(ctx.mood if ctx else None, p.id)
-            p.save_meta(meta)
         tr, beats = p.transcript(), p.beats()
         icons = all_icon_names()
         existing = p.scenes()
@@ -582,6 +702,9 @@ class Pipeline:
                 done_plan.state = "done"
                 PD.save(p.dir, done_plan)
             return
+        if meta.options.look == "story":                             # Cartoon 2: the story engine (vt/story/)
+            self._plan_story(meta)
+            return
         audio = p.cut_audio if p.cut_audio.exists() else None
         sf, brief = None, None
         notice = None
@@ -610,8 +733,21 @@ class Pipeline:
 
         from .ai import providers as AIP
 
-        # the per-scene picture planner speaks only to the local model; Claude and other providers plan through the AI script (script_service.direct below)
-        if AIP.ai_enabled() and isinstance(AIP.current_provider(), AIP.OllamaProvider):
+        from .script import service as script_service
+
+        requested = meta.options.director or "best"
+        available = {d["id"]: d for d in directors.listing()["directors"]}
+        chosen = self.director()
+        unavailable = self._why_not_requested(requested, chosen, available)
+        outside = chosen.startswith(("claude@", "codex@"))
+
+        def after_failure(instead: str) -> str:                          # one that was asked first did not finish: one line saying why and who directed instead
+            return f"{'; '.join(self._failed.values())}, so {instead} directed this video." if self._failed else ""
+        scripted = script_service.uses_script(p, chosen)                # the AI writes the whole plan as a Video Script
+        ai_directed = False                                              # True when an AI made this plan: the rule passes below do not rewrite its decisions
+        retry = False
+        # the local model's picture planner runs only when it is this video's director and no script will replace its work
+        if chosen == "local" and not scripted and AIP.ai_enabled():
             try:
                 self._say("plan", 0.02, "Preparing the local AI")
                 llm.ensure_ready(lambda s_, f, m: self._say("plan", 0.02 + 0.2 * f, m))
@@ -624,42 +760,47 @@ class Pipeline:
                 sf = plan_llm(tr, beats, meta.theme, meta.language, audio, lambda f, m: self._say("plan", 0.25 + 0.7 * f, m), brief, base=base, picks=picks)
             except llm.LLMUnavailable as e:
                 notice = str(e)
+        local_planned = sf is not None
         if sf is None:
             meta, sf = draw(brief)
         try:
-            from .script import service as script_service
-            from contextlib import nullcontext
-
-            requested = meta.options.director or "best"
-            available = {d["id"]: d for d in directors.listing()["directors"]}
-            chosen = next((d for d in directors.candidates(requested) if available.get(d, {}).get("available")), "local")
-            provider_ctx = nullcontext()
-            if chosen == "claude-server":
-                provider_ctx = AIP.use_provider(AIP.ClaudeCLIProvider())
-            elif chosen == "local":
-                provider_ctx = AIP.use_provider(AIP.OllamaProvider())
-            with provider_ctx:
-                sf, how = script_service.direct(p, sf, lambda f, m: self._say("plan", 0.9 + 0.05 * f, m))
-            actual = "rules" if how.startswith("rules") else chosen
+            how, actual = "plan", chosen
+            if scripted and not outside:
+                provider = self._director_provider(chosen)
+                with (AIP.use_provider(provider) if provider is not None else nullcontext()):
+                    sf, how = script_service.direct(p, sf, lambda f, m: self._say("plan", 0.3 + 0.65 * f, m), want_ai=True)
+                ai_directed = not how.startswith("rules") and how != "plan"
+                if not ai_directed:
+                    actual = "rules"
+            elif not outside and not local_planned:            # the local picture planner could not run: this is the rule draft
+                actual = "rules"
             if how.startswith("rules"):
                 notice = notice or "The AI script was not available; the rule director wrote it (" + how.split(" + ")[0][7:-1][:120] + ")"
-            if chosen.startswith(("claude@", "codex@")):
-                p.save_scenes(sf)                              # the outside director receives this as its editable draft
-                self._say("plan", 0.92, f"Waiting for {available[chosen].get('label', 'Claude on this PC')}")
+            if outside:
+                p.save_scenes(sf)                              # only so the project has a plan while it waits; the director writes the whole video itself
+                self._say("plan", 0.1, f"Waiting for {available[chosen].get('label', 'Claude on this PC')}")
                 result = directors.broker.request(chosen.split("@", 1)[1], p.id, directors.client_scene_prompt(p.id), directors.settings()["wait_seconds"], assistant=chosen.split('@',1)[0])
-                outside = p.scenes()
-                if result.get("ok") and outside is not None and outside.planner in ("claude", "assistant"):
-                    sf = outside
-                    directors.record(p, chosen, requested=requested)
+                returned = p.scenes()
+                if result.get("ok") and returned is not None and returned.planner in ("claude", "assistant"):
+                    sf = returned
+                    ai_directed = True
+                    fell = after_failure((available.get(chosen) or {}).get("label") or chosen)
+                    directors.record(p, chosen, requested=requested, fallback_reason=fell)
+                    notice = notice or fell or None
                 else:
-                    reason = result.get("reason") or result.get("error") or "The client director did not submit a valid plan."
-                    directors.record(p, actual, requested=requested, fallback_reason=reason)
-                    notice = notice or reason
+                    # it did not finish (its usage limit, its sign-in, a plan it never submitted): whatever it half did is taken back, and the next director takes the video
+                    self._failed[chosen] = directors.failure_line(chosen, result, (available.get(chosen) or {}).get("label") or chosen)
+                    p.save_scenes(sf)                                  # the draft again: nothing the director half made stays
+                    retry = True
             else:
+                unavailable = after_failure("the rule director" if actual == "rules" else (available.get(chosen) or {}).get("label") or chosen) or unavailable
                 directors.record(p, actual, requested=requested,
-                                 fallback_reason=("The selected AI was unavailable, so the rule director wrote the plan." if actual == "rules" else ""))
+                                 fallback_reason=unavailable or ("The selected AI was unavailable, so the rule director wrote the plan." if actual == "rules" else ""))
+                notice = notice or unavailable
         except Exception as e:                  # the script step never breaks the video
             notice = notice or f"Script step skipped: {type(e).__name__}: {str(e)[:120]}"
+        if retry:
+            return self.stage_plan(force=True)                           # the next director in the person's order (the Local AI, at the end of it), with one line saying why
         write_json(p.dir / "usecase.json", {"requested": meta.usecase, "used": usecase, "profile": profile.get("label")})
         write_json(p.dir / "ai_notice.json", {"at": now_iso(), "message": notice, "brief": brief}) if (notice or brief) else (p.dir / "ai_notice.json").unlink(missing_ok=True)
         try:
@@ -674,30 +815,31 @@ class Pipeline:
             raw = read_json(p.raw_transcript_path) or {}
             if raw.get("model") == "sounds":                           # nobody speaks: the sounds are the story
                 sf, _ = SN.plan_from_sounds(sf, (doc or {}).get("events", []), tr, beats)
-            elif doc and doc.get("events"):
+            elif doc and doc.get("events") and not ai_directed:
                 SN.add_stickers(sf, doc["events"], tr, beats)          # a picture where a sound happens
         except Exception:
             pass
-        try:
-            from . import craft as CR
+        if not ai_directed:                                               # these passes finish the rule draft; an AI's plan is its own direction (craft.check below still reports on it)
+            try:
+                from . import craft as CR
 
-            CR.fix_hook(sf, tr, p)                                         # the first frame shows what the video is about (vt/craft.py hook.topic)
-            CR.fix_numbers(sf, tr, beats, meta.language)                   # never a figure nobody said, whichever director wrote the plan
-        except Exception:
-            pass
-        try:
-            from .director import heartbeat as HB
+                CR.fix_hook(sf, tr, p)                                     # the first frame shows what the video is about (vt/craft.py hook.topic)
+                CR.fix_numbers(sf, tr, beats, meta.language)               # never a figure nobody said
+            except Exception:
+                pass
+            try:
+                from .director import heartbeat as HB
 
-            HB.add_heartbeats(sf, tr, beats, meta.aspect)                 # no scene sits still for long: a related visual at a spoken word where a gap would be too long
-            spk = next((m for m in p.meta().media if m.id == "aroll" and m.role == "a_roll"), None) if meta.options.aroll != "off" else None
-            if spk is not None:                                           # still too still and no real word to show: the speaker is the better picture
-                from . import aroll as AR2
+                HB.add_heartbeats(sf, tr, beats, meta.aspect)             # no scene sits still for long: a related visual at a spoken word where a gap would be too long
+                spk = next((m for m in p.meta().media if m.id == "aroll" and m.role == "a_roll"), None) if meta.options.aroll != "off" else None
+                if spk is not None:                                       # still too still and no real word to show: the speaker is the better picture
+                    from . import aroll as AR2
 
-                left = HB.still_scenes(sf, tr, beats, meta.aspect)
-                if left:
-                    AR2.apply_speaker(sf, p, beats, meta.aspect, spk, force=set(left))
-        except Exception:
-            pass
+                    left = HB.still_scenes(sf, tr, beats, meta.aspect)
+                    if left:
+                        AR2.apply_speaker(sf, p, beats, meta.aspect, spk, force=set(left))
+            except Exception:
+                pass
         errs = validate_scenes(sf, tr, beats, icons)
         if errs:
             raise RuntimeError("rule planner produced an invalid plan: " + "; ".join(errs[:5]))
@@ -742,9 +884,45 @@ class Pipeline:
 
     def stage_compose(self, force: bool = False) -> None:
         compose_all(self.p)
+        sf = self.p.scenes()
+        if sf is None or sf.planner not in AI_PLANNERS:
+            if sf is not None:
+                try:
+                    layout_check.record(self.p)                          # no AI directs this plan: the rules keep the layout guard, and what it did goes to Details, Problems
+                except Exception as e:                                   # noqa: BLE001  a report, never a reason to stop a video
+                    log.warning("could not read the layout guard of %s: %s", self.p.id, e)
+            return                                                       # a rule draft or the person's own edits: nobody to ask
+        from .ai import providers as AIP
+
+        chosen = self._director_provider(self.director())
+        with (AIP.use_provider(chosen) if chosen is not None else nullcontext()):
+            if not AIP.ai_enabled():
+                return
+            from .director_review import review
+
+            try:
+                review(self.p, lambda f, m: self._say("compose", 0.05 + 0.9 * f, m))
+            except Exception as e:                                       # the cut as planned is still a video
+                write_json(self.p.dir / "director_review.json", {"at": now_iso(), "error": f"{type(e).__name__}: {str(e)[:300]}"})
 
 
 # ---------------------------------------------------------------------- helpers
+
+
+@contextmanager
+def directing(project: Project):
+    """Inside the block, every AI step belongs to this video's director and is written on the video's record (Details): the pipeline's own stages, and
+    every later job on the video (checking its frames, writing its title, ...). One mind directs the whole video."""
+    from .ai import providers as AIP, talk
+
+    provider = None
+    try:
+        pipeline = Pipeline(project)
+        provider = pipeline._director_provider(pipeline.director())
+    except Exception as e:                                           # a director that cannot be worked out never stops a job: the AI setting in Settings applies
+        log.warning("could not work out the director of %s: %s", project.id, e)
+    with talk.for_project(project.dir), (AIP.use_provider(provider) if provider is not None else nullcontext()):
+        yield provider
 
 
 _COMPOSE_LOCKS: dict[str, "threading.RLock"] = {}
@@ -841,6 +1019,13 @@ def export(project: Project, aspect: Optional[str] = None, *, quality: str = "lo
     out_dir = project.exports_dir
     out_dir.mkdir(parents=True, exist_ok=True)
     silent = out_dir / f".render-{fmt['tag']}.mp4"
+    from .render.hyperframes import check as hf_check
+
+    progress("render", 0.0, "checking the composition")
+    verdict = hf_check(comp_dir)
+    write_json(out_dir / f".check-{fmt['tag']}.json", verdict)
+    if verdict.get("errors"):
+        progress("render", 0.0, f"HyperFrames found {verdict['errors']} problem(s) that can break the picture: {verdict['issues'][0]['message'][:120]}")
     progress("render", 0.0, "rendering frames")
     render_silent(comp_dir, silent, fps=fps or fmt["fps"], quality=quality, gpu=gpu,
                   on_progress=lambda f, c: progress("render", f, c))
@@ -854,7 +1039,9 @@ def export(project: Project, aspect: Optional[str] = None, *, quality: str = "lo
     layer_audio = LY.audio_clips(project)
     final = out_dir / f"{project.id}-{fmt['tag']}-{stamp}.mp4"
     mix_and_mux(silent, voice, final, duration=data["duration"], music=music_path,
-                music_volume=meta.options.music_volume, sfx=sfx, short_side=short_side, gpu=gpu, layer_audio=layer_audio, clean_voice=clean_voice)
+                music_volume=meta.options.music_volume, sfx=sfx, short_side=short_side, gpu=gpu, layer_audio=layer_audio, clean_voice=clean_voice,
+                duck=meta.options.duck, duck_amount=meta.options.duck_amount, duck_release=meta.options.duck_release,
+                target_lufs=meta.options.target_lufs, music_fade_in=meta.options.music_fade_in, music_fade_out=meta.options.music_fade_out)
     acceleration=read_json(silent.with_suffix('.acceleration.json'),None)
     if acceleration:write_json(final.with_suffix('.acceleration.json'),acceleration)
     silent.unlink(missing_ok=True)

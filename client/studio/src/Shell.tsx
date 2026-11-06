@@ -1,12 +1,13 @@
 import { Suspense } from "react";
-import { Film, Moon, Palette, Play, Scissors, Settings as Cog, Share2, Sun, X } from "lucide-react";
+import { Film, Moon, Palette, Play, Scissors, Server as ServerIcon, Settings as Cog, Share2, Sun, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { EXPECTED_API, get } from "./api";
-import { setLanguage, useT } from "./i18n";
+import { useT } from "./i18n";
 import { connStore, settingsStore, startRealtime, useStore } from "./store";
 import { BusyLayer } from "./busy";
-import { Seg, Toasts } from "./ui";
+import { ChoiceDot, ServerDot, SystemPill } from "./components/SystemStats";
+import { Toasts } from "./ui";
 import SetupWizard from './components/SetupWizard';
 
 function useDark() {
@@ -34,14 +35,20 @@ export default function Shell() {
     return () => window.removeEventListener("vt-app-menu", toggle);
   }, []);
   const conn = useStore(connStore);
+  const [dirs, setDirs] = useState<{ order?: string[]; directors: { kind: string; label: string; available: boolean }[] } | null>(null);
+  useEffect(() => {                                                // who will direct the next video: the first available one in the person's order
+    const read = () => get<{ order?: string[]; directors: { kind: string; label: string; available: boolean }[] }>("/api/directors").then(setDirs).catch(() => {});
+    read();
+    const t = window.setInterval(() => { if (!document.hidden) read(); }, 15000);
+    return () => window.clearInterval(t);
+  }, []);
+  const firstDirector = dirs ? (dirs.order || []).map((k) => dirs.directors.find((d) => d.kind === k && d.available)).find(Boolean) : null;
   // Subscribe to settings changes — used for lang and to re-fetch AI status so the pill stays in sync
   const settings = useStore(settingsStore);
-  const lang = settings.ui_language;
   const [dark, setDark] = useDark();
   useEffect(() => {
     startRealtime();
-    document.documentElement.lang = lang;
-  }, [lang]);
+  }, []);
 
   const [stale, setStale] = useState<string | null>(null);
   const [serverSetup,setServerSetup]=useState<{done:boolean;server:{name:string};existing:Record<string,string[]>}|null>(null);
@@ -81,19 +88,21 @@ export default function Shell() {
             <Scissors size={18} /> Make short clips
           </NavLink>
           <NavLink to="/social" className={({ isActive }) => (isActive ? "active" : "")}><Share2 size={18} /> Share videos</NavLink>
+          <NavLink to="/server" className={({ isActive }) => (isActive ? "active" : "")}><ServerIcon size={18} /> Server <ServerDot /><ChoiceDot /></NavLink>
           <NavLink to="/settings" className={({ isActive }) => (isActive ? "active" : "")}>
             <Cog size={18} /> Settings
           </NavLink>
         </nav>
         <div className="spacer" />
+        <SystemPill />
         <button
           className="pill"
           style={{ cursor: "pointer" }}
-          onClick={() => nav("/settings")}
+          onClick={() => nav("/settings?s=directors")}
           title={`Decisions are made by: ${aiName}.${mcp?.connected ? ` Claude Code also connected (${mcp.seconds_ago}s ago).` : ""} Change it in Settings.`}
         >
           <span className={`dot ${ai?.available ? "ok" : ""}`} />
-          <span className="hide-sm">AI: </span>{aiName}
+          <span className="hide-sm">Director: </span>{firstDirector?.label ?? aiName}
           {mcp && mcp.pending > 0 ? ` · ${mcp.pending} waiting` : ""}
         </button>
         {!conn.ws && (
@@ -102,7 +111,6 @@ export default function Shell() {
             Offline
           </span>
         )}
-        <span className="hide-sm"><Seg value={lang} onChange={(l) => setLanguage(l)} label="Language" options={[{ value: "en", label: "EN" }, { value: "bn", label: <span className="bn">বাং</span> }]} /></span>
         <button className="btn ghost icon" onClick={() => setDark(!dark)} aria-label="Toggle dark mode">
           {dark ? <Sun size={18} /> : <Moon size={18} />}
         </button>
@@ -121,8 +129,8 @@ export default function Shell() {
         {setupOpen&&<SetupWizard onClose={()=>{setSetupOpen(false);get<any>('/api/setup').then(setServerSetup).catch(()=>{});}}/>}
       </main>
       <nav className="tabbar" aria-label="Main (phone)">
-        {([["/", t("nav.projects"), Film, true], ["/themes", t("nav.themes"), Palette, false], ["/shorts", t("nav.shorts"), Scissors, false], ["/social", t("nav.social"), Share2, false], ["/settings", t("nav.settings"), Cog, false]] as const).map(([to, label, Icon, end]) => (
-          <NavLink key={to} to={to} end={end} className={({ isActive }) => (isActive ? "active" : "")}><Icon size={22} strokeWidth={1.8} /><span>{label}</span></NavLink>
+        {([["/", t("nav.projects"), Film, true], ["/shorts", t("nav.shorts"), Scissors, false], ["/social", t("nav.social"), Share2, false], ["/server", "Server", ServerIcon, false], ["/settings", t("nav.settings"), Cog, false]] as const).map(([to, label, Icon, end]) => (
+          <NavLink key={to} to={to} end={end} className={({ isActive }) => (isActive ? "active" : "")}><Icon size={22} strokeWidth={1.8} />{to === "/server" && <ChoiceDot className="on-tab" />}<span>{label}</span></NavLink>
         ))}
       </nav>
       <BusyLayer />

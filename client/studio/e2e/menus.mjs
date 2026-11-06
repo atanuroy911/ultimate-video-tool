@@ -5,7 +5,7 @@ import { base, chromePath } from "./common.mjs";
 const shots = process.env.SHOTS || "";
 let fails = 0;
 const check = (name, ok, extra = "") => { console.log(`${ok ? "PASS" : "FAIL"} ${name} ${ok ? "" : extra}`); if (!ok) fails++; };
-const b = await chromium.launch({ executablePath: chromePath() });
+const b = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 for (const [w, h] of [[1280, 800], [390, 844]]) {
   const page = await b.newPage({ viewport: { width: w, height: h } });
   await page.goto(base + "/", { waitUntil: "networkidle" });

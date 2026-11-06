@@ -12,6 +12,7 @@ function createServerManager(controller){
   const icon=path.join(__dirname,'server-icon.png');
   const autostartFile=path.join(app.getPath('appData'),'autostart','ultimate-video-tool-server.desktop');
   const launcher=controller.launcher||process.env.APPIMAGE||app.getPath('exe');
+  const gpuMarker=path.join(app.getPath('userData'),'gpu-question-shown');       // the question about the graphics cards opens by itself once, the first time
   function autoEnabled(){return process.platform==='win32'?app.getLoginItemSettings().openAtLogin:fs.existsSync(autostartFile);}
   function setAuto(on){
     if(controller.setAutoStart)return controller.setAutoStart(on);
@@ -24,18 +25,14 @@ function createServerManager(controller){
   async function state(){
     const status=await control.inspect(controller.url());lastState=status;
     if(tray){tray.setToolTip(`Ultimate Video Tool Server — ${operation|| (status.running?'Running':'Stopped')}`);setTrayMenu();}
-    return {...status,computer:os.hostname(),operation,error,progress,autostart:autoEnabled(),tray:!!tray};
+    return {...status,computer:os.hostname(),operation,error,progress,autostart:autoEnabled(),tray:!!tray,askGpu:!!(status.gpu&&status.gpu.needs_choice&&status.gpu.cards>=2&&!fs.existsSync(gpuMarker))};
   }
   async function act(action){
     if(action==='copy-address'){const s=await state();if(!s.addresses.length)throw new Error('Start the server to get a client address.');clipboard.writeText(s.addresses[0]);return {ok:true};}
     if(action==='engine-settings'){if(!controller.url()||!(await state()).running)throw new Error('Start the server first.');return {url:control.localURL(controller.url())+'/manage?embedded=1'};}
+    if(action==='gpu-settings'){if(!controller.url()||!(await state()).running)throw new Error('Start the server first.');try{fs.mkdirSync(path.dirname(gpuMarker),{recursive:true});fs.writeFileSync(gpuMarker,'shown');}catch{}return {url:control.localURL(controller.url())+'/manage?embedded=1#cards'};}
     if(action==='open-log'){return {log:await controller.readLog()};}
     if(action==='autostart-on'||action==='autostart-off'){await setAuto(action==='autostart-on');return {ok:true};}
-    if(action==='connect-client'){
-      if(!(await state()).running)throw new Error('Start the server first.');
-      const result=await control.request(controller.url(),'/api/server/code','POST');
-      return {code:result.code,addresses:lastState.addresses};
-    }
     if(!['start','stop','restart','quit'].includes(action))throw new Error('Unknown server action.');
     if(operation)throw new Error('Wait for the current server action to finish.');
     operation=action==='start'?'Starting':action==='restart'?'Restarting':'Stopping';error='';
@@ -51,7 +48,8 @@ function createServerManager(controller){
       {label:'Ultimate Video Tool Server',enabled:false},{label:operation|| (lastState.running?'● Running':'○ Stopped'),enabled:false},
       {type:'separator'},{label:'Open server manager',click:show},
       {label:'Engine settings',enabled:lastState.running,click:()=>{show();win.webContents.send('server-manager:progress',{engines:true});}},
-      {label:'Connect a client…',enabled:lastState.running,click:()=>{show();win.webContents.send('server-manager:progress',{connect:true});}},
+      {label:'Graphics cards',enabled:lastState.running&&!!(lastState.gpu&&lastState.gpu.cards>=2),click:()=>{show();win.webContents.send('server-manager:progress',{gpu:true});}},
+      {label:'Copy address',enabled:lastState.running,click:()=>act('copy-address').catch(notify)},
       {type:'separator'},{label:lastState.running?'Stop server':'Start server',enabled:!operation,click:()=>act(lastState.running?'stop':'start').then(state).catch(notify)},
       {label:'Quit server',click:()=>act('quit').catch(notify)},
     ]));

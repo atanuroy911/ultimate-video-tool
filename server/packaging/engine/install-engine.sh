@@ -6,6 +6,7 @@
 #   ./install-engine.sh --check               # install the program only and prove it starts (no models); used by the build
 #
 # Options:  --dir DIR  --engines ollama,comfy  --bundles pictures,clips  --models DIR  --port 8790
+#           --gpus 1,2|all|none (the graphics cards Video Tool may use; with two or more cards and no flag it asks, or keeps one card only when nobody is there)
 #           --no-setup (program only)  --service  --check  --python PATH (use this Python instead of installing one with uv)
 # Nothing needs administrator rights. Everything goes under DIR (default ~/.local/share/video-tool-engine).
 set -euo pipefail
@@ -13,7 +14,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DIR="${VT_ENGINE_DIR:-$HOME/.local/share/video-tool-engine}"
 ENGINES="ollama,comfy"; BUNDLES="pictures"; MODELS=""; PORT=8790
-NO_SETUP=0; SERVICE=0; CHECK=0; PY=""
+NO_SETUP=0; SERVICE=0; CHECK=0; PY=""; GPUS=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -23,10 +24,11 @@ while [ $# -gt 0 ]; do
     --models) MODELS="$2"; shift 2 ;;
     --port) PORT="$2"; shift 2 ;;
     --python) PY="$2"; shift 2 ;;
+    --gpus) GPUS="$2"; shift 2 ;;
     --no-setup) NO_SETUP=1; shift ;;
     --service) SERVICE=1; shift ;;
     --check) CHECK=1; NO_SETUP=1; shift ;;
-    -h|--help) sed -n '2,12p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,11p' "$0"; exit 0 ;;
     *) echo "unknown option: $1 (try --help)" >&2; exit 2 ;;
   esac
 done
@@ -50,7 +52,12 @@ if [ -z "$PY" ]; then
     curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR="$DIR/bin" UV_NO_MODIFY_PATH=1 sh
     UV="$DIR/bin/uv"
   fi
-  (cd "$APP" && UV_PROJECT_ENVIRONMENT="$VENV" "$UV" sync --frozen --no-dev --python 3.11)
+  # The GPU build that fits this computer's NVIDIA card and driver (vt/gpu_detect.py: cu128 / cu124 / cu118 / cpu). It brings the CUDA
+  # libraries speech recognition needs; without one the packages install for the processor only and transcription is ten times slower.
+  FLAVOUR="${VT_GPU_EXTRA:-$(python3 "$APP/vt/gpu_detect.py" 2>/dev/null | head -1 | awk '{print $1}')}"
+  case "$FLAVOUR" in cu128|cu124|cu118|cpu) ;; *) FLAVOUR=cpu ;; esac
+  echo "Graphics build for this computer: $FLAVOUR   (set VT_GPU_EXTRA=cpu to force the processor build)"
+  (cd "$APP" && UV_PROJECT_ENVIRONMENT="$VENV" "$UV" sync --frozen --no-dev --extra "$FLAVOUR" --python 3.11)
   PY="$VENV/bin/python"
 else
   say "2/4 Using the Python you gave: $PY"
@@ -58,6 +65,9 @@ fi
 
 export VT_DATA="$DATA" PYTHONIOENCODING=utf-8 PYTHONPATH="$APP"
 vt() { (cd "$APP" && "$PY" -m vt.cli "$@"); }
+
+say "Graphics cards"
+vt gpu setup ${GPUS:+--gpus "$GPUS"}          # asks which cards Video Tool may use when there are two or more and a person is here; change later: vt gpu allow, or the Server page
 
 say "3/4 What this computer can do"
 vt engine plan --engines "$ENGINES" --bundles "$BUNDLES" ${MODELS:+--models "$MODELS"}

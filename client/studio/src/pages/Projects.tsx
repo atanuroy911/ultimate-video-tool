@@ -1,4 +1,5 @@
 import { CheckSquare, Film, MoreHorizontal, Plus, Search, Square, Trash2, UserSquare, Mic, Type, Download, Filter } from "lucide-react";
+import { openFolder } from "../openFolder";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { del, fmtTime, patch, post } from "../api";
@@ -23,6 +24,8 @@ const timeAgo = (iso?: string | null) => {
   return iso.slice(0, 10);
 };
 const isBusy = (project: ProjectSummary) => project.status === "processing" || !!project.active_job;
+/** The video is still being made (not just a download being rendered): only then does opening it show progress. A finished video that is exporting opens in the editor. */
+export const isBeingMade = (project: ProjectSummary) => project.status === "processing" || (!!project.active_job && project.active_job.kind !== "export");
 const MODE_ICON: Record<string, React.ReactNode> = { talking_head: <UserSquare size={12} />, audio: <Mic size={12} />, script: <Type size={12} /> };
 
 function statusLine(project: ProjectSummary, jobFraction: number | null, t: (key: string) => string): { text: string; tone: "" | "ok" | "warn" | "err" } {
@@ -107,7 +110,7 @@ export default function ProjectsPage() {
   const open = (project: ProjectSummary) => {
     if (selecting) { toggleSelect(project.id); return; }
     localStorage.setItem(LAST_OPENED, project.id);
-    nav(isBusy(project) ? `/p/${project.id}/progress` : `/p/${project.id}`);
+    nav(isBeingMade(project) ? `/p/${project.id}/progress` : `/p/${project.id}`);
   };
   const duplicate = async (project: ProjectSummary) => {
     try {
@@ -188,7 +191,7 @@ export default function ProjectsPage() {
             <MenuSep />
             <MenuItem onClick={() => { setToRename(project); setNewName(project.title); }}>Rename…</MenuItem>
             <MenuItem onClick={() => duplicate(project)} disabled={isBusy(project)}>Duplicate</MenuItem>
-            <MenuItem onClick={() => post(`/api/projects/${project.id}/open-folder`).catch((e) => toast(e.message, "err"))}>Show in folder</MenuItem>
+            <MenuItem onClick={() => openFolder(project.id)}>Show in folder</MenuItem>
             <MenuSep />
             <MenuItem onClick={() => { toggleSelect(project.id); setSelecting(true); }}>Select</MenuItem>
             <MenuSep />
@@ -218,13 +221,13 @@ export default function ProjectsPage() {
       {/* ── Top bar: title + search ── */}
       <div className="row" style={{ flexWrap: "wrap", gap: 12 }}>
         <h1 className="grow" style={{ margin: 0 }}>{t("projects.title")}</h1>
-        {allProjects.length >= 9 && (
+        {allProjects.length >= 1 && (
         <div className="dash2-search">
           <Search size={15} />
           <input type="search" placeholder={t("projects.search")} value={query} onChange={(e) => setQuery(e.target.value)} aria-label={t("projects.search")} />
         </div>
         )}
-        {allProjects.length >= 3 && <button
+        {allProjects.length >= 1 && <button
           className={`btn sm ${selecting ? "primary" : ""}`}
           onClick={() => { if (selecting) clearSelection(); else setSelecting(true); }}
           aria-pressed={selecting}
@@ -238,7 +241,7 @@ export default function ProjectsPage() {
       </div>
 
       {/* ── Filter bar ── */}
-      {allProjects.length >= 6 && <div className="dash2-filters-bar">
+      {allProjects.length >= 2 && <div className="dash2-filters-bar">
         <Filter size={13} style={{ color: "var(--muted)", flexShrink: 0 }} />
         <div className="dash-filters" role="group" aria-label="Filter by status">
           {filterBtns.map((f) => (

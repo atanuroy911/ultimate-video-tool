@@ -30,19 +30,19 @@ export default function PrepareComfy({url}:{url:string}) {
     try{setJob(await post<Job>('/api/discover/prepare',{url,recipe:plan.recipe,models_dir:folder}));}
     catch(e:any){setError(e.message);}finally{setBusy(false);}
   };
-  return <div className="col" style={{gap:8}}>
-    <strong>Picture models</strong>
-    {busy&&!plan&&<span><Spinner/> Checking what this server already has…</span>}
+  return <div className="ios-row stack prep">
+    <h4 className="prep-title">Picture models</h4>
+    {busy&&!plan&&<span className="prep-line"><Spinner/> Checking what this server already has…</span>}
     {error&&<p className="small" role="alert">{error}</p>}
     {plan&&<>
-      <span className="small">Recommended for this engine: {plan.label}.</span>
+      <p className="prep-line">Recommended for this engine: <b>{plan.label}</b></p>
       {plan.download_gb>0?<>
         <label className="field">Model folder on the processing server<select value={folder} disabled={busy||running} onChange={e=>setFolder(e.target.value)}><option value="">Use this ComfyUI’s current folders</option>{plan.model_locations.map(p=><option key={p} value={p}>{p}</option>)}</select></label>
         <span className="small muted">These folders are already read by this ComfyUI. Choose a new folder in a separate managed installation.</span>
         {plan.files.map(f=><span key={f.file} className="small">{f.have?'Already installed':'Missing'} · {f.file}{!f.have?` · ${f.gb} GB`:''}</span>)}
-      </>:<span className="small">All required picture models are already installed.</span>}
+      </>:<p className="status-line ok"><i aria-hidden />All required picture models are already installed.</p>}
       {plan.problems.map(p=><span key={p} className="small" role="alert">{p}</span>)}
-      {job?.status==='done'?<span role="status">Picture models and workflow are ready.</span>:<button className="btn sm" disabled={busy||running||plan.problems.length>0} onClick={start}>{running?'Preparing models…':plan.download_gb?`Download missing models · ${plan.download_gb} GB`:'Use recommended models'}</button>}
+      {job?.status==='done'?<p className="status-line ok" role="status"><i aria-hidden />Picture models and workflow are ready.</p>:<button className="btn sm prep-action" disabled={busy||running||plan.problems.length>0} onClick={start}>{running?'Preparing models…':plan.download_gb?`Download missing models · ${plan.download_gb} GB`:'Use recommended models'}</button>}
       {job&&job.status!=='done'&&<span className="small" role="status">{job.status==='error'?job.error:job.status==='cancelled'?'Preparation cancelled.':`${Math.round(job.frac*100)}% · ${job.msg||job.status}`}</span>}
     </>}
   </div>;

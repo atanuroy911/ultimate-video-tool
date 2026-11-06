@@ -1,4 +1,6 @@
 import { applyPreviewEdit } from "./previewEdits";
+import TransformHandles, { sendGesture, startOf, type Located } from "./TransformHandles";
+import { useHandleMode } from "./transformUi";
 import { Pause, Play, Volume2 } from "lucide-react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import { fmtTime } from "../api";
@@ -54,7 +56,9 @@ const Preview = forwardRef<PlayerHandle, Props>(function Preview(p, ref) {
   propsRef.current = p;
   const [rate, setRate] = useState(1);
   const [muted, setMuted] = useState(false);
-  const [selRect, setSelRect] = useState<number[] | null>(null);
+  const [loc, setLoc] = useState<Located | null>(null);        // where the page says the selected element is (its box, its corners, its own size)
+  const selRect = loc?.box ?? null;
+  const [handleMode] = useHandleMode();
   const onPickRef = useRef(p.onPick);
   onPickRef.current = p.onPick;
   const raf = useRef(0);
@@ -87,6 +91,7 @@ const Preview = forwardRef<PlayerHandle, Props>(function Preview(p, ref) {
   useEffect(() => () => { layerEls.current.forEach((el) => el.pause()); layerEls.current.clear(); }, []);
   useEffect(() => p.onPlaying?.(playing), [playing]); // eslint-disable-line react-hooks/exhaustive-deps
   const timeRef = useRef(0);
+  const pace = useRef({ last: 0, avg: 16, skip: 0, posted: -1, shown: 0 });
   const host = useRef<HTMLDivElement>(null);
   const [avail, setAvail] = useState({ w: 600, h: 560 });
   // fit the phone to the space the column actually has, so the transcript below always keeps room
@@ -127,8 +132,16 @@ const Preview = forwardRef<PlayerHandle, Props>(function Preview(p, ref) {
     if (a) {
       const t = a.currentTime;
       timeRef.current = t;
-      post({ vt: "seek", t });
-      setTime(t);
+      const now = performance.now();
+      const frameMs = now - pace.current.last;                                    // how long the page took since the last frame
+      pace.current.last = now;
+      pace.current.avg = pace.current.avg * 0.9 + Math.min(frameMs, 200) * 0.1;
+      pace.current.skip = pace.current.avg > 34 ? (pace.current.skip + 1) % 2 : 0;   // a heavy video (many elements) cannot draw 60 pictures a second: draw every other one; the sound is the clock, so nothing drifts
+      if (!pace.current.skip && Math.abs(t - pace.current.posted) > 0.004) {
+        pace.current.posted = t;
+        post({ vt: "seek", t });
+      }
+      if (now - pace.current.shown >= 66 || t === 0) { pace.current.shown = now; setTime(t); }   // the clock and the slider need about 15 updates a second, not 60
       propsRef.current.onTime(t);
       if (a.ended || t >= propsRef.current.duration - 0.02) {
         a.pause();
@@ -170,7 +183,7 @@ const Preview = forwardRef<PlayerHandle, Props>(function Preview(p, ref) {
         setReady(true);
         post({ vt: "seek", t: timeRef.current });
       } else if (e.data?.vt === "picked") onPickRef.current?.(e.data.scene, e.data.index);
-      else if (e.data?.vt === "rect") setSelRect(e.data.box);
+      else if (e.data?.vt === "rect") setLoc(e.data.box ? { box: e.data.box, size: e.data.size ?? null, quad: e.data.quad ?? null, free: !!e.data.free, frame: e.data.frame ?? [] } : null);
     };
     window.addEventListener("message", on);
     return () => window.removeEventListener("message", on);
@@ -219,12 +232,22 @@ const Preview = forwardRef<PlayerHandle, Props>(function Preview(p, ref) {
 
   useEffect(() => {
     if(!ready) return;
-    const draw = (data:any) => { post({vt:"data",data:{...data,layers:visualLayersRef.current ?? data.layers}}); post({vt:"seek",t:timeRef.current}); };
+    const draw = (data:any) => {
+      post({vt:"data",data:{...data,layers:visualLayersRef.current ?? data.layers}}); post({vt:"seek",t:timeRef.current});
+      const s=propsRef.current.selectedEl;
+      if(s) requestAnimationFrame(()=>post({vt:"rect",scene:s.scene,index:s.index}));          // the handles follow the element while a hand drags it
+    };
     const edit = (event:Event) => { if(composition.current) draw(applyPreviewEdit(composition.current,(event as CustomEvent).detail)); };
     const elements = (event:Event) => {
       if(!composition.current) return;
       const {scene,elements}=(event as CustomEvent).detail;
       let data=composition.current;
+      const story=elements.find((el:any)=>el.type==="story");
+      if(story){                                   // Cartoon 2 draws from scene.story, not from the element list (vt-story.js)
+        data=structuredClone(data);
+        for(const sc of data.scenes) if((sc.src||sc.id)===scene) sc.story={bg:story.bg,items:story.items??[],tag:story.tag??"",push:story.push??0.05,speak:story.speak??{}};
+        draw(data); return;
+      }
       elements.forEach((el:any,index:number)=>{data=applyPreviewEdit(data,{kind:"element",scene,index,patch:el});}); draw(data);
     };
     window.addEventListener("vt-preview-edit",edit); window.addEventListener("vt-preview-elements",elements);
@@ -268,7 +291,7 @@ const Preview = forwardRef<PlayerHandle, Props>(function Preview(p, ref) {
   const selKey = p.selectedEl ? `${p.selectedEl.scene}:${p.selectedEl.index}` : "";
   useEffect(() => {
     if (!ready || !p.selectedEl) {
-      setSelRect(null);
+      setLoc(null);
       return;
     }
     const tm = setTimeout(() => post({ vt: "rect", scene: p.selectedEl!.scene, index: p.selectedEl!.index }), 120);
@@ -288,6 +311,16 @@ const Preview = forwardRef<PlayerHandle, Props>(function Preview(p, ref) {
           post({ vt: "pick", x: (e.clientX - r.left) / scale, y: (e.clientY - r.top) / scale });
         }}
         title={p.onPick ? "Click an element to select it" : "Click to play or pause"}
+        tabIndex={p.selectedEl ? 0 : undefined}
+        aria-label={p.selectedEl ? "Picture. The arrow keys move the selected element by 1 %, with shift by 10 %." : undefined}
+        onKeyDown={(e) => {
+          const dir = ({ ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] } as Record<string, number[]>)[e.key];
+          if (!dir || !p.selectedEl || !loc) return;
+          e.preventDefault();
+          const s = startOf(loc, [sz.w, sz.h]), step = (e.shiftKey ? 0.1 : 0.01), at = { scene: p.selectedEl.scene, index: p.selectedEl.index, center: s.center, frame: s.frame, size: s.size };
+          sendGesture({ ...at, phase: "start" });
+          sendGesture({ ...at, phase: "end", gesture: { kind: "move", dx: dir[0] * step * s.frame[0], dy: dir[1] * step * s.frame[1] } });
+        }}
       >
         <iframe
           ref={frame}
@@ -297,6 +330,7 @@ const Preview = forwardRef<PlayerHandle, Props>(function Preview(p, ref) {
           sandbox="allow-scripts allow-same-origin"
         />
         {selRect && p.selectedEl && <div className="sel-box" style={{ left: selRect[0] * scale - 3, top: selRect[1] * scale - 3, width: selRect[2] * scale + 6, height: selRect[3] * scale + 6 }} aria-hidden />}
+        {loc && p.selectedEl && <TransformHandles at={loc} scale={scale} mode={handleMode} scene={p.selectedEl.scene} index={p.selectedEl.index} width={sz.box} height={boxH} />}
         {p.safeArea && p.aspect !== "16:9" && <div className="safe" title="Phone apps cover this area with buttons and captions" />}
       </div>
 

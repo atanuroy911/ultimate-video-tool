@@ -241,7 +241,7 @@ export interface StepDef {
   title: string;
   subtitle?: string;
   icon?: ReactNode;
-  body: ReactNode;
+  body: ReactNode | ((go: { next: () => void; back: () => void }) => ReactNode);
 }
 export function Steps({ label, steps, onClose, onDone, onStep, start = 0, doneLabel, headerDone = true, className = "", cancelLabel }: { label: string; steps: StepDef[]; onClose: () => void; onDone?: () => void; onStep?: (i: number) => void; start?: number; doneLabel?: string; headerDone?: boolean; className?: string; cancelLabel?: string }) {
   const t = useT();
@@ -268,7 +268,7 @@ export function Steps({ label, steps, onClose, onDone, onStep, start = 0, doneLa
           {s.icon && <div className="ios-icon">{s.icon}</div>}
           <h2 className="ios-title">{s.title}</h2>
           {s.subtitle && <p className="ios-sub">{s.subtitle}</p>}
-          {s.body}
+          {typeof s.body === "function" ? s.body({ next: () => !last && setI(i + 1), back: () => i > 0 && setI(i - 1) }) : s.body}
         </div>
         <footer className="ios-foot">
           <div className="ios-dots" role="tablist" aria-label="Steps">

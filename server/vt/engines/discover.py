@@ -141,10 +141,14 @@ def _process(pid: int) -> dict:
     return info
 
 
+def tunnel_dirs() -> list[Path]:
+    return [Path("/etc/cloudflared"), Path.home() / ".cloudflared", Path(os.environ.get("USERPROFILE", "")) / ".cloudflared"]
+
+
 def tunnels() -> dict[int, str]:
     """port -> public hostname, for every Cloudflare tunnel ingress rule found on this computer (cloudflared's config.yml)."""
     out: dict[int, str] = {}
-    for d in (Path("/etc/cloudflared"), Path.home() / ".cloudflared", Path(os.environ.get("USERPROFILE", "")) / ".cloudflared"):
+    for d in tunnel_dirs():
         try:
             files = list(d.glob("*.yml")) + list(d.glob("*.yaml"))
         except OSError:

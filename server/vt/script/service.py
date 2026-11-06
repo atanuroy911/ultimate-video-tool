@@ -10,6 +10,7 @@ from ..schema import ScenesFile
 from ..util import read_json, write_json
 from .compile import compile_script, to_json_schema
 from .models import VideoScript
+from . import repairs as REPAIRS
 from .prompt import build_prompt
 from .validate import repair_script, validate_script
 
@@ -59,15 +60,26 @@ def _craft_and_style(p: Project, theme: str) -> dict[str, Any]:
     return out
 
 
-def apply_script(p: Project, data: dict, *, planner: str = "claude", compose: bool = True) -> dict[str, Any]:
-    """Repair, validate and compile `data`; on success it becomes the project's plan. Returns {ok, errors, repaired}."""
+SCRIPT_PLAN = "video_script.plan.json"   # what the current script compiled to, to see what was edited after it
+
+
+def apply_script(p: Project, data: dict, *, planner: str = "claude", compose: bool = True, strict: bool = False) -> dict[str, Any]:
+    """Repair, validate and compile `data`; on success it becomes the project's plan. Returns {ok, errors, repaired, repairs}.
+
+    Nothing the repair does is silent (repair_script's notes). With `strict` (a director that can answer: Claude or Codex over MCP) every repair that changes what it wrote (a word
+    moved, a text cut short, a value left out, scenes restructured) is an error it must fix and submit again, and the small ones it filled in come back as `repairs`. Without it
+    (the local AI, the person's own edit) the script is used as repaired and everything the repair did is in Details, Problems."""
     meta = p.meta()
     tr, beats = p.transcript(), p.beats()
     media = {m.id for m in meta.media}
     icons = all_icon_names()
     before = validate_script(data, tr, beats, icons, media) if isinstance(data, dict) else ["the script must be a JSON object"]
-    fixed = repair_script(data, tr, beats) if isinstance(data, dict) else data
+    dropped: list[str] = []
+    notes: list[dict] = []
+    fixed = repair_script(data, tr, beats, dropped=dropped, notes=notes) if isinstance(data, dict) else data
     errs = validate_script(fixed, tr, beats, icons, media) if isinstance(fixed, dict) else before
+    if strict:                                                 # a director that can answer is told, instead of finding its picture gone or its words changed
+        errs = REPAIRS.meaning(notes) + errs
     if errs:
         return {"ok": False, "errors": errs[:12]}
     script = VideoScript.model_validate(fixed)
@@ -95,22 +107,50 @@ def apply_script(p: Project, data: dict, *, planner: str = "claude", compose: bo
     if cur:
         write_json(p.dir / "scenes.prev.json", cur.model_dump(exclude_none=True))
     write_json(p.dir / "video_script.json", script.model_dump(by_alias=True, exclude_none=True))
+    write_json(p.dir / SCRIPT_PLAN, sf.model_dump(exclude_none=True))
     p.save_scenes(sf)
     p.update_meta(status="planned")
     if compose:
         from ..pipeline import compose_all
 
         compose_all(p)
-    return {"ok": True, "applied": True, "scenes": len(sf.scenes), "repaired": len(before), "kind": script.kind}
+    try:
+        REPAIRS.record(p, notes, "the director" if strict else "the AI")
+    except Exception:                                                                    # noqa: BLE001  a report, never a reason to lose a script
+        pass
+    return {"ok": True, "applied": True, "scenes": len(sf.scenes), "repaired": len(before), "dropped": dropped, "kind": script.kind,
+            "repairs": REPAIRS.small(notes) if strict else REPAIRS.meaning(notes) + REPAIRS.small(notes)}
 
 
 def current_script(p: Project) -> Optional[dict]:
     return read_json(p.dir / "video_script.json", None)
 
 
-def direct(p: Project, sf: ScenesFile, say=None) -> tuple[ScenesFile, str]:
-    """The plan stage's script step. `kind` stick and emoji always go through a Video Script (AI when one answers, else the rule director);
-    other kinds use the AI script only when settings.json has ai_script=true. Returns (plan, how it was made)."""
+def edits_since_script(p: Project) -> list[dict]:
+    """Scenes that differ from what the Video Script compiled to: fixes made on the timeline live in the plan, not the script, and a new script replaces them."""
+    was = read_json(p.dir / SCRIPT_PLAN, None)
+    sf = p.scenes()
+    if not was or not sf:
+        return []
+    before = {s["id"]: s for s in was.get("scenes", [])}
+    now = {s["id"]: s for s in sf.model_dump(exclude_none=True)["scenes"]}
+    out = [{"scene": i, "change": "removed"} for i in before if i not in now]
+    for i, s in now.items():
+        if i not in before:
+            out.append({"scene": i, "change": "added", "now": s})
+        elif s != before[i]:
+            out.append({"scene": i, "change": "edited", "now": s})
+    return out
+
+
+def uses_script(p: Project, chosen: str) -> bool:
+    """Does this video's plan come from a Video Script? Stick, emoji and cartoon always do. So does every video directed by an AI that only plans
+    through scripts (Claude, Codex); the local model plans explainers with its picture planner unless settings.json has ai_script=true."""
+    return chosen != "local" or script_kind(p) in ("stick", "emoji", "cartoon") or bool((read_json(paths.SETTINGS, {}) or {}).get("ai_script"))
+
+
+def direct(p: Project, sf: ScenesFile, say=None, want_ai: bool = False) -> tuple[ScenesFile, str]:
+    """The plan stage's script step: the director's Video Script (AI when one answers, else the rule director). Returns (plan, how it was made)."""
     from .. import ai
     from ..planner.catalogue import all_icon_names
     from ..schema import validate_scenes
@@ -118,7 +158,7 @@ def direct(p: Project, sf: ScenesFile, say=None) -> tuple[ScenesFile, str]:
 
     meta = p.meta()
     kind = script_kind(p)
-    want_ai = bool((read_json(paths.SETTINGS, {}) or {}).get("ai_script"))
+    want_ai = want_ai or bool((read_json(paths.SETTINGS, {}) or {}).get("ai_script"))
     if kind not in ("stick", "emoji", "cartoon") and not want_ai:
         return sf, "plan"
     tr, beats = p.transcript(), p.beats()
@@ -127,15 +167,23 @@ def direct(p: Project, sf: ScenesFile, say=None) -> tuple[ScenesFile, str]:
 
     from .. import taste
 
+    notes: list[dict] = []                                                                  # what repairing the AI's script changed in it (script/repairs.py)
     script, how = plan_script(tr, beats, draft=sf, use_ai=use_ai, kind=kind if kind != "explainer" else "explainer", language=meta.language, aspect=meta.aspect, hint=taste.director_hint(),
-                              media_ids={m.id for m in meta.planner_media()}, progress=say, ctx=CX.load(p))
+                              media_ids={m.id for m in meta.planner_media()}, progress=say, ctx=CX.load(p), notes=notes)
+    if how.startswith("rules") and kind not in ("stick", "emoji", "cartoon"):           # the AI could not write it: an explainer keeps its rule draft as it is
+        return sf, how
     out = compile_script(script, tr, beats, sf.theme)
     from .story_kit import apply_story_kit
-    out = apply_story_kit(out, script, tr, beats, meta.options.cartoon_template)
+    out = apply_story_kit(out, script, tr, beats, meta.options.cartoon_template, motifs=how.startswith("rules"))     # word-spotted extras only help the rule draft; an AI decides for itself
     if validate_scenes(out, tr, beats, all_icon_names()):
         return sf, "plan"
     write_json(p.dir / "video_script.json", script.model_dump(by_alias=True, exclude_none=True))
     save_report(p, script, tr, beats, how)
+    if notes and how.startswith("ai"):
+        try:
+            REPAIRS.record(p, notes, "the AI")                                              # Details, Problems: what the script became
+        except Exception:                                                                   # noqa: BLE001  a report, never a reason to lose a plan
+            pass
     return out, how
 
 

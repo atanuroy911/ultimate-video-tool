@@ -19,7 +19,7 @@ async function parse(res: Response) {
     data = text;
   }
   if (!res.ok) {
-    if (res.status === 401) window.dispatchEvent(new Event("vt-needs-pairing"));     // the key was reset on the server: pair again (Pair.tsx)
+    if (res.status === 401) window.dispatchEvent(new Event("vt-server-refused"));     // the server does not accept this computer (Reach.tsx)
     const d = data && data.detail;
     if (d && typeof d === "object" && Array.isArray(d.errors)) throw new ApiError(res.status, d.errors[0], d.errors);
     if (Array.isArray(d)) throw new ApiError(res.status, d.map((x: any) => x.msg).join("; "));

@@ -25,7 +25,7 @@ def layout(data,meta):
         for element in scene['elements']:
             if not element.get('edited'):
                 element.update(free=True,x=.5,y=.2,scale=.4)
-    data['cues']=[]
+    if not (meta.options.recording_edit=='screen' and meta.options.sfx):data['cues']=[]      # sound effects only where the person chose them and there are graphics to sound
 
 
 def base_plan(project):

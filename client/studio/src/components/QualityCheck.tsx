@@ -12,6 +12,15 @@ export interface Judges {
   says: string[];
   at: string;
 }
+/** What is left to look at in the cut: the director's own plan (what the page still measures wrong after its rounds) or the rules' plan (what the layout guard changed). */
+interface LookAt {
+  planner: string;
+  looked: boolean;
+  current: boolean;
+  left: { scene: string; number?: number | null; facts: string[] }[];
+  changed: { scene: string; number?: number | null; says: string[] }[];
+  guard_current: boolean;
+}
 interface Checklist {
   questions: { id: string; q: string }[];
   answers: Record<string, string>;
@@ -26,6 +35,8 @@ const NAMES: Record<string, string> = {
 export default function QualityCheck({ pid, judges, file, onChecked }: { pid: string; judges: Judges | null | undefined; file?: string; onChecked: () => void }) {
   const [busy, setBusy] = useState(false);
   const [rate, setRate] = useState(false);
+  const [look, setLook] = useState<LookAt | null>(null);
+  useEffect(() => { get<LookAt>(`/api/projects/${pid}/look-at`).then(setLook).catch(() => setLook(null)); }, [pid, judges]);      // an older server has no such answer: nothing is shown
   const run = async () => {
     setBusy(true);
     try {
@@ -54,6 +65,20 @@ export default function QualityCheck({ pid, judges, file, onChecked }: { pid: st
         </>
       )}
       {!judges && <span className="small muted">Not checked yet.</span>}
+      {look && look.left.length > 0 && (
+        <div className="col" style={{ gap: 3 }} data-testid="look-left">
+          <span className="small"><strong>Left to look at</strong>{!look.current && " (the plan has changed since the director looked)"}</span>
+          {look.left.flatMap((r) => r.facts.map((f, i) => <span key={`${r.scene}-${i}`} className="small muted">Scene {r.number ?? r.scene}: {f}</span>))}
+        </div>
+      )}
+      {look && look.looked && look.current && look.left.length === 0 && <span className="small muted" data-testid="look-none">The director looked at every scene, and nothing is left to fix.</span>}
+      {look && look.changed.length > 0 && (
+        <div className="col" style={{ gap: 3 }} data-testid="look-changed">
+          <span className="small"><strong>Changed by the layout guard</strong>{!look.guard_current && " (the plan has changed since)"}</span>
+          {look.changed.map((r) => <span key={r.scene} className="small muted">Scene {r.number ?? r.scene}: {r.says.join("; ")}.</span>)}
+          <span className="small muted">The rules planned this video, so the guard hides or shrinks what does not fit. A video an AI directs is never changed this way: the director is told and fixes it.</span>
+        </div>
+      )}
       {rate && <RateSheet pid={pid} onClose={() => setRate(false)} />}
     </div>
   );

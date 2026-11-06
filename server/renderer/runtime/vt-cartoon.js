@@ -218,7 +218,7 @@
   const SETS = {
     plain: (g) => {
       sv("rect", { x: 0, y: 0, width: 1000, height: 700, style: F("color-mix(in srgb, var(--accent) 10%, var(--bg))") }, g.far);
-      sv("rect", { x: 0, y: 560, width: 1000, height: 140, style: F("color-mix(in srgb, var(--ink) 10%, var(--bg))") }, g.near);
+      sv("rect", { x: 0, y: 560, width: 1000, height: 400, style: F("color-mix(in srgb, var(--ink) 10%, var(--bg))") }, g.near);
     },
     village: (g) => {
       sv("rect", { width: 1000, height: 700, style: F(sky) }, g.far);
@@ -233,7 +233,7 @@
         sv("rect", { x: x - 10, y: y - 40, width: 20, height: 80, style: F("#7c4a1e") }, g.mid);
         sv("circle", { cx: x, cy: y - 70, r: 55, style: F("#22a06b") }, g.mid);
       });
-      sv("rect", { x: 0, y: 560, width: 1000, height: 140, style: F("color-mix(in srgb, #22a06b 60%, #7c4a1e)") }, g.near);
+      sv("rect", { x: 0, y: 560, width: 1000, height: 400, style: F("color-mix(in srgb, #22a06b 60%, #7c4a1e)") }, g.near);
     },
     market: (g) => {
       sv("rect", { width: 1000, height: 700, style: F(sky) }, g.far);
@@ -243,7 +243,7 @@
         const fruit = ["#ef4444", "#f59e0b", "#84cc16"][i];
         for (let k = 0; k < 5; k++) sv("circle", { cx: x + 40 + k * 44, cy: 500, r: 20, style: F(fruit) }, g.mid);
       });
-      sv("rect", { x: 0, y: 560, width: 1000, height: 140, style: F("#c9b08a") }, g.near);
+      sv("rect", { x: 0, y: 560, width: 1000, height: 400, style: F("#c9b08a") }, g.near);
     },
     home: (g) => {
       sv("rect", { width: 1000, height: 700, style: F("color-mix(in srgb, var(--accent2) 22%, #fff7ed)") }, g.far);
@@ -251,7 +251,7 @@
       sv("path", { d: "M745 130 V350 M620 240 H870", stroke: "#fff", "stroke-width": 10 }, g.mid);
       sv("rect", { x: 70, y: 380, width: 340, height: 160, rx: 40, style: F("var(--accent)") }, g.mid);
       sv("rect", { x: 70, y: 330, width: 340, height: 90, rx: 40, style: F("color-mix(in srgb, var(--accent) 80%, #000)") }, g.mid);
-      sv("rect", { x: 0, y: 560, width: 1000, height: 140, style: F("#b08968") }, g.near);
+      sv("rect", { x: 0, y: 560, width: 1000, height: 400, style: F("#b08968") }, g.near);
     },
     office: (g) => {
       sv("rect", { width: 1000, height: 700, style: F("color-mix(in srgb, var(--ink) 6%, var(--bg))") }, g.far);
@@ -263,7 +263,7 @@
       sv("rect", { x: 660, y: 310, width: 150, height: 78, style: F("color-mix(in srgb, var(--accent) 70%, #fff)") }, g.mid);
       sv("circle", { cx: 150, cy: 470, r: 50, style: F("#22a06b") }, g.mid);
       sv("rect", { x: 122, y: 500, width: 56, height: 60, style: F("#b45309") }, g.mid);
-      sv("rect", { x: 0, y: 560, width: 1000, height: 140, style: F("color-mix(in srgb, var(--ink) 14%, var(--bg))") }, g.near);
+      sv("rect", { x: 0, y: 560, width: 1000, height: 400, style: F("color-mix(in srgb, var(--ink) 14%, var(--bg))") }, g.near);
     },
     classroom: (g) => {
       sv("rect", { width: 1000, height: 700, style: F("color-mix(in srgb, var(--accent2) 18%, #fffbeb)") }, g.far);
@@ -275,7 +275,7 @@
         sv("rect", { x: x + 12, y: y + 20, width: 14, height: 90, style: F("#8b6b4a") }, g.mid);
         sv("rect", { x: x + 124, y: y + 20, width: 14, height: 90, style: F("#8b6b4a") }, g.mid);
       });
-      sv("rect", { x: 0, y: 560, width: 1000, height: 140, style: F("#c9b08a") }, g.near);
+      sv("rect", { x: 0, y: 560, width: 1000, height: 400, style: F("#c9b08a") }, g.near);
     },
     street: (g) => {
       sv("rect", { width: 1000, height: 700, style: F(sky) }, g.far);
@@ -285,7 +285,7 @@
       });
       sv("rect", { x: 880, y: 330, width: 10, height: 240, style: F("#475569") }, g.mid);
       sv("circle", { cx: 885, cy: 325, r: 20, style: F("#fde047") }, g.mid);
-      sv("rect", { x: 0, y: 560, width: 1000, height: 140, style: F("#64748b") }, g.near);
+      sv("rect", { x: 0, y: 560, width: 1000, height: 400, style: F("#64748b") }, g.near);
       sv("path", { d: "M0 640 H1000", stroke: "#fff", "stroke-width": 6, "stroke-dasharray": "50 40" }, g.near);
     },
     nature: (g) => {
@@ -297,7 +297,7 @@
         sv("rect", { x: x - 10, y: y - 30, width: 20, height: 70, style: F("#7c4a1e") }, g.mid);
         sv("path", { d: "M" + (x - 60) + " " + (y - 20) + " L" + x + " " + (y - 150) + " L" + (x + 60) + " " + (y - 20) + " Z", style: F("#15803d") }, g.mid);
       });
-      sv("rect", { x: 0, y: 570, width: 1000, height: 130, style: F("#4d9f55") }, g.near);
+      sv("rect", { x: 0, y: 570, width: 1000, height: 400, style: F("#4d9f55") }, g.near);
     },
     studio: (g) => {
       sv("rect", { width: 1000, height: 700, style: F("color-mix(in srgb, var(--ink) 80%, var(--accent))") }, g.far);
@@ -306,7 +306,7 @@
       sv("rect", { x: 780, y: 80, width: 140, height: 300, style: F("var(--accent)") }, g.mid);
       sv("rect", { x: 480, y: 430, width: 10, height: 130, style: F("#94a3b8") }, g.mid);
       sv("ellipse", { cx: 485, cy: 420, rx: 24, ry: 34, style: F("#334155") }, g.mid);
-      sv("rect", { x: 0, y: 560, width: 1000, height: 140, style: F("color-mix(in srgb, var(--ink) 55%, #000)") }, g.near);
+      sv("rect", { x: 0, y: 560, width: 1000, height: 400, style: F("color-mix(in srgb, var(--ink) 55%, #000)") }, g.near);
     },
     shop: (g) => {
       sv("rect", { width: 1000, height: 700, style: F("color-mix(in srgb, var(--accent2) 16%, #fff)") }, g.far);
@@ -316,7 +316,7 @@
       }
       sv("rect", { x: 560, y: 410, width: 360, height: 150, style: F("#8b6b4a") }, g.mid);
       sv("rect", { x: 580, y: 360, width: 110, height: 60, rx: 6, style: F("#1f2937") }, g.mid);
-      sv("rect", { x: 0, y: 560, width: 1000, height: 140, style: F("#c9b08a") }, g.near);
+      sv("rect", { x: 0, y: 560, width: 1000, height: 400, style: F("#c9b08a") }, g.near);
     },
   };
 
@@ -340,6 +340,7 @@
     const stageEl = h("div", "cn-stage" + ((d.labels||[]).length ? " cn-has-labels" : ""));
     wrap.appendChild(stageEl);
     const set = buildSet(d.set || "plain");
+    if (fullScene && ctx.D.format.height > ctx.D.format.width * 1.2) set.svg.setAttribute("viewBox", "0 105 1000 700");   // tall frame: the floor rises to meet the feet, above the captions
     const world=d.world==='3d'&&X.storyWorld?X.storyWorld(d,ctx.D.format):null;
     stageEl.appendChild(world?world.canvas:set.svg);
     const addArtifact = (a) => {
@@ -358,12 +359,14 @@
     });
     const actors = d.cast.map((m, i) => {
       const box = h("div", "cn-actor");
+      box.setAttribute("data-name", m.name || m.who || "");
       const svg = sv("svg", { viewBox: "0 0 300 520", class: "cn-char" });
       const ch = character(m, i);
       svg.appendChild(ch.g);
       box.appendChild(svg);
       const sc = ch.scale;
       box.style.left = (m.x * 100) + "%";
+      if (m.y != null) box.style.bottom = ((1 - m.y) * 100) + "%";
       box.style.setProperty("--k", sc);
       if (m.flip) svg.style.transform = "scaleX(-1)";
       stageEl.appendChild(box);
@@ -406,10 +409,12 @@
           tl.fromTo(set.mid, { x: -18 }, { x: 18, duration: span, ease: "none" }, t);
         }
         actors.forEach((a, i) => {
-          const at = t + 0.15 + i * 0.22;
+          const chosen = a.m.arrive != null;                   // the director may say when each character arrives; 0 is already there
+          const at = t + (chosen ? a.m.arrive : 0.15 + i * 0.22);
           const walking = a.m.pose === "walk";
           const dir = a.m.flip ? -1 : 1;
-          tl.fromTo(a.box, { opacity: 0, y: 40, xPercent: -50 + (walking ? -dir * 14 : 0) }, { opacity: 1, y: 0, xPercent: -50, duration: M.dur + 0.2, ease: "back.out(1.6)" }, at);
+          if (chosen && a.m.arrive === 0) gsap.set(a.box, { xPercent: -50 });
+          else tl.fromTo(a.box, { opacity: 0, y: 40, xPercent: -50 + (walking ? -dir * 14 : 0) }, { opacity: 1, y: 0, xPercent: -50, duration: M.dur + 0.2, ease: "back.out(1.6)", data: chosen ? "chosen" : undefined }, at);
           if (walking) tl.to(a.box, { xPercent: -50 + dir * 22, duration: Math.max(1, end - at - 0.3), ease: "none" }, at + 0.3);
           const speaking = i === Math.min(d.speaker || 0, actors.length - 1) && !!d.bubble;
           const cues = (d.cues||[]).filter(c=>c.actor===i&&c.end>at&&c.start<end).sort((a,b)=>a.start-b.start);

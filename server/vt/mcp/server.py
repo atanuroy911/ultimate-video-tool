@@ -54,7 +54,23 @@ def tool(fn):
             write_json(clients_path, clients)
         except Exception:
             pass
-        return fn(*a, **kw)
+        project = kw.get("project") or (a[0] if a and isinstance(a[0], str) and "project" in fn.__code__.co_varnames[:1] else "")
+        if not project:
+            return fn(*a, **kw)
+        from ..ai import talk
+
+        from .. import directors
+
+        who = directors.broker.who_directing(str(project)) or os.environ.get("VT_MCP_CLIENT", "assistant").strip().lower() or "assistant"     # the director running this session, by the name its other conversations carry
+        folder, began = paths.PROJECTS / str(project), time.time()
+        asked = {"tool": fn.__name__, "arguments": {**dict(zip(fn.__code__.co_varnames, a)), **kw}}
+        try:
+            out = fn(*a, **kw)
+        except Exception as e:
+            talk.record(who, "", kind="tool", prompt=asked, seconds=time.time() - began, error=f"{type(e).__name__}: {e}", folder=folder)
+            raise
+        talk.record(who, "", kind="tool", prompt=asked, answer=out, seconds=time.time() - began, folder=folder)
+        return out
 
     server.tool(name=fn.__name__.removesuffix("_tool"))(wrapper)
     return wrapper
@@ -152,26 +168,13 @@ def submit_scenes(project: str, request_id: str, scenes: list[dict[str, Any]]) -
 
 def _reel_plan_payload(project: Project) -> dict:
     """The complete, inexpensive reel plan plus checks a remote director can act on."""
-    from .. import craft
     from ..direction import plan_doc as PD
-    from ..reel.style import cast_for, drawing_style, prompt_for
 
     plan = PD.load(project.dir)
     if plan is None:
         raise ValueError("no reel plan yet; run the pipeline through the plan stage first")
-    style = drawing_style(plan.idea.style, project.meta().theme)
-    made = [m for m in plan.moments if m.medium == "made"]
-    shots = []
-    for moment in made:
-        place = plan.idea.places.get(moment.place, "")
-        character = cast_for(moment.draw, plan.idea.cast) or plan.idea.character
-        shots.append({"id": moment.id, "draw": moment.draw, "place": moment.place,
-                      "place_description": place,
-                      "prompt": prompt_for(moment.draw, style, character, place)})
-    place_checks = craft.place_problems([(s["id"], " ".join(x for x in (s["draw"], s["place_description"]) if x)) for s in shots])
-    drawable_checks = craft.drawable_problems([(s["id"], s["draw"]) for s in shots])
-    issues = ([{"rule": "picture.place", **x} for x in place_checks]
-              + [{"rule": "picture.drawable", **x} for x in drawable_checks])
+    shots = PD.picture_shots(project, plan)
+    issues = PD.open_picture_issues(project, plan)
     return {"project": project.id, "plan": plan.model_dump(mode="json"), "shots": shots,
             "checks": {"ok": not issues, "issues": issues, "plan_notes": PD.checks(plan)}}
 
@@ -184,7 +187,8 @@ def get_reel_plan(project: str) -> dict:
 
 @tool
 def check_reel_plan(project: str) -> dict:
-    """Recheck a reel plan after edits. Fix every picture.place and picture.drawable issue before approving it."""
+    """Recheck a reel plan after edits. It only reports: nothing is changed in the plan. Fix every picture.place and picture.drawable issue before approving it
+    (approving with one still open is your choice, and it is written down as such)."""
     return _reel_plan_payload(_proj(project))["checks"]
 
 
@@ -206,9 +210,10 @@ def list_projects() -> list[dict]:
 
 @tool
 def create_project(audio_path: str, title: str, language: str = "bn", aspect: str = "9:16", theme: str = "paper",
-                   pace: str = "normal", music: Optional[str] = None, remove_fillers: bool = True) -> dict:
+                   pace: str = "normal", music: Optional[str] = None, remove_fillers: bool = True, srt_path: str = "") -> dict:
     """Create a project from an audio or video file. audio_path is a path on the server computer, or 'upload:<id>' for a file sent with
-    prepare_upload (when you run on another computer than the server). Then call run_pipeline."""
+    prepare_upload (when you run on another computer than the server). srt_path (same rules) is the recording's own .srt: its words and timing
+    are used and speech recognition is skipped. Then call run_pipeline."""
     from ..server.uploads import resolve
 
     f = resolve(audio_path).expanduser()
@@ -216,6 +221,13 @@ def create_project(audio_path: str, title: str, language: str = "bn", aspect: st
         raise ValueError(f"file not found: {audio_path}. On another computer than the server, send it first: prepare_upload.")
     p = Project.create(title, f, language=language, aspect=aspect, theme=theme, pace=pace,
                        options={"music": music, "remove_fillers": remove_fillers})
+    if srt_path:
+        from ..ingest import attach_subtitles
+
+        sub = resolve(srt_path).expanduser()
+        if not sub.is_file():
+            raise ValueError(f"file not found: {srt_path}")
+        return {"project": p.id, "subtitles": attach_subtitles(p, sub, language), "next": "run_pipeline"}
     return {"project": p.id, "next": "run_pipeline"}
 
 
@@ -250,6 +262,37 @@ def run_pipeline(project: str, from_stage: Optional[str] = None, force: bool = F
 def job_status(job: str) -> dict:
     """Status of a background job started by run_pipeline or render."""
     return _BG.get(job) or {"error": "unknown job"}
+
+
+@tool
+def system_stats() -> dict:
+    """Live numbers about the computer that does the work: processor, memory, disk, every graphics card (load, memory, temperature, which programs use it)
+    and which of them Video Tool can use. Useful before starting a heavy job and when something is slow."""
+    from .. import sysstats
+
+    return sysstats.snapshot()
+
+
+@tool
+def gpu_assignment(job: str = "", gpu: str = "", allowed: str = "", use_own_copy_of: str = "") -> dict:
+    """Which graphics cards Video Tool may use, which card each of its own jobs uses (rendering, speech recognition) and where the separate programs run. To change a job,
+    pass job (primary, render or speech) and gpu (a card index, name or uuid; 'auto' for primary, 'primary' for a job). To change the cards Video Tool may use, pass
+    allowed: card indexes, names or uuids separated by commas, 'all', or 'none' (the processor does the work). A card that is not allowed is never used.
+    Jobs are render, speech, ai (Video Tool's own Ollama) and pictures (its own ComfyUI). The result's `engines` says where Ollama and ComfyUI run, and whether one that was already
+    running sits on a card that is not allowed; to use Video Tool's own copy of it instead (the other is left as it is), pass use_own_copy_of: ollama or comfy."""
+    from .. import gpuassign
+
+    if use_own_copy_of:
+        from ..engines import where
+
+        where.use_own(use_own_copy_of, say=lambda *a: None)
+    patch: dict = {}
+    if allowed:
+        patch["allowed"] = [] if allowed.strip().lower() == "none" else allowed
+    if job and gpu:
+        patch[job] = gpu
+    moved = gpuassign.change(patch) if patch else []
+    return {**gpuassign.describe(), "restarting": moved}
 
 
 @tool
@@ -330,7 +373,7 @@ def get_scenes(project: str) -> dict:
 
 @tool
 def update_scene(project: str, scene_id: str, patch: dict[str, Any]) -> dict:
-    """Change a scene directly: patch may contain layout, transition_in, elements (full replacement list), caption."""
+    """Change a scene directly: patch may contain layout, transition_in, elements (full replacement list), caption. Every element takes x and y (its centre, 0-1 of the frame), scale, rotation and entrance ("none" is already in place, no fade). In a cartoon, each cast member takes x, y (height of the feet) and arrive (seconds after the cartoon appears, 0 is already there); move characters this way rather than moving the whole set. caption.y moves this scene's captions."""
     p = _proj(project)
     sf = p.scenes()
     if not sf:
@@ -386,6 +429,15 @@ def add_media(project: str, file_path: str, caption: str = "") -> dict:
     except M.MediaError as e:
         return {"ok": False, "error": str(e)}
     return {"ok": True, "id": item.id, "kind": item.kind}
+
+
+@tool
+def house_rules() -> list[dict]:
+    """The house rules every plan must follow (who may cover a face, one language on screen, show each thing once ...). submit_scenes and
+    submit_story check them and name the rule ([rule-id]) when a plan breaks one."""
+    from .. import house_rules as H
+
+    return H.listing()
 
 
 @tool
@@ -530,26 +582,55 @@ def get_script_task(project: str, kind: str = "", hint: str = "") -> dict:
 
 @tool
 def submit_script(project: str, script: dict[str, Any]) -> dict:
-    """Submit the Video Script (the JSON object from get_script_task). It is repaired where safe, validated and compiled into the plan.
-    Returns {ok, errors}; if errors, fix exactly those and submit again."""
+    """Submit the Video Script (the JSON object from get_script_task). It is validated and compiled into the plan.
+    Returns {ok, errors, repairs}. Nothing is changed behind your back: whatever the app would have had to change in what you wrote (a word id moved, a text cut short, a value it does not
+    know left out, scenes restructured) comes back as an error to fix, and the small things it filled in (a synonym, a default side) come back in `repairs`. If there are errors,
+    fix exactly those and submit again."""
     from ..script import service
 
     p = _proj(project)
-    res = service.apply_script(p, script, planner="assistant" if os.environ.get("VT_MCP_CLIENT") == "codex" else "claude")
+    script = {k: v for k, v in script.items() if k != "edits_since_this_script"}     # get_current_script's note, not part of a script
+    res = service.apply_script(p, script, planner="assistant" if os.environ.get("VT_MCP_CLIENT") == "codex" else "claude", strict=True)
     if res.get("ok"):                                          # the editor's verdict comes back with every accepted script
         res["director_notes"] = get_director_notes(project)
     return res
 
 
 @tool
-def get_current_script(project: str) -> dict:
-    """Return the current Video Script for a project so an assistant can revise and resubmit it."""
-    from ..script.service import current_script
+def get_story_task(project: str) -> dict:
+    """Cartoon 2 (story) videos: the designer rules, the catalog of everything that can be drawn, the timed captions, the cast and the current
+    story as one JSON spec (absolute seconds). Edit the spec and call submit_story."""
+    from ..story import service
 
-    script = current_script(_proj(project))
+    return service.story_task(_proj(project))
+
+
+@tool
+def submit_story(project: str, story: dict[str, Any]) -> dict:
+    """Submit a whole Cartoon 2 story (the spec from get_story_task, edited). It is validated and becomes the plan. Returns {ok, errors}; fix and resubmit."""
+    from ..story import service
+
+    p = _proj(project)
+    changed_by = "assistant" if os.environ.get("VT_MCP_CLIENT") == "codex" else "claude"
+    res = service.submit_story(p, story, planner=changed_by)
+    if res.get("ok"):
+        from ..directors import record
+
+        record(p, changed_by, requested=p.meta().options.director or "best")
+    return res
+
+
+@tool
+def get_current_script(project: str) -> dict:
+    """Return the current Video Script so an assistant can revise and resubmit it. `edits_since_this_script` lists the scenes changed afterwards (update_scene, the
+    frame check, the person's own edits) with what they are now: submitting a new script replaces them, so carry over the ones you want to keep."""
+    from ..script.service import current_script, edits_since_script
+
+    p = _proj(project)
+    script = current_script(p)
     if script is None:
         raise ValueError("no Video Script yet; call get_script_task, then submit_script")
-    return script
+    return {**script, "edits_since_this_script": edits_since_script(p)}
 
 
 @tool
@@ -565,6 +646,16 @@ def get_director_notes(project: str) -> dict:
     if not data:
         raise ValueError("no Video Script yet; call get_script_task, then submit_script")
     return review(VideoScript.model_validate(data), p.transcript(), p.beats())
+
+
+@tool
+def frame_facts(project: str, times: list[float], aspect: Optional[str] = None) -> dict:
+    """What covers what at these moments, measured on the real page: which element or caption covers how much of each character's face, what is outside the frame,
+    what overlaps. Use it with preview_frames: the numbers catch what the eye misses. It changes nothing."""
+    from ..render.hyperframes import frame_facts as measure
+
+    p = _proj(project)
+    return measure(p.comp_dir / FORMATS[aspect or p.meta().aspect]["tag"], [float(t) for t in times[:12]])
 
 
 @tool

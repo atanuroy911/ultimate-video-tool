@@ -1,5 +1,6 @@
-"""Compile fixed cartoon templates from the existing grounded story plan; no generated code."""
+"""A scene the director wrote as characters acting (a stick timeline) becomes a cartoon scene. A cartoon the director wrote itself is used as written."""
 from ..schema import Cartoon, CastMember, CartoonCue
+from ..story.motifs import extras_for
 
 POSES = {'walk':'walk','enter':'walk','exit':'walk','run':'walk','point':'point','explain':'point','think':'think',
          'wave':'wave','greet':'wave','celebrate':'celebrate','jump':'celebrate','cheer':'celebrate','sit':'sit','shrug':'shrug','sad':'sad'}
@@ -7,15 +8,26 @@ PLACES = {'park':'nature','forest':'nature','mountain':'nature','river':'nature'
           'kitchen':'home','city':'street','road':'street','bus_stop':'street','lab':'office','workshop':'office','store':'shop'}
 
 
-def apply_story_kit(plan, script, tr, beats, style):
-    if style == 'illustrated' or script.kind != 'cartoon': return plan
+def apply_story_kit(plan, script, tr, beats, style, motifs=True):
+    if script.kind != 'cartoon': return plan
+    for scene in plan.scenes:                     # repair_script gives every scene a default actor: it must not act over, or replace, the director's own cartoon
+        if scene.stick and any(e.type == 'cartoon' for e in scene.elements):
+            scene.stick = None
+            scene.archetype = 'cartoon'
+    if style == 'illustrated': return plan
     envs = set(Cartoon.model_fields['set'].annotation.__args__)
     poses = set(CastMember.model_fields['pose'].annotation.__args__)
     expressions = set(CastMember.model_fields['expression'].annotation.__args__)
     by_beat = {b.id:b for b in beats.beats}
+    words = tr.by_id()
+    written = {s.id: s for s in getattr(script, 'scenes', [])}
     for scene in plan.scenes:
         timeline = scene.stick
         if not timeline: continue
+        mine = written.get(scene.id)
+        if mine is not None and not mine.actions and scene.elements:   # the director wrote this scene with no one acting in it: repair's default actor does not get to appear
+            scene.stick = None
+            continue
         # Animal stories retain their dedicated animal rigs rather than turning an animal into a person.
         used = {a.get('who') for a in timeline.get('actions',[])}
         cast = [c for c in timeline.get('cast',[]) if not used or c.get('id') in used]
@@ -40,8 +52,9 @@ def apply_story_kit(plan, script, tr, beats, style):
         place=setting.get('kind','plain');place=place if place in envs else PLACES.get(place,'plain')
         time=setting.get('time','day');lighting='night' if time=='night' else 'sunset' if time in ('evening','sunset','golden') else 'day'
         first=by_beat[scene.beats[0]]
+        scene_words=[words[w] for b in scene.beats for w in by_beat[b].word_ids if w in words]
         cartoon=Cartoon(at_word=first.word_ids[0],set=place,cast=members,character_style=style,lighting=lighting,
-                        camera='push',framing='scene',world='3d',cues=cues,edited=False)
+                        camera='push',framing='scene',world='3d',cues=cues,edited=False,extras=extras_for(scene_words,shown=frozenset(e.type for e in scene.elements if e.type not in ('cartoon','speaker_card'))) if motifs else [])      # the zip's word-timed props
         scene.elements=[cartoon,*[e for e in scene.elements if e.type not in ('cartoon','speaker_card')]]
         scene.stick=None
         scene.archetype='cartoon'

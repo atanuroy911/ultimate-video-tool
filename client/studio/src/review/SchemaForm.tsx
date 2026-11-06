@@ -46,7 +46,8 @@ export function blank(s0: Schema, defs: Schema): any {
   return null;
 }
 
-const label = (k: string) => k.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+const NAMES: Record<string, string> = { arrive: "Arrives after (seconds)", y: "Height of the feet" };
+const label = (k: string) => NAMES[k] ?? k.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
 
 interface Ctx {
   media?:MediaItem[];
@@ -271,7 +272,7 @@ export default function SchemaForm(props: {
   const ctx: Ctx = { media:props.media, defs: props.spec.defs, words: props.words, icons: props.icons, playheadWord: props.playheadWord, componentType: props.spec.type, startsAt: props.words.find(w => w.id === props.value.at_word)?.start };
   const fields = props.spec.fields;
   // Content first; timing follows it, expressed in words and seconds rather than internal IDs.
-  const keys = [...Object.keys(fields).filter(k => !["edited","at_word","until_word","start","end","x","y","scale","rotation","opacity","keyframes","entrance"].includes(k)), "at_word", ...(fields.until_word ? ["until_word"] : [])];
+  const keys = [...Object.keys(fields).filter(k => !["edited","at_word","until_word","start","end","x","y","scale","rotation","opacity","transform","keyframes","entrance"].includes(k)), "at_word", ...(fields.until_word ? ["until_word"] : [])];
   const cartoonGroups: Record<string,string[]> = {cast:["character_style","cast","bubble","speaker"],set:["set","world","framing","lighting","camera"],props:["props","artifacts"],text:["labels"],motion:["cues"]};
   const cartoonContent = props.spec.type === "cartoon" && props.section === "content";
   return (

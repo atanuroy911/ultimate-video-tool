@@ -60,7 +60,7 @@ def test_rendered_backdrop_meets_the_promised_contrast(tmp_path, chrome_ok, kind
     data = resolve_composition(sf, Transcript(words=words), beats, theme, aspect, 4.0, None, media=media)
     data["captions"] = []                                   # only the backdrop and its scrim are measured
     idx = write_composition(tmp_path / "comp", data, theme)
-    frame = snapshot(idx.parent, tmp_path / "snap", [2.0])[0]
+    frame = snapshot(idx.parent, tmp_path / "snap", [2.0], gpu=False)[0]
     got = measured_ratio(frame, scrim.ink, aspect)
     assert got >= K.TARGET - TOLERANCE, f"{kind} {aspect}: promised {scrim.ratio}, measured {got:.2f} with {scrim}"
     # and the decision was not wasteful: the unfiltered photo really did need help (or none was applied)

@@ -1,6 +1,32 @@
 import React from "react";
 import { Check, Sparkles, Video, BarChart3, User, Palette, Smile } from "lucide-react";
 import type { VideoStyle } from "../types";
+import { StoryScene, stageFor } from "@story/StoryScene";
+import { SPEC, STORE, setSpeak } from "@story/data";
+
+/** Cartoon 2's card is drawn by the story engine itself, so the card is exactly what the style makes. */
+const THUMB_CAST = {
+  hero: { name: "Maya", skin: "#A86D40", ear: "#97603A", shirt: "#7a5c8f", pants: "#3b2a20", hair: "#17120f", bun: true },
+  dad: { name: "Dad", skin: "#946037", ear: "#84552f", shirt: "#9DBBD6", pants: "#2b2f3f", hair: "#3a3a3a", glasses: true },
+};
+const THUMB_SCENE = { s: 0, e: 4, push: 0, bg: { type: "room", time: "evening", glow: "#ffd98a" }, elements: [
+  { type: "sofa", x: 270, y: 615, w: 380 },
+  { type: "person", char: "dad", x: 400, y: 560, s: 0.8, pose: "sit", flip: true, expr: "smile", arm: "lap" },
+  { type: "person", char: "hero", x: 140, y: 560, s: 0.8, pose: "sit", expr: "smile", arm: "phone" },
+  { type: "phone", x: 236, y: 467 },
+  { type: "bubble", text: "We did it!", x: 205, y: 205 },
+  { type: "particles", kind: "sparkle", x: 270, y: 380, count: 12 },
+] };
+function StoryThumb() {
+  SPEC.characters = THUMB_CAST as any;
+  setSpeak({});
+  STORE.lang = "en";
+  STORE.loud = () => 0;
+  STORE.fonts = { head: "Georgia, serif", body: "Inter, system-ui, sans-serif" };
+  Object.assign(STORE.stage, stageFor(320, 180));
+  STORE.uid = "thumb";
+  return <StoryScene scene={THUMB_SCENE as any} t={2} width={320} height={180} />;
+}
 
 export interface StyleDefinition {
   value: VideoStyle;
@@ -308,6 +334,15 @@ export const STYLE_DEFINITIONS: StyleDefinition[] = [
         </g>
       </svg>
     ),
+  },
+  {
+    value: "story",
+    titleKey: "tf.style.story",
+    aboutKey: "tf.style.story.about",
+    badge: "Storybook",
+    idealFor: "Family stories, dialogues, life lessons, anything told like a story",
+    howItWorks: "Flat drawn characters in rooms and streets; phones, letters, clocks and numbers appear on the words",
+    thumbnail: <StoryThumb />,
   },
   {
     value: "emoji",

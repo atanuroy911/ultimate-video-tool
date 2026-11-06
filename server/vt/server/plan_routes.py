@@ -91,7 +91,10 @@ def ask_director(pid: str, body: AskBody) -> dict[str, Any]:
     plan = PD.load(p.dir)
     if plan is None:
         raise HTTPException(404, "There is no plan yet.")
-    ops, why = ops_for(plan, body.text)
+    from ..ai import talk
+
+    with talk.for_project(p.dir):                                       # what it asks the AI is on the video's record
+        ops, why = ops_for(plan, body.text, director_of(p))
     if not ops:
         return {**_view(p, plan), "changes": [], "said": why}
     changes: list[str] = []
@@ -104,7 +107,18 @@ def ask_director(pid: str, body: AskBody) -> dict[str, Any]:
     return {**_view(p, PD.load(p.dir)), "changes": changes, "said": why}
 
 
-def ops_for(plan: PD.PlanDoc, text: str) -> tuple[list[dict[str, Any]], str]:
+def director_of(p) -> Any:
+    """The AI that directs this video (None: the one chosen in Settings), so the director the person talks to is the one that made the plan."""
+    try:
+        from ..pipeline import Pipeline
+
+        pipeline = Pipeline(p)
+        return pipeline._director_provider(pipeline.director())
+    except Exception:                                                   # noqa: BLE001  never stops a request
+        return None
+
+
+def ops_for(plan: PD.PlanDoc, text: str, provider: Any = None) -> tuple[list[dict[str, Any]], str]:
     """A few plain requests the rules understand; with a language AI connected a model may also propose operations, but only from the same vocabulary (`PD.OPS`)."""
     t = text.casefold()
     if any(w in t for w in ("faster", "punchier", "quicker", "snappier", "more cuts", "more changes")):
@@ -117,26 +131,27 @@ def ops_for(plan: PD.PlanDoc, text: str) -> tuple[list[dict[str, Any]], str]:
     for style, words in (("photo", ("photo", "realistic")), ("cartoon", ("cartoon",)), ("comic", ("comic",)), ("line-art", ("line art", "pencil", "sketch"))):
         if any(w in t for w in words):
             return [{"op": "set_style", "value": style}], f"Drawn as {style}."
-    ai = _ai_ops(plan, text)
+    ai = _ai_ops(plan, text, provider)
     if ai:
         return ai, "The director's suggestion."
     return [], "I can change the pace (faster, calmer), how many pictures are made (fewer pictures) or the look (photo, cartoon, comic, pencil). For one moment, use its card."
 
 
-def _ai_ops(plan: PD.PlanDoc, text: str) -> list[dict[str, Any]]:
+def _ai_ops(plan: PD.PlanDoc, text: str, provider: Any = None) -> list[dict[str, Any]]:
     """Ask the language AI for operations from the allowed list. Anything it cannot do, or that is not in the vocabulary, is dropped: the answer is [] and the rules' message stands."""
     try:
         from ..ai import complete_json
         from ..ai.providers import ai_enabled
 
-        if not ai_enabled():
+        if not (provider.available() if provider is not None else ai_enabled()):
             return []
         schema = {"type": "object", "properties": {"ops": {"type": "array", "maxItems": 4, "items": {"type": "object", "properties": {"op": {"type": "string", "enum": list(PD.OPS)}}, "required": ["op"]}}},
                   "required": ["ops"]}
         brief = [{"id": m.id, "text": m.text[:90], "medium": m.medium} for m in plan.moments][:30]
         data = complete_json(f"The person says: “{text}”.\nThe plan's moments: {brief}\nAnswer with the operations that do it, each with the fields it needs "
                              f"(moment, medium, word, text, value, n). Use only these operations: {', '.join(PD.OPS)}. If nothing fits, answer an empty list.", schema,
-                             system="You edit a video plan with typed operations. Never invent facts for a picture's text; use words from the moment.", retries=1, max_tokens=400, temperature=0.2)
+                             system="You edit a video plan with typed operations. Never invent facts for a picture's text; use words from the moment.", retries=1, max_tokens=400, temperature=0.2,
+                             provider=provider)
         return [o for o in data.get("ops", []) if isinstance(o, dict) and o.get("op") in PD.OPS]
     except Exception:                                                                   # noqa: BLE001
         return []

@@ -7,7 +7,7 @@ const out = process.argv[2] || ".";
 const pid = process.env.VT_PROJECT || "reference";
 let fails = 0;
 const check = (name, ok, extra = "") => { console.log(`${ok ? "PASS" : "FAIL"} ${name} ${ok ? "" : extra}`); if (!ok) fails++; };
-const b = await chromium.launch({ executablePath: chromePath() });
+const b = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 const page = await b.newPage({ viewport: { width: 1280, height: 1000 } });
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));

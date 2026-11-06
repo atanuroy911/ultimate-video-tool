@@ -10,7 +10,7 @@ const id = process.env.VT_PROJECT || "2026-10-21-sample-audio";
 const list = await (await fetch(base + "/api/projects")).json();
 if (!list.some((p) => p.id === id)) { console.log(`skip: project ${id} not found (set VT_PROJECT)`); process.exit(0); }
 
-const browser = await chromium.launch({ executablePath: chromePath(), args: ["--autoplay-policy=no-user-gesture-required"] });
+const browser = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu", "--autoplay-policy=no-user-gesture-required"] });
 const page = await (await browser.newContext({ viewport: { width: 1500, height: 900 } })).newPage();
 let pass = 0, fail = 0;
 const check = (n, c, x = "") => { c ? (pass++, console.log("  ok  ", n)) : (fail++, console.log("  FAIL", n, x)); };

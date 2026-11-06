@@ -5,6 +5,7 @@
 #   .\install-engine.ps1 -Check                # install the program only and prove it starts (no models); used by the build
 #
 # Options: -Dir DIR  -Engines ollama,comfy  -Bundles pictures,clips  -Models DIR  -Port 8790  -NoSetup  -Service  -Check  -Python PATH
+#          -Gpus 1,2|all|none  (the graphics cards Video Tool may use; with two or more cards and no flag it asks, or keeps one card only when nobody is there)
 # No administrator rights are needed. Everything goes under -Dir (default %LOCALAPPDATA%\VideoToolEngine).
 [CmdletBinding()]
 param(
@@ -14,6 +15,7 @@ param(
   [string]$Models = "",
   [int]$Port = 8790,
   [string]$Python = "",
+  [string]$Gpus = "",
   [switch]$NoSetup,
   [switch]$Service,
   [switch]$Check
@@ -63,6 +65,10 @@ if (-not $Python) {
 
 $env:VT_DATA = $Data; $env:PYTHONIOENCODING = "utf-8"; $env:PYTHONPATH = $App
 function Vt { Push-Location $App; try { & $Python -m vt.cli @args; if ($LASTEXITCODE -ne 0) { throw "vt $($args -join ' ') failed ($LASTEXITCODE)" } } finally { Pop-Location } }
+
+Say "Graphics cards"
+$gpuArgs = @(); if ($Gpus) { $gpuArgs = @("--gpus", $Gpus) }
+Vt gpu setup @gpuArgs                       # asks which cards Video Tool may use when there are two or more and a person is here; change later: vt gpu allow, or the Server page
 
 Say "3/4 What this computer can do"
 $extra = @(); if ($Models) { $extra = @("--models", $Models) }

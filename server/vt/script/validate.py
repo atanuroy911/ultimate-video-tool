@@ -188,42 +188,70 @@ def _truncate_overlay(o: dict) -> dict:
     return o
 
 
-def repair_script(data: dict, tr: Transcript, beats: Beats, kind: Optional[str] = None) -> dict:
-    """Fix what is safely fixable: synonyms, wrong word ids, over-long text, missing/misordered beats. Never invents content."""
+def repair_script(data: dict, tr: Transcript, beats: Beats, kind: Optional[str] = None, dropped: Optional[list[str]] = None, notes: Optional[list[dict]] = None) -> dict:
+    """Fix what is safely fixable: synonyms, wrong word ids, over-long text, missing/misordered beats. Never invents content. An overlay it cannot keep is
+    left out and, when `dropped` is given, reported there with the reason.
+
+    Nothing is silent: every change is also written to `notes` (when given) as {scene, says, meaning}. `meaning` is True when the repair changed what the
+    director wrote (a word moved, a text cut short, a value left out, scenes restructured) and False when it only filled in the obvious (a synonym, a default side).
+    The director that can answer is told the first kind (apply_script, strict); everyone else sees both in Details, Problems."""
+    def note(says: str, meaning: bool = True, scene: Optional[int] = None) -> None:
+        if notes is not None:
+            notes.append({"scene": scene, "says": (f"scene {scene}: " if scene else "") + says, "meaning": meaning})
+
     s = copy.deepcopy(data) if isinstance(data, dict) else {}
     words, beats_by = tr.by_id(), {b.id: b for b in beats.beats}
     s.setdefault("version", "1.0")
     s.setdefault("scenes", [])
+    wrote = s.get("kind")
     if kind in C.KINDS:
+        if wrote in C.KINDS and wrote != kind:
+            note(f'the script says it is "{wrote}", but this video is "{kind}", so it is treated as "{kind}"', False)
         s["kind"] = kind                                   # what was asked for wins over what the model wrote
     if s.get("kind") not in C.KINDS:
+        if wrote is not None:
+            note(f'the kind "{wrote}" is not known, so it is treated as "explainer"', False)
         s["kind"] = "explainer"
     if s.get("kind") == "emoji":                       # the mode wins over what the model wrote: only emoji and type, no characters
+        if s.get("cast") or s.get("sets"):
+            note("this is an emoji video: it has no characters and no places, so the cast and the sets were left out")
         s["cast"], s["sets"] = [], []
-        for sc in s.get("scenes", []):
+        for n, sc in enumerate(s.get("scenes", []), 1):
             if isinstance(sc, dict):
+                gone = len(sc.get("actions") or []) + sum(1 for o in (sc.get("overlays") or []) if not (isinstance(o, dict) and o.get("type") in ("sticker", "keyword")))
+                if gone:
+                    note(f"this is an emoji video: only stickers and keywords are drawn, so {gone} action(s) and overlay(s) were left out", True, n)
                 sc["actions"] = []
                 sc["set"] = None
                 sc["overlays"] = [o for o in (sc.get("overlays") or []) if isinstance(o, dict) and o.get("type") in ("sticker", "keyword")]
     s["cast"] = [c for c in s.get("cast", []) if isinstance(c, dict)]
     for c in s["cast"]:
+        was = c.get("id", "narrator")
         c["id"] = _norm_key(c.get("id", "narrator"))[:16] or "narrator"
+        if c["id"] != was:
+            note(f'the character "{was}" is called "{c["id"]}"', False)
         if c.get("role") not in C.ROLES:
+            note(f'the character "{c["id"]}" has the role "{c.get("role")}", which is not known, so it is a narrator', False)
             c["role"] = "narrator"
         if c.get("rig") not in C.RIGS:
             c["rig"] = "stick-basic"
         st = c.get("style")
         if isinstance(st, dict):
             if st.get("head") not in C.HEADS:
+                note(f'the character "{c["id"]}" has the head "{st.get("head")}", which is not known, so it is round', False)
                 st["head"] = "round"
             if st.get("accessory") not in C.ACCESSORIES:
+                note(f'the character "{c["id"]}" has the accessory "{st.get("accessory")}", which is not known, so it has none', False)
                 st["accessory"] = "none"
             if not re.fullmatch(r"#[0-9a-fA-F]{6}", str(st.get("color", ""))):
+                if st.get("color"):
+                    note(f'the colour "{st["color"]}" of "{c["id"]}" is not a #rrggbb colour, so it was left out', False)
                 st.pop("color", None)
     s["sets"] = [x for x in s.get("sets", []) if isinstance(x, dict)]
     for x in s["sets"]:
         x["id"] = _norm_key(x.get("id", x.get("kind", "plain")))[:16]
         if x.get("kind") not in C.SETS:
+            note(f'the set "{x["id"]}" is a "{x.get("kind")}", which is not a kind of place, so it is a plain background')
             x["kind"] = "plain"
     has_actions = any(isinstance(sc, dict) and sc.get("actions") for sc in s["scenes"])
     if s.get("kind") in ("stick", "cartoon") or has_actions:        # models often forget to declare who acts and where: derive it from what the scenes use
@@ -232,16 +260,20 @@ def repair_script(data: dict, tr: Transcript, beats: Beats, kind: Optional[str] 
         for who in dict.fromkeys(_norm_key(u) for u in used):
             if who and who not in have and len(s["cast"]) < 8:
                 s["cast"].append({"id": who[:16], "role": "narrator"})
+                note(f'"{who[:16]}" acts but is not in the cast, so it was added as a narrator', False)
         if not s["cast"]:
             s["cast"].append({"id": "maya", "role": "teacher"})
+            note('the cast was empty, so "maya" the teacher was added', False)
         have_sets = {x["id"] for x in s["sets"]}
         for sc in s["scenes"]:
             if isinstance(sc, dict) and sc.get("set") and _norm_key(sc["set"])[:16] not in have_sets and len(s["sets"]) < 8:
                 nm = _norm_key(sc["set"])[:16]
                 s["sets"].append({"id": nm, "kind": nm if nm in C.SETS else "plain"})
                 have_sets.add(nm)
+                note(f'the set "{nm}" is used but was not declared, so it was added' + ("" if nm in C.SETS else " as a plain background"), nm in C.SETS)
         if not s["sets"]:
             s["sets"].append({"id": "main", "kind": "plain"})
+            note('there were no sets, so a plain background "main" was added', False)
     cast_ids = [c["id"] for c in s["cast"]]
     # scenes: keep only known beats, drop empty/duplicate, then cover what is missing, in order
     used: set[str] = set()
@@ -249,18 +281,32 @@ def repair_script(data: dict, tr: Transcript, beats: Beats, kind: Optional[str] 
     for sc in s["scenes"]:
         if not isinstance(sc, dict):
             continue
-        sc["beats"] = [b for b in sc.get("beats", []) if b in beats_by and not (b in used or used.add(b))]
+        asked = [b for b in sc.get("beats", [])]
+        sc["beats"] = [b for b in asked if b in beats_by and not (b in used or used.add(b))]
+        if len(sc["beats"]) != len(asked):
+            unknown = [b for b in asked if b not in beats_by]
+            if unknown:
+                note(f'scene "{sc.get("id", "?")}" names the beat(s) {", ".join(map(str, unknown))}, which do not exist, so they were left out')
+            if len(asked) - len(unknown) != len(sc["beats"]):
+                note(f'scene "{sc.get("id", "?")}" repeats a beat that an earlier scene already has, so it stays in the earlier one')
         if sc["beats"]:
             scenes.append(sc)
+        else:
+            note(f'scene "{sc.get("id", "?")}" has no beat that exists, so the scene was left out')
     order = {b.id: i for i, b in enumerate(beats.beats)}
+    before_sort = [id(sc) for sc in scenes]
     scenes.sort(key=lambda sc: order[sc["beats"][0]])
+    if [id(sc) for sc in scenes] != before_sort:
+        note("the scenes were not in the order of the beats, so they were put in order", False)
     covered = {b for sc in scenes for b in sc["beats"]}
     for b in beats.beats:
         if b.id not in covered:
             scenes.append({"id": f"x{b.id}", "beats": [b.id], "overlays": [], "actions": []})
+            note(f"the beat {b.id} was in no scene, so an empty scene was added for it")
     scenes.sort(key=lambda sc: order[sc["beats"][0]])
     flat = [b for sc in scenes for b in sc["beats"]]
     if flat != [b.id for b in beats.beats]:                   # interleaved scenes: fall back to one scene per beat
+        note("the scenes overlapped or crossed each other in the beats, so every beat became its own scene and the structure the script wrote was replaced")
         scenes = [{"id": "", "beats": [b.id], "overlays": [], "actions": []} for b in beats.beats]
     for i, sc in enumerate(scenes, 1):
         sc["id"] = f"s{i}"
@@ -270,16 +316,21 @@ def repair_script(data: dict, tr: Transcript, beats: Beats, kind: Optional[str] 
         pool = [w for w in pool if w in words]
         sc["camera"] = sc.get("camera") if isinstance(sc.get("camera"), dict) else {}
         if sc["camera"].get("shot") not in C.SHOTS:
+            if sc["camera"].get("shot") is not None:
+                note(f'the camera shot "{sc["camera"]["shot"]}" is not one of the shots, so it was removed', True, i)
             sc["camera"].pop("shot", None)
         if sc["camera"].get("move") not in C.MOVES:
+            if sc["camera"].get("move") is not None:
+                note(f'the camera move "{sc["camera"]["move"]}" is not one of the moves, so it was removed', True, i)
             sc["camera"].pop("move", None)
         if sc.get("set") and sc["set"] not in [x["id"] for x in s["sets"]]:
             match = next((x["id"] for x in s["sets"] if x["kind"] == sc["set"]), None)
-            sc["set"] = match or (s["sets"][0]["id"] if s["sets"] else None)
+            now = match or (s["sets"][0]["id"] if s["sets"] else None)
+            note(f'the set "{sc["set"]}" is not one of the sets, so the scene uses "{now}"', True, i)
+            sc["set"] = now
         if sc.get("set") is None and s.get("kind") in ("stick", "cartoon") and s["sets"]:
             sc["set"] = s["sets"][0]["id"]
-        if sc.get("set") is None and s["sets"] and s.get("kind") in ("stick", "cartoon"):
-            sc["set"] = s["sets"][0]["id"]
+            note(f'the scene named no set, so it uses "{sc["set"]}"', False, i)
         acts = []
         for a in sc.get("actions", []) or []:
             if not isinstance(a, dict):
@@ -289,58 +340,105 @@ def repair_script(data: dict, tr: Transcript, beats: Beats, kind: Optional[str] 
                 a["from"] = a.pop("from_")
             do = _norm_key(a.get("do", ""))
             a["do"] = C.VERB_SYNONYMS.get(do, do)
+            if a["do"] != do:
+                note(f'the verb "{do}" is "{a["do"]}" here', False, i)
             if a["do"] not in C.VERBS:
+                note(f'the action "{do}" is not one of the verbs, so it was left out', True, i)
                 continue
             if a.get("at_word") not in pool:
-                a["at_word"] = _nearest(a.get("at_word"), pool)
+                moved = _nearest(a.get("at_word"), pool)
+                if moved is not None:
+                    note(f'the action "{a["do"]}" starts at {a.get("at_word")}, which is not a word of this scene, so it starts at {moved} instead', True, i)
+                a["at_word"] = moved
             if a.get("who") not in cast_ids:
+                if cast_ids:
+                    note(f'the action "{a["do"]}" is by "{a.get("who")}", who is not in the cast, so it is by "{cast_ids[0]}" instead', True, i)
                 a["who"] = cast_ids[0] if cast_ids else a.get("who")
             if a.get("emotion"):
                 e = _norm_key(a["emotion"])
                 a["emotion"] = C.EMOTION_SYNONYMS.get(e, e)
+                if a["emotion"] != e:
+                    note(f'the emotion "{e}" is "{a["emotion"]}" here', False, i)
                 if a["emotion"] not in C.EMOTIONS:
+                    note(f'the emotion "{e}" is not one of the emotions, so it is neutral', True, i)
                     a["emotion"] = "neutral"
             if a["do"] == "react" and not a.get("emotion"):
                 a["emotion"] = "happy"
+                note('"react" named no emotion, so it is happy', False, i)
             if a["do"] == "walk_in" and not a.get("from"):
                 a["from"] = "left"
+                note('"walk_in" named no side, so the character comes in from the left', False, i)
             if a["do"] == "walk_out" and not a.get("to_side"):
                 a["to_side"] = "right"
+                note('"walk_out" named no side, so the character leaves to the right', False, i)
             if a["do"] == "turn" and not a.get("side"):
                 a["side"] = "right"
+                note('"turn" named no side, so the character turns right', False, i)
             for k in ("from", "to_side", "side"):
                 if k in a and a[k] not in ("left", "right"):
-                    a.pop(k)
+                    bad = a.pop(k)
+                    default = {"walk_in": ("from", "left"), "walk_out": ("to_side", "right"), "turn": ("side", "right")}.get(a["do"])
+                    if default and default[0] == k:
+                        a[k] = default[1]
+                        note(f'"{bad}" is not a side (left or right) for "{a["do"]}", so it is "{default[1]}"', True, i)
+                    else:
+                        note(f'"{bad}" is not a side (left or right) for "{a["do"]}", so it was removed', True, i)
             if a["do"] == "count" and not a.get("count"):
                 a["count"] = 1
+                note('"count" named no number, so it counts one', False, i)
             for k, lim in (("bubble", 70), ("target", 24), ("prop", 24)):
                 if isinstance(a.get(k), str) and len(a[k]) > lim:
+                    note(f'the {k} of "{a["do"]}" was longer than {lim} letters, so it was cut short: "{a[k][:lim - 1].rstrip()}…"', True, i)
                     a[k] = a[k][:lim - 1].rstrip() + "…"
             if isinstance(a.get("to"), (int, float)):
-                a["to"] = min(1.0, max(0.0, float(a["to"])))
+                clamped = min(1.0, max(0.0, float(a["to"])))
+                if clamped != float(a["to"]):
+                    note(f'the place {a["to"]} for "{a["do"]}" is outside the picture (0 to 1), so it was moved to {clamped:g}', False, i)
+                a["to"] = clamped
             if a.get("target") and a["target"] not in _targets(s, sc):          # a prop the set lacks: the prop is added to the set
                 st = _set_of(s, sc)
                 if st is not None and a["do"] in ("point", "look_at") and len(st.setdefault("props", [])) < 8:
                     st["props"].append(a["target"])
+                    note(f'the set did not have "{a["target"]}", so it was added', False, i)
             acts.append(a)
         acts.sort(key=lambda a: words[a["at_word"]].start if a.get("at_word") in words else 1e9)
         sc["actions"] = [a for a in acts if a.get("at_word") in words]
+        if len(sc["actions"]) != len(acts):
+            note(f'{len(acts) - len(sc["actions"])} action(s) had no word of the scene to start at, so they were left out', True, i)
         ov = []
         for o in sc.get("overlays", []) or []:
             if not isinstance(o, dict):
                 continue
             if o.get("at_word") not in pool:
-                o["at_word"] = _nearest(o.get("at_word"), pool)
+                moved = _nearest(o.get("at_word"), pool)
+                if moved is not None:
+                    note(f'the {o.get("type")} overlay starts at {o.get("at_word")}, which is not a word of this scene, so it starts at {moved} instead', True, i)
+                o["at_word"] = moved
+            asked = copy.deepcopy(o)
             o = _truncate_overlay(o)
+            if o != asked:
+                note(f'the text of the {o.get("type")} overlay was longer than it may be, so it was cut short', True, i)
             try:
                 _EL.validate_python(o)
-            except ValidationError:                       # still invalid (e.g. one stat in a stat row): drop it, never invent content
+            except ValidationError as e:                  # still invalid (e.g. one stat in a stat row): drop it, never invent content
+                why = "; ".join(f"{'.'.join(str(x) for x in er['loc'][1:])}: {er['msg']}" for er in e.errors()[:4])
+                if dropped is not None:
+                    dropped.append(f"scene {i}, the {o.get('type')} overlay was left out: {why}")
+                note(f"the {o.get('type')} overlay was left out: {why}", True, i)
                 continue
             ov.append(o)
         ov.sort(key=lambda o: words[o["at_word"]].start if o.get("at_word") in words else 1e9)
         sc["overlays"] = ov
-        sc["sfx"] = [dict(c, at_word=c["at_word"] if c.get("at_word") in pool else _nearest(c.get("at_word"), pool)) for c in sc.get("sfx", []) or []
-                     if isinstance(c, dict) and c.get("id") in C.SFX]
-        sc["highlight_words"] = [w for w in sc.get("highlight_words", []) if w in pool][:3]
+        sfx_in = [c for c in sc.get("sfx", []) or [] if isinstance(c, dict)]
+        sc["sfx"] = [dict(c, at_word=c["at_word"] if c.get("at_word") in pool else _nearest(c.get("at_word"), pool)) for c in sfx_in if c.get("id") in C.SFX]
+        for c in sfx_in:
+            if c.get("id") not in C.SFX:
+                note(f'the sound "{c.get("id")}" is not in the sound library, so it was left out', True, i)
+            elif c.get("at_word") not in pool and pool:
+                note(f'the sound "{c.get("id")}" starts at {c.get("at_word")}, which is not a word of this scene, so it starts at {_nearest(c.get("at_word"), pool)} instead', True, i)
+        hl = [w for w in sc.get("highlight_words", []) if w in pool]
+        if len(hl) != len(sc.get("highlight_words", []) or []) or len(hl) > 3:
+            note("highlight words that are not in the scene, or more than three, were left out", False, i)
+        sc["highlight_words"] = hl[:3]
     s["scenes"] = scenes
     return s

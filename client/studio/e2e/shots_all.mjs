@@ -12,7 +12,7 @@ const pages = {
   editor: "/p/reference", result: "/p/reference/result", export: "/p/reference/export", pro: "/p/reference/pro",
 };
 const only = process.argv[2];
-const browser = await chromium.launch({ executablePath: chromePath() });
+const browser = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 for (const [vname, vp] of Object.entries({ desktop: { width: 1440, height: 900 }, phone: { width: 390, height: 844 } })) {
   for (const scheme of ["light", "dark"]) {
     const ctx = await browser.newContext({ viewport: vp, colorScheme: scheme, deviceScaleFactor: 1 });

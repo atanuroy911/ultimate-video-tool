@@ -17,7 +17,7 @@ def machine(monkeypatch, tmp_path):
     monkeypatch.setattr(placement, "own_installed", lambda engine: engine in m.get("installed", ()))
     from vt import llm
 
-    monkeypatch.setattr(llm, "start_server", lambda url, wait=40: m["started"].append(url) or True)
+    monkeypatch.setattr(llm, "start_server", lambda url, wait=40, **kw: m["started"].append(url) or True)
     return m
 
 

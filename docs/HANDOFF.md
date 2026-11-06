@@ -73,7 +73,7 @@ One Linux machine: ComfyUI (video generation), Ollama (text and vision models), 
 | add an AI provider | `server/vt/ai/providers.py` (a `Provider` subclass), `server/vt/server/app.py` settings keys, `client/studio/src/pages/AIAssistants.tsx`; `tests/test_ai_providers.py` |
 | add a ComfyUI workflow | export the graph in API format, put it in `server/assets/comfy/workflows/<id>.json` with its manifest (see `server/vt/comfy/workflows.py`), check Settings shows it Tested/Untested, run one real clip, mark it `verified` |
 | add a module (after Phase 1) | `server/vt/modules/defs/<group>.py`, see the modules plan §2.1 |
-| add a Studio screen | `client/studio/src/pages/`, route in `client/studio/src/main.tsx` (lazy-loaded), strings in `client/studio/src/i18n.ts` (English and Bangla), a suite in `client/studio/e2e/` |
+| add a Studio screen | `client/studio/src/pages/`, route in `client/studio/src/main.tsx` (lazy-loaded), strings in `client/studio/src/i18n.ts` (the interface is English only; Bangla is a language for videos, not for the screens), a suite in `client/studio/e2e/` |
 | add a setting | `server/vt/server/app.py::load_settings` (default) and `put_settings` (allowed keys), the UI in `client/studio/src/pages/Settings.tsx` |
 
 ## 6. Known traps (each cost time once)

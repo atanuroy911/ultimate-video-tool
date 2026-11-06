@@ -9,7 +9,7 @@ if (!axePath || !fs.existsSync(axePath)) { console.log("skip: set AXE to axe.min
 const axe = fs.readFileSync(axePath, "utf8");
 const pid = process.env.VT_PROJECT || "reference";
 const pages = [["projects", "/"], ["new", "/new"], ["review", `/p/${pid}`], ["export", `/p/${pid}/export`], ["themes", "/themes"], ["settings", "/settings"], ["shorts", "/shorts"], ["social", "/social"], ["result", `/p/${pid}/result`]];
-const browser = await chromium.launch({ executablePath: chromePath() });
+const browser = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 let bad = 0;
 const impactOrder = { critical: 4, serious: 3, moderate: 2, minor: 1 };
 for (const scheme of ["light", "dark"]) for (const [w, h] of [[1440, 900], [390, 800]]) {

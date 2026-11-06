@@ -12,6 +12,7 @@ services:
     environment:
       VT_ENGINES: "ollama,comfy"
       VT_BUNDLES: "pictures"   # add ",clips" for short video clips (about 40 GB more)
+      VT_GPUS: "${VT_GPUS:-}"  # the graphics cards Video Tool may use: for example 1 or 0,1 or all or none. Empty: one card only (the freest) until you say. Example: VT_GPUS=1 docker compose up -d
     deploy:
       resources:
         reservations:

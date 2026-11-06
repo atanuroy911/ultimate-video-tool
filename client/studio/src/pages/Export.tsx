@@ -1,4 +1,5 @@
 import { ArrowLeft, Copy, Download, FolderOpen, Film, Sparkles, Wand2 } from "lucide-react";
+import { openFolder } from "../openFolder";
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { fmtSize, get, post } from "../api";
@@ -9,6 +10,7 @@ import { Steps } from "../ds";
 import { Check2, Field, ProgressBar, Seg, Spinner, copyText } from "../ui";
 import CatalogList from "../review/CatalogList";
 import RedoModal from "../components/RedoModal";
+import MusicMix, { MIX_DEFAULTS, mixOf, type MixValues } from "../components/MusicMix";
 
 type Preset = "social" | "youtube" | "square" | "custom";
 const PRESETS: Record<Preset, { label: string; hint: string; aspects: "9:16" | "1:1" | "16:9"; res: "1080" | "720"; fps: "30" | "60"; quality: "draft" | "looks" | "delivery" }> = {
@@ -38,7 +40,7 @@ export default function ExportPage() {
   const [cleanVoice, setCleanVoice] = useState(false);
   const [srt, setSrt] = useState(true);
   const [mus, setMus] = useState<string>("project");
-  const [vol, setVol] = useState(0.14);
+  const [mix, setMix] = useState<MixValues>(MIX_DEFAULTS);
   const [sfx, setSfx] = useState<"off" | "subtle" | "normal" | "rich">("normal");
   const [started, setStarted] = useState<number | null>(null);
   const [preset, setPreset] = useState<Preset>("social");
@@ -79,7 +81,7 @@ export default function ExportPage() {
   useEffect(() => {
     if (p) {
       setAspects(p.aspect);
-      setVol(p.options.music_volume);
+      setMix(mixOf(p.options));
       setSfx(p.options.sfx ? p.options.sfx_level : "off");
       setMus(p.options.music || "none");
     }
@@ -101,7 +103,7 @@ export default function ExportPage() {
         quality,
         gpu: true,
         music: mus === "none" ? "none" : mus,
-        music_volume: vol,
+        ...mix,
         sfx_level: sfx,
         fps: +fps,
         short_side: res === "720" ? 720 : null,
@@ -120,9 +122,9 @@ export default function ExportPage() {
 
   return (
     <div className="page-inner">
-      <div className="row">
+      <div className="row wrap">
         <Link className="btn ghost" to={`/p/${id}`}><ArrowLeft size={15} /> Back to review</Link>
-        <h1 className="grow bn" style={{ marginLeft: 8 }}>Export · {p?.title}</h1>
+        <h1 className="grow bn" style={{ marginLeft: 8, minWidth: 220 }}>Export · {p?.title}</h1>
         <button className="btn magic" onClick={() => setRedoOpen(true)}><Wand2 size={15} /> Redo with AI model</button>
       </div>
 
@@ -189,10 +191,7 @@ export default function ExportPage() {
             <CatalogList kind="audio" role="music" action="Install" label="Free music"
               onPick={async (e) => { const r = await post<{ music: string }>(`/api/catalog/${e.id}/music`); toast("Installed. Choose it in the music list.", "ok", 3500); refetchMusic(); setMus(r.music); }} />
           </details>
-          <label className="field">
-            <span>Music volume under your voice: {Math.round(vol * 100)}%</span>
-            <input type="range" min={0.02} max={0.4} step={0.01} value={vol} onChange={(e) => setVol(+e.target.value)} disabled={mus === "none"} />
-          </label>
+          <MusicMix value={mix} onChange={(patch) => setMix((m) => ({ ...m, ...patch }))} disabled={mus === "none"} />
           <Field label="Sound effects" hint={{ off: "Voice and music only.", subtle: "Only transitions and big moments.", normal: "A sound for each thing that appears. Recommended.", rich: "Also ticks for every list item, risers and camera-style cuts." }[sfx]}>
             <Seg value={sfx} onChange={setSfx} options={[{ value: "off", label: "Off" }, { value: "subtle", label: "Subtle" }, { value: "normal", label: "Normal" }, { value: "rich", label: "Rich" }]} />
           </Field>
@@ -258,7 +257,7 @@ export default function ExportPage() {
               <div className="row wrap">
                 <a className="btn" href={latest.url} download={latest.name}><Download size={14} /> Video</a>
                 {latest.srt && srt && <a className="btn" href={latest.srt} download><Download size={14} /> Subtitles</a>}
-                <button className="btn" onClick={() => post(`/api/projects/${id}/open-folder`).catch((e) => toast(e.message, "err"))}><FolderOpen size={14} /> Open folder</button>
+                <button className="btn" onClick={() => openFolder(id!)}><FolderOpen size={14} /> Open folder</button>
                 <button className="btn" onClick={() => copyText(latest.path, "Path copied")}><Copy size={14} /> Copy path</button>
               </div>
             </div>

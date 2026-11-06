@@ -1,46 +1,48 @@
-"""One server (docs/plans/PLAN-CLIENT-SERVER.MD CS1 + CS2): the Studio and the engine contract on one port, one key, one pairing.
+"""One server (docs/plans/PLAN-CLIENT-SERVER.MD CS1 + CS2): the Studio and the engine contract on one port.
 
-    vt server                  # 0.0.0.0:8765, starts Ollama/ComfyUI, prints the addresses and a one-time pairing code
-    vt studio                  # the same server, on 127.0.0.1 only (no pairing needed)
+    vt server                  # 0.0.0.0:8765, starts Ollama/ComfyUI, prints the addresses
+    vt studio                  # the same server, on 127.0.0.1 only
 
-A client on another computer trades the pairing code for the key once (`POST /api/pair`, or `/v1/pair` for an engine client) and sends it on every
-request: `Authorization: Bearer <key>`, the `vt_token` cookie that `/api/pair` sets (so the Studio page, its <video> tags and its websocket work
-without code changes), or `?token=` where neither can be sent. The key is the hub's (vt/engines/hub.py identity), so pairing survives restarts.
-
-Requests from this computer need nothing, unless they carry a proxy's forwarding header: a tunnel on this computer would otherwise turn every
-internet request into a "local" one.
+A computer on the server's own network connects with the address alone: no code, no approval, no key (docs/plans/PLAN-PERFECT.MD, decision 7). That means this
+computer, a private or link-local address, or a Tailscale address (100.64.0.0/10), provided nothing forwarded the request and it is not a web page working
+through someone's browser (`trusted`). Anything else must send the server's own key (the hub's, vt/engines/hub.py identity) as `Authorization: Bearer <key>`, the
+`vt_token` cookie, or `?token=`: a connection from the internet through a port forward, or one that a tunnel or proxy on this computer passed on, which is
+why a forwarding header turns a "local" request into an outside one.
 """
 from __future__ import annotations
 
 import hmac
+import ipaddress
 import json
+import re
 import subprocess
 from http.cookies import SimpleCookie
 from pathlib import Path
 from typing import Any, Optional
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, urlsplit
 
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from ..engines.server import engine_router, new_state
-from . import clients
 
 VERSION = "1"
 COOKIE = "vt_token"
 LOOPBACK = {"127.0.0.1", "::1", "localhost"}
 FORWARDED = {b"x-forwarded-for", b"forwarded", b"x-real-ip", b"cf-connecting-ip"}
-# open to anyone who can reach the port: discovery, pairing, the engine contract (it checks the key itself) and the page's own files
-OPEN = ("/.well-known/", "/v1/", "/gw/", "/api/pair")
+SHARED_ADDRESSES = ipaddress.ip_network("100.64.0.0/10")           # Tailscale, and carrier-grade NAT: the person's own devices
+DEVICE = re.compile(r"[A-Za-z0-9_-]{4,40}")
+LOCAL_NAMES = (".local", ".lan", ".home.arpa", ".internal", ".localdomain", ".localhost", ".ts.net")
+# open to anyone who can reach the port: discovery, the engine contract (it checks the key itself) and the page's own files
+OPEN = ("/.well-known/", "/v1/", "/gw/")
 GUARDED = ("/api", "/ws", "/media")
 
 STATE: dict[str, Any] = new_state(name="Video Tool")
 STATE["exposed"] = False                         # True once `vt server` listens beyond this computer
 
 
-def configure(*, key: str, code: str = "", name: str = "", services: Optional[dict[str, str]] = None, exposed: bool = False,
-              argv: Optional[list[str]] = None) -> None:
-    STATE.update(key=key, code=code, exposed=exposed, argv=argv)
+def configure(*, key: str, name: str = "", services: Optional[dict[str, str]] = None, exposed: bool = False, argv: Optional[list[str]] = None) -> None:
+    STATE.update(key=key, exposed=exposed, argv=argv)
     if name:
         STATE["name"] = name
     STATE["services"].clear()
@@ -53,12 +55,15 @@ def _guarded(path: str) -> bool:
     return any(path == g or path.startswith(g + "/") for g in GUARDED)
 
 
+def _header(scope: dict, name: bytes) -> str:
+    return next((v for k, v in scope.get("headers") or [] if k == name), b"").decode("latin-1")
+
+
 def _token(scope: dict) -> str:
-    headers = dict(scope.get("headers") or [])
-    auth = headers.get(b"authorization", b"").decode("latin-1")
+    auth = _header(scope, b"authorization")
     if auth.startswith("Bearer "):
         return auth[7:].strip()
-    cookie = SimpleCookie(headers.get(b"cookie", b"").decode("latin-1"))
+    cookie = SimpleCookie(_header(scope, b"cookie"))
     if COOKIE in cookie:
         return cookie[COOKIE].value
     return (parse_qs(scope.get("query_string", b"").decode("latin-1")).get("token") or [""])[0]
@@ -69,21 +74,65 @@ def is_local(scope: dict) -> bool:
     return host in LOOPBACK and not any(k in FORWARDED for k, _ in scope.get("headers") or [])
 
 
+def on_own_network(scope: dict) -> bool:
+    """The sender is this computer, or on a private, link-local or Tailscale address."""
+    host = str((scope.get("client") or ("", 0))[0]).split("%")[0]
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    if ip.version == 6 and ip.ipv4_mapped:
+        ip = ip.ipv4_mapped
+    return ip.is_loopback or ip.is_private or ip.is_link_local or ip in SHARED_ADDRESSES
+
+
+def _name_of(host: str) -> str:
+    h = host.strip().lower()
+    if h.startswith("["):
+        return h[1:h.find("]")] if "]" in h else h
+    return h.rsplit(":", 1)[0] if h.count(":") == 1 else h
+
+
+def browser_safe(scope: dict) -> bool:
+    """A web page cannot use a server through this. Its Host must be an address or a local name (a name that anyone on the internet could point at this
+    computer is how a page reaches a server on a private network), and its Origin, when it has one, must be this same server (a page from another site has
+    its own). The apps, the helper, Claude Code and `curl` send no Origin."""
+    host = _header(scope, b"host")
+    name = _name_of(host)
+    if name:
+        try:
+            ipaddress.ip_address(name)
+        except ValueError:
+            if "." in name and not name.endswith(LOCAL_NAMES):
+                return False
+    origin = _header(scope, b"origin")
+    return not origin or urlsplit(origin).netloc.lower() == host.strip().lower()
+
+
+def named_device(scope: dict) -> str:
+    """The name a helper gives its computer in `X-VT-Device` (a web page cannot set a header on a websocket, so a browser tab never has one)."""
+    value = _header(scope, b"x-vt-device")
+    return value if DEVICE.fullmatch(value) else ""
+
+
+def trusted(scope: dict) -> bool:
+    """Someone on the server's own network, asking for it directly: no key needed."""
+    return on_own_network(scope) and not any(k in FORWARDED for k, _ in scope.get("headers") or []) and browser_safe(scope)
+
+
 def allowed(scope: dict) -> bool:
     path = scope.get("path", "")
-    if path == "/mcp" or path.startswith("/mcp/"):
-        pass                                             # the assistant tools always need a token (see _MCPEndpoint)
-    elif not STATE["exposed"] or not _guarded(path) or is_local(scope):
+    mcp = path == "/mcp" or path.startswith("/mcp/")
+    if not mcp and (not STATE["exposed"] or not _guarded(path)):
+        return True
+    if trusted(scope):
         return True
     if scope.get("method") == "PUT" and path.endswith("/file"):
         from .uploads import ticket_ok
 
         if ticket_ok(path, scope.get("query_string", b"").decode("latin-1")):
             return True                                  # an assistant elsewhere sending a file with its one-time upload ticket
-    token = _token(scope)
-    if STATE["key"] and hmac.compare_digest(token, STATE["key"]):
-        return True
-    return clients.known(token) is not None
+    return bool(STATE["key"]) and hmac.compare_digest(_token(scope), STATE["key"])
 
 
 class Guard:
@@ -99,14 +148,9 @@ class Guard:
         if scope["type"] == "websocket":
             await send({"type": "websocket.close", "code": 4401})
             return
-        body = json.dumps({"detail": {"errors": ["This Video Tool server needs pairing. Enter the code shown where the server was started."]}}).encode()
+        body = json.dumps({"detail": {"errors": ["This Video Tool server only accepts computers on its own network. Connect from a computer on the same network, using the server's address."]}}).encode()
         await send({"type": "http.response.start", "status": 401, "headers": [(b"content-type", b"application/json"), (b"www-authenticate", b"Bearer")]})
         await send({"type": "http.response.body", "body": body})
-
-
-class PairBody(BaseModel):
-    code: str
-    device: str = ""                                     # a name for this device in the server's list; guessed from the browser when empty
 
 
 router = APIRouter()
@@ -114,9 +158,10 @@ router.include_router(engine_router(STATE))
 
 
 @router.get("/.well-known/video-tool")
-def well_known() -> dict[str, Any]:
-    """What a client shows before pairing: whose server this is and whether it wants a code."""
-    return {"app": "video-tool", "server": VERSION, "name": STATE["name"], "needs_pairing": bool(STATE["exposed"]), "engines": sorted(STATE["services"])}
+def well_known(request: Request) -> dict[str, Any]:
+    """What a client shows before connecting: whose server this is, and whether this asker would have to bring a key (only from outside the server's network)."""
+    needs_key = bool(STATE["exposed"]) and not trusted(request.scope)
+    return {"app": "video-tool", "server": VERSION, "name": STATE["name"], "needs_key": needs_key, "needs_pairing": False, "engines": sorted(STATE["services"])}
 
 
 @router.get("/api/servers")
@@ -127,22 +172,12 @@ def servers(timeout: float = 2.0) -> list[dict[str, Any]]:
     return find(min(max(timeout, 0.5), 5.0))
 
 
-@router.post("/api/pair")
-def pair(body: PairBody, request: Request, response: Response) -> dict[str, Any]:
-    if not STATE["code"] or not hmac.compare_digest(body.code.strip(), STATE["code"]):
-        raise HTTPException(403, "That pairing code is not right, or it was already used. Get a new one on the server computer: Engines, This server, New pairing code.")
-    STATE["code"] = ""                                   # one use
-    device, token = clients.add(body.device or clients.device_name(request.headers.get("user-agent", "")))
-    response.set_cookie(COOKIE, token, httponly=True, samesite="strict", secure=request.url.scheme == "https", max_age=10 * 365 * 24 * 3600)
-    return {"key": token, "name": STATE["name"], "device": device}
-
-
 @router.get("/api/server")
 def server_info(request: Request) -> dict[str, Any]:
     """This server as the Engines page shows it: is it open to other computers, and at which addresses (only to this computer)."""
     from ..engines import hub
 
-    out: dict[str, Any] = {"name": STATE["name"], "exposed": bool(STATE["exposed"]), "has_code": bool(STATE["code"])}
+    out: dict[str, Any] = {"name": STATE["name"], "exposed": bool(STATE["exposed"])}
     if STATE["exposed"] and is_local(request.scope):
         out["addresses"] = hub.address_hints(request.url.port or 8765)
         if STATE.get("argv"):
@@ -184,38 +219,9 @@ def server_autostart(body: AutostartBody, request: Request) -> dict[str, Any]:
     return autostart(body.on)
 
 
-@router.post("/api/server/code")
-def server_code(request: Request) -> dict[str, str]:
-    """A new one-time pairing code (the same one `vt engine pair` prints). Only on the server computer itself."""
-    from ..engines import hub
-
-    if not is_local(request.scope):
-        raise HTTPException(403, "A new pairing code can only be made on the server computer itself.")
-    if not STATE["exposed"]:
-        raise HTTPException(409, "This Studio only listens on this computer, so there is nothing to pair. Start it as a server to let other computers in.")
-    STATE["code"] = hub.new_code()
-    return {"code": STATE["code"]}
-
-
 def _only_here(request: Request) -> None:
     if not is_local(request.scope):
-        raise HTTPException(403, "Paired devices can only be managed on the server computer itself.")
-
-
-@router.get("/api/server/clients")
-def server_clients(request: Request) -> list[dict[str, Any]]:
-    """The devices paired with this server."""
-    _only_here(request)
-    return clients.listing()
-
-
-@router.delete("/api/server/clients/{client_id}")
-def server_revoke(client_id: str, request: Request) -> dict[str, bool]:
-    """Turn one device away: it must pair again with a new code. The others keep working."""
-    _only_here(request)
-    if not clients.revoke(client_id):
-        raise HTTPException(404, "That device is not paired (any more).")
-    return {"ok": True}
+        raise HTTPException(403, "This can only be changed on the server computer itself.")
 
 
 # ----------------------------------------------------------------------------- the MCP tools on the same port (CS6)
@@ -223,9 +229,9 @@ _mcp: dict[str, Any] = {"app": None, "stack": None}
 
 
 class _MCPEndpoint:
-    """`/mcp`: Claude Code or another assistant on a client computer drives this server's tools. Always needs a token (Guard), even from this
-    computer: the tools can do anything, and a web page could otherwise reach them through localhost. On the server computer itself the stdio
-    form (.mcp.json, `python -m vt.mcp.server`) needs nothing."""
+    """`/mcp`: Claude Code or another assistant on a client computer drives this server's tools. Like the rest of the API it needs no key from the server's own
+    network (a web page is refused by `trusted`: the tools can do anything, and a page could otherwise reach them through localhost), and the server's key
+    from anywhere else. On the server computer itself the stdio form (.mcp.json, `python -m vt.mcp.server`) needs nothing."""
 
     async def __call__(self, scope, receive, send) -> None:
         if _mcp["app"] is None:
@@ -267,12 +273,10 @@ class AssistantBody(BaseModel):
 
 
 @router.post("/api/server/assistant")
-def assistant_key(body: AssistantBody, request: Request) -> dict[str, Any]:
-    """A key for an AI assistant (Claude Code, Cursor ...) on the device asking, and the `.mcp.json` that uses it. It appears in the
-    paired devices list and is revoked there like any device."""
+def assistant_connection(body: AssistantBody, request: Request) -> dict[str, Any]:
+    """What an AI assistant (Claude Code, Cursor ...) on the device asking needs: the address of the tools, and the `.mcp.json` that uses it. No key is needed
+    from the server's own network; the server's key is sent only to an asker from outside it (never by this route: that asker already has it)."""
     if not STATE["exposed"]:
         raise HTTPException(409, "This Studio only listens on this computer: assistants here use the built-in connection (Settings, AI assistants).")
-    device, token = clients.add(body.name or "AI assistant")
     url = str(request.base_url).rstrip("/") + "/mcp"
-    config = {"mcpServers": {"video-tool": {"type": "http", "url": url, "headers": {"Authorization": f"Bearer {token}"}}}}
-    return {"device": device, "url": url, "token": token, "mcp_json": config}
+    return {"url": url, "mcp_json": {"mcpServers": {"video-tool": {"type": "http", "url": url}}}}

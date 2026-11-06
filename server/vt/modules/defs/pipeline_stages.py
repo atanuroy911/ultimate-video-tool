@@ -6,6 +6,10 @@ from pydantic import BaseModel, Field
 from ..registry import Cost, Example, module
 from ..workspace import Workspace
 
+STAGE_DONE = {"voice": "Spoke the script", "preprocess": "Cleaned the audio", "silence": "Found the pauses", "asr": "Turned the speech into words", "cuts": "Cut the pauses",
+              "sounds": "Listened for sounds", "aroll": "Prepared the speaker's picture", "words": "Lined the words up with the voice", "context": "Worked out what the video is about",
+              "tighten": "Tightened the story", "plan": "Planned the scenes", "compose": "Put the video together"}
+
 
 class StageIn(BaseModel):
     force: bool = Field(default=False, description="Rebuild this stage even when its own cache is fresh.")
@@ -42,7 +46,7 @@ def _register(name: str, requires: tuple[str, ...], produces: tuple[str, ...], s
         grounding=(), fallback=None, fallback_reason="The existing stage already contains its rule fallback or is deterministic.",
         examples=(Example(inputs={"force": False}, outputs={"stage": name}),),
         toolboxes=("autonomous", "studio", "full"), plain_name=f"{name.title()} stage",
-        log_line=lambda i, o: f"Completed the {o.stage} stage.", native_outputs=True,
+        log_line=lambda i, o: STAGE_DONE.get(o.stage, f"Finished: {o.stage}"), native_outputs=True,
     )
     def run_stage(ws: Workspace, inputs: StageIn) -> StageOut:
         from ...pipeline import Pipeline

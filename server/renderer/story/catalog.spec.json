@@ -1,0 +1,528 @@
+{
+ "meta": {
+  "total": 24,
+  "pageName": "",
+  "title": "Element catalog demo"
+ },
+ "characters": {
+  "hero": {
+   "name": "রাফি",
+   "skin": "#A0663A",
+   "ear": "#8F5A33",
+   "shirt": "#5F9D7A",
+   "pants": "#2b3150",
+   "hair": "#141010"
+  },
+  "mom": {
+   "name": "মা",
+   "skin": "#9C653D",
+   "ear": "#8A5733",
+   "shirt": "#B5543A",
+   "pants": "#3b2a20",
+   "hair": "#17120f",
+   "lungi": "#7A2E3A",
+   "bun": true,
+   "orna": "#E8B84A"
+  },
+  "dad": {
+   "name": "বাবা",
+   "skin": "#946037",
+   "ear": "#84552f",
+   "shirt": "#9DBBD6",
+   "pants": "#2b2f3f",
+   "hair": "#9a9a9a",
+   "glasses": true
+  }
+ },
+ "captions": [
+  {
+   "s": 0.2,
+   "e": 2.8,
+   "t": "চরিত্র, {বাবল} আর হাঁটা"
+  },
+  {
+   "s": 3.2,
+   "e": 5.8,
+   "t": "{ফোন} স্ক্রিন, টাইপিং, বড় সংখ্যা"
+  },
+  {
+   "s": 6.2,
+   "e": 8.8,
+   "t": "{কাউন্টার}, গেজ, বার চার্ট"
+  },
+  {
+   "s": 9.2,
+   "e": 11.8,
+   "t": "দরজা {বন্ধ}, ধাক্কার লাইন"
+  },
+  {
+   "s": 12.2,
+   "e": 14.8,
+   "t": "কাগজ আর {স্ট্যাম্প}",
+   "who": "বাবা"
+  },
+  {
+   "s": 15.2,
+   "e": 17.8,
+   "t": "ভিড়, {চোখ}, ক্যালেন্ডার"
+  },
+  {
+   "s": 18.2,
+   "e": 20.8,
+   "t": "{হৃদয়}, আইকন, কণা"
+  },
+  {
+   "s": 21.2,
+   "e": 23.6,
+   "t": "ধাপ: {কাজ} আগে, ঘোষণা পরে"
+  }
+ ],
+ "speak": {
+  "mom": [
+   [
+    0.8,
+    2.6
+   ]
+  ]
+ },
+ "tags": [
+  {
+   "s": 0,
+   "e": 3,
+   "tag": "চরিত্র"
+  },
+  {
+   "s": 3,
+   "e": 6,
+   "tag": "ফোন"
+  },
+  {
+   "s": 6,
+   "e": 9,
+   "tag": "তথ্য"
+  },
+  {
+   "s": 9,
+   "e": 12,
+   "tag": "দরজা"
+  },
+  {
+   "s": 12,
+   "e": 15,
+   "tag": "কাগজ"
+  },
+  {
+   "s": 15,
+   "e": 18,
+   "tag": "ভিড়"
+  },
+  {
+   "s": 18,
+   "e": 21,
+   "tag": "আইকন"
+  },
+  {
+   "s": 21,
+   "e": 24,
+   "tag": "শিক্ষা"
+  }
+ ],
+ "sfx": [
+  [
+   "pop",
+   1.0,
+   0.3
+  ],
+  [
+   "stamp",
+   5.0,
+   0.4
+  ],
+  [
+   "whoosh",
+   9.9,
+   0.3
+  ],
+  [
+   "stamp",
+   10.4,
+   0.5
+  ],
+  [
+   "stamp",
+   13.5,
+   0.5
+  ]
+ ],
+ "scenes": [
+  {
+   "s": 0,
+   "e": 3,
+   "bg": {
+    "type": "room",
+    "time": "day"
+   },
+   "elements": [
+    {
+     "type": "bed",
+     "x": 190,
+     "y": 650
+    },
+    {
+     "type": "person",
+     "char": "hero",
+     "x": 150,
+     "y": 560,
+     "s": 0.8,
+     "pose": "sit",
+     "arm": "phone",
+     "exprs": [
+      {
+       "t": 0,
+       "expr": "neutral"
+      },
+      {
+       "t": 1.8,
+       "expr": "sad"
+      }
+     ]
+    },
+    {
+     "type": "phone",
+     "x": 246,
+     "y": 467
+    },
+    {
+     "type": "person",
+     "char": "mom",
+     "x": 640,
+     "y": 520,
+     "s": 0.8,
+     "pose": "stand",
+     "flip": true,
+     "loop": "walk",
+     "move": [
+      {
+       "t": 0.8,
+       "x": 420
+      }
+     ]
+    },
+    {
+     "type": "bubble",
+     "text": "কিরে?",
+     "x": 330,
+     "y": 230,
+     "at": 1.0
+    }
+   ]
+  },
+  {
+   "s": 3,
+   "e": 6,
+   "bg": {
+    "type": "plain",
+    "color": "#1C1917"
+   },
+   "elements": [
+    {
+     "type": "spotlight",
+     "x": 270,
+     "y": 390,
+     "r": 280,
+     "color": "#9fd0f2"
+    },
+    {
+     "type": "phone",
+     "x": 270,
+     "y": 390,
+     "dark": true,
+     "header": "Result",
+     "typing": {
+      "text": "123456",
+      "at": 3.2,
+      "cps": 6,
+      "label": "Roll No."
+     },
+     "loop": "shake",
+     "loopAmp": 0.6,
+     "big": "৩.৮৩",
+     "bigAt": 4.6
+    }
+   ]
+  },
+  {
+   "s": 6,
+   "e": 9,
+   "bg": {
+    "type": "plain",
+    "color": "#E6DDCB"
+   },
+   "elements": [
+    {
+     "type": "progress",
+     "x": 270,
+     "y": 230,
+     "label": "মনোযোগ",
+     "from": 1,
+     "to": 0.25,
+     "at": 6.2
+    },
+    {
+     "type": "gauge",
+     "x": 470,
+     "y": 380,
+     "label": "চাপ",
+     "from": 0.1,
+     "to": 0.9,
+     "at": 6.4
+    },
+    {
+     "type": "bars",
+     "x": 260,
+     "y": 700,
+     "values": [
+      2,
+      5,
+      3
+     ],
+     "labels": [
+      "সকাল",
+      "দুপুর",
+      "রাত"
+     ],
+     "at": 6.8,
+     "h": 220
+    },
+    {
+     "type": "counter",
+     "x": 120,
+     "y": 420,
+     "from": 0,
+     "to": 95,
+     "suffix": "%",
+     "at": 6.6,
+     "dur": 1.5,
+     "size": 60
+    }
+   ]
+  },
+  {
+   "s": 9,
+   "e": 12,
+   "bg": {
+    "type": "room",
+    "time": "evening",
+    "dark": 0.2
+   },
+   "elements": [
+    {
+     "type": "door",
+     "x": 350,
+     "y": 610,
+     "closeAt": 9.9
+    },
+    {
+     "type": "person",
+     "char": "hero",
+     "x": 130,
+     "y": 520,
+     "s": 0.8,
+     "pose": "stand",
+     "expr": "scared",
+     "arm": "reach"
+    }
+   ]
+  },
+  {
+   "s": 12,
+   "e": 15,
+   "bg": {
+    "type": "plain",
+    "color": "#2C483B"
+   },
+   "elements": [
+    {
+     "type": "paper",
+     "x": 270,
+     "y": 420,
+     "title": "H.S.C. Examination",
+     "sub": "Mark Sheet",
+     "footer": "Result :",
+     "enter": "slideUp",
+     "loop": "sway",
+     "loopAmp": 0.3
+    },
+    {
+     "type": "stamp",
+     "x": 320,
+     "y": 590,
+     "rot": -10,
+     "text": "Second Division",
+     "font": "latin",
+     "size": 26,
+     "at": 13.5,
+     "enter": "stamp"
+    }
+   ]
+  },
+  {
+   "s": 15,
+   "e": 18,
+   "bg": {
+    "type": "living"
+   },
+   "elements": [
+    {
+     "type": "calendar",
+     "x": 60,
+     "y": 200,
+     "count": 6,
+     "at": 15.2,
+     "interval": 0.3,
+     "label": "এক সপ্তাহ"
+    },
+    {
+     "type": "crowd",
+     "x": 270,
+     "y": 600,
+     "count": 5,
+     "texts": [
+      "…",
+      "হা হা",
+      "?"
+     ],
+     "at": 15.3,
+     "laugh": true
+    }
+   ]
+  },
+  {
+   "s": 18,
+   "e": 21,
+   "bg": {
+    "type": "gradient",
+    "from": "#22284A",
+    "to": "#3B1B22"
+   },
+   "elements": [
+    {
+     "type": "particles",
+     "kind": "sparkle",
+     "x": 270,
+     "y": 480,
+     "count": 18
+    },
+    {
+     "type": "heart",
+     "x": 270,
+     "y": 330,
+     "s": 2.6,
+     "beats": [
+      18.6,
+      19.1,
+      19.8
+     ]
+    },
+    {
+     "type": "ecg",
+     "x": 270,
+     "y": 560,
+     "at": 18.2
+    },
+    {
+     "type": "icon",
+     "name": "bulb",
+     "x": 90,
+     "y": 200,
+     "at": 18.5,
+     "loop": "glow"
+    },
+    {
+     "type": "icon",
+     "name": "check",
+     "x": 450,
+     "y": 200,
+     "at": 18.8
+    },
+    {
+     "type": "icon",
+     "name": "warning",
+     "x": 90,
+     "y": 660,
+     "at": 19.1,
+     "loop": "pulse"
+    },
+    {
+     "type": "icon",
+     "name": "trophy",
+     "x": 450,
+     "y": 660,
+     "at": 19.4,
+     "loop": "float"
+    },
+    {
+     "type": "eyes",
+     "x": 270,
+     "y": 330,
+     "at": 20.0,
+     "look": [
+      0,
+      0
+     ],
+     "points": [
+      [
+       -200,
+       -40
+      ],
+      [
+       200,
+       -40
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "s": 21,
+   "e": 24,
+   "bg": {
+    "type": "plain",
+    "color": "#E6DDCB"
+   },
+   "elements": [
+    {
+     "type": "title",
+     "text": "শিক্ষাটা {সহজ}",
+     "x": 270,
+     "y": 170,
+     "size": 50,
+     "at": 21.1,
+     "enter": "fade"
+    },
+    {
+     "type": "steps",
+     "x": 270,
+     "y": 320,
+     "items": [
+      "কাজ",
+      "ঘোষণা"
+     ],
+     "times": [
+      21.4,
+      22.4
+     ],
+     "gap": 230
+    },
+    {
+     "type": "arrow",
+     "x": 270,
+     "y": 400,
+     "dx": 0,
+     "dy": 80,
+     "at": 22.0
+    }
+   ]
+  }
+ ]
+}

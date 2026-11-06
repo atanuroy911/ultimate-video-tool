@@ -49,7 +49,8 @@ jobs:
       - run: npm --prefix client/desktop ci --no-audit --no-fund
       - run: npm --prefix server/desktop ci --ignore-scripts --no-audit --no-fund
       - run: node client/desktop/test-director-runner.js
-      - run: node client/desktop/test-client-companion.js
+      - run: node client/desktop/test-helper.js
+      - run: node client/desktop/test-helper-control.js
       - run: node client/desktop/test-transport.js
       - run: node server/desktop/test-server-control.js
       - run: node server/desktop/test-server-port.js

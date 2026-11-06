@@ -93,6 +93,56 @@ class Cuts(BaseModel):
 STRICT = ConfigDict(extra="forbid")
 TitleText = Annotated[str, Field(min_length=1, max_length=40)]
 
+BLENDS = ("normal", "multiply", "screen", "overlay", "darken", "lighten", "soft-light", "difference")
+
+
+class Transform(BaseModel):
+    """Everything an editor can do to one element besides moving, sizing, turning and fading it (plan step E17, human in the loop): stretch, slant, flip, pivot, 3D tilt, a corner-pin
+    warp, a crop with rounded corners, blur and a blend. All neutral by default; an element with any of them set is a free element, which no layout rule moves or fits."""
+    model_config = STRICT
+    stretch_x: float = Field(default=1, ge=.1, le=5, description="Stretch across, on top of size (1 is none)")
+    stretch_y: float = Field(default=1, ge=.1, le=5, description="Stretch up and down, on top of size (1 is none)")
+    skew_x: float = Field(default=0, ge=-60, le=60, description="Slant sideways, degrees")
+    skew_y: float = Field(default=0, ge=-60, le=60, description="Slant up and down, degrees")
+    flip_x: bool = Field(default=False, description="Mirror left and right")
+    flip_y: bool = Field(default=False, description="Mirror top and bottom")
+    pivot_x: float = Field(default=.5, ge=0, le=1, description="What it turns, slants and tilts around: 0 left edge, 1 right edge")
+    pivot_y: float = Field(default=.5, ge=0, le=1, description="0 top edge, 1 bottom edge")
+    tilt_x: float = Field(default=0, ge=-80, le=80, description="Tilt toward or away from the viewer, degrees (3D)")
+    tilt_y: float = Field(default=0, ge=-80, le=80, description="Turn left or right in 3D, degrees")
+    warp: Optional[list[list[float]]] = Field(default=None, description="Corner pin: how far each of the four corners moves, [dx, dy] as a fraction of the element's own size, in the order top left, "
+                                                                        "top right, bottom right, bottom left")
+    crop: Optional[list[float]] = Field(default=None, description="Part of the element cut away, as fractions of its size: [top, right, bottom, left]")
+    crop_radius: float = Field(default=0, ge=0, le=1, description="Rounded corners of the crop: 0 square, 1 as round as it can be")
+    blur: float = Field(default=0, ge=0, le=60, description="Blur, in pixels of the frame")
+    blend: Literal["normal", "multiply", "screen", "overlay", "darken", "lighten", "soft-light", "difference"] = Field(default="normal", description="How it mixes with what is behind it")
+
+    @field_validator("warp")
+    @classmethod
+    def four_corners(cls, v):
+        if v is None:
+            return v
+        if len(v) != 4 or any(len(c) != 2 or any(not -1 <= n <= 1 for n in c) for c in v):
+            raise ValueError("warp is four corners, each [dx, dy] between -1 and 1 (top left, top right, bottom right, bottom left)")
+        return v
+
+    @field_validator("crop")
+    @classmethod
+    def four_sides(cls, v):
+        if v is None:
+            return v
+        if len(v) != 4 or any(not 0 <= n <= .95 for n in v) or v[0] + v[2] > .95 or v[1] + v[3] > .95:
+            raise ValueError("crop is [top, right, bottom, left], each between 0 and 0.95, and opposite sides together under 0.95")
+        return v
+
+    def is_neutral(self) -> bool:
+        return not self.model_dump(exclude_defaults=True)
+
+
+def has_transform(t: Optional["Transform"]) -> bool:
+    """Is anything of it set? An element with something set is free (placed by hand)."""
+    return t is not None and not t.is_neutral()
+
 
 class _El(BaseModel):
     model_config = STRICT
@@ -105,8 +155,9 @@ class _El(BaseModel):
     scale: float = Field(default=1, ge=0.05, le=5)
     rotation: float = Field(default=0, ge=-360, le=360)
     opacity: float = Field(default=1, ge=0, le=1)
+    transform: Optional[Transform] = Field(default=None, description="Stretch, slant, flip, pivot, 3D tilt, corner-pin warp, crop, blur and blend (all optional)")
     keyframes: list[MotionPoint] = Field(default_factory=list, max_length=100, description="Editable movement points on the video clock, shared by preview and export")
-    entrance: str = Field(default="auto", max_length=64, description="auto, none, or an entrance id from style.motion_kit")
+    entrance: str = Field(default="auto", max_length=64, description="auto, none (already in place, no fade), or an entrance id from style.motion_kit")
 
     @field_validator("entrance")
     @classmethod
@@ -436,10 +487,12 @@ SetId = Literal["plain", "village", "market", "home", "office", "classroom", "st
 
 class CastMember(BaseModel):
     model_config = STRICT
-    who: CharacterId = "man"
+    who: CharacterId = Field(default="man", description="elder is an old bald man with glasses; a mother or any other woman is woman, a girl is girl")
     pose: Pose = "stand"
     expression: Expression = "neutral"
     x: float = Field(default=0.5, ge=0, le=1, description="horizontal position on the set, 0 left to 1 right")
+    y: Optional[float] = Field(default=None, ge=0, le=1, description="height of the feet, 0 top to 1 bottom; empty stands on the floor just above the captions (on a tall frame, about 0.69, and the captions fill 0.71 to 0.79), which is nearly always right")
+    arrive: Optional[float] = Field(default=None, ge=0, le=30, description="seconds after the cartoon appears when this character arrives; 0 is already there; empty lets them arrive one after another")
     flip: bool = False
     name: str = Field(default="", max_length=14)
 
@@ -497,6 +550,90 @@ class Cartoon(_El):
     bubble: str = Field(default="", max_length=70, description="what the first cast member says")
     speaker: int = Field(default=0, ge=0, le=2, description="index of the cast member whose mouth moves with the voice")
     props: list[str] = Field(default_factory=list, max_length=3, description="colour emoji (hex or character) placed on the set")
+    extras: list["StoryItem"] = Field(default_factory=list, max_length=12, description="story-engine items drawn over the scene at their words "
+                                                                                     "(counting numbers, icons, a beating heart, a clock...); vt/story/motifs.py")
+
+
+HEX = r"^#[0-9a-fA-F]{3,8}$"
+
+
+class StoryCharacter(BaseModel):
+    """One Cartoon 2 character, the same in every scene (ScenesFile.story_cast); drawn by server/renderer/story/src/figures.tsx."""
+
+    model_config = STRICT
+    name: str = Field(default="", max_length=24)
+    skin: str = Field(default="#A0663A", pattern=HEX)
+    ear: Optional[str] = Field(default=None, pattern=HEX)
+    shirt: str = Field(default="#5F9D7A", pattern=HEX)
+    pants: str = Field(default="#2b3150", pattern=HEX)
+    hair: str = Field(default="#141010", pattern=HEX)
+    bun: bool = False
+    orna: Optional[str] = Field(default=None, pattern=HEX, description="scarf colour")
+    lungi: Optional[str] = Field(default=None, pattern=HEX, description="long skirt or sari colour")
+    glasses: bool = False
+    mustache: Optional[str] = Field(default=None, pattern=HEX)
+    long: bool = False
+
+
+class StoryItem(BaseModel):
+    """One thing drawn in a Cartoon 2 scene (a character, a bubble, a phone, a counter...). Its own properties are flat, exactly as the story engine
+    reads them; vt/story/catalog.py says which exist. Times are absolute video seconds."""
+
+    model_config = ConfigDict(extra="allow")
+    type: str
+    x: Optional[float] = Field(default=None, ge=-3000, le=3000, description="design units: the stage is 540 wide and 960 tall")
+    y: Optional[float] = Field(default=None, ge=-3000, le=3000)
+    s: Optional[float] = Field(default=None, ge=0.01, le=20)
+    rot: Optional[float] = Field(default=None, ge=-3600, le=3600)
+    opacity: Optional[float] = Field(default=None, ge=0, le=1)
+    z: Optional[float] = None
+    at: Optional[float] = Field(default=None, ge=0)
+    until: Optional[float] = Field(default=None, ge=0)
+    enter: Optional[str] = None
+    exit: Optional[str] = None
+    loop: Optional[str] = None
+    loopAmp: Optional[float] = Field(default=None, ge=0, le=10)
+    move: list[dict] = Field(default_factory=list, max_length=60)
+
+    @model_validator(mode="after")
+    def known(self):
+        from .story import catalog as SC
+
+        if self.type not in SC.ELEMENTS:
+            raise ValueError(f"unknown story item '{self.type}' (one of: {', '.join(SC.ELEMENTS)})")
+        for key, allowed in (("enter", SC.ENTER), ("exit", SC.EXIT), ("loop", SC.LOOP)):
+            v = getattr(self, key)
+            if v is not None and v not in allowed:
+                raise ValueError(f"{self.type}: {key} '{v}' is not one of {allowed}")
+        if self.at is not None and self.until is not None and self.until <= self.at:
+            raise ValueError(f"{self.type}: leaves before it appears")
+        for m in self.move:
+            if not isinstance(m.get("t"), (int, float)):
+                raise ValueError(f"{self.type}: every movement point needs a time t")
+        return self
+
+
+class Story(_El):
+    """A Cartoon 2 scene: a drawn place and its characters, props and effects, animated to the voice (the story engine). Fills the frame."""
+
+    type: Literal["story"] = "story"
+    bg: dict = Field(default_factory=lambda: {"type": "plain"}, description="background: {type, ...options} from vt/story/catalog.py BACKGROUNDS")
+    items: list[StoryItem] = Field(default_factory=list, max_length=80)
+    tag: str = Field(default="", max_length=24, description="the scene chip at the top (place or time), empty for none")
+    push: float = Field(default=0.05, ge=0, le=0.4, description="slow push-in over the scene")
+    speak: dict[str, list[list[float]]] = Field(default_factory=dict, description="cast id -> [[from, to] video seconds] when that character talks")
+
+    @field_validator("bg")
+    @classmethod
+    def known_bg(cls, v):
+        from .story import catalog as SC
+
+        if not isinstance(v, dict) or v.get("type") not in SC.BACKGROUNDS:
+            raise ValueError(f"unknown story background (one of: {', '.join(SC.BACKGROUNDS)})")
+        return v
+
+
+Cartoon.model_rebuild()          # its extras are story items, defined above
 
 
 class MediaFrame(_El):
@@ -621,13 +758,13 @@ class Shape(_El):
 Element = Annotated[
     Union[Title, ValueCard, BigNumber, Arrow, IconRow, Tag, Compare, ListEl, Equation, Quote, BarChart, Icon, Keyword, Sticker,
           Ring, LineChart, Steps, Timeline, Definition, Checklist, ProsCons, StatRow, Question, FeatureGrid, Cta, PriceTag, Device,
-          SpeakerCard, Cartoon, MediaFrame, Flow, Cycle, Hierarchy, Venn, Funnel, Pyramid, Matrix, Pictogram, Gauge, Shape],
+          SpeakerCard, Cartoon, MediaFrame, Flow, Cycle, Hierarchy, Venn, Funnel, Pyramid, Matrix, Pictogram, Gauge, Shape, Story],
     Field(discriminator="type"),
 ]
 
 ELEMENT_MODELS = [Title, ValueCard, BigNumber, Arrow, IconRow, Tag, Compare, ListEl, Equation, Quote, BarChart, Icon, Keyword, Sticker,
                   Ring, LineChart, Steps, Timeline, Definition, Checklist, ProsCons, StatRow, Question, FeatureGrid, Cta, PriceTag, Device,
-                  SpeakerCard, Cartoon, MediaFrame, Flow, Cycle, Hierarchy, Venn, Funnel, Pyramid, Matrix, Pictogram, Gauge, Shape]
+                  SpeakerCard, Cartoon, MediaFrame, Flow, Cycle, Hierarchy, Venn, Funnel, Pyramid, Matrix, Pictogram, Gauge, Shape, Story]
 
 Layout = Literal["stack", "split", "hero", "grid", "side", "lower", "upper"]
 Transition = Literal["cut", "fade", "slide_up", "slide_left", "zoom", "wipe", "whip"]
@@ -641,6 +778,7 @@ LAYOUTS = ["stack", "split", "hero", "grid", "side", "lower", "upper"]
 class SceneCaption(BaseModel):
     model_config = STRICT
     highlight_words: list[str] = Field(default_factory=list, description="word ids shown in the accent pill")
+    y: Optional[float] = Field(default=None, ge=0, le=1, description="height of this scene's captions (their bottom edge), 0 top to 1 bottom; empty keeps the video's usual place")
 
 
 class Scrim(BaseModel):
@@ -696,6 +834,7 @@ class ScenesFile(BaseModel):
     theme: str = "paper"
     planner: Literal["rules", "llm", "claude", "assistant", "manual"] = "rules"
     scenes: list[Scene]
+    story_cast: dict[str, StoryCharacter] = Field(default_factory=dict, description="Cartoon 2 characters by id, shared by every story scene")
 
 
 # --------------------------------------------------------------------------- theme
@@ -790,8 +929,9 @@ class Options(BaseModel):
     recording_edit: Literal["auto", "subtitles", "screen"] = "auto"  # preserve a tutorial; captions/graphics use a separate band
     director: str = Field(default="best", max_length=80, description="Who directs this video: best, local, claude-server, or claude@<device>.")
     voice_direction: Literal["off", "auto"] = "auto"   # auto: the director adds delivery notes and sounds (sigh, laugh) for voices that can follow them (vt/voice_direction.py)
-    look: Literal["classic", "reel"] = "classic"     # reel: one picture drawn for each stretch of speech, in one style (vt/reel/)
+    look: Literal["classic", "reel", "story"] = "classic"   # story: Cartoon 2, the story engine (vt/story/)     # reel: one picture drawn for each stretch of speech, in one style (vt/reel/)
     reel_style: Literal["auto", "cartoon", "line-art", "comic", "photo"] = "auto"
+    review_script: bool = False       # after the director has planned, open the director's script page (Studio /p/{id}/script) before the editor
     plan_review: Literal["auto", "always", "never"] = "auto"   # show the plan before it is made: auto follows the setting `plan_review` (vt/direction/plan_doc.py)
     end_card: str = Field(default="", max_length=40, description="reel look: a line shown over the last picture (Follow for more, Subscribe); empty = nothing is added (the author's spoken line stays theirs)")
     remove_fillers: bool = True
@@ -799,7 +939,13 @@ class Options(BaseModel):
     target_length: Literal["auto", "keep", "60", "90"] = "auto"     # vt/tighten.py: auto shortens a vertical video over 90 s to about 60 s
     asr_model: str = "bn-medium"
     music: Optional[str] = None
-    music_volume: float = 0.14
+    music_volume: float = 0.10        # linear gain before ducking (0.10 = -20 dB); the editor shows it in dB
+    duck: bool = True                 # lower the music while someone speaks (side-chain compression, vt/render/mux.py)
+    duck_amount: float = Field(default=0.4, ge=0, le=1)     # 0 = barely, 1 = the music nearly disappears under speech
+    duck_release: float = Field(default=0.35, ge=0.05, le=2.0)   # seconds the music takes to come back after a phrase
+    target_lufs: float = Field(default=-14.0, ge=-23, le=-9)     # overall loudness of the finished video; -14 is what social platforms play at
+    music_fade_in: float = Field(default=1.0, ge=0, le=6)
+    music_fade_out: float = Field(default=2.0, ge=0, le=8)
     caption_style: Literal["theme", "auto", "pop", "word", "keyword", "box", "pill", "underline"] = "theme"   # auto: pop for vertical videos, the theme's own style otherwise
     cartoon_template: Literal["illustrated", "classic", "ink", "paper"] = "illustrated"
     motion: Literal["auto", "subtle", "cuts", "off"] = "auto"   # shot recipes from video-shotcraft on every element and scene (vt/compose/motion.py)

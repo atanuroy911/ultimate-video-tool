@@ -25,7 +25,9 @@ async function inspect(base){
     const health=await request(base,'/api/health');
     if(!health||typeof health!=='object')throw new Error('Unexpected server response.');
     const info=await request(base,'/api/server');
-    return {running:true,name:info.name,addresses:info.addresses||[],url:localURL(base)};
+    let gpu=null;                                                  // the graphics cards, when the server can say (an older one cannot, and then there is nothing to show)
+    try{const g=await request(base,'/api/system/gpus');if(g&&Array.isArray(g.cards)&&typeof g.needs_choice==='boolean')gpu={cards:g.cards.length,needs_choice:g.needs_choice,allowed:g.cards.filter(c=>c.allowed).map(c=>c.name)};}catch{}
+    return {running:true,name:info.name,addresses:info.addresses||[],url:localURL(base),gpu};
   }catch(e){return {running:false,addresses:[],url:localURL(base),reason:e.message};}
 }
 module.exports={localURL,request,inspect};

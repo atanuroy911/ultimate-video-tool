@@ -30,6 +30,13 @@ class MotionPoint(BaseModel):
     scale: float = Field(default=1, ge=.05, le=5, description="Size multiplier")
     rotation: float = Field(default=0, ge=-360, le=360, description="Rotation in degrees")
     opacity: float = Field(default=1, ge=0, le=1, description="Visibility from transparent to solid")
+    stretch_x: float = Field(default=1, ge=.1, le=5, description="Stretch across, on top of size (1 is none)")
+    stretch_y: float = Field(default=1, ge=.1, le=5, description="Stretch up and down, on top of size (1 is none)")
+    skew_x: float = Field(default=0, ge=-60, le=60, description="Slant sideways, degrees")
+    skew_y: float = Field(default=0, ge=-60, le=60, description="Slant up and down, degrees")
+    tilt_x: float = Field(default=0, ge=-80, le=80, description="Tilt toward or away from the viewer, degrees")
+    tilt_y: float = Field(default=0, ge=-80, le=80, description="Turn left or right in 3D, degrees")
+    blur: float = Field(default=0, ge=0, le=60, description="Blur, in pixels of the frame")
     ease: Literal["linear", "smooth", "in", "out", "hold"] = Field(default="smooth", description="How movement arrives at this point")
 
 

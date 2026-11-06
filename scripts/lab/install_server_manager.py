@@ -22,7 +22,7 @@ try:
     launcher=f'''#!/bin/sh
 set -eu
 # A native GTK window handles desktops that restrict browser namespaces.
-if unshare -Ur true 2>/dev/null; then
+if [ -x "{root}/manager/runtime/node_modules/electron/dist/electron" ] && unshare -Ur true 2>/dev/null; then
   exec "{root}/manager/runtime/node_modules/electron/dist/electron" --disable-setuid-sandbox "{root}/manager/app" "$@"
 fi
 exec /usr/bin/python3 "{root}/manager/app/server-manager-gtk.py" "$@"
@@ -61,9 +61,6 @@ if [[ "$DESKTOP" == /home/roy/* && -d "$DESKTOP" ]]; then
   cp "{desktop}" "$DESKTOP/Ultimate Video Tool Server.desktop"
   chmod 755 "$DESKTOP/Ultimate Video Tool Server.desktop"
 fi
-export DISPLAY=:0 XAUTHORITY=/run/user/1000/gdm/Xauthority DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
-pkill -u roy -f '^/usr/bin/python3 {root}/manager/app/server-manager-gtk.py$' || true
-nohup "{root}/open-server-manager.sh" --engines > "{root}/manager.log" 2>&1 < /dev/null &
 echo MANAGER_READY
 '''
     with s.file(root+'/install-manager.sh','w') as f:f.write(install)

@@ -1,4 +1,6 @@
-# Active work and queued requests
+# Historical work queue — STOPPED
+
+**Latest owner instruction: stop all coding and just document.** Do not resume any task below without a new instruction. Remote QA workers and the local Vite server were stopped. Read [CLAUDE-HANDOFF.md](../CLAUDE-HANDOFF.md) for the authoritative final state. Earlier completion/availability statements below describe historical observations: the remote projects directory was empty at stop and failed direct downloads truncated local MP4 copies. The video batch, music export, cleanup and later experiments are not complete. No comprehensive cleanup pass was performed.
 
 Updated 2026-11-03. The owner explicitly asked to stack new requests and finish one item before switching. This file records the active order; it does not label earlier feature work complete.
 

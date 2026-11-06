@@ -1,6 +1,6 @@
 import VideoTools from "../review/VideoTools";
 import CaptionInspector from "../review/CaptionInspector";
-import { ChevronLeft, Download, Image as ImageIcon, Pause, Play, Redo2, Scissors, Sparkles, Undo2, Wand2, Menu, PanelLeftClose, PanelRightClose, Maximize2, X } from "lucide-react";
+import { MessageSquareText, ChevronLeft, Download, Image as ImageIcon, Pause, Play, Redo2, Scissors, Sparkles, Undo2, Wand2, Menu, PanelLeftClose, PanelRightClose, Maximize2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { del, get, post } from "../api";
@@ -164,7 +164,7 @@ function ReviewEditor() {
 
   // leave for the progress screen if the pipeline is running
   useEffect(() => {
-    if (p && (p.status === "processing" || p.active_job)) nav(`/p/${id}/progress`, { replace: true });
+    if (p && (p.status === "processing" || (p.active_job && p.active_job.kind !== "export"))) nav(`/p/${id}/progress`, { replace: true });   // a download rendering in the background does not take the editor away
   }, [p?.status, p?.active_job, id, nav]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // keep the selection valid and follow the playhead
@@ -412,6 +412,7 @@ function ReviewEditor() {
           <Tooltip text="Undo" keys="Ctrl+Z"><Button icon variant="ghost" size="sm" onClick={r.undo} disabled={!r.canUndo} aria-label="Undo"><Undo2 size={16}/></Button></Tooltip>
           <Tooltip text="Redo" keys="Ctrl+Shift+Z"><Button icon variant="ghost" size="sm" onClick={r.redo} disabled={!r.canRedo} aria-label="Redo"><Redo2 size={16}/></Button></Tooltip>
         </div>
+        <Button size="sm" onClick={() => nav(`/p/${id}/script`)} aria-label="Director's script"><MessageSquareText size={15}/> Script</Button>
         <Button size="sm" onClick={() => setAiOpen(true)} aria-label="AI assistant"><Sparkles size={15}/> AI</Button>
         <Button size="sm" variant="primary" onClick={exportNow}><Download size={15}/> Export</Button>
       </header>
@@ -433,7 +434,7 @@ function ReviewEditor() {
       )}
       {p.ai_notice && (
         <div className="banner warn" style={{ margin: "8px 12px 0" }}>
-          <div className="grow"><strong>The built-in rules directed this video</strong><div className="small muted">{p.ai_notice.message} Set up an AI in Settings, then use AI → Direct the whole video again.</div></div>
+          <div className="grow"><strong>The built-in rules directed this video</strong><div className="small muted">{p.ai_notice.message} Try AI → Direct the whole video again, or check the AI in Settings. Details → AI conversations shows what it answered.</div></div>
           <Link className="btn sm" to="/settings">Settings</Link>
         </div>
       )}

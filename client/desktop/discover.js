@@ -23,7 +23,7 @@ function broadcasts() {
   return [...out];
 }
 
-/** [{name, url, version, needs_pairing}] for every server that answers within `ms`. */
+/** [{name, url, version}] for every server that answers within `ms`. */
 function find(ms = 2000, targets = broadcasts(), port = UDP_PORT) {
   return new Promise((resolve) => {
     const found = new Map();
@@ -35,7 +35,7 @@ function find(ms = 2000, targets = broadcasts(), port = UDP_PORT) {
         const c = JSON.parse(String(msg));
         if (c.app !== "video-tool" || !Number.isInteger(c.port)) return;
         const url = `http://${rinfo.address}:${c.port}`;
-        if (!found.has(url)) found.set(url, { name: String(c.name || rinfo.address), url, version: String(c.version || ""), needs_pairing: !!c.needs_pairing });
+        if (!found.has(url)) found.set(url, { name: String(c.name || rinfo.address), url, version: String(c.version || "") });
       } catch { /* not ours */ }
     });
     s.bind(0, () => {
@@ -64,7 +64,7 @@ function probe(address, ms = 4000) {
       res.on("end", () => {
         try {
           const c = JSON.parse(body);
-          resolve(c.app === "video-tool" ? { name: c.name || url, url, needs_pairing: !!c.needs_pairing } : null);
+          resolve(c.app === "video-tool" ? { name: c.name || url, url } : null);
         } catch { resolve(null); }
       });
     });

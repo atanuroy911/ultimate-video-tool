@@ -127,6 +127,15 @@ def _progress_runner(fn):
         return fn(cb)
 
 
+@app.command("rules")
+def rules() -> None:
+    """The house rules every video follows (vt/house_rules.py): what the AI is told and the video that taught it."""
+    from . import house_rules
+
+    for r in house_rules.listing():
+        typer.echo(f"{r['id']} [{', '.join(r['scopes'])}]\n  {r['say']}\n  why: {r['why']}")
+
+
 @app.command()
 def new(title: str = typer.Argument(..., help="Video title"),
         audio: Path = typer.Option(..., "--audio", "-a", exists=True, dir_okay=False, help="Voice recording (wav/mp3/m4a/webm)"),
@@ -137,10 +146,16 @@ def new(title: str = typer.Argument(..., help="Video title"),
         music: Optional[str] = typer.Option(None, "--music", help="bundled track id (see `vt music`)"),
         fillers: bool = typer.Option(True, "--fillers/--keep-fillers", help="remove um/uh and repeated words"),
         model: str = typer.Option("bn-medium", "--asr", help="bn-medium | large-v3 | medium | small"),
-        director: str = typer.Option("best", "--director", help="best | local | claude-server | claude@DEVICE")) -> None:
+        director: str = typer.Option("best", "--director", help="best | local | claude-server | claude@DEVICE"),
+        srt: Optional[Path] = typer.Option(None, "--srt", exists=True, dir_okay=False, help="the recording's own .srt: its words and timing are used, no speech recognition")) -> None:
     """Create a project from a recording."""
     opts = {"remove_fillers": fillers, "asr_model": model, "music": music, "director": director}
     proj = Project.create(title, audio, language=language, aspect=aspect, theme=theme, pace=pace, options=opts)
+    if srt:
+        from .ingest import attach_subtitles
+
+        got = attach_subtitles(proj, srt, language)
+        console.print(f"Subtitles: {got['lines']} lines, {got['words']} words ({got['language']}); speech recognition is skipped")
     console.print(f"[green]Created[/green] {proj.id}\nNext: vt run {proj.id}")
 
 
@@ -185,10 +200,12 @@ def script(title: str = typer.Argument(..., help="Video title"),
 
 
 @app.command("directors")
-def list_directors() -> None:
-    """Show who can direct a video now and the fallback order."""
-    from .directors import listing
+def list_directors(model: Optional[str] = typer.Option(None, "--model", help="which Claude directs: sonnet (faster) or opus (slower, the most careful); saved like the Settings page does")) -> None:
+    """Show who can direct a video now and the fallback order; with --model, choose which Claude directs."""
+    from .directors import listing, save_settings
 
+    if model is not None:
+        console.print(f"Claude will direct with [bold]{save_settings(model=model)['director_model']}[/bold] from the next video.")
     data = listing()
     for d in data["directors"]:
         console.print(f"[{'green' if d['available'] else 'yellow'}]{'ready' if d['available'] else 'not ready':<9}[/] {d['id']:<24} {d['label']} — {d['note']}")
@@ -268,6 +285,24 @@ def plan_request(project: str, scene: Optional[str] = typer.Option(None, "--scen
 
 
 @app.command()
+def check(project: str, aspect: str = typer.Option("project", "--aspect")) -> None:
+    """HyperFrames' pre-flight on the composition: script errors, missing files, text leaving the picture, unreadable text (no render, about 2 seconds)."""
+    from .compose import FORMATS
+    from .pipeline import compose_all
+    from .render.hyperframes import check as hf_check
+
+    p = _project(project)
+    compose_all(p)
+    a = p.meta().aspect if aspect == "project" else aspect
+    r = hf_check(p.comp_dir / FORMATS[a]["tag"])
+    if r.get("unavailable"):
+        console.print(f"[yellow]The check could not run:[/] {r['unavailable']}")
+    console.print(f"{'OK' if r['ok'] else 'PROBLEMS'}: {r['errors']} error(s), {r['warnings']} warning(s)")
+    for i in r["issues"]:
+        console.print(f"  [{i['severity']}] {i['area']} @ {i['time']}s: {i['message'][:140]}")
+
+
+@app.command()
 def snapshot(project: str, at: str = typer.Option("1,5", "--at", help="comma-separated seconds"),
              aspect: str = typer.Option("project", "--aspect")) -> None:
     """Save PNG frames of the composition (for a quick look without rendering)."""
@@ -288,7 +323,7 @@ ENGINE_CHOICE = "auto = use one already running here, else our own copy if insta
 
 
 @app.command()
-def server(host: str = typer.Option("0.0.0.0", help="0.0.0.0 = other computers may connect (with the pairing code); 127.0.0.1 = this computer only"),
+def server(host: str = typer.Option("0.0.0.0", help="0.0.0.0 = other computers on this network may connect, by the address printed below; 127.0.0.1 = this computer only"),
            port: Optional[int] = typer.Option(None, help="default 8765, or the next free port when something else has it"),
            name: str = typer.Option("", help="a name for this computer, shown to the one that pairs"),
            ollama: str = typer.Option("auto", help=ENGINE_CHOICE), comfy: str = typer.Option("auto", help="as --ollama"),
@@ -296,6 +331,7 @@ def server(host: str = typer.Option("0.0.0.0", help="0.0.0.0 = other computers m
            ollama_url: str = typer.Option("", help="an Ollama that is not on its usual port"),
            comfy_url: str = typer.Option("", help="ComfyUI address(es), comma-separated: the first is the main server, the rest are workers"),
            voicestudio_url: str = typer.Option("", help="a VoiceStudio that is not on its usual port"),
+           gpus: str = typer.Option("", "--gpus", help="the graphics cards Video Tool may use: numbers separated by commas, all, or none. Saved: the Server page shows and changes it too"),
            open_ui: bool = typer.Option(False, "--open", help="open the Studio in this computer's browser"),
            start_at_login: bool = typer.Option(False, "--start-at-login", help="also start this server by itself from now on, the same way (Engines page: This server)")) -> None:
     """Run Video Tool: the Studio, the pipeline and the engines on one port. Other computers pair once with the printed code.
@@ -304,6 +340,14 @@ def server(host: str = typer.Option("0.0.0.0", help="0.0.0.0 = other computers m
     """
     from .engines import placement
 
+    if gpus.strip():
+        from . import gpuassign
+
+        try:
+            gpuassign.change({"allowed": _spec(gpus)}, background=False)
+        except ValueError as e:
+            raise typer.BadParameter(str(e))
+    _fence()
     if comfy == "auto" and not comfy_url:
         comfy_url = _first_run_comfy()
     console.print("Engines:")
@@ -316,6 +360,25 @@ def server(host: str = typer.Option("0.0.0.0", help="0.0.0.0 = other computers m
     for e, p in placed.items():
         again += [f"--{e}", p.source] + ([f"--{e}-url", ",".join(p.urls())] if p.source == "existing" else [])
     _serve(host, port, name, {e: p.url for e, p in placed.items() if p.source != "off"}, open_ui, again, start_at_login)
+
+
+_fenced = False
+
+
+def _fence() -> None:
+    """The first thing `vt server` and `vt studio` do: fence this program, and everything it starts, to the graphics cards the person allowed (Server page, `vt gpu allow`)."""
+    global _fenced
+    if _fenced:
+        return
+    _fenced = True
+    from . import gpuassign
+
+    if not gpuassign.apply() and not gpuassign.blocked():
+        return                                                              # no NVIDIA card here, or nothing to go by: nothing to say
+    d = gpuassign.describe()
+    console.print("Graphics cards Video Tool may use: " + (", ".join(f"{c['index']} {c['name']}" for c in d["cards"] if c["allowed"]) or "none (the processor does the work)"))
+    if d["needs_choice"]:
+        console.print("  [yellow]Nobody has chosen yet, so it uses this one card only. Choose on the Server page, or with: vt gpu allow <cards|all|none>[/yellow]")
 
 
 def _free_port(port: Optional[int], host: str) -> int:
@@ -345,6 +408,7 @@ def _serve(host: str, port: Optional[int], name: str, services: dict[str, str], 
 
     import uvicorn
 
+    _fence()
     from .engines import hub
     from .server import serve
     from .server.app import app as studio_app
@@ -352,8 +416,7 @@ def _serve(host: str, port: Optional[int], name: str, services: dict[str, str], 
     port = _free_port(port, host)
     exposed = host not in serve.LOOPBACK
     ident = hub.identity()
-    code = hub.new_code() if exposed else ""
-    serve.configure(key=ident["key"], code=code, name=name or ident.get("name", "") or "Video Tool", services=services, exposed=exposed,
+    serve.configure(key=ident["key"], name=name or ident.get("name", "") or "Video Tool", services=services, exposed=exposed,
                     argv=again + ["--port", str(port)] if again else None)
     serve.STATE["port"] = port                                       # for addresses handed to assistants on other computers (prepare_upload)
     if start_at_login:
@@ -363,7 +426,7 @@ def _serve(host: str, port: Optional[int], name: str, services: dict[str, str], 
     if exposed:
         for a in hub.address_hints(port):
             console.print(f"  Address: {a}")
-        console.print(f"  Pairing code (works once): [bold]{code}[/bold]    (a new one: Engines page, This server)")
+        console.print("  Other computers on this network connect with one of these addresses. Nothing else is needed.")
     else:
         console.print(f"  This computer only: http://127.0.0.1:{port}")
     announcer = None
@@ -442,7 +505,7 @@ def servers(timeout: float = 2.0, as_json: bool = typer.Option(False, "--json"))
     if not found:
         console.print("No Video Tool server answered. If one runs, type its address in the Studio (it is printed where the server started).")
     for s in found:
-        console.print(f"  {s['name']}  {s['url']}" + ("  (needs pairing)" if s["needs_pairing"] else ""))
+        console.print(f"  {s['name']}  {s['url']}")
 
 
 @app.command()
@@ -526,6 +589,7 @@ def engine_run(host: str = "0.0.0.0", port: int = 8790, name: str = typer.Option
     """Start the services, then offer them to other computers. Prints the address and a one-time pairing code; stays running."""
     import uvicorn
 
+    _fence()                                                                # the services it starts keep to the graphics cards the person allowed
     from .engines import hub
     from .engines.server import create_app
 
@@ -751,6 +815,152 @@ def models_pull(key: str) -> None:
 
     _progress_runner(lambda cb: asr.ensure_model(key, cb))
     console.print(f"[green]{key} ready[/green] at {asr.model_dir(key)}")
+
+
+def _bar(percent, width=22):
+    p = 0 if percent is None else max(0.0, min(100.0, float(percent)))
+    n = round(p / 100 * width)
+    return "|" + "#" * n + "." * (width - n) + "|"
+
+
+@app.command("system")
+def system_cmd(watch: bool = typer.Option(False, "--watch", "-w", help="keep refreshing every 2 seconds (Ctrl+C stops)"),
+               as_json: bool = typer.Option(False, "--json", help="print the raw numbers")) -> None:
+    """How busy this computer is: processor, memory, disk, every graphics card, and which one Video Tool is using. Same numbers as the Studio's System panel."""
+    import time
+
+    from . import sysstats
+
+    while True:
+        s = sysstats.snapshot()
+        if as_json:
+            console.print_json(json.dumps(s))
+        else:
+            if watch:
+                console.clear()
+            c, m, d = s["cpu"], s["memory"], s["disk"]
+            console.print(f"[bold]{s['host']['name']}[/bold]  {s['host']['os']}")
+            console.print(f"  Processor  {_bar(c['percent'])} {c['percent']}%   {c['model']}, {c['cores']} threads   (Video Tool: {c['video_tool_percent']}%)")
+            console.print(f"  Memory     {_bar(m['percent'])} {m['used_gb']} of {m['total_gb']} GB   (Video Tool: {m['video_tool_gb']} GB)")
+            console.print(f"  Disk       {_bar(d['percent'])} {d['free_gb']} GB free of {d['total_gb']} GB   {d['path']}")
+            for g in s["gpus"]:
+                use = "Video Tool can use it" if g["usable_by_video_tool"] else "kept free for other programs"
+                console.print(f"  GPU {g['index']}     {_bar(g['percent'])} {g['percent']}%   memory {g['memory_used_gb']}/{g['memory_total_gb']} GB   {g['temperature_c']} C   {g['name']}   [dim]{use}[/dim]")
+                for p in g["programs"]:
+                    console.print(f"            {p['label']}  {p['gb']} GB{'  (Video Tool)' if p['ours'] else ''}")
+            e = s["engines"]
+            if "comfy" in e:
+                console.print(f"  ComfyUI    {'draws on ' + ', '.join(x['name'] or '?' for x in e['comfy'].get('gpus', [])) if e['comfy'].get('ok') else 'not answering'}")
+            if "ollama" in e:
+                loaded = ", ".join(f"{x['model']} ({x['gb_on_card']} GB on the card)" for x in e["ollama"].get("loaded", [])) if e["ollama"].get("ok") else "not answering"
+                console.print(f"  Ollama     {loaded or 'nothing loaded'}")
+        if not watch:
+            return
+        try:
+            time.sleep(2)
+        except KeyboardInterrupt:
+            return
+
+
+gpu_app = typer.Typer(help="Which graphics card each of Video Tool's own jobs uses (rendering, speech recognition).")
+app.add_typer(gpu_app, name="gpu")
+
+
+@gpu_app.callback(invoke_without_command=True)
+def gpu_show(ctx: typer.Context) -> None:
+    """Show the cards and the card each job uses now. Change with: vt gpu set render 1"""
+    if ctx.invoked_subcommand:
+        return
+    from . import gpuassign
+
+    d = gpuassign.describe()
+    for c in d["cards"]:
+        busy = ", ".join(f"{p['label']} {p['gb']} GB" for p in c["using"] if not p["ours"])
+        console.print(f"  {c['index']}  {c['name']}   {c['free_gb']} of {c['total_gb']} GB free, {c['load']:.0f}% load   {'[green]Video Tool may use it[/green]' if c['allowed'] else '[dim](Video Tool does not use it)[/dim]'}" + (f"   [dim]in use by {busy}[/dim]" if busy else ""))
+    if d["needs_choice"]:
+        console.print("  [yellow]Nobody has chosen which cards Video Tool may use, so it uses one card only. Choose with: vt gpu allow 1   (or: vt gpu allow all)[/yellow]")
+    console.print(f"  Chosen: primary = {d['saved']['primary']}, rendering = {d['saved']['render']}, speech recognition = {d['saved']['speech']}")
+    for j, label in (("render", "Rendering"), ("speech", "Speech recognition")):
+        v = d["jobs"][j]
+        console.print(f"  {label:20} uses GPU {v['index']} {v['name']}   [dim]{v['why']}[/dim]")
+    for e in d["engines"]:
+        console.print(f"  [{'yellow' if e['offer_own'] else 'dim'}]{e['message']}[/]" + (f"  [bold]Use Video Tool's own copy: vt gpu own {e['id']}[/bold]" if e["offer_own"] and e["own_installed"] else ""))
+
+
+@gpu_app.command("allow")
+def gpu_allow(cards: list[str] = typer.Argument(..., help="the cards Video Tool may use (index, name or uuid), or 'all', or 'none'")) -> None:
+    """Choose the cards Video Tool may use, for example: vt gpu allow 1   or   vt gpu allow 0 1   or   vt gpu allow none (the processor does the work). Nothing else is ever used."""
+    from . import gpuassign
+
+    try:
+        moved = gpuassign.change({"allowed": [] if [x.lower() for x in cards] == ["none"] else cards}, background=False)
+    except ValueError as e:
+        raise typer.BadParameter(str(e))
+    d = gpuassign.describe()
+    console.print("Video Tool may use: " + (", ".join(f"{c['index']} {c['name']}" for c in d["cards"] if c["allowed"]) or "no card (the processor)") + ". A running server needs a restart to apply this to programs it has already started.")
+    for e in moved:
+        console.print(f"  Video Tool's own {e} was restarted on its new card.")
+
+
+def _spec(text: str) -> list[str] | str:
+    """What a person typed for the cards: 'none' is the empty list, anything else goes to gpuassign as it is ('all', or numbers, names and uuids separated by commas or spaces)."""
+    return [] if text.strip().lower() == "none" else text
+
+
+@gpu_app.command("setup")
+def gpu_setup(gpus: str = typer.Option("", "--gpus", help="the cards Video Tool may use: numbers separated by commas, all, or none"),
+              ask: Optional[bool] = typer.Option(None, "--ask/--no-ask", help="ask in this terminal when there are two or more cards and nobody has chosen (default: only when there is a terminal)")) -> None:
+    """The setup question for a terminal (used by the install scripts and Docker): with two or more graphics cards, which may Video Tool use? A flag answers it; otherwise it
+    asks when a person is there, and when nobody is it keeps the safe default (one card only) and says how to change it. With one card it only says which it uses."""
+    from . import gpuassign
+
+    try:
+        if gpus.strip():
+            gpuassign.change({"allowed": _spec(gpus)}, background=False)
+        elif gpuassign.needs_choice() and (sys.stdin.isatty() if ask is None else ask):
+            d = gpuassign.describe()
+            console.print("This computer has more than one graphics card:")
+            for c in d["cards"]:
+                busy = ", ".join(f"{p['label']} {p['gb']} GB" for p in c["using"] if not p["ours"])
+                console.print(f"  {c['index']}  {c['name']}   {c['free_gb']} of {c['total_gb']} GB free" + (f"   in use by {busy}" if busy else ""))
+            answer = typer.prompt("Which may Video Tool use? Numbers separated by commas, 'all', or 'none'. Press Enter for one card only", default="", show_default=False)
+            if answer.strip():
+                gpuassign.change({"allowed": _spec(answer)}, background=False)
+    except ValueError as e:
+        raise typer.BadParameter(str(e))
+    d = gpuassign.describe()
+    if not d["cards"]:
+        console.print("No NVIDIA graphics card here: the processor does everything.")
+        return
+    console.print("Video Tool may use: " + (", ".join(f"{c['index']} {c['name']}" for c in d["cards"] if c["allowed"]) or "no card (the processor does everything)") + ".")
+    if d["needs_choice"]:
+        console.print("  Nobody has chosen, so it uses this one card only. To choose: vt gpu allow <cards|all|none>, or on the Server page.")
+
+
+@gpu_app.command("own")
+def gpu_own(engine: str = typer.Argument(..., help="ollama or comfy")) -> None:
+    """Use Video Tool's own copy of Ollama or ComfyUI instead of the one that was already running (that one is left exactly as it is). It starts on the card chosen for it."""
+    from .engines import where
+
+    try:
+        got = where.use_own(engine, say=console.print)
+    except ValueError as e:
+        raise typer.BadParameter(str(e))
+    console.print(f"{engine}: {got['source']} at {got['url']}  [dim]{got['note']}[/dim]")
+
+
+@gpu_app.command("set")
+def gpu_set(job: str = typer.Argument(..., help="primary, render or speech"), card: str = typer.Argument(..., help="a card (index, name or uuid); 'auto' for primary, 'primary' for a job")) -> None:
+    """Choose the card for a job, for example: vt gpu set render 1   or   vt gpu set primary auto"""
+    from . import gpuassign
+
+    try:
+        moved = gpuassign.change({job: card}, background=False)
+    except ValueError as e:
+        raise typer.BadParameter(str(e))
+    console.print(f"{job} -> {card}")
+    for e in moved:
+        console.print(f"  Video Tool's own {e} was restarted on its new card.")
 
 
 @app.command()

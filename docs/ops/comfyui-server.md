@@ -2,6 +2,8 @@
 
 One Linux machine hosts ComfyUI (video generation), Ollama (text and vision models), Open WebUI (chat), and unrelated containers. This page is how ComfyUI is laid out after the 2026-10-26 rebuild, so it can be repeated, updated and rolled back. No passwords are kept here.
 
+> **Update 2026-11-06:** the service now runs on the RTX 3060. Its drop-in sets `CUDA_VISIBLE_DEVICES=1` with `CUDA_DEVICE_ORDER=PCI_BUS_ID`, and `/system_stats` says "NVIDIA GeForce RTX 3060". The V100 sections below describe how it was set up on 2026-10-26 and are kept for the Volta notes (PyTorch build, no bf16/fp8).
+
 ## Hardware that decides everything
 | | |
 |---|---|

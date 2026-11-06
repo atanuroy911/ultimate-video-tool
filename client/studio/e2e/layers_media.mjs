@@ -28,7 +28,7 @@ function wav(seconds, hz) {
 fs.writeFileSync(path.join(tmp, "blue.png"), png(64, 36, [30, 120, 220]));
 fs.writeFileSync(path.join(tmp, "tone.wav"), wav(2, 440));
 
-const browser = await chromium.launch({ executablePath: chromePath() });
+const browser = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 const page = await (await browser.newContext({ viewport: { width: 1500, height: 950 } })).newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push("pageerror: " + e.message));

@@ -98,7 +98,7 @@ RULES: list[dict[str, Any]] = [
     {"area": "pacing", "id": "pacing.one_at_a_time", "measured": True, "source": "i-hate-editing rules/motion.md",
      "rule": "Never reveal two independent things at the same moment: one thing, a short pause (at least 0.35 s), then the next.",
      "why": "The eye cannot track both, so it tracks neither."},
-    {"area": "pacing", "id": "pacing.dwell", "measured": False, "source": "i-hate-editing rules/motion.md",
+    {"area": "pacing", "id": "pacing.dwell", "measured": True, "source": "i-hate-editing rules/motion.md",
      "rule": "Everything placed on screen stays at least 1.5 s and at most 3 s as the main thing, except the final card. Text and cards over a "
              "picture leave after their sentence and a full-frame card in a video with pictures hands the frame back to a picture (the composer "
              "does both); give an element `until_word` to choose its exit word yourself.",
@@ -112,7 +112,7 @@ RULES: list[dict[str, Any]] = [
     {"area": "pacing", "id": "pacing.breath", "measured": False, "source": "lemo-opuscar DIRECTOR.md §7",
      "rule": "Vary the pace: alternate fast and slow, one clear acceleration or slow-down, and one held breath before the turn or the peak.",
      "why": "A film at one even speed has failed."},
-    {"area": "pacing", "id": "pacing.read_time", "measured": False, "source": "lemo-opuscar DIRECTOR.md §7",
+    {"area": "pacing", "id": "pacing.read_time", "measured": True, "source": "lemo-opuscar DIRECTOR.md §7",
      "rule": "Text that is meant to be read stays at least (letters / 15 + 1.5) s after it finishes arriving (English); a title card at least 4 s "
              "unless the voice reads it; fast comes from fewer words per screen, never from cutting before people finish reading.",
      "why": "Text cut before it is read is noise."},
@@ -132,7 +132,7 @@ RULES: list[dict[str, Any]] = [
     {"area": "captions", "id": "captions.timing", "measured": False, "source": "i-hate-editing rules/captions.md",
      "rule": "A caption line appears just after its first word is heard, never before. One emphasis word per line at most, larger and in the accent.",
      "why": "Early captions read as broken sync; when everything is emphasised nothing is."},
-    {"area": "captions", "id": "captions.safe", "measured": False, "source": "faceless-shorts brand.md; i-hate-editing rules/framing.md",
+    {"area": "captions", "id": "captions.safe", "measured": True, "source": "faceless-shorts brand.md; i-hate-editing rules/framing.md",
      "rule": "On 9:16 keep captions centred near 78 % of the height; nothing important in the bottom 340 px or the right 160 px (platform buttons).",
      "why": "The platform's own interface covers those areas."},
     # motion
@@ -179,7 +179,7 @@ def brief() -> str:
 
 
 # ----------------------------------------------------------------------------- reading a plan
-HIDDEN = {"type", "at_word", "id", "emoji", "name", "style", "color", "src", "media", "props", "set", "pose", "expression", "who", "icon", "shape"}
+HIDDEN = {"type", "at_word", "id", "world", "framing", "lighting", "camera", "emoji", "name", "style", "color", "src", "media", "props", "set", "pose", "expression", "who", "icon", "shape"}
 SHOWN_NUMBERS = {"value", "values", "number", "percent", "amount", "price", "n", "target", "count"}     # numeric fields that are drawn as figures
 CODE = re.compile(r"^[0-9a-f]{4,6}(-[0-9a-f]{4,6})*$")                                                   # an emoji code, not text
 
@@ -313,7 +313,7 @@ SIMILE = re.compile(r"\b(like (?:a|an|the|moths|ghosts|stars)\b|as if|as though)
 
 WRITING = re.compile(r"\b(newspapers?|front page|headlines?|calendars?|signs?|signboards?|posters?|banners?|screens?|monitors?|labels?|menus?|"
                      r"documents?|forms?|letters?|receipts?|invoices?|charts?|graphs?|counters?|scoreboards?|price tags?)\b", re.I)
-HIDDEN = re.compile(r"\b(closed|folded|from the side|far away|in the distance|blank|turned away|face down|blurred)\b", re.I)
+OUT_OF_SIGHT = re.compile(r"\b(closed|folded|from the side|far away|in the distance|blank|turned away|face down|blurred)\b", re.I)
 
 
 def drawable_problems(draws: list[tuple[str, str]]) -> list[dict]:
@@ -325,7 +325,7 @@ def drawable_problems(draws: list[tuple[str, str]]) -> list[dict]:
             out.append({"shot": sid, "says": f"Shot {sid} says '{m.group(0)}': picture models drop it and paint the opposite.",
                         "fix": "Say what is visible instead ('pitch black', 'an empty table')."})
         m = WRITING.search(draw or "")
-        if m and not HIDDEN.search(draw or ""):
+        if m and not OUT_OF_SIGHT.search(draw or ""):
             out.append({"shot": sid, "says": f"Shot {sid} shows a {m.group(0)}: models scribble garbled letters on anything that carries writing.",
                         "fix": "Choose another object, or show it closed, from the side or far away."})
         m = SIMILE.search(draw or "")
@@ -443,6 +443,48 @@ def check(project) -> dict[str, Any]:
             bad("pacing.variety", 0.0, 0.0, f"Four '{sc.layout}' scenes in a row (up to {sc.id}).", "Change the form of one: a list, a big number, a full-frame picture.", "minor")
     if not any(x["rule"] == "pacing.variety" for x in v):
         passed.append("pacing.variety")
+    # pacing.dwell / pacing.read_time ---------------------------------------------------------------------------------------------------------
+    kept_words = sorted(words.values(), key=lambda w: w.start)
+    beat_end = {b.id: b.end for b in beats.beats}
+    for i, sc in enumerate(sf.scenes):
+        last_scene = i == len(sf.scenes) - 1
+        scene_end = max([beat_end[b] for b in sc.beats if b in beat_end], default=0.0)
+        for e in sc.elements:
+            w = words.get(getattr(e, "at_word", None))
+            if w is None or getattr(e, "type", "") == "cartoon":
+                continue
+            t0 = e.start if e.start is not None else w.start
+            u = words.get(getattr(e, "until_word", None) or "")
+            t1 = e.end if e.end is not None else (u.end if u else scene_end)
+            if t1 <= t0:
+                continue
+            if t1 - t0 < 1.5 and not last_scene:
+                bad("pacing.dwell", t0, t1, f"Scene {sc.id}: a {getattr(e, 'type', 'element')} is on screen for only {t1 - t0:.1f} s.", "Keep it at least 1.5 s, or drop it.", "minor")
+            d = e.model_dump()
+            text = " ".join(str(d[k]) for k in ("text", "label", "title", "caption", "quote") if isinstance(d.get(k), str) and d[k])
+            letters = sum(c.isalnum() for c in text)
+            need = letters / 15 + 1.5
+            said = {T.norm(x.text) for x in kept_words if t0 - 1 <= x.start <= t1 + 1}
+            on_screen = [T.norm(x) for x in text.split()]
+            if letters and t1 - t0 < need and not all(x in said for x in on_screen):
+                bad("pacing.read_time", t0, t1, f"Scene {sc.id}: '{text[:40]}' needs {need:.1f} s to read and gets {t1 - t0:.1f} s, and the voice does not say it.", "Use fewer words or keep it longer.", "minor")
+    for rule in ("pacing.dwell", "pacing.read_time"):
+        if not any(x["rule"] == rule for x in v):
+            passed.append(rule)
+    # captions.safe -------------------------------------------------------------------------------------------------------------------------
+    if meta.aspect == "9:16":
+        for sc in sf.scenes:
+            at = next((words[i].start for b in beats.beats if b.id in sc.beats for i in b.word_ids if i in words), 0.0)
+            if sc.caption.y is not None and sc.caption.y > 1 - 340 / 1920:
+                bad("captions.safe", at, at + 1, f"Scene {sc.id}: its captions sit in the bottom 340 px, under the platform's buttons.", "Move them up.")
+            for e in sc.elements:
+                x, y = getattr(e, "x", None), getattr(e, "y", None)
+                if getattr(e, "type", "") != "cartoon" and ((x is not None and x > 1 - 160 / 1080) or (y is not None and y > 1 - 340 / 1920)):
+                    bad("captions.safe", at, at + 1, f"Scene {sc.id}: a {getattr(e, 'type', 'element')} is centred under the platform's buttons.", "Move it away from the bottom 340 px and the right 160 px.", "minor")
+        if not any(x["rule"] == "captions.safe" for x in v):
+            passed.append("captions.safe")
+    else:
+        passed.append("captions.safe")
     # captions.chunks ---------------------------------------------------------------------------------------------------------------------
     for c in build_caption_chunks(kept, 4, 28, set()):
         ws = [w["text"] for w in c["words"]]

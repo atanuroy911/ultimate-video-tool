@@ -74,7 +74,9 @@ def from_audio(wav: Path, progress: Optional[Callable[[str, float, str], None]] 
     path = asr.ensure_model(key, noop)
     cuda = asr.cuda_available()
     try:
-        wm = WhisperModel(str(path), device="cuda" if cuda else "cpu", compute_type="float16" if cuda else "int8")
+        from . import gpuassign
+
+        wm = WhisperModel(str(path), device="cuda" if cuda else "cpu", device_index=gpuassign.cuda_index("speech") if cuda else 0, compute_type="float16" if cuda else "int8")
     except Exception:
         wm = WhisperModel(str(path), device="cpu", compute_type="int8")
     _, _, probs = wm.detect_language(audio=seg, vad_filter=False)

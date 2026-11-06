@@ -7,7 +7,8 @@ from pydantic import BaseModel, Field
 
 from ..registry import Cost, Example, module
 from ..workspace import Workspace
-from .pipeline_stages import StageIn, StageOut
+from .pipeline_stages import STAGE_DONE, StageIn, StageOut
+
 
 
 _ALIASES = (
@@ -39,7 +40,7 @@ def _register_alias(module_id: str, stage: str, requires: tuple[str, ...],
         fallback_reason="This adapter calls the existing stage, including its established fallback behavior.",
         examples=(Example(inputs={"force": False}, outputs={"stage": stage}),),
         toolboxes=("autonomous", "studio", "full"), plain_name=summary.rstrip("."),
-        log_line=lambda i, o: f"Completed the {o.stage} stage.", native_outputs=True,
+        log_line=lambda i, o: STAGE_DONE.get(o.stage, f"Finished: {o.stage}"), native_outputs=True,
     )
     def run_stage(ws: Workspace, inputs: StageIn) -> StageOut:
         from ...pipeline import Pipeline

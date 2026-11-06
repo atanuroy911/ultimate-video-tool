@@ -20,7 +20,7 @@ from pathlib import Path
 
 _BUNDLED_MANIFEST = Path(__file__).resolve().with_name("model-manifest.json")
 DEFAULT_MANIFEST = (_BUNDLED_MANIFEST if _BUNDLED_MANIFEST.exists()
-                    else Path(__file__).resolve().parents[1] / "assets" / "comfy" / "model-manifest.json")
+                    else Path(__file__).resolve().parents[1] / "server" / "assets" / "comfy" / "model-manifest.json")
 CHUNK = 8 * 1024 * 1024
 
 

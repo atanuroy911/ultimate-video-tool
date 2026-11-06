@@ -8,7 +8,7 @@ from ..util import read_json, write_json
 from . import hardware, installers, registry, store
 from .model import Endpoint
 
-STEPS = ["welcome", "storage", "choose", "connect", "install", "try", "done"]
+STEPS = ["welcome", "storage", "choose", "cards", "connect", "install", "try", "done"]
 CHOICES = ("local", "remote", "off")
 ASKED = ("ollama", "comfy", "voicestudio")                     # the engines the wizard asks about; the Engine Server joins as a remote choice
 
@@ -18,7 +18,7 @@ def state() -> dict[str, Any]:
     return {"step": s.get("step", "welcome") if s.get("step") in STEPS else "welcome", "done": bool(s.get("done")), "choices": s.get("choices", {}), "bundles": s.get("bundles", ["pictures"]),
             "models_dir": (read_json(paths.SETTINGS, {}) or {}).get("models_dir", ""),
             "install_dir": (read_json(paths.SETTINGS, {}) or {}).get("install_dir", ""),
-            'gpu':(read_json(paths.SETTINGS,{}) or {}).get('setup_gpu')}
+            'gpu':pictures_card()}
 
 
 def save(*, step: Optional[str] = None, choices: Optional[dict[str, str]] = None, bundles: Optional[list[str]] = None, models_dir: Optional[str] = None, install_dir: Optional[str] = None, gpu: Optional[int] = None, done: Optional[bool] = None) -> dict[str, Any]:
@@ -41,9 +41,8 @@ def save(*, step: Optional[str] = None, choices: Optional[dict[str, str]] = None
         s["models_dir"] = storage_path(models_dir)
     if install_dir is not None:
         s['install_dir'] = storage_path(install_dir)
-    if gpu is not None:
-        if not isinstance(gpu,int) or not 0<=gpu<=16:raise ValueError('Choose a graphics card on the processing server.')
-        s['setup_gpu']=gpu
+    if gpu is not None and (not isinstance(gpu,int) or not 0<=gpu<=16):
+        raise ValueError('Choose a graphics card on the processing server.')            # a card for one install can still be named, but nothing is stored: the cards are chosen in vt/gpuassign.py
     s["setup"] = cur
     write_json(paths.SETTINGS, s)
     return state()
@@ -59,12 +58,45 @@ def storage_path(value):
     return str(path.resolve())
 
 
+def pictures_card() -> Optional[int]:
+    """The card our own picture engine is built for and started on: the one chosen for the "pictures" job (vt/gpuassign.py), None when there is none."""
+    try:
+        from .. import gpuassign
+
+        card, _ = gpuassign.resolve("pictures")
+        return card["index"] if card else None
+    except Exception:
+        return None
+
+
+def _recommended_gpu(hw: dict[str, Any]) -> Optional[int]:
+    """The newest card among those Video Tool may use (never one the person kept out of reach)."""
+    try:
+        from .. import gpuassign
+
+        may = {c['index'] for c in gpuassign.allowed()}
+        cards = [g for g in hw.get('gpus', []) if g.get('index') in may]
+    except Exception:
+        cards = hw.get('gpus', [])
+    return max(cards, key=lambda g: g['compute'], default={}).get('index')
+
+
+def _server_name() -> str:
+    """The name this server goes by (its --name), the same everywhere; the computer's name only when it has none."""
+    try:
+        from ..server.serve import STATE
+
+        return STATE.get("name") or socket.gethostname()
+    except Exception:
+        return socket.gethostname()
+
+
 def overview() -> dict[str, Any]:
     import socket
     from . import placement
     hw = hardware.detect()
     st = state()
-    return {**st, 'recommended_gpu':max(hw.get('gpus',[]),key=lambda g:g['compute'],default={}).get('index'), 'server':{'name':socket.gethostname(),'data_dir':str(paths.DATA),'os':__import__('platform').system()},
+    return {**st, 'recommended_gpu':_recommended_gpu(hw), 'server':{'name':_server_name(),'data_dir':str(paths.DATA),'os':__import__('platform').system()},
             'existing':{name:placement.find_existing(name) for name in ('comfy','ollama')},
             "hardware": hw, "recommended": {k:v for k,v in hardware.recommend(hw).items() if k in ASKED}, "engines": [{"id": e.id, "label": e.label, "about": e.about, "local_install": e.local_install, "installable": e.id in installers.INSTALLERS,
                                                                                   "mode": registry.endpoint(e.id).mode} for e in registry.engines() if e.id in ASKED],

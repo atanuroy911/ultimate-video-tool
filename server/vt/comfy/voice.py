@@ -21,6 +21,13 @@ def request_key(workflow: Workflow, text: str, instruction: str, ref_hash: str, 
     return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:20]
 
 
+def split_across_devices(message: str) -> bool:
+    """ComfyUI parked part of a model in system RAM to make room, and a node that reads its device from the first weight then fed CPU input to
+    GPU weights (Breeze TTS 2 after its first sentence, the owner's GPU server, 2026-11-04). Unloading the models and running again cures it."""
+    low = message.lower()
+    return ("should be the same" in low and "tensor" in low) or "expected all tensors to be on the same device" in low
+
+
 def speak(client: ComfyClient, workflow: Workflow, text: str, out_wav: Path, *, instruction: str = "", ref_audio: Optional[Path] = None, ref_text: str = "",
           seed: Optional[int] = 1, cache_dir: Optional[Path] = None, progress: Callable[[float, str], None] = lambda f, m: None,
           cancelled: Callable[[], bool] = lambda: False, timeout: float = 900.0, checked: bool = False) -> dict:
@@ -56,8 +63,16 @@ def speak(client: ComfyClient, workflow: Workflow, text: str, out_wav: Path, *, 
         values["ref_text"] = ref_text
     graph, used = patched_audio(workflow, values)
     progress(0.05, "Queued")
-    prompt_id = client.submit(graph)
-    entry = client.wait(prompt_id, lambda f, m: progress(0.1 + 0.8 * f, m), cancelled, timeout)
+    try:
+        prompt_id = client.submit(graph)
+        entry = client.wait(prompt_id, lambda f, m: progress(0.1 + 0.8 * f, m), cancelled, timeout)
+    except ComfyError as e:
+        if e.kind != "failed" or not split_across_devices(str(e)):
+            raise
+        client.free_memory()                                          # the model loads whole again; one retry
+        progress(0.05, "Reloading the voice model")
+        prompt_id = client.submit(graph)
+        entry = client.wait(prompt_id, lambda f, m: progress(0.1 + 0.8 * f, m), cancelled, timeout)
     files = output_files(entry, workflow.output) or output_files(entry)
     if not files:
         raise ComfyError("ComfyUI finished but produced no sound.", kind="failed", detail=entry.get("outputs"))

@@ -23,7 +23,7 @@ def card(port: int) -> dict[str, Any]:
     """What a server says about itself, here and in `GET /.well-known/video-tool`."""
     from .serve import STATE, VERSION
 
-    return {"app": "video-tool", "name": STATE["name"], "version": VERSION, "port": port, "needs_pairing": bool(STATE.get("exposed"))}
+    return {"app": "video-tool", "name": STATE["name"], "version": VERSION, "port": port}
 
 
 def _lan_ip() -> str:
@@ -72,7 +72,7 @@ class Announcer:
         host = socket.gethostname().split(".")[0] or "video-tool"
         label = f"{c['name']} ({host})"[:60].replace(".", " ")
         self._info = ServiceInfo(SERVICE, f"{label}.{SERVICE}", port=self.port, addresses=[socket.inet_aton(_lan_ip())],
-                                 properties={"name": c["name"], "version": c["version"], "pairing": "1" if c["needs_pairing"] else "0"},
+                                 properties={"name": c["name"], "version": c["version"]},
                                  server=f"{host}.local.")
         self._zc = Zeroconf()
         self._zc.register_service(self._info, allow_name_change=True)
@@ -123,8 +123,7 @@ def _udp(targets: Iterable[str], udp_port: int, until: float) -> list[dict]:
             except (OSError, ValueError):
                 continue
             if isinstance(c, dict) and c.get("app") == "video-tool" and isinstance(c.get("port"), int):
-                out.append({"name": str(c.get("name") or ip), "url": f"http://{ip}:{c['port']}", "version": str(c.get("version", "")),
-                            "needs_pairing": bool(c.get("needs_pairing")), "via": "broadcast"})
+                out.append({"name": str(c.get("name") or ip), "url": f"http://{ip}:{c['port']}", "version": str(c.get("version", "")), "via": "broadcast"})
     finally:
         s.close()
     return out
@@ -139,7 +138,7 @@ def _broadcasts() -> list[str]:
 
 
 def find(timeout: float = 2.0, *, udp_port: int = UDP_PORT, targets: Optional[Iterable[str]] = None, mdns: bool = True) -> list[dict]:
-    """Every Video Tool server that answers within `timeout`: [{name, url, version, needs_pairing, via}], one per address."""
+    """Every Video Tool server that answers within `timeout`: [{name, url, version, via}], one per address."""
     until = time.monotonic() + timeout
     heard: list[dict] = []
     zc = browser = None
@@ -167,7 +166,7 @@ def find(timeout: float = 2.0, *, udp_port: int = UDP_PORT, targets: Optional[It
             for ip in info.parsed_addresses():
                 if ":" not in ip:
                     heard.append({"name": props.get("name") or name.split(".")[0], "url": f"http://{ip}:{info.port}",
-                                  "version": props.get("version", ""), "needs_pairing": props.get("pairing") == "1", "via": "mdns"})
+                                  "version": props.get("version", ""), "via": "mdns"})
         zc.close()
     out: dict[str, dict] = {}
     for h in heard:

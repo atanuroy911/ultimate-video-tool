@@ -7,7 +7,7 @@ import { base, chromePath, repo } from "./common.mjs";
 const out = process.argv[2] || path.join(repo, "studio", "e2e", "out", "shots");
 fs.mkdirSync(out, { recursive: true });
 const pid = process.env.VT_PROJECT || "reference";
-const browser = await chromium.launch({ executablePath: chromePath() });
+const browser = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 const pages = [["projects", "/"], ["new", "/new"], ["review", `/p/${pid}`], ["export", `/p/${pid}/export`], ["themes", "/themes"], ["settings", "/settings"]];
 const sizes = [["wide", 1440, 900], ["narrow", 760, 900], ["phone", 390, 800]];
 const overflow = [];

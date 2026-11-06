@@ -49,9 +49,11 @@ class Embedder:
 
         path = ensure_model()
         self.torch = torch
-        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        from .. import gpu
+
+        self.device = device or gpu.torch_device()                       # the card chosen for speech and listening, or the processor
         self.tok = AutoTokenizer.from_pretrained(path)
-        self.model = AutoModel.from_pretrained(path, torch_dtype=torch.float16 if self.device == "cuda" else torch.float32).to(self.device).eval()
+        self.model = AutoModel.from_pretrained(path, torch_dtype=torch.float16 if self.device.startswith("cuda") else torch.float32).to(self.device).eval()
 
     def encode(self, texts: list[str], prefix: str = "query: ", batch: int = 256, max_len: int = 48) -> np.ndarray:
         torch = self.torch

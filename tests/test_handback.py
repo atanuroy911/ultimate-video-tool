@@ -68,7 +68,7 @@ def test_rendered_frame_after_the_exit_shows_the_picture(tmp_path):
     data["captions"] = []
     until = data["scenes"][0]["elements"][0]["until"]
     idx = write_composition(tmp_path / "comp", data, load_theme("paper"))
-    during, after = snapshot(idx.parent, tmp_path / "snap", [until - 0.4, until + 0.8])
+    during, after = snapshot(idx.parent, tmp_path / "snap", [until - 0.4, until + 0.8], gpu=False)      # never the graphics card of the computer running the tests
     blue = np.array([40, 120, 200])
 
     def off_picture(p: Path) -> float:                    # share of the frame's centre that is not the picture

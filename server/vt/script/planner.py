@@ -10,21 +10,24 @@ from .compile import to_json_schema
 from .models import VideoScript
 from .prompt import build_prompt
 from .rules_stick import emoji_script, rules_script
-from .validate import repair_script, validate_script
+from .repairs import repairer
+from .validate import validate_script
 
 
 def ai_script(tr: Transcript, beats: Beats, *, kind: str = "stick", language: str = "en", aspect: str = "9:16", audience: str = "", tone: str = "",
               draft: Optional[ScenesFile] = None, hint: str = "", media_ids: Optional[set[str]] = None, provider: Optional[ai.Provider] = None,
-              progress: Optional[Callable[[float, str], None]] = None) -> VideoScript:
-    """The AI's script, repaired. Raises ai.AIUnavailable when no valid script comes back (the caller then uses `rules_script`)."""
+              progress: Optional[Callable[[float, str], None]] = None, notes: Optional[list[dict]] = None) -> VideoScript:
+    """The AI's script, repaired. Raises ai.AIUnavailable when no valid script comes back (the caller then uses `rules_script`).
+    `notes` (when given) receives what the repair changed in the script that is used (script/repairs.py), so the caller can show it."""
     say = progress or (lambda f, m: None)
+    notes = notes if notes is not None else []
     icons = all_icon_names()
     schema = to_json_schema()
     base = rules_script(tr, beats, draft, kind=kind, language=language, aspect=aspect).model_dump(by_alias=True, exclude_none=True) if draft else None
     system, user = build_prompt(tr, beats, kind=kind, language=language, audience=audience, tone=tone, aspect=aspect, draft=base, hint=hint, schema=schema)
     say(0.1, "Asking the AI to direct the video")
     data = ai.complete_json(user, schema, system=system, provider=provider, max_tokens=8000, timeout=600, cache=True, retries=1,
-                            repair=lambda d: repair_script(d, tr, beats, kind),
+                            repair=repairer(tr, beats, kind, notes),
                             check=lambda d: validate_script(d, tr, beats, icons, media_ids))
     script = VideoScript.model_validate(data)
     script.kind = kind  # type: ignore[assignment]
@@ -40,8 +43,8 @@ def ai_script(tr: Transcript, beats: Beats, *, kind: str = "stick", language: st
         except Exception:
             pass
     who = (provider or ai.current_provider()).name
-    script.planner = "claude" if who in ("anthropic", "claude_cli") else "llm"
-    script = revise(script, tr, beats, system, schema, kind, icons, media_ids, provider, say)
+    script.planner = "claude" if who in ("anthropic", "claude-cli") else "llm"
+    script = revise(script, tr, beats, system, schema, kind, icons, media_ids, provider, say, notes)
     say(1.0, "Script ready")
     return script
 
@@ -49,7 +52,7 @@ def ai_script(tr: Transcript, beats: Beats, *, kind: str = "stick", language: st
 REVISE_ROUNDS = 2
 
 
-def revise(script: VideoScript, tr: Transcript, beats: Beats, system: str, schema: dict, kind: str, icons, media_ids, provider, say) -> VideoScript:
+def revise(script: VideoScript, tr: Transcript, beats: Beats, system: str, schema: dict, kind: str, icons, media_ids, provider, say, notes: Optional[list[dict]] = None) -> VideoScript:
     """The editor's notes go back to the director: the critic's scene-by-scene issues, at most REVISE_ROUNDS times, and a revision
     is kept only when the critic likes it better. Any failure keeps the script we have (it is already valid)."""
     import json
@@ -66,9 +69,10 @@ def revise(script: VideoScript, tr: Transcript, beats: Beats, system: str, schem
                 + "\n\nAn experienced editor watched it and wrote these notes:\n" + notes
                 + "\n\nReturn the whole script as JSON with these notes fixed. Change only the scenes named in the notes; keep every beat, "
                   "word id and the order of scenes exactly as they are. Do not invent facts that are not in the words.")
+        mine: list[dict] = []
         try:
             data = ai.complete_json(user, schema, system=system, provider=provider, max_tokens=8000, timeout=600, cache=True, retries=1,
-                                    repair=lambda d: repair_script(d, tr, beats, kind),
+                                    repair=repairer(tr, beats, kind, mine),
                                     check=lambda d: validate_script(d, tr, beats, icons, media_ids))
             cand = VideoScript.model_validate(data)
             cand.kind, cand.planner = best.kind, best.planner
@@ -78,6 +82,8 @@ def revise(script: VideoScript, tr: Transcript, beats: Beats, system: str, schem
         if rv2["score"] <= rv["score"]:
             break
         best, rv = cand, rv2
+        if notes is not None:
+            notes[:] = mine                                                         # the revision is the script now: its repairs are the ones to show
     return best
 
 

@@ -67,20 +67,21 @@ function status() {
   });
 }
 
-/** remote = {url, token}: the server's /mcp and a key the server made for this assistant. */
+/** remote = {url, token?}: the server's /mcp, and the server's key only for a server outside the person's own network (none is needed on it). */
 function connect(id, remote, bridge) {
   if (!LABELS[id]) throw new Error("unknown assistant " + id);
-  if (!remote || !/^https?:\/\//.test(remote.url || "") || !remote.token) throw new Error("No server address or key.");
+  if (!remote || !/^https?:\/\//.test(remote.url || "")) throw new Error("No server address.");
+  const bearer = remote.token ? `Bearer ${remote.token}` : "";
   if (id === "claude-code") {
     const exe = which("claude");
     if (exe) {
       spawnSync(exe, ["mcp", "remove", "--scope", "user", NAME], { windowsHide: true, shell: WIN });
-      const r = spawnSync(exe, ["mcp", "add", "--scope", "user", "--transport", "http", NAME, remote.url, "--header", `Authorization: Bearer ${remote.token}`],
+      const r = spawnSync(exe, ["mcp", "add", "--scope", "user", "--transport", "http", NAME, remote.url, ...(bearer ? ["--header", `Authorization: ${bearer}`] : [])],
         { encoding: "utf8", windowsHide: true, shell: WIN });
       if (r.status !== 0) throw new Error(((r.stderr || r.stdout || "Claude Code refused the connection") + "").trim().slice(0, 300));
     } else {
       const data = readJson(files[id]());
-      (data.mcpServers = data.mcpServers || {})[NAME] = { type: "http", url: remote.url, headers: { Authorization: `Bearer ${remote.token}` } };
+      (data.mcpServers = data.mcpServers || {})[NAME] = { type: "http", url: remote.url, ...(bearer ? { headers: { Authorization: bearer } } : {}) };
       writeJson(files[id](), data);
     }
     return { ok: true, note: "Connected. Start a new Claude Code chat and ask it to make a video." };
@@ -89,7 +90,7 @@ function connect(id, remote, bridge) {
     const f = files.codex();
     let text = fs.existsSync(f) ? fs.readFileSync(f, "utf8") : "";
     text = text.replace(TOML_BLOCK, "").trimEnd();
-    const block = `[mcp_servers.${NAME}]\nurl = ${JSON.stringify(remote.url)}\nhttp_headers = { Authorization = ${JSON.stringify("Bearer " + remote.token)} }\n`;
+    const block = `[mcp_servers.${NAME}]\nurl = ${JSON.stringify(remote.url)}\n${bearer ? `http_headers = { Authorization = ${JSON.stringify(bearer)} }\n` : ""}`;
     fs.mkdirSync(path.dirname(f), { recursive: true });
     fs.writeFileSync(f, (text ? text + "\n\n" : "") + block);
     return { ok: true, note: "Connected. Restart Codex to load the Video Tool tools." };
@@ -97,7 +98,7 @@ function connect(id, remote, bridge) {
   const data = readJson(files[id]());
   (data.mcpServers = data.mcpServers || {})[NAME] = {
     command: bridge.command, args: bridge.args,
-    env: { ELECTRON_RUN_AS_NODE: "1", VT_SERVER: remote.url, VT_TOKEN: remote.token },
+    env: { ELECTRON_RUN_AS_NODE: "1", VT_SERVER: remote.url, ...(remote.token ? { VT_TOKEN: remote.token } : {}) },
   };
   writeJson(files[id](), data);
   return { ok: true, note: "Connected. Quit and reopen Claude Desktop to load it." };

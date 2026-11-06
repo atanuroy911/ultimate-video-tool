@@ -6,7 +6,7 @@ import { base, chromePath } from "./common.mjs";
 const pid = process.env.VT_PROJECT, clip = process.env.VT_CLIP;
 let fails = 0;
 const check = (name, ok, extra = "") => { console.log(`${ok ? "PASS" : "FAIL"} ${name} ${ok ? "" : extra}`); if (!ok) fails++; };
-const b = await chromium.launch({ executablePath: chromePath() });
+const b = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 const page = await b.newPage({ viewport: { width: 1280, height: 1000 } });
 await page.goto(`${base}/p/${pid}`, { waitUntil: "networkidle" });
 await page.getByText("File", { exact: true }).click();

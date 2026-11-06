@@ -29,6 +29,7 @@ import httpx
 import jsonschema
 
 from .. import llm, paths
+from . import talk
 from ..util import CREATE_NO_WINDOW, now_iso, read_json, write_json
 
 
@@ -74,8 +75,20 @@ class Provider:
     def available(self) -> bool:
         return True
 
+    def why_not(self) -> str:
+        return f"{self.name} is not ready. See Settings > AI."
+
     def complete(self, system: str, prompt: str, schema: dict, images: Sequence[Image], max_tokens: int, timeout: float, temperature: float) -> str:
         raise NotImplementedError
+
+
+MIN_CONTEXT, MAX_CONTEXT = 16384, 65536
+
+
+def context_for(prompt_chars: int, answer_tokens: int) -> int:
+    """Context tokens a request needs: the whole prompt (Bangla and JSON run at about 2.5 characters a token) and the whole answer."""
+    need = int(prompt_chars / 2.5) + answer_tokens + 512
+    return min(MAX_CONTEXT, max(MIN_CONTEXT, (need // 4096 + 1) * 4096))
 
 
 class OllamaProvider(Provider):
@@ -99,13 +112,21 @@ class OllamaProvider(Provider):
         if images:
             user["images"] = [_b64(i) for i in images]
         msgs = ([{"role": "system", "content": system}] if system else []) + [user]
+        # A fixed context cut long answers off: a big prompt filled it and the reply stopped mid-JSON after about 900 tokens (2026-11-05)
+        size = len(system or "") + len(prompt)
         body = {"model": self.model(), "messages": msgs, "stream": False, "think": False, "format": schema, "keep_alive": "10m",
-                "options": {"temperature": temperature, "num_ctx": 16384, "num_predict": max_tokens}}
+                "options": {"temperature": temperature, "num_ctx": context_for(size, max_tokens), "num_predict": max_tokens}}
         try:
             llm.make_room(s["ollama_url"])                             # one card: the pictures' models step aside while the AI reads
             r = httpx.post(s["ollama_url"] + "/api/chat", json=body, timeout=timeout)
             r.raise_for_status()
-            return r.json()["message"]["content"]
+            reply = r.json()
+            if reply.get("done_reason") == "length" and body["options"]["num_ctx"] < MAX_CONTEXT:
+                body["options"]["num_ctx"] = MAX_CONTEXT               # it still ran out of room: once more with all the room there is
+                r = httpx.post(s["ollama_url"] + "/api/chat", json=body, timeout=timeout)
+                r.raise_for_status()
+                reply = r.json()
+            return reply["message"]["content"]
         except (httpx.HTTPError, KeyError, ValueError) as e:
             raise AIUnavailable(f"The local AI did not answer ({type(e).__name__}: {str(e)[:120]}).") from e
 
@@ -263,7 +284,7 @@ class ClaudeCLIProvider(Provider):
     Runs in an empty temporary folder with every tool, skill and MCP server switched off, so it can only answer: it cannot read the project or touch a file."""
 
     name = "claude-cli"
-    supports_images = False
+    supports_images = True
 
     def __init__(self, model: str = ""):
         s_ = read_json(paths.SETTINGS, {}) or {}
@@ -276,9 +297,9 @@ class ClaudeCLIProvider(Provider):
         st = login_status()
         return st["found"] and st["logged_in"]
 
-    def command(self, system_file: Path, schema: dict) -> tuple[list[str], bool]:
+    def command(self, system_file: Path, schema: dict, tools: str = "") -> tuple[list[str], bool]:
         """(argument list without the program, whether the schema is inside the prompt)."""
-        args = ["-p", "--output-format", "json", "--no-session-persistence", "--tools", "", "--disable-slash-commands", "--strict-mcp-config",
+        args = ["-p", "--output-format", "json", "--no-session-persistence", "--tools", tools, "--disable-slash-commands", "--strict-mcp-config",
                 "--model", self._model, "--system-prompt-file", str(system_file)]
         sj = json.dumps(schema)
         if len(sj) <= CLI_SCHEMA_ARG_MAX:
@@ -297,7 +318,14 @@ class ClaudeCLIProvider(Provider):
         try:
             sysf = tmp / "system.txt"
             sysf.write_text(system or "You answer only with the requested JSON, no other text.", encoding="utf-8")
-            args, inline = self.command(sysf, schema)
+            args, inline = self.command(sysf, schema, "Read" if images else "")
+            if images:                                                 # the CLI takes no pictures on its input: it opens them from the working folder
+                names = []
+                for n, im in enumerate(images):
+                    (tmp / f"frame{n}.png").write_bytes(_image_bytes(im))
+                    names.append(f"frame{n}.png")
+                args += ["--allowedTools", "Read"]
+                prompt = f"First open and look at these image files with the Read tool: {', '.join(names)}\n\n{prompt}"
             stdin = prompt + (("\n\nAnswer with ONE JSON object only (no prose, no code fence) that matches this JSON Schema:\n" + json.dumps(schema)) if inline else "")
             t0 = time.time()
             with _cli_lock:
@@ -348,6 +376,57 @@ class FakeProvider(Provider):
 # --------------------------------------------------------------------------- selection
 _override: list[Provider] = []
 _lock = threading.Lock()
+
+
+class ClientProvider(Provider):
+    """Claude or Codex on the person's own computer, reached through the helper running there (vt/directors.py). The helper calls out to this server, so nothing
+    here ever connects to that computer. It answers every AI step of a video it directs, so one mind directs the whole video."""
+
+    supports_images = True
+
+    def __init__(self, chosen: str):
+        self.assistant, _, self.device = chosen.partition("@")
+        self.name = f"{self.assistant}-pc"
+        self.label = "Codex" if self.assistant == "codex" else "Claude"
+
+    def model(self) -> str:
+        from .. import directors
+
+        return directors.task_model(self.assistant)                         # "" for Codex: it uses the model it is set up with, not a Claude model name
+
+    def available(self) -> bool:
+        from .. import directors
+
+        return directors.broker.ready(self.device, self.assistant)
+
+    def why_not(self) -> str:
+        return f"{self.label} on your computer is not connected. Open Video Tool there (its helper starts with the computer) and sign in to {self.label}."
+
+    def complete(self, system, prompt, schema, images, max_tokens, timeout, temperature):
+        from .. import directors
+
+        r = directors.broker.ask(self.device, self.assistant, system=system, prompt=prompt, schema=schema, images=[_image_bytes(i) for i in images], model=self.model(), timeout=timeout)
+        if r.get("ok"):
+            return str(r.get("text") or "")
+        kind = r.get("error_kind")
+        if r.get("timeout"):
+            raise AIUnavailable(f"{self.label} on your computer did not answer within {int(timeout)} s.")
+        if kind == "limit":
+            raise AIUnavailable(f"{self.label}'s usage limit was reached. It works again when the limit resets.")
+        if kind == "login":
+            raise AIUnavailable(f"{self.label} on your computer is not signed in. Open it once and sign in.")
+        raise AIUnavailable(str(r.get("error") or r.get("reason") or f"{self.label} on your computer gave no answer.")[:240])
+
+
+def provider_for(chosen: str) -> Optional[Provider]:
+    """The AI that runs every step of a video whose director is `chosen` (an id from vt/directors.py). None: no model is involved, the rules only."""
+    if chosen == "claude-server":
+        return ClaudeCLIProvider()
+    if chosen.startswith(("claude@", "codex@")):
+        return ClientProvider(chosen)
+    if chosen == "local":
+        return OllamaProvider()
+    return None
 
 
 def current_provider() -> Provider:
@@ -401,7 +480,7 @@ def ensure_ai(progress: Optional[Callable[[str, float, str], None]] = None) -> P
         except Exception as e:
             raise AIUnavailable(str(e)) from e
     elif not p.available():
-        raise AIUnavailable(f"{p.name} is not ready. See Settings > AI.")
+        raise AIUnavailable(p.why_not())
     return p
 
 
@@ -463,12 +542,20 @@ def complete_json(prompt: str, schema: dict, images: Optional[Sequence[Image]] =
     cf = _cache_dir() / f"{ck}.json" if ck else None
     if cf is not None and cf.exists():
         try:
-            return json.loads(cf.read_text(encoding="utf-8"))
+            data = json.loads(cf.read_text(encoding="utf-8"))
+            talk.record(p.name, p.model(), system=system, prompt=prompt, answer=data, cached=True, images=len(images))
+            return data
         except (OSError, ValueError):
             pass
     ask, last = prompt, ""
     for attempt in range(retries + 1):
-        raw = p.complete(system, ask, schema, images, max_tokens, timeout, temperature)
+        began = time.time()
+        try:
+            raw = p.complete(system, ask, schema, images, max_tokens, timeout, temperature)
+        except Exception as e:
+            talk.record(p.name, p.model(), system=system, prompt=ask, seconds=time.time() - began, error=f"{type(e).__name__}: {e}", images=len(images))
+            raise
+        talk.record(p.name, p.model(), system=system, prompt=ask, answer=raw, seconds=time.time() - began, images=len(images))
         try:
             data = parse_json(raw)
             if repair is not None:

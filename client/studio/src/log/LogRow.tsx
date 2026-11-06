@@ -8,12 +8,13 @@ const ICON = { ok: Check, info: Info, warn: AlertTriangle, error: X } as const;
 const WHO: Record<string, string> = { rules: "Rules", person: "You", claude: "Claude", codex: "Codex", gemini: "Gemini", assistant: "Assistant" };
 
 export const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
-const who = (e: LogEntry) => WHO[e.caller?.kind || ""] || e.caller?.kind || "";
+const who = (e: LogEntry) => (e.caller?.kind === "rules" ? "" : WHO[e.caller?.kind || ""] || e.caller?.kind || "");
+const took = (s: number) => (s < 1 ? "under a second" : s < 60 ? `${Math.round(s)} s` : `${Math.floor(s / 60)} min ${Math.round(s % 60)} s`);
 
 /** A labelled reading of the inputs a step used (never raw JSON in the main view). */
 function used(inputs?: Record<string, unknown>) {
   return Object.entries(inputs || {})
-    .filter(([, v]) => v !== null && v !== "" && typeof v !== "object")
+    .filter(([k, v]) => k !== "force" && v !== null && v !== "" && typeof v !== "object")
     .map(([k, v]) => `${k.replace(/_/g, " ")}: ${String(v).slice(0, 60)}`);
 }
 
@@ -49,15 +50,14 @@ export function LogRow({ entry, start, showTechnical }: { entry: LogEntry; start
         <span className="muted small log-at">{clock(Math.max(0, at))}</span>
         <span className="log-plain">{entry.plain || entry.module}</span>
         <span className="muted small">
-          {who(entry)}
-          {seconds !== undefined ? ` · ${seconds < 1 ? `${Math.round(seconds * 1000)} ms` : `${seconds.toFixed(1)} s`}` : ""}
+          {[who(entry), seconds !== undefined ? took(seconds) : ""].filter(Boolean).join(" · ")}
           {entry.cached ? " · reused" : ""}
         </span>
         <ChevronRight size={13} className="log-chev" aria-hidden />
       </button>
       {open && (
         <div className="log-more small">
-          {entry.why && <div><strong>Why:</strong> {entry.why}</div>}
+          {entry.why && entry.why !== "Classic recipe" && <div><strong>Why:</strong> {entry.why}</div>}
           {facts.length > 0 && <div><strong>Used:</strong> {facts.join(" · ")}</div>}
           {entry.fix && <div className="log-fix"><strong>What to do:</strong> {entry.fix}</div>}
           {showTechnical && <pre className="log-raw">{JSON.stringify({ module: entry.module, status: entry.status, inputs: entry.inputs, wrote: entry.wrote }, null, 2)}</pre>}

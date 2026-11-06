@@ -1,10 +1,11 @@
-import { Check, Cpu, FolderOpen, Image as ImageIcon, MessageSquare, Mic, PlayCircle, Sparkles } from "lucide-react";
+import { Check, Cpu, FolderOpen, Gauge, Image as ImageIcon, MessageSquare, Mic, PlayCircle, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { get, post, put } from "../api";
 import { Group, Row, Steps } from "../ds";
 import { useT } from "../i18n";
 import { toast } from "../store";
 import { Seg, Spinner } from "../ui";
+import GpuChoice from "./GpuChoice";
 import PrepareComfy from "./PrepareComfy";
 
 /* Four steps on the selected processing server; leaving preserves the choices. */
@@ -12,7 +13,6 @@ type Mode = "local" | "remote" | "off";
 interface Overview {
   step: string; done: boolean; choices: Record<string, Mode>; bundles: string[]; models_dir: string; install_dir:string; steps: string[];
   server:{name:string;data_dir:string;os:string};existing:Record<string,string[]>;
-  gpu:number|null;recommended_gpu:number|null;
   hardware: { summary: string; disk_free_gb: number; ram_gb: number; data_dir: string; gpus: {index:number; name: string; memory_gb: number }[] };
   recommended: Record<string, Mode>;
   engines: { id: string; label: string; about: string; installable: boolean; mode: Mode }[];
@@ -26,7 +26,6 @@ export default function SetupWizard({ onClose }: { onClose: () => void }) {
   const [choices, setChoices] = useState<Record<string, Mode>>({});
   const [dir, setDir] = useState("");
   const [programDir,setProgramDir]=useState('');
-  const [gpu,setGpu]=useState<number|null>(null);
   const [bundles, setBundles] = useState<string[]>(["pictures"]);
   const [urls, setUrls] = useState<Record<string, string>>({});
   useEffect(() => {
@@ -37,7 +36,6 @@ export default function SetupWizard({ onClose }: { onClose: () => void }) {
       setUrls(Object.fromEntries(Object.entries(d.existing||{}).filter(([,urls])=>urls.length).map(([id,urls])=>[id,urls[0]])));
       setDir(d.models_dir);
       setProgramDir(d.install_dir||'');
-      setGpu(d.gpu??d.recommended_gpu??null);
       setBundles(Array.isArray(d.bundles)?d.bundles:["pictures"]);
     }).catch((e) => toast(e.message, "err"));
   }, []);
@@ -45,14 +43,14 @@ export default function SetupWizard({ onClose }: { onClose: () => void }) {
 
   const remote = o.engines.filter((e) => choices[e.id] === "remote");
   const local = o.engines.filter((e) => choices[e.id] === "local" && e.installable);
-  const saveChoices = () => put("/api/setup", { choices, models_dir: dir, install_dir:programDir, gpu, bundles });
+  const saveChoices = () => put("/api/setup", { choices, models_dir: dir, install_dir:programDir, bundles });
 
   const steps = [
     {
       title: 'Set up your processing server', icon: <Cpu size={26} />, subtitle: `All checks and installations happen on ${o.server?.name||'the connected server'}, not on the PC displaying this window.`,
       body: (
         <Group title={`Processing server: ${o.server?.name||'Connected server'}`}>
-          <Row label="Graphics cards on the server" stack><span>{o.hardware.gpus.length?o.hardware.gpus.map(g=>`${g.name} (${g.memory_gb} GB)`).join(' · '):'No NVIDIA graphics card found'}</span><span className="small muted">Existing engines keep the graphics card they already use. A new managed install uses the card you choose below.</span></Row>
+          <Row label="Graphics cards on the server" stack><span>{o.hardware.gpus.length?o.hardware.gpus.map(g=>`${g.name} (${g.memory_gb} GB)`).join(' · '):'No NVIDIA graphics card found'}</span><span className="small muted">Existing engines keep the graphics card they already use. A new managed install uses the card chosen for it below.</span></Row>
           <Row label={t("setup.disk")}>{o.hardware.disk_free_gb} GB</Row>
           <Row label={t("setup.memory")}>{o.hardware.ram_gb} GB</Row>
         </Group>
@@ -66,7 +64,6 @@ export default function SetupWizard({ onClose }: { onClose: () => void }) {
             <input type="text" value={dir} placeholder={`${o.hardware.data_dir}/models`} onChange={(e) => setDir(e.target.value)} aria-label={t("setup.modelsfolder")} spellCheck={false} style={{ width: "100%" }} />
           </Row>
           <Row label="Programs folder on the server" stack><input value={programDir} onChange={e=>setProgramDir(e.target.value)} placeholder={`${o.hardware.data_dir}/engines`} aria-label="Programs folder on the server" spellCheck={false}/><span className="small muted">New engine programs go here. Large models use the separate folder above.</span></Row>
-          {!!o.hardware.gpus.length&&<Row label="Graphics card for a new install" stack><select aria-label="Graphics card for a new install" value={gpu??''} onChange={e=>setGpu(Number(e.target.value))}>{o.hardware.gpus.map(g=><option key={g.index} value={g.index}>{g.name} · {g.memory_gb} GB</option>)}</select></Row>}
         </Group>
       ),
     },
@@ -101,7 +98,7 @@ export default function SetupWizard({ onClose }: { onClose: () => void }) {
     },
     {
       title: t("setup.install"), icon: <Cpu size={26} />, subtitle: local.length ? t("setup.install.sub") : "—",
-      body: <Install engines={local.map((e) => e.id)} bundles={bundles} modelsDir={dir} installDir={programDir} gpu={gpu}/>,
+      body: <Install engines={local.map((e) => e.id)} bundles={bundles} modelsDir={dir} installDir={programDir}/>,
     },
     {
       title: t("setup.try"), icon: <Check size={26} />, subtitle: t("setup.try.sub"),
@@ -112,14 +109,18 @@ export default function SetupWizard({ onClose }: { onClose: () => void }) {
       body: <Group title={t("setup.summary")}>{o.engines.map((e) => <Row key={e.id} label={plain(e.id, e.label)}>{t("setup.at." + (choices[e.id] ?? "off"))}</Row>)}</Group>,
     },
   ];
+  const manyCards=o.hardware.gpus.length>=2;                       // with two or more cards the person decides which ones Video Tool may use (nothing to ask with one)
+  const cardsStep={title:t("gpu.setup.title"),subtitle:t("gpu.setup.sub"),icon:<Gauge size={26}/>,body:(go:{next:()=>void})=><GpuChoice mode="setup" onAnswered={go.next} onSkip={go.next}/>};
   const visibleSteps=[
     {...steps[0],body:<>{steps[0].body}{steps[2].body}</>},
+    ...(manyCards?[cardsStep]:[]),
     {...steps[1],title:'Choose folders on the server'},
     {...steps[4],title:'Connect or install',subtitle:'Use the engines already running, or review the download before installing a separate copy.',body:<>{remote.map(e=><Connect key={e.id} id={e.id} label={plain(e.id,e.label)} url={urls[e.id]??''} setUrl={u=>setUrls({...urls,[e.id]:u})}/>)}{steps[4].body}</>},
     {...steps[5],title:'Check your server',body:<>{steps[5].body}{steps[6].body}</>},
   ];
-  const stateSteps=['choose','storage','install','try'];
-  const initial=o.step==='welcome'||o.step==='choose'?0:o.step==='storage'?1:o.step==='connect'||o.step==='install'?2:3;
+  const stateSteps=manyCards?['choose','cards','storage','install','try']:['choose','storage','install','try'];
+  const at=(name:string)=>Math.max(0,stateSteps.indexOf(name));
+  const initial=o.step==='welcome'||o.step==='choose'?0:o.step==='cards'?at('cards'):o.step==='storage'?at('storage'):o.step==='connect'||o.step==='install'?at('install'):at('try');
   return <Steps label="Processing server setup" steps={visibleSteps} start={initial} headerDone={false}
     onClose={()=>{saveChoices().then(onClose).catch(e=>toast(e.message,'err'));}}
     onStep={i=>{saveChoices().then(()=>put('/api/setup',{step:stateSteps[i]})).catch(e=>toast(e.message,'err'));}}
@@ -154,7 +155,10 @@ function Connect({ id, label, url, setUrl }: { id: string; label: string; url: s
   return (
     <Group title={label}>
       <Row label={t("setup.address")} stack><input type="text" value={url} placeholder={id==='ollama'?'http://127.0.0.1:11434':'http://127.0.0.1:8188'} onChange={(e) => {setUrl(e.target.value);setConnectedUrl('');setSays('');setNeedsModel(false);}} aria-label={`${label}: ${t("setup.address")}`} spellCheck={false} style={{ width: "100%" }} /><span className="small muted">This address is reached from the processing server. 127.0.0.1 means that server itself.</span></Row>
-      <Row label=""><button className="btn sm" onClick={test} disabled={busy || !url.trim()}>{busy ? t("setup.testing") : 'Use this engine'}</button> <span className="small" role="status">{says}</span></Row>
+      <div className="ios-row engine-test">
+        <button className="btn sm" onClick={test} disabled={busy || !url.trim()}>{busy ? t("setup.testing") : 'Use this engine'}</button>
+        {says && <p className={`status-line ${connectedUrl ? "ok" : "bad"}`} role="status"><i aria-hidden />{says}</p>}
+      </div>
       {needsModel&&<Row label="A language model is missing" stack><span className="small muted">It will download into this Ollama’s configured model storage. To choose a different location, install a separate managed copy instead.</span><button className="btn" disabled={!!modelJob&&!['error','cancelled'].includes(modelJob.status)} onClick={()=>post('/api/setup/ollama-model').then(setModelJob).catch(e=>toast(e.message,'err'))}>Add recommended model</button>{modelJob&&<span className="small">{Math.round((modelJob.frac||0)*100)}% · {modelJob.msg||modelJob.status}</span>}</Row>}
       {id==='comfy'&&connectedUrl&&<PrepareComfy key={connectedUrl} url={connectedUrl}/>}
     </Group>
@@ -191,14 +195,14 @@ function Hub({ onPaired }: { onPaired: (names: string[]) => void }) {
 }
 const plainName = (t: (k: string) => string, id: string) => { const k = "setup.p." + id; const v = t(k); return v === k ? id : v; };
 
-function Install({ engines, bundles,modelsDir,installDir,gpu }: { engines: string[]; bundles: string[];modelsDir:string;installDir:string;gpu:number|null }) {
+function Install({ engines, bundles,modelsDir,installDir }: { engines: string[]; bundles: string[];modelsDir:string;installDir:string }) {
   const t = useT();
   const plain = (id: string) => { const k = "setup.p." + id; const v = t(k); return v === k ? id : v; };
   const [plans, setPlans] = useState<Plan[] | null>(null);
   const [job, setJob] = useState<{ id: string; status: string; frac: number; msg: string; error: string } | null>(null);
   useEffect(() => {
-    if (engines.length) get<Plan[]>(`/api/setup/plan?engines=${engines.join(",")}&bundles=${bundles.join(",")}&models_dir=${encodeURIComponent(modelsDir)}&install_dir=${encodeURIComponent(installDir)}${gpu!=null?`&gpu=${gpu}`:''}`).then(setPlans).catch((e) => toast(e.message, "err"));
-  }, [engines.join(","), bundles.join(","),modelsDir,installDir,gpu]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (engines.length) get<Plan[]>(`/api/setup/plan?engines=${engines.join(",")}&bundles=${bundles.join(",")}&models_dir=${encodeURIComponent(modelsDir)}&install_dir=${encodeURIComponent(installDir)}`).then(setPlans).catch((e) => toast(e.message, "err"));
+  }, [engines.join(","), bundles.join(","),modelsDir,installDir]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!job || ["done", "error", "cancelled"].includes(job.status)) return;
     const t = setInterval(() => get(`/api/jobs/${job.id}`).then(setJob).catch(() => {}), 2000);
@@ -208,7 +212,7 @@ function Install({ engines, bundles,modelsDir,installDir,gpu }: { engines: strin
   if (!plans) return <Spinner />;
   const problems = plans.flatMap((p) => p.problems);
   const total = plans.reduce((a, p) => a + p.total_gb, 0);
-  const start = () => post<any>("/api/setup/install", { engines, bundles,models_dir:modelsDir,install_dir:installDir,gpu }).then(setJob).catch((e) => toast(e.errors?.[0] || e.message, "err", 8000));
+  const start = () => post<any>("/api/setup/install", { engines, bundles,models_dir:modelsDir,install_dir:installDir }).then(setJob).catch((e) => toast(e.errors?.[0] || e.message, "err", 8000));
   return (
     <>
       {plans.map((p) => (

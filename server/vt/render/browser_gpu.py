@@ -17,7 +17,20 @@ def nvidia_render_device():
         selected=os.environ.get('CUDA_VISIBLE_DEVICES','')
         if selected:
             devices=[device for device in devices if device[0] in selected.split(',') or device[2] in selected.split(',')]
+        try:                                                    # only the cards the person allowed, in every attempt and every fallback; if that cannot be read, none (the processor)
+            from .. import gpuassign
+            may={card['uuid'] for card in gpuassign.allowed()}
+            devices=[device for device in devices if device[2] in may]
+        except Exception:
+            import logging
+            logging.getLogger(__name__).warning('Could not read which graphics cards Video Tool may use; rendering on the processor.',exc_info=True)
+            devices=[]
         devices.sort(key=lambda device:device[3],reverse=True)
+        try:                                                    # the card the person chose for rendering goes first; the others remain fallbacks
+            from .. import gpuassign
+            chosen,_why=gpuassign.resolve('render')
+            if chosen:devices.sort(key=lambda device:device[2]!=chosen['uuid'])
+        except Exception:pass
         for _,name,uuid,_ in devices:
             env={**os.environ,'CUDA_DEVICE_ORDER':'PCI_BUS_ID','CUDA_VISIBLE_DEVICES':uuid}
             result=subprocess.run([find_tool('ffmpeg'),'-v','error','-f','lavfi','-i','color=s=640x360:r=30',

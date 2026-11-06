@@ -78,6 +78,28 @@ def judge_saved(pid: str, name: Optional[str] = None) -> dict[str, Any]:
     return {"result": read_json(f.with_suffix(".judges.json"), None), "file": f.name}
 
 
+@router.get("/look-at")
+def look_at(pid: str) -> dict[str, Any]:
+    """What is left to look at in the cut, for the Quality check. A plan an AI directed: what the page still measures wrong after the director's rounds (`left`; code never fixes it
+    behind the director's back). A plan made by the rules: what the layout guard changed (`changed`). `current` says whether the plan is still the one that was looked at."""
+    from ..layout_check import REPORT as GUARD
+    from ..director_review import REPORT as REVIEW
+    from ..util import file_hash
+
+    project = project_or_404(pid)
+    sf = project.scenes()
+    number = {s.id: i + 1 for i, s in enumerate(sf.scenes)} if sf else {}
+    now = file_hash(project.scenes_path) if project.scenes_path.exists() else ""
+    review = read_json(project.dir / REVIEW, None) or {}
+    guard = read_json(project.dir / GUARD, None) or {}
+    left = [{**row, "number": number.get(row.get("scene"))} for row in review.get("left", [])]
+    return {
+        "planner": sf.planner if sf else "",
+        "looked": "left" in review and not review.get("facts_error"), "left": left, "current": review.get("scenes_hash") == now,
+        "changed": guard.get("scenes", []), "guard_current": guard.get("scenes_hash") == now,
+    }
+
+
 @router.get("/checklist")
 def checklist(pid: str) -> dict[str, Any]:
     project = project_or_404(pid)

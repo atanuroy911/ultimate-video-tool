@@ -14,10 +14,14 @@ _done = False
 def prepare() -> None:
     """On Windows, let this process find torch's CUDA DLLs. Safe to call many times; does nothing elsewhere."""
     global _done
-    if _done or sys.platform != "win32":
-        _done = True
+    if _done:
         return
     _done = True
+    if sys.platform.startswith("linux"):
+        _load_linux_cuda_libs()
+        return
+    if sys.platform != "win32":
+        return
     try:
         import torch  # noqa: F401  (importing torch registers its own DLL directory)
         lib = Path(torch.__file__).parent / "lib"
@@ -28,34 +32,104 @@ def prepare() -> None:
         pass
 
 
-def onnx_providers(gpu: bool = True) -> list[str]:
-    """CUDA first when the installed ONNX Runtime has it, then CPU. (TensorRT is never used: it builds engines on first run.)"""
+def _load_linux_cuda_libs() -> None:
+    """Speech recognition (CTranslate2) needs cuBLAS and cuDNN. When they come from pip (nvidia-cublas-cu12, nvidia-cudnn-cu12) they sit in
+    the environment's site-packages, where the dynamic loader does not look, and the first GPU decode fails with "libcublas.so.12 not found"
+    (then runs on the CPU, 10x slower). Loading them here by path, before CTranslate2 starts, needs no launcher variable and no system
+    install. Libraries the system already provides are used as they are."""
+    import ctypes
+    import importlib.util
+
+    for pkg, names in (("nvidia.cublas", ("libcublasLt.so.12", "libcublas.so.12")),
+                       ("nvidia.cudnn", ("libcudnn_ops.so.9", "libcudnn_cnn.so.9", "libcudnn_graph.so.9", "libcudnn_engines_runtime_compiled.so.9",
+                                         "libcudnn_engines_precompiled.so.9", "libcudnn_heuristic.so.9", "libcudnn_adv.so.9", "libcudnn.so.9"))):
+        try:
+            spec = importlib.util.find_spec(pkg)
+        except (ImportError, ValueError):
+            continue
+        for base in (list(spec.submodule_search_locations) if spec and spec.submodule_search_locations else []):
+            lib = Path(base) / "lib"
+            for n in names:
+                if (lib / n).exists():
+                    try:
+                        ctypes.CDLL(str(lib / n), mode=ctypes.RTLD_GLOBAL)
+                    except OSError:
+                        pass
+
+
+def onnx_providers(gpu: bool = True) -> list:
+    """CUDA first when the installed ONNX Runtime has it, on the card chosen as the primary one (Server page, `vt gpu`), then the CPU.
+    (TensorRT is never used: it builds engines on first run.) Without this the first card by number would be used, whoever else is working on it."""
     prepare()
     import onnxruntime as ort
     have = ort.get_available_providers()
-    return [p for p in (("CUDAExecutionProvider",) if gpu else ()) + ("CPUExecutionProvider",) if p in have]
+    out: list = []
+    if gpu and usable() and "CUDAExecutionProvider" in have:
+        try:
+            from . import gpuassign
+
+            out.append(("CUDAExecutionProvider", {"device_id": gpuassign.cuda_index("speech")}))
+        except Exception:                                               # noqa: BLE001
+            out.append("CUDAExecutionProvider")
+    if "CPUExecutionProvider" in have:
+        out.append("CPUExecutionProvider")
+    return out
+
+
+def usable() -> bool:
+    """False when this computer has NVIDIA cards and Video Tool may use none of them (then nothing of ours draws, encodes or computes on a card). True with no card at all: nothing to forbid."""
+    try:
+        from . import gpuassign
+
+        return not gpuassign.blocked()
+    except Exception:                                                   # noqa: BLE001
+        return True
+
+
+def nvenc_device() -> list[str]:
+    """ffmpeg's `-gpu N` for the card the render job uses, counted the way CUDA counts the cards this process sees. Empty when that is not known: ffmpeg then takes the first one it sees."""
+    try:
+        from . import gpuassign
+
+        card, _ = gpuassign.resolve("render")
+        return ["-gpu", str(gpuassign.cuda_index("render"))] if card else []
+    except Exception:                                                   # noqa: BLE001
+        return []
+
+
+def torch_device(job: str = "speech") -> str:
+    """'cuda:N' for PyTorch on the card the job uses, or 'cpu' when there is no CUDA or Video Tool may use no card."""
+    try:
+        import torch
+
+        from . import gpuassign
+
+        if not torch.cuda.is_available() or gpuassign.blocked():
+            return "cpu"
+        return f"cuda:{gpuassign.cuda_index(job)}"
+    except Exception:                                                   # noqa: BLE001
+        return "cpu"
 
 
 def cuda_for_onnx() -> bool:
-    return "CUDAExecutionProvider" in onnx_providers()
+    return any((p[0] if isinstance(p, tuple) else p) == "CUDAExecutionProvider" for p in onnx_providers())
 
 
 _nvenc_cache: bool | None = None
 
 
 def has_nvenc() -> bool:
-    """Check if ffmpeg has h264_nvenc encoder available and working."""
+    """ffmpeg has the h264_nvenc encoder, and Video Tool may use a graphics card to run it."""
     global _nvenc_cache
-    if _nvenc_cache is not None:
-        return _nvenc_cache
-    try:
-        from .util import find_tool, run
-        ff = find_tool("ffmpeg")
-        encs = run([ff, "-hide_banner", "-encoders"], check=False)
-        _nvenc_cache = "h264_nvenc" in (encs or "")
-    except Exception:
-        _nvenc_cache = False
-    return _nvenc_cache
+    if _nvenc_cache is None:
+        try:
+            from .util import find_tool, run
+            ff = find_tool("ffmpeg")
+            encs = run([ff, "-hide_banner", "-encoders"], check=False)
+            _nvenc_cache = "h264_nvenc" in (encs or "")
+        except Exception:
+            _nvenc_cache = False
+    return _nvenc_cache and usable()
 
 
 def gpu_info() -> dict:

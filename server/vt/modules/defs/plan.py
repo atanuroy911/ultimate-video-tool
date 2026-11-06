@@ -181,6 +181,8 @@ class ApproveIn(BaseModel):
 class StateOut(BaseModel):
     state: str = Field(description="draft, approved, running, done or declined.")
     rev: int = Field(description="How many edits the plan has had.")
+    open_checks: int = Field(default=0, description="Picture checks still open when a director approved the plan (the person is shown the plan and decides for themselves).")
+    issues: list[str] = Field(default_factory=list, description="What the open picture checks say.")
 
 
 @module(
@@ -190,7 +192,7 @@ class StateOut(BaseModel):
     fallback=None, fallback_reason="Approval is a decision; there is nothing to fall back to.",
     examples=(Example(inputs={"by": "person"}, outputs={"state": "approved", "rev": 3}),),
     toolboxes=("autonomous", "studio", "full"), plain_name="Approving the plan", native_outputs=True,
-    log_line=lambda i, o: f"{'You' if i.by == 'person' else i.by} approved the plan.",
+    log_line=lambda i, o: f"{'You' if i.by == 'person' else i.by} approved the plan." + (f" {o.open_checks} picture check(s) were still open." if o.open_checks else ""),
 )
 def approve(ws: Workspace, inputs: ApproveIn) -> StateOut:
     from ...direction import plan_doc as PD
@@ -204,7 +206,17 @@ def approve(ws: Workspace, inputs: ApproveIn) -> StateOut:
         raise PD.PlanError("This plan has already been made.")
     plan.state, plan.approved_by, plan.approved_at = "approved", inputs.by, now_iso()
     PD.save(project.dir, plan)
-    return StateOut(state=plan.state, rev=plan.rev)
+    issues = [f'{x["says"]} {x["fix"]}' for x in PD.open_picture_issues(project, plan)] if inputs.by != "person" else []        # a director may approve with checks open: that is its choice, and it is written down
+    if issues:
+        import uuid
+
+        from ..calls import append_call
+
+        append_call(project.dir, {"id": "c" + uuid.uuid4().hex[:12], "module": "plan.checks", "caller": {"kind": "rules", "who": "rules"},
+                                  "why": "A director approved the plan while picture checks were still open.", "inputs": {"by": inputs.by}, "status": "open", "level": "warn",
+                                  "plain": f"{inputs.by} approved the plan with {len(issues)} picture check(s) still open: " + " ".join(issues[:3]) + (" ..." if len(issues) > 3 else ""),
+                                  "fix": "Open the plan, fix the pictures the checks name (they are drawn from these words), or leave it as it is."})
+    return StateOut(state=plan.state, rev=plan.rev, open_checks=len(issues), issues=issues[:12])
 
 
 @module(

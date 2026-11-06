@@ -2,7 +2,7 @@
 
 Installed at the owner's request on 2026-11-03. The owner selected a fresh Video Tool server using the existing ComfyUI, rather than a second ComfyUI installation.
 
-- UI: `http://192.168.123.47:8790` (pairing required on new devices).
+- UI: `http://192.168.123.47:8790` (no pairing since 2026-11-05: any computer on the home network connects with the address alone).
 - Application, private Python 3.11/CPU dependencies, private Node 22, renderer and assets: `/home/roy/ultimate-video-tool-server`.
 - Fresh settings/projects: `/home/roy/ultimate-video-tool-server/data`. No old projects, accounts or settings were imported.
 - Real generation fixtures remain separately in `/home/roy/ultimate-video-tool-server/qa`.

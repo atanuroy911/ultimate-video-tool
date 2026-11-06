@@ -27,7 +27,7 @@ import soundfile as sf
 from . import voice_direction as VD
 from . import voice_lock as VL
 from . import paths
-from .util import CREATE_NO_WINDOW, ProgressFn, find_tool, noop_progress
+from .util import CREATE_NO_WINDOW, ProgressFn, find_tool, noop_progress, read_json
 
 SR = 24000
 SENTENCE_GAP = 0.32
@@ -62,6 +62,7 @@ ENGINES: list[dict] = [
      "voices": []},
     {"id": "voicestudio", "label": "My voice server (VoiceStudio)", "offline": False, "licence": "VoiceStudio runs on your own server; each voice model has its own licence, shown in Settings, Engines",
      "voices": []},
+    {"id": "elevenlabs", "label": "ElevenLabs (online, your key)", "offline": False, "licence": "Your ElevenLabs account and plan decide how you may use the audio", "voices": []},
     {"id": "vtengine", "label": "Another Video Tool computer", "offline": False, "licence": "The voices of that computer, each with its own licence", "voices": []},
     {"id": "comfyvoice", "label": "Voices on my ComfyUI server (Breeze TTS 2, OmniVoice)", "offline": False,
      "licence": "Each voice model has its own licence (Breeze TTS 2: research and non-commercial). The server is yours.", "voices": []},
@@ -297,6 +298,83 @@ def _synth_vtengine(text: str, voice: str, rate: float, out_wav: Path) -> None:
         raise TTSError("the voice from the other computer could not be converted: " + r.stderr[-120:])
 
 
+ELEVENLABS = "https://api.elevenlabs.io/v1"
+_eleven_cache: dict[str, tuple[float, list]] = {}
+
+
+def _elevenlabs_get(path: str, key: str) -> list:
+    """The account's voices or the models, kept for a few minutes: the Studio lists the engines often."""
+    import time
+
+    import httpx
+
+    hit = _eleven_cache.get(path + key)
+    if hit and time.time() - hit[0] < 300:
+        return hit[1]
+    r = httpx.get(ELEVENLABS + path, headers={"xi-api-key": key}, timeout=20)
+    r.raise_for_status()
+    data = r.json()
+    rows = data.get("voices", []) if isinstance(data, dict) else data
+    _eleven_cache[path + key] = (time.time(), rows)
+    return rows
+
+
+def _elevenlabs_model(key: str, language: str) -> str:
+    """The setting, else ElevenLabs' own list decides: its multilingual model when that speaks this language, else the first model that does."""
+    chosen = (read_json(paths.SETTINGS, {}) or {}).get("elevenlabs_model")
+    if chosen:
+        return chosen
+    default = "eleven_multilingual_v2"
+    try:
+        models = [m for m in _elevenlabs_get("/models", key) if m.get("can_do_text_to_speech")]
+    except Exception:
+        return default
+    speaks = [m["model_id"] for m in models if any(x.get("language_id") == language[:2] for x in m.get("languages") or [])]
+    return default if default in speaks or not speaks else speaks[0]
+
+
+def _synth_elevenlabs(text: str, voice: str, rate: float, out_wav: Path, language: str = "en") -> None:
+    import httpx
+
+    key = (read_json(paths.SETTINGS, {}) or {}).get("elevenlabs_key") or ""
+    if not key:
+        raise TTSError("ElevenLabs needs your API key: add it in Settings, Voice & speech.")
+    model = _elevenlabs_model(key, language or "en")
+    body: dict = {"text": speakable(text), "model_id": model, "seed": VOICE_SEED, "voice_settings": {"speed": max(0.7, min(1.2, float(rate or 1.0)))}}
+    if language and model != "eleven_multilingual_v2":                # that model works the language out itself and refuses the field
+        body["language_code"] = language[:2]
+    try:
+        r = httpx.post(f"{ELEVENLABS}/text-to-speech/{voice}", params={"output_format": "mp3_44100_128"}, headers={"xi-api-key": key}, json=body, timeout=180)
+    except httpx.HTTPError as e:
+        raise TTSError(f"ElevenLabs could not be reached ({type(e).__name__}).") from e
+    if r.status_code != 200:
+        try:
+            detail = r.json().get("detail")
+            why = detail.get("message") if isinstance(detail, dict) else str(detail)
+        except ValueError:
+            why = r.text
+        raise TTSError(f"ElevenLabs refused this sentence (HTTP {r.status_code}): {str(why)[:200]}")
+    with tempfile.TemporaryDirectory() as d:
+        mp3 = Path(d) / "s.mp3"
+        mp3.write_bytes(r.content)
+        _ffmpeg_to_wav(mp3, out_wav)
+
+
+def _elevenlabs_listing(e: dict) -> tuple[dict, bool, str]:
+    key = (read_json(paths.SETTINGS, {}) or {}).get("elevenlabs_key") or ""
+    if not key:
+        return e, False, "add your ElevenLabs API key in Settings, Voice & speech"
+    try:
+        rows = _elevenlabs_get("/voices", key)
+    except Exception as err:
+        return e, False, f"ElevenLabs did not answer ({type(err).__name__}); check the key"
+    voices = []
+    for v in rows:
+        about = [x for x in ((v.get("labels") or {}).get("gender"), (v.get("labels") or {}).get("accent")) if x]
+        voices.append({"id": v["voice_id"], "label": v.get("name", v["voice_id"]) + (f" ({', '.join(about)})" if about else ""), "lang": "multi"})
+    return {**e, "voices": voices}, bool(voices), "" if voices else "this ElevenLabs account has no voices yet"
+
+
 def _synth_voicestudio(text: str, voice: str, rate: float, out_wav: Path, instruction: str = "", seed: int = VOICE_SEED) -> None:
     """`voice` is "<engine>:<preset voice>", "profile:<id>", or "auto" (the server's own default). The sentence is cached by what it says, who says it and the seed.
 
@@ -445,6 +523,8 @@ def synth_sentence(engine: str, voice: str, text: str, rate: float, out_wav: Pat
         return _synth_comfyvoice(text, voice, rate, out_wav, instruction, language, **lock)
     if engine == "vtengine":
         return _synth_vtengine(text, voice, rate, out_wav)
+    if engine == "elevenlabs":
+        return _synth_elevenlabs(text, voice, rate, out_wav, language)
     if engine == "voicestudio":
         return _synth_voicestudio(text, voice, rate, out_wav, instruction, **{k: v for k, v in lock.items() if k == "seed"})
     if engine == "clone":
@@ -798,6 +878,8 @@ def list_engines() -> list[dict]:
             e, ok, why = _vtengine_listing(e)
         elif e["id"] == "voicestudio":
             e, ok, why = _voicestudio_listing(e)
+        elif e["id"] == "elevenlabs":
+            e, ok, why = _elevenlabs_listing(e)
         elif e["id"] == "comfyvoice":
             e, ok, why = _comfyvoice_listing(e)
         elif e["id"] == "kokoro":

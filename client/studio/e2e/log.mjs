@@ -8,7 +8,7 @@ const api = async (p, o) => { const r = await fetch(base + p, o); return r; };
 const call = (module, body) => api(`/api/projects/reference/modules/${module}/call`, {
   method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
 });
-const browser = await chromium.launch({ executablePath: chromePath() });
+const browser = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 const page = await (await browser.newContext({ viewport: { width: 1280, height: 900 }, acceptDownloads: true })).newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push("pageerror: " + e.message));

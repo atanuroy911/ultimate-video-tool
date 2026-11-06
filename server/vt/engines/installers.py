@@ -222,7 +222,9 @@ class ComfyInstaller(Installer):
         self.models = models_dir(models) / "comfyui"
         self.port = port
         self.recipe=recipe
-        self.gpu=gpu if gpu is not None else (read_json(paths.SETTINGS,{}) or {}).get('setup_gpu')
+        from . import setup
+        self.gpu=gpu if gpu is not None else setup.pictures_card()                                  # the card a new install is built for: the one chosen for the "pictures" job
+        self.chosen_gpu=gpu                                                                         # a card named by the caller; otherwise it starts on the card of the "pictures" job
 
     def manifest(self) -> list[dict]:
         m = json.loads((paths.ASSETS / "comfy" / "model-manifest.json").read_text(encoding="utf-8"))["models"]
@@ -301,9 +303,13 @@ class ComfyInstaller(Installer):
 
     def start(self) -> Optional[str]:
         env={**os.environ,'HF_HOME':str(self.models/'huggingface'),'TORCH_HOME':str(self.models/'torch-cache')}
-        if self.gpu is not None:env.update(CUDA_DEVICE_ORDER='PCI_BUS_ID',CUDA_VISIBLE_DEVICES=str(self.gpu))
-        subprocess.Popen([str(self.python()), "main.py", "--listen", "127.0.0.1", "--port", str(self.port)], cwd=self.root, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        from .. import gpuassign
+        env.update(gpuassign.child_env(self.chosen_gpu) if self.chosen_gpu is not None else gpuassign.job_env("pictures"))    # only a card Video Tool may use
+        proc=subprocess.Popen([str(self.python()), "main.py", "--listen", "127.0.0.1", "--port", str(self.port)], cwd=self.root, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                          creationflags=CREATE_NO_WINDOW,env=env)
+        if getattr(proc,'pid',None):
+            from . import pids
+            pids.remember('comfy',proc.pid,self.port)                              # so a change of card can restart exactly this program, and nothing else
         return f"http://127.0.0.1:{self.port}"
 
 

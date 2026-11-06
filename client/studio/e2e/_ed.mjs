@@ -2,7 +2,7 @@
 import { chromium } from "playwright-core";
 import { chromePath } from "./common.mjs";
 const [, , base, id, out, chars] = process.argv;
-const b = await chromium.launch({ executablePath: chromePath() });
+const b = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 const p = await b.newPage({ viewport: { width: 1440, height: 900 } });
 const errors = [];
 p.on("pageerror", (e) => errors.push(e.message));

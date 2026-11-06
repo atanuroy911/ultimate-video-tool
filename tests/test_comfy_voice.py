@@ -9,6 +9,7 @@ import pytest
 
 SUBMITTED: list[dict] = []
 UPLOADS: list[str] = []
+FREED: list[bytes] = []
 NODES = {n: {"input": {"required": {}}} for n in ("LoadAudio", "SaveAudio", "CLIPLoader", "KSampler", "SaveImage", "BreezeTTS2LoadModel", "BreezeTTS2VoiceDesign", "BreezeTTS2VoiceClone", "BreezeTTS2VoiceDirection")}
 NODES["BreezeTTS2LoadModel"]["input"]["required"] = {"model": [["bf16 (best quality)", "int8 hybrid (recommended)"]]}
 
@@ -62,6 +63,9 @@ class FakeComfy(BaseHTTPRequestHandler):
         if self.path == "/upload/image":
             UPLOADS.append(body.decode("latin-1")[:400])
             return self._json({"name": "vt_ref_uploaded.wav"})
+        if self.path == "/free":
+            FREED.append(body)
+            return self._json({})
         if self.path == "/prompt":
             SUBMITTED.append(json.loads(body)["prompt"])
             return self._json({"prompt_id": f"p{len(SUBMITTED)}"})
@@ -72,6 +76,7 @@ class FakeComfy(BaseHTTPRequestHandler):
 def comfy():
     SUBMITTED.clear()
     UPLOADS.clear()
+    FREED.clear()
     FakeComfy.nodes = NODES
     server = HTTPServer(("127.0.0.1", 0), FakeComfy)
     threading.Thread(target=server.serve_forever, daemon=True).start()
@@ -128,6 +133,37 @@ def test_a_designed_voice_is_written_into_the_graph_and_comes_back_as_wav_and_ca
     assert g["4"]["inputs"]["filename_prefix"].startswith("video_tool/voice_")
     again = CV.speak(ComfyClient(comfy), load_workflow("breeze_design"), "(sigh) Hello there.", tmp_path / "o2.wav", instruction="A calm woman.", seed=7, cache_dir=tmp_path / "cache")
     assert again["cached"] is True and len(SUBMITTED) == 1, "the same sentence in the same voice is not rendered twice"
+
+
+class SplitModelComfy(FakeComfy):
+    """The first run fails the way Breeze TTS 2 did once ComfyUI had parked half of it in system RAM."""
+
+    def do_GET(self):
+        if self.path.startswith("/history/p1"):
+            return self._json({"p1": {"status": {"completed": False, "status_str": "error", "messages": [["execution_error", {
+                "node_id": "3", "node_type": "BreezeTTS2VoiceDirection", "exception_type": "RuntimeError",
+                "exception_message": "Input type (torch.FloatTensor) and weight type (torch.cuda.FloatTensor) should be the same"}]]}, "outputs": {}}})
+        return super().do_GET()
+
+
+def test_a_model_split_between_ram_and_the_gpu_is_reloaded_and_the_sentence_spoken(tmp_path):
+    from vt.comfy import ComfyClient, load_workflow
+    from vt.comfy import voice as CV
+
+    SUBMITTED.clear()
+    FREED.clear()
+    server = HTTPServer(("127.0.0.1", 0), SplitModelComfy)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        ref = tmp_path / "ref.wav"
+        ref.write_bytes(_wav())
+        out = tmp_path / "o.wav"
+        CV.speak(ComfyClient(f"http://127.0.0.1:{server.server_port}"), load_workflow("breeze_direction"), "We need to talk.", out,
+                 instruction="Speak slowly.", ref_audio=ref, ref_text="This is me.")
+    finally:
+        server.shutdown()
+    assert out.exists() and len(SUBMITTED) == 2 and len(FREED) == 1, "the models are unloaded once and the same sentence runs again"
+    assert not CV.split_across_devices("CUDA out of memory"), "other failures are not retried"
 
 
 def test_a_cloned_and_directed_voice_uploads_its_recording_and_transcript(comfy, tmp_path):

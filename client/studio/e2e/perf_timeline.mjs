@@ -7,7 +7,7 @@ import { base, chromePath } from "./common.mjs";
 
 const pid = process.env.VT_PROJECT;
 const slow = Number((process.argv.find((a) => a.startsWith("--cpu-slowdown=")) || "").split("=")[1] || 1);
-const browser = await chromium.launch({ executablePath: chromePath() });
+const browser = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 const ctx = await browser.newContext({ viewport: { width: 1500, height: 950 } });
 const page = await ctx.newPage();
 const cdp = await ctx.newCDPSession(page);

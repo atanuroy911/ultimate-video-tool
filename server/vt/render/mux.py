@@ -105,13 +105,13 @@ TARGET_LUFS, TARGET_TP = -14.0, -1.5
 H264_LEVEL = "4.2"                  # 1080p at up to 60 fps
 
 
-def _measure(cmd: list[str], graph: list[str], duration: float) -> Optional[dict]:
+def _measure(cmd: list[str], graph: list[str], duration: float, target_lufs: float = TARGET_LUFS) -> Optional[dict]:
     """First loudnorm pass over the same mix (audio inputs only)."""
     import json
     import re
 
     probe = [c for c in cmd]
-    g = graph + ["[mx]loudnorm=I=%s:TP=%s:LRA=11:print_format=json[a]" % (TARGET_LUFS, TARGET_TP)]
+    g = graph + ["[mx]loudnorm=I=%s:TP=%s:LRA=11:print_format=json[a]" % (target_lufs, TARGET_TP)]
     probe = [x for x in probe if x not in ("-loglevel", "error")]
     probe += ["-filter_complex", ";".join(g), "-map", "[a]", "-t", f"{duration:.3f}", "-f", "null", "-"]
     out = run(probe, check=False)
@@ -131,9 +131,13 @@ VOICE_CLEAN = ("highpass=f=90,afftdn=nr=25:nf=-40:tn=1,agate=threshold=0.02:rati
 
 
 def mix_and_mux(video: Path, voice: Path, out: Path, *, duration: float, music: Optional[Path] = None,
-                music_volume: float = 0.14, sfx: Optional[Path] = None, short_side: Optional[int] = None,
-                gpu: bool = True, layer_audio: Optional[list[dict]] = None, clean_voice: bool = False) -> Path:
+                music_volume: float = 0.10, sfx: Optional[Path] = None, short_side: Optional[int] = None,
+                gpu: bool = True, layer_audio: Optional[list[dict]] = None, clean_voice: bool = False,
+                duck: bool = True, duck_amount: float = 0.4, duck_release: float = 0.35,
+                target_lufs: float = TARGET_LUFS, music_fade_in: float = 1.0, music_fade_out: float = 2.0) -> Path:
     """voice (+ looped music ducked under the voice) (+ sfx) -> AAC, muxed with the silent video."""
+    from .. import gpu as gpu_choice
+    gpu = gpu and gpu_choice.usable()                              # no card allowed: the processor encodes
     ff = find_tool("ffmpeg")
     cmd = [ff, "-y", "-hide_banner", "-loglevel", "error", "-i", str(video), "-i", str(voice)]
     n = 2
@@ -156,11 +160,15 @@ def mix_and_mux(video: Path, voice: Path, out: Path, *, duration: float, music: 
     f = [f"[1:a]{VOICE_CLEAN + ',' if clean_voice else ''}aresample=48000,aformat=channel_layouts=stereo[v0]"]
     mix_inputs = ["[v]"]
     if music_idx is not None:
-        f.append("[v0]asplit=2[v][vkey]")
-        fade_out = max(0.0, duration - 2.0)
+        f.append("[v0]asplit=2[v][vkey]" if duck else "[v0]anull[v]")
+        fade_out = max(0.0, duration - music_fade_out)
         f.append(f"[{music_idx}:a]aresample=48000,aformat=channel_layouts=stereo,atrim=0:{duration:.3f},asetpts=N/SR/TB,"
-                 f"volume={music_volume},afade=t=in:d=1.0,afade=t=out:st={fade_out:.3f}:d=2.0[m0]")
-        f.append("[m0][vkey]sidechaincompress=threshold=0.03:ratio=8:attack=20:release=350:makeup=1[m]")
+                 f"volume={music_volume},afade=t=in:d={max(music_fade_in, 0.01):.2f},afade=t=out:st={fade_out:.3f}:d={max(music_fade_out, 0.01):.2f}[m0]")
+        if duck:                                           # amount 0..1 -> ratio 1.5..20: higher = the music sinks further under the voice
+            ratio = 1.5 + 18.5 * max(0.0, min(1.0, duck_amount))
+            f.append(f"[m0][vkey]sidechaincompress=threshold=0.03:ratio={ratio:.2f}:attack=20:release={int(max(0.05, min(2.0, duck_release)) * 1000)}:makeup=1[m]")
+        else:
+            f.append("[m0]anull[m]")
         mix_inputs.append("[m]")
     else:
         f.append("[v0]anull[v]")
@@ -179,16 +187,16 @@ def mix_and_mux(video: Path, voice: Path, out: Path, *, duration: float, music: 
         mix_inputs.append(f"[l{k}]")
     f.append(f"{''.join(mix_inputs)}amix=inputs={len(mix_inputs)}:duration=first:normalize=0,alimiter=limit=0.95:level=disabled[mx]")
     # social platforms play everything at about -14 LUFS and clip above -1 dBTP: measure the finished mix, then set it there exactly (linear, no pumping)
-    m = _measure(cmd, f, duration)
+    m = _measure(cmd, f, duration, target_lufs)
     if m:
-        f.append(f"[mx]loudnorm=I={TARGET_LUFS}:TP={TARGET_TP}:LRA=11:measured_I={m['input_i']}:measured_TP={m['input_tp']}:measured_LRA={m['input_lra']}:"
+        f.append(f"[mx]loudnorm=I={target_lufs}:TP={TARGET_TP}:LRA=11:measured_I={m['input_i']}:measured_TP={m['input_tp']}:measured_LRA={m['input_lra']}:"
                  f"measured_thresh={m['input_thresh']}:offset={m['target_offset']}:linear=true,aresample=48000[a]")
     else:
-        f.append(f"[mx]loudnorm=I={TARGET_LUFS}:TP={TARGET_TP}:LRA=11,aresample=48000[a]")
+        f.append(f"[mx]loudnorm=I={target_lufs}:TP={TARGET_TP}:LRA=11,aresample=48000[a]")
 
     if short_side:  # downscale (e.g. 1080p -> 720p): the video must be re-encoded
         vf = f"scale='if(gt(iw,ih),-2,{short_side})':'if(gt(iw,ih),{short_side},-2)':flags=lanczos"
-        encoders = (["-c:v", "h264_nvenc", "-preset", "p5", "-cq", "21", "-pix_fmt", "yuv420p"] if gpu
+        encoders = (["-c:v", "h264_nvenc", *gpu_choice.nvenc_device(), "-preset", "p5", "-cq", "21", "-pix_fmt", "yuv420p"] if gpu
                     else ["-c:v", "libx264", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p"])
         vcodec = ["-vf", vf, *encoders, "-profile:v", "high", "-level:v", H264_LEVEL]
     else:
@@ -202,5 +210,7 @@ def mix_and_mux(video: Path, voice: Path, out: Path, *, duration: float, music: 
         if not (short_side and gpu):
             raise
         return mix_and_mux(video, voice, out, duration=duration, music=music, music_volume=music_volume,
-                           sfx=sfx, short_side=short_side, gpu=False)
+                           sfx=sfx, short_side=short_side, gpu=False, layer_audio=layer_audio, clean_voice=clean_voice,
+                           duck=duck, duck_amount=duck_amount, duck_release=duck_release,
+                           target_lufs=target_lufs, music_fade_in=music_fade_in, music_fade_out=music_fade_out)
     return out

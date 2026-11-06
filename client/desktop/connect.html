@@ -38,7 +38,8 @@
   <p>Already running Ultimate Video Tool elsewhere? Choose that computer below. <button class="link" id="again" title="Look again">Search again</button></p>
   <div class="list" id="found"><div class="note" id="looking">Looking…</div></div>
 
-  <h2>Or enter its address</h2>
+  <h2>Or type its address</h2>
+  <p>Just the address, such as <b>192.168.1.20</b>. Nothing else is needed.</p>
   <form class="row" id="typed">
     <input id="addr" placeholder="192.168.1.20:8790" spellcheck="false" autocomplete="off" aria-label="Server address">
     <button class="main" id="go" type="submit">Connect</button>
@@ -54,7 +55,7 @@
     b.className = "opt";
     b.innerHTML = "<span><b></b><small></small></span><span class='go'>Connect</span>";
     b.querySelector("b").textContent = s.name;
-    b.querySelector("small").textContent = s.url.replace(/^https?:\/\//, "") + (s.needs_pairing ? " · asks for a pairing code once" : "");
+    b.querySelector("small").textContent = s.url.replace(/^https?:\/\//, "");
     b.onclick = () => D.connect(s.url);
     return b;
   }

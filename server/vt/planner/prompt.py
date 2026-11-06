@@ -1,4 +1,5 @@
 """The planning brief handed to Claude through the MCP server. It lives here, in code, so it is versioned with the schema."""
+from ..house_rules import prompt as house_rules
 
 PLANNER_RULES = """\
 You are the scene planner for a faceless explainer-video tool. A speaker recorded audio; it was transcribed into
@@ -16,6 +17,7 @@ ELEMENTS
   Put the anchor on the word that names the thing (the number, the key noun), not on filler words.
 - Order elements by anchor time. 1-4 elements per scene is ideal; 5 is the hard maximum; 0 is allowed for a pure talking beat.
 - Respect each field's length limit; shorten rather than overflow.
+- Every overlay may also carry x and y (its centre, as a fraction of the frame, 0 to 1 from the left and from the top), scale, and rotation: you decide where it sits. Without them it is laid out in the middle of the frame, on top of whoever stands there. The captions take the bottom of the frame. A character in a cartoon may take arrive (seconds after the cartoon appears; 0 is already there, and give characters the same value to arrive together). An element with entrance "none" is already in place, with no fade. caption.y on a scene moves that scene's captions.
 - Use the speaker's own words and numbers. Do NOT translate. Keep the speaker's script: Bangla digits and the taka sign
   (৳১০০, ৪%) when speaking Bangla; leave English terms in Latin letters unless script_policy is "bangla".
 - Prefer visuals that carry information: numbers/prices -> value_card or big_number; two options -> compare;
@@ -52,9 +54,13 @@ STYLE
 
 OUTPUT
 - Call submit_scenes with `scenes` = a list of scene objects exactly matching the schema in the task.
-- If submit_scenes returns errors, fix them and call it again. Do not stop until it returns ok."""
+- If submit_scenes returns errors, fix them and call it again. Do not stop until it returns ok.
+
+""" + house_rules("plan")
 
 SCENE_RULES = """\
 You are re-planning ONE scene. Keep the same `beats`. Use the neighbouring scenes only for variety (avoid repeating their
 main element). Follow the same element rules as for a full plan. If `alternatives` > 1, submit that many different
-scene objects (different main components/layouts); the user will pick one. Honour the user's hint if present."""
+scene objects (different main components/layouts); the user will pick one. Honour the user's hint if present.
+
+""" + house_rules("plan")

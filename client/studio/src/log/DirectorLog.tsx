@@ -3,11 +3,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Sheet } from "../ds";
 import { toast } from "../store";
 import { copyText, Seg } from "../ui";
+import { AiTalk } from "./AiTalk";
 import { LogRow, RunningRow } from "./LogRow";
 import { TechnicalOutput } from "./TechnicalOutput";
 import { useCallLog } from "./useCallLog";
 
-type Filter = "all" | "decisions" | "problems";
+type Filter = "all" | "ai" | "problems";
 
 /** The "Details" button and sheet: hidden until asked, opened by the button or the L key; it never opens by itself. */
 export function DirectorLogButton({ pid, label = "Details" }: { pid: string; label?: string }) {
@@ -45,7 +46,6 @@ export function DirectorLog({ pid, onClose }: { pid: string; onClose: () => void
   const end = useRef<HTMLLIElement>(null);
   const start = useMemo(() => (entries.length ? Date.parse(entries[0].t) : Date.now()), [entries]);
   const shown = entries.filter((e) => {
-    if (filter === "decisions" && !e.why) return false;
     if (filter === "problems" && e.level !== "error" && e.level !== "warn") return false;
     return !q.trim() || JSON.stringify(e).toLowerCase().includes(q.trim().toLowerCase());
   });
@@ -62,10 +62,11 @@ export function DirectorLog({ pid, onClose }: { pid: string; onClose: () => void
             label="Show"
             value={filter}
             onChange={setFilter}
-            options={[{ value: "all", label: "All" }, { value: "decisions", label: "Decisions" }, { value: "problems", label: "Problems" }]}
+            options={[{ value: "all", label: "What happened" }, { value: "ai", label: "AI conversations" }, { value: "problems", label: "Problems" }]}
           />
-          <input className="input grow" type="search" placeholder="Search" aria-label="Search the log" value={q} onChange={(e) => setQ(e.target.value)} />
+          {filter !== "ai" && <input className="input grow" type="search" placeholder="Search" aria-label="Search the log" value={q} onChange={(e) => setQ(e.target.value)} />}
         </div>
+        {filter === "ai" ? <AiTalk pid={pid} /> : <>
         <div className="row wrap small" style={{ gap: 14 }}>
           <label className="row" style={{ gap: 6 }}>
             <input type="checkbox" className="ios-switch" checked={technical} onChange={(e) => setTechnical(e.target.checked)} />
@@ -89,6 +90,7 @@ export function DirectorLog({ pid, onClose }: { pid: string; onClose: () => void
           <li ref={end} aria-hidden />
         </ul>
         {technical && <TechnicalOutput pid={pid} refresh={entries.length} />}
+        </>}
       </div>
     </Sheet>
   );

@@ -6,7 +6,7 @@ import { base, chromePath } from "./common.mjs";
 const api = async (p, o) => { const r = await fetch(base + p, o); return r.json(); };
 const list = await api("/api/projects");
 const pid = process.env.VT_PROJECT || (list.find((p) => /qa-a-roll/.test(p.id))?.id) || "reference";
-const browser = await chromium.launch({ executablePath: chromePath() });
+const browser = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 const page = await (await browser.newContext({ viewport: { width: 1500, height: 950 } })).newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push("pageerror: " + e.message));

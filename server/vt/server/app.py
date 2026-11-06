@@ -116,17 +116,15 @@ async def _watch_files() -> None:
 @app.websocket("/ws")
 async def ws_endpoint(ws: WebSocket) -> None:
     from .. import directors
-    from . import clients
-    from .serve import _token, is_local
+    from .serve import is_local, named_device
 
     await ws.accept()
     hub.clients.add(ws)
-    known = clients.known(_token(ws.scope))
-    device_id = str((known or {}).get("id") or ("local-app" if is_local(ws.scope) else ""))
-    device_name = str((known or {}).get("name") or "This computer")
+    device_id = named_device(ws.scope) or ("local-app" if is_local(ws.scope) else "")      # a browser tab names no device: it watches, and cannot become a director
+    device_name = "This computer"
     send_to_device = lambda m, sock=ws: hub.send(sock, m)
     try:
-        await ws.send_text(json.dumps({"type": "hello", "jobs": [j.public() for j in jobs.jobs.values() if j.status in ("queued", "running")]}))
+        await ws.send_text(json.dumps({"type": "hello", "boot": directors.BOOT, "jobs": [j.public() for j in jobs.jobs.values() if j.status in ("queued", "running")]}))
         while True:
             try:
                 msg = json.loads(await ws.receive_text())
@@ -139,8 +137,12 @@ async def ws_endpoint(ws: WebSocket) -> None:
                                          logged_in=bool(msg.get("logged_in")), send=send_to_device, assistant=msg['director'])
                 hub.emit({"type": "directors_changed"})
             elif msg.get("type") == "director_done":
-                directors.broker.finish(str(msg.get("request", "")), ok=bool(msg.get("ok")), error=str(msg.get("error", "")),
-                                        detail={"result": msg.get("result")})
+                directors.broker.finish(str(msg.get("request", "")), ok=bool(msg.get("ok")), error=str(msg.get("error", "")), device_id=device_id,
+                                        detail={"result": msg.get("result"), "error_kind": str(msg.get("error_kind", ""))[:20], "model": str(msg.get("model", ""))[:80]})
+            elif msg.get("type") == "ask_done":
+                directors.broker.finish(str(msg.get("request", "")), ok=bool(msg.get("ok")), error=str(msg.get("error", "")), device_id=device_id,
+                                        detail={"text": str(msg.get("text", ""))[:directors.MAX_ANSWER], "error_kind": str(msg.get("error_kind", ""))[:20],
+                                                "models": [str(x)[:80] for x in (msg.get("models") or [])[:6]]})
             elif msg.get("type") == "director_log":
                 hub.emit({"type": "director_log", "project": str(msg.get("project", "")), "message": str(msg.get("message", ""))[:500]})
     except WebSocketDisconnect:
@@ -222,7 +224,7 @@ def _first_thumb(p: Project) -> Optional[str]:
 
 
 def load_settings() -> dict:
-    d = {"default_theme": "auto", "default_aspect": "9:16", "default_pace": "normal", "default_music": "auto", "ui_language": "en", "autopilot": True, "plan_review": "when_expensive"}
+    d = {"default_theme": "auto", "default_aspect": "9:16", "default_pace": "normal", "default_music": "auto", "autopilot": True, "plan_review": "when_expensive"}
     d.update(read_json(SETTINGS_PATH, {}) or {})
     return d
 
@@ -261,6 +263,14 @@ def health() -> dict:
     return {"ok": True, "time": now_iso(), "api_version": API_VERSION}
 
 
+@app.get("/api/house-rules")
+def house_rules_list() -> list[dict]:
+    """Every lesson the app follows when it plans a video (vt/house_rules.py), with the incident behind it."""
+    from .. import house_rules
+
+    return house_rules.listing()
+
+
 @app.get("/api/catalogue")
 def catalogue() -> dict:
     cat = catalogue_summary()
@@ -268,9 +278,21 @@ def catalogue() -> dict:
     return cat
 
 
+# Cartoon 1's character looks as a video made with each one shows them (vt/script/story_kit.py: the kit's drawn set; "illustrated" keeps the
+# planner's own cartoon card)
+_CAST = [{"who": "woman", "pose": "wave", "expression": "happy", "x": 0.32}, {"who": "man", "pose": "point", "expression": "happy", "x": 0.68, "flip": True}]
+CARTOON_LOOKS = {
+    "ink": {"character_style": "ink", "framing": "scene", "world": "3d", "set": "street", "cast": _CAST, "bubble": "We did it!", "props": []},
+    "classic": {"character_style": "classic", "framing": "scene", "world": "3d", "set": "street", "cast": _CAST, "bubble": "We did it!", "props": []},
+    "paper": {"character_style": "paper", "framing": "scene", "world": "3d", "set": "street", "cast": _CAST, "bubble": "We did it!", "props": []},
+    "illustrated": {"cast": _CAST, "bubble": "We did it!", "props": []},
+}
+
+
 @app.get("/api/elements/{kind}/preview")
-def element_preview(kind: str, variant: str = "") -> dict:
-    """A real, silent component example using the same runtime as exported videos."""
+def element_preview(kind: str, variant: str = "", look: str = "") -> dict:
+    """A real, silent component example using the same runtime as exported videos. `look` shows one of an element's looks the way a video
+    made with it shows it (a Cartoon 1 character look: the New video page draws its choices with this, never with a made-up picture)."""
     from ..planner.catalogue import component_catalogue
     from ..schema import Beat, Beats, Scene, Transcript, Word
     from ..compose.composer import resolve_composition, write_composition
@@ -281,12 +303,17 @@ def element_preview(kind: str, variant: str = "") -> dict:
         from ..planner.visual_templates import templates
         spec=next((s for s in templates(component_catalogue()) if s['type']==kind and s['variant']==variant),None)
         if spec is None: raise HTTPException(404,"Unknown template")
+    looks = CARTOON_LOOKS if kind == "cartoon" else {}
+    if look and look not in looks:
+        raise HTTPException(404, "Unknown look")
     sample_id=variant or kind
+    if look:
+        sample_id = f"{kind}-{look}"
     folder = paths.PROJECTS / ".elements" / sample_id
     folder.mkdir(parents=True, exist_ok=True)
     art = folder / "example.svg"
     art.write_text('<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><rect width="800" height="600" fill="#dbeafe"/><circle cx="590" cy="150" r="65" fill="#fbbf24"/><path d="M0 600L270 240 440 460 600 300 800 600" fill="#60a5fa"/><text x="400" y="550" text-anchor="middle" font-family="sans-serif" font-size="36" fill="#172554">Your picture</text></svg>', encoding="utf-8")
-    el = {**spec["starter"], "at_word": "w1"}
+    el = {**spec["starter"], "at_word": "w1", **looks.get(look, {})}
     if kind in ("media_frame", "device"):
         el["media"] = "example"
     theme = load_theme("paper")
@@ -294,7 +321,7 @@ def element_preview(kind: str, variant: str = "") -> dict:
     beats = Beats(beats=[Beat(id="b1", word_ids=["w1"], start=.3, end=3.5, text="Example")])
     sf = ScenesFile(scenes=[Scene(id="sample", beats=["b1"], elements=[el], layout="hero")])
     media = {"example": {"src":"example.svg", "kind":"image", "width":800, "height":600}}
-    data = resolve_composition(sf, tr, beats, theme, "1:1", 4, media=media)
+    data = resolve_composition(sf, tr, beats, theme, "16:9" if look else "1:1", 4, media=media)
     data["captions_enabled"] = False
     write_composition(folder, data, theme, spec["name"])
     return {"url":f"/media/.elements/{sample_id}/index.html"}
@@ -355,15 +382,6 @@ def get_directors() -> dict:
     return listing()
 
 
-@app.post("/api/directors/token")
-def director_token() -> dict:
-    """A revocable MCP key for the desktop app's constrained Claude process."""
-    from . import clients
-
-    device, token = clients.add("Desktop client companion")
-    return {"device": device, "token": token}
-
-
 def _public_settings(s: dict) -> dict:
     """Settings for the browser: API keys never leave this computer's disk through the API (only whether they are set)."""
     engines = {i: {"mode": e.get("mode"), "url": e.get("url"), "has_key": bool(e.get("key"))} for i, e in (s.get("engines") or {}).items()}
@@ -373,10 +391,14 @@ def _public_settings(s: dict) -> dict:
 @app.put("/api/settings")
 def put_settings(body: dict[str, Any]) -> dict:
     s = load_settings()
-    for k in ("default_theme", "default_aspect", "default_pace", "default_music", "ui_language", "llm_mode", "ollama_url", "ollama_model", "llm_auto_download", "pexels_key", "pixabay_key",
-              "ai_provider", "ai_script", "openai_url", "openai_model", "openai_key", "anthropic_model", "anthropic_key", "claude_cli_path", "claude_cli_model", "claude_cli_daily_cap", "autopilot", "comfy_url", "plan_review", "director_order", "director_wait_seconds"):
+    for k in ("default_theme", "default_aspect", "default_pace", "default_music", "llm_mode", "ollama_url", "ollama_model", "llm_auto_download", "pexels_key", "pixabay_key",
+              "ai_provider", "ai_script", "openai_url", "openai_model", "openai_key", "anthropic_model", "anthropic_key", "elevenlabs_key", "elevenlabs_model", "claude_cli_path", "claude_cli_model", "claude_cli_daily_cap", "autopilot", "comfy_url", "plan_review", "director_order", "director_wait_seconds"):
         if k in body:
             s[k] = body[k]
+    if "director_model" in body:                                          # which Claude directs (Sonnet, Opus, ...): one name the helper accepts, never free text
+        from ..directors import model_name
+
+        s["director_model"] = model_name(body["director_model"])
     write_json(SETTINGS_PATH, s)
     return _public_settings(s)
 
@@ -1056,7 +1078,8 @@ async def inspect_upload(file: Optional[UploadFile] = File(None), file_upload: s
 @app.post("/api/projects")
 async def create_project(audio: Optional[UploadFile] = File(None), audio_upload: str = Form(""), title: str = Form(""), language: str = Form("en"),
                          aspect: str = Form("9:16"), theme: str = Form("paper"), pace: str = Form("normal"),
-                         options: str = Form("{}"), start: Optional[str] = Form(None), usecase: str = Form("auto"), kind: str = Form("explainer")) -> dict:
+                         options: str = Form("{}"), start: Optional[str] = Form(None), usecase: str = Form("auto"), kind: str = Form("explainer"),
+                         subtitles: Optional[UploadFile] = File(None)) -> dict:
     # NOTE: an omitted boolean form field arrives as False in recent FastAPI versions, so parse explicitly (default: start)
     start_now = start is None or start.strip().lower() in ("1", "true", "yes", "on")
     if aspect not in FORMATS:
@@ -1087,11 +1110,32 @@ async def create_project(audio: Optional[UploadFile] = File(None), audio_upload:
         name = title.strip() or (Path(filename).stem if filename and not filename.startswith("recording.") else f"Recording {time.strftime('%d %b %Y')}")
         p = Project.create(name, tmp, language=language, aspect=aspect, theme=theme, pace=pace,
                            options=ProjectMeta(id="x", options=opts).options.model_dump() if opts else None)
-        write_json(p.dir / "source.json", _inspect(tmp))
+        info = _inspect(tmp)
+        write_json(p.dir / "source.json", info)
+        from ..source_inspect import default_recording_edit
+
+        mode = default_recording_edit(info, p.meta().options.recording_edit)
+        if mode != p.meta().options.recording_edit:               # a screen recording starts protected: its picture and pauses kept, captions added
+            m = p.meta()
+            m.options.recording_edit = mode
+            p.save_meta(m)
     except ValidationError as e:
         raise HTTPException(422, str(e))
     finally:
         shutil.rmtree(tmp.parent, ignore_errors=True)
+    if subtitles is not None and subtitles.filename:                # the person's own .srt: its words and timing replace speech recognition
+        from ..ingest import attach_subtitles
+
+        sub_dir = Path(tempfile.mkdtemp())
+        try:
+            sub = sub_dir / ("subtitles" + (Path(subtitles.filename).suffix.lower() or ".srt"))
+            with sub.open("wb") as f:
+                shutil.copyfileobj(subtitles.file, f)
+            attach_subtitles(p, sub, language)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        finally:
+            shutil.rmtree(sub_dir, ignore_errors=True)
     if not title.strip():
         p.update_meta(auto_title=True)
     p = _set_usecase(p, usecase)
@@ -1325,6 +1369,14 @@ def watch_and_revise(p: Project, card: dict, first: Path, cb, qa: Optional[dict]
 
 
 def autopilot_finish(p: Project, cb, again: bool = False) -> None:
+    """Checking and revising the cut is the video's own director's work, and its prompts stay on the video's record."""
+    from ..pipeline import directing
+
+    with directing(p):
+        _autopilot_finish(p, cb, again)
+
+
+def _autopilot_finish(p: Project, cb, again: bool = False) -> None:
     """Autopilot: the person only spoke, so the job does what an editor would do next: render the video, watch it back (retention
     scorecard) and write the title, description, hashtags and cover. Only for a project that was never exported, so re-running a
     stage from the editor does not render again. A failure here never fails the pipeline: the editable timeline is already made."""
@@ -1598,6 +1650,15 @@ def get_job(jid: str) -> dict:
     if not j:
         raise HTTPException(404)
     return j.public()
+
+
+@app.get("/api/jobs/{jid}/log")
+def job_log(jid: str, after: int = 0) -> dict:
+    """The job's step-by-step log (verbose view): lines newer than `after`."""
+    j = jobs.jobs.get(jid)
+    if not j:
+        raise HTTPException(404)
+    return j.log_after(after)
 
 
 @app.post("/api/jobs/{jid}/cancel")
@@ -2342,7 +2403,7 @@ def make_thumbs(pid: str, aspect: str = "9:16") -> dict:
         raise HTTPException(400)
     if not p.scenes():
         raise HTTPException(409, "no plan yet")
-    j = jobs.submit("thumbs", pid, "Scene thumbnails", lambda cb: make_thumbnails(p, aspect))
+    j = jobs.submit("thumbs", pid, "Scene thumbnails", lambda cb: make_thumbnails(p, aspect), when_busy="reuse")
     return j.public()
 
 
@@ -2734,6 +2795,12 @@ class ExportBody(BaseModel):
     gpu: bool = True
     music: Optional[str] = "project"
     music_volume: Optional[float] = None
+    duck: Optional[bool] = None
+    duck_amount: Optional[float] = None
+    duck_release: Optional[float] = None
+    target_lufs: Optional[float] = None
+    music_fade_in: Optional[float] = None
+    music_fade_out: Optional[float] = None
     sfx: Optional[bool] = None
     sfx_level: Optional[str] = None
     fps: int = 30
@@ -2754,8 +2821,20 @@ def start_export(pid: str, body: ExportBody) -> dict:
             raise HTTPException(400, f"bad aspect {a}")
     if body.sfx_level is not None and body.sfx_level not in ("off", "subtle", "normal", "rich"):
         raise HTTPException(400, "sfx_level must be off, subtle, normal or rich")
-    if body.music_volume is not None or body.sfx is not None or body.sfx_level is not None:
+    if any(v is not None for v in (body.music_volume, body.duck, body.duck_amount, body.duck_release, body.target_lufs, body.music_fade_in, body.music_fade_out, body.sfx, body.sfx_level)):
         m = p.meta()
+        if body.duck is not None:
+            m.options.duck = body.duck
+        if body.target_lufs is not None:
+            m.options.target_lufs = max(-23.0, min(-9.0, body.target_lufs))
+        if body.music_fade_in is not None:
+            m.options.music_fade_in = max(0.0, min(6.0, body.music_fade_in))
+        if body.music_fade_out is not None:
+            m.options.music_fade_out = max(0.0, min(8.0, body.music_fade_out))
+        if body.duck_amount is not None:
+            m.options.duck_amount = max(0.0, min(1.0, body.duck_amount))
+        if body.duck_release is not None:
+            m.options.duck_release = max(0.05, min(2.0, body.duck_release))
         if body.music_volume is not None:
             m.options.music_volume = max(0.0, min(1.0, body.music_volume))
         if body.sfx is not None:
@@ -2859,16 +2938,20 @@ def check_retention(pid: str, name: Optional[str] = None) -> dict:
 
 
 @app.post("/api/projects/{pid}/open-folder")
-def open_folder(pid: str) -> dict:
+def open_folder(pid: str, request: Request) -> dict:
+    """Open the exports folder, but only on the computer the person is sitting at. A request from another computer would pop a window open on this
+    server's screen: it is answered with the folder's path instead (`opened` False) and the app says where the files are."""
     p = proj(pid)
     p.exports_dir.mkdir(parents=True, exist_ok=True)
-    if sys.platform == "win32":
-        os.startfile(str(p.exports_dir))  # type: ignore[attr-defined]
-    elif sys.platform == "darwin":
-        os.system(f'open "{p.exports_dir}"')
-    else:
-        os.system(f'xdg-open "{p.exports_dir}"')
-    return {"path": str(p.exports_dir)}
+    here = (request.client.host if request.client else "") in ("127.0.0.1", "::1", "localhost")
+    if here:
+        if sys.platform == "win32":
+            os.startfile(str(p.exports_dir))  # type: ignore[attr-defined]
+        elif sys.platform == "darwin":
+            os.system(f'open "{p.exports_dir}"')
+        else:
+            os.system(f'xdg-open "{p.exports_dir}"')
+    return {"path": str(p.exports_dir), "opened": here}
 
 
 # ------------------------------------------------------------------ themes
@@ -3141,18 +3224,24 @@ from .hub_routes import router as hub_router
 app.include_router(hub_router)
 from .plan_routes import router as plan_router
 app.include_router(plan_router)
+from .script_review_routes import router as script_review_router
+app.include_router(script_review_router)
+from .story_routes import router as story_router
+app.include_router(story_router)
 from .reel_routes import router as reel_router
 app.include_router(reel_router)
 from .direction_routes import router as direction_router
 app.include_router(direction_router)
 from .reel_routes import hook_router
 app.include_router(hook_router)
-from .serve import router as serve_router  # pairing, /.well-known and the engine contract on the Studio port
+from .serve import router as serve_router  # /.well-known, the server's address and the engine contract on the Studio port
 app.include_router(serve_router)
 from .serve import install_mcp  # the MCP tools at /mcp for assistants on other computers
 install_mcp(app)
 from .uploads import router as uploads_router  # chunked uploads that survive a dropped connection
 app.include_router(uploads_router)
+from .system_routes import router as system_router  # live processor, memory and graphics-card numbers
+app.include_router(system_router)
 
 @app.api_route("/api/{rest:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"], include_in_schema=False)
 def unknown_api(rest: str):
@@ -3170,6 +3259,11 @@ def server_home():
 @app.get('/management.js')
 def server_management_script():
     return FileResponse(Path(__file__).with_name('management.js'), media_type='text/javascript')
+
+
+@app.get('/gpu-choice.js')
+def server_gpu_choice_script():
+    return FileResponse(Path(__file__).with_name('gpu-choice.js'), media_type='text/javascript')
 
 
 @app.get('/manage')

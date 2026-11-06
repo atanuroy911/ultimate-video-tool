@@ -17,7 +17,7 @@ def test_projects_and_catalogue(client):
     lst = client.get("/api/projects").json()
     assert lst[0]["id"] == "reference" and lst[0]["scene_count"] == 3 and lst[0]["duration"] > 10
     cat = client.get("/api/catalogue").json()
-    assert len(cat["elements"]) == 40 and "shape" in {e["type"] for e in cat["elements"]} and "slide_up" in cat["transitions"]
+    assert len(cat["elements"]) == 41 and "shape" in {e["type"] for e in cat["elements"]} and "slide_up" in cat["transitions"]
     assert client.get("/api/projects/nope").status_code == 404
     assert client.get("/api/projects/..%2Fetc").status_code in (400, 404)
 
@@ -587,3 +587,47 @@ def test_a_text_change_can_be_undone_and_redone(client):
     assert client.post("/api/projects/reference/transcript/undo").json()["ok"]
     assert len(Project("reference").transcript().words) == n
     assert "নতুন" not in " ".join(w.text for w in Project("reference").transcript().words)
+
+
+SRT = """1
+00:00:00,500 --> 00:00:02,000
+Maya saved every coin.
+
+2
+00:00:02,400 --> 00:00:04,100
+"Mom, look!" she said.
+"""
+
+
+def test_a_recording_with_its_own_srt_skips_speech_recognition_and_keeps_its_lines(client, ref, monkeypatch):
+    from vt.pipeline import Pipeline
+    from vt.project import Project
+    from vt.story.plan import captions_from_words
+
+    wav = ref.dir / "input.wav" if (ref.dir / "input.wav").exists() else next(ref.dir.glob("input.*"))
+    with wav.open("rb") as f:
+        r = client.post("/api/projects", files={"audio": ("a" + wav.suffix, f), "subtitles": ("story.srt", io.BytesIO(SRT.encode()))},
+                        data={"title": "srt", "language": "auto", "start": "false"})
+    assert r.status_code == 200, r.text
+    p = Project(r.json()["project"]["id"])
+    assert p.meta().language == "en" and (p.dir / "subs.raw.json").exists()
+
+    from vt.stages import asr
+
+    monkeypatch.setattr(asr, "ensure_model", lambda *a, **k: (_ for _ in ()).throw(AssertionError("speech recognition must not run")))
+    pl = Pipeline(p)
+    pl.stage_preprocess()
+    pl.stage_asr()
+    from vt.util import read_json
+
+    raw = read_json(p.raw_transcript_path)
+    assert raw["model"] == "srt" and raw["words"][0]["start"] == 0.5 and raw["words"][-1]["end"] == 4.1, "the SRT timing is kept as written"
+    cues = read_json(p.dir / "subtitles.cues.json")
+    from vt.schema import Transcript, Word
+
+    tr = Transcript(language="en", words=[Word(id=f"w{i}", text=w["text"], start=w["start"], end=w["end"]) for i, w in enumerate(raw["words"])])
+    caps = captions_from_words(tr, cues)
+    assert [c["t"] for c in caps] == ["Maya saved every coin.", '"Mom, look!" she said.'] and caps[1]["quote"]
+    bad = client.post("/api/projects", files={"audio": ("a" + wav.suffix, wav.open("rb")), "subtitles": ("x.txt", io.BytesIO(b"hello"))},
+                      data={"title": "x", "start": "false"})
+    assert bad.status_code == 400 and "srt" in bad.json()["detail"].lower()

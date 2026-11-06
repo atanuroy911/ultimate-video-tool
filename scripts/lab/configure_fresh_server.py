@@ -17,7 +17,7 @@ try:
         s.put(str(p),dest)
     import json
     settings={'llm_mode':'auto','ai_provider':'ollama','ollama_url':'http://127.0.0.1:11434','ollama_model':'gemma4:latest',
-              'comfy_url':'http://127.0.0.1:8188','autopilot':False,'ui_language':'en','default_aspect':'9:16','plan_review':'auto'}
+              'comfy_url':'http://127.0.0.1:8188','autopilot':False,'default_aspect':'9:16','plan_review':'auto'}
     try:
         if s.stat(root+'/data/settings.json').st_size:
             raise RuntimeError('Settings already populated; refusing to replace them.')

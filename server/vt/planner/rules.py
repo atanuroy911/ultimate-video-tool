@@ -138,6 +138,22 @@ def _number_items(ws: list[Word], language: str = "bn") -> list[dict]:
             skip.add(i + 1)
             ws_rest = ws[i + 1:]
             i_for_next = i + 1
+            if SCALES[norm_token(ws[i + 1].text)] in (100, 1_000) and re.fullmatch(r"\d[\d,]*", disp) and not ws[i + 1].text.rstrip().endswith((",", ".")):   # "two hundred and fifty five" is 255
+                j = i + 2
+                if j < len(ws) and norm_token(ws[j].text) == "and":
+                    j += 1
+                rest, tok = 0, norm_token(ws[j].text) if j < len(ws) else ""
+                if tok in EN_TENS:
+                    rest, j = EN_TENS[tok], j + 1
+                    if j < len(ws) and norm_token(ws[j].text) in EN_UNITS and not ws[j - 1].text.rstrip().endswith((",", ".")):
+                        rest, j = rest + EN_UNITS[norm_token(ws[j].text)], j + 1
+                elif tok in EN_UNITS or (tok in NUM_WORDS and NUM_WORDS[tok] < 20 and tok.isascii()):
+                    rest, j = EN_UNITS.get(tok) or NUM_WORDS[tok], j + 1
+                if rest:
+                    val += rest
+                    disp = localize_digits(f"{int(val):,}", language)
+                    skip.update(range(i + 2, j))
+                    i_for_next = j - 1
         else:
             i_for_next = i
         nxt = norm_token(ws[i_for_next + 1].text) if i_for_next + 1 < len(ws) else ""

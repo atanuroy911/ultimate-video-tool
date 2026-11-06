@@ -15,7 +15,7 @@ const SKIP = /delete|remove|revoke|start recording|stop recording|connect claude
 const routes = [["projects", "/"], ["new", "/new"], ["new-script", "/new?tab=script"], ["new-link", "/new?tab=link"], ["themes", "/themes"], ["settings", "/settings"],
   ["review", `/p/${pid}`], ["export", `/p/${pid}/export`], ...(stick ? [["review-stick", `/p/${stick}`]] : [])];
 
-const browser = await chromium.launch({ executablePath: chromePath(), args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] });
+const browser = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu", "--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] });
 const ctx = await browser.newContext({ viewport: { width: 1500, height: 950 }, permissions: ["microphone"], acceptDownloads: true });
 const page = await ctx.newPage();
 let current = "";

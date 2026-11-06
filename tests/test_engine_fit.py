@@ -56,7 +56,7 @@ def test_tunnel_config_marks_published_ports(tmp_path, monkeypatch):
     d = tmp_path / ".cloudflared"
     d.mkdir()
     (d / "config.yml").write_text("ingress:\n  - hostname: comfy.example.com\n    service: http://127.0.0.1:8188\n  - hostname: x.example.com\n    service: https://localhost:10000\n  - service: http_status:404\n")
-    monkeypatch.setattr(discover.Path, "home", classmethod(lambda cls: tmp_path))
+    monkeypatch.setattr(discover, "tunnel_dirs", lambda: [d])                          # only this folder: /etc/cloudflared on a real server holds the owner's own tunnels
     t = discover.tunnels()
     assert t[8188] == "comfy.example.com" and t[10000] == "x.example.com"
 

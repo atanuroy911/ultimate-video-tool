@@ -1,5 +1,5 @@
 export type Aspect = "9:16" | "1:1" | "16:9";
-export type VideoStyle = "auto" | "explainer" | "stick" | "cartoon" | "emoji" | "mixed";
+export type VideoStyle = "auto" | "explainer" | "stick" | "cartoon" | "story" | "emoji" | "mixed" | "reel";
 
 export interface Options {
   recording_edit?: "auto" | "subtitles" | "screen";
@@ -7,6 +7,13 @@ export interface Options {
   asr_model: string;
   music: string | null;
   music_volume: number;
+  review_script?: boolean;
+  duck?: boolean;
+  duck_amount?: number;
+  duck_release?: number;
+  target_lufs?: number;
+  music_fade_in?: number;
+  music_fade_out?: number;
   sfx: boolean;
   sfx_level: "off" | "subtle" | "normal" | "rich";
   script_policy: "mixed" | "bangla";
@@ -28,6 +35,9 @@ export interface JobInfo {
   msg: string;
   result: any;
   error: string;
+  created_at?: string;
+  started_at?: string;
+  finished_at?: string;
 }
 
 export interface ProjectSummary {
@@ -107,7 +117,7 @@ export interface Scene {
   transition_effect?: string;
   camera_move?: string;
   elements: El[];
-  caption: { highlight_words: string[] };
+  caption: { highlight_words: string[]; y?: number | null };
   stick?: { cast?: StickCast[]; actions?: StickAction[] } | null;
 }
 export interface StickCast { id: string; name?: string; role?: string; kind?: "person" | "toon" | "emoji"; emoji?: string | null; art?: string | null; style?: { color?: string; head?: string; accessory?: string; height?: string; hair?: string; shirt?: string | null; skin?: string | null } }
@@ -244,11 +254,11 @@ export interface Settings {
   default_music: string | null;
   autopilot?: boolean;
   plan_review?: "when_expensive" | "always" | "never";
-  ui_language: "en" | "bn";
   llm_mode?: "auto" | "off";
   ollama_url?: string;
   ollama_model?: string;
   director_order?: string[];
+  director_model?: string;
   director_wait_seconds?: number | "wait";
 }
 
@@ -299,7 +309,7 @@ export interface LClip {
   style?: { size: number; color: string; bg: string | null; weight: number; align: "left" | "center" | "right" };
 }
 export interface LDoc { v: 1; tracks: LTrack[]; clips: LClip[] }
-export interface MotionPoint {time:number;x:number;y:number;scale:number;rotation:number;opacity:number;ease:"linear"|"smooth"|"in"|"out"|"hold"}
+export interface MotionPoint {time:number;x:number;y:number;scale:number;rotation:number;opacity:number;stretch_x?:number;stretch_y?:number;skew_x?:number;skew_y?:number;tilt_x?:number;tilt_y?:number;blur?:number;ease:"linear"|"smooth"|"in"|"out"|"hold"}
 
 /** A sound that is not speech, found in the voice track (vt/sounds.py). */
 export interface SoundEvent { concept: string; label: string; emoji: string; query: string; start: number; end: number; score: number }

@@ -84,7 +84,7 @@ svg.bg-pat { overflow: visible; }
 .cap-keyword .w.hl { font-size: 1.7em; color: var(--hl-bg, #ffd400); }
 .cap-inner { display: block; max-width: 100%; }
 .cap .w { display: inline-block; white-space: pre; }
-.cap .w.hl { position: relative; color: var(--hl-ink); z-index: 0; padding: 0 0.26em; margin: 0 0.06em; }
+.cap .w.hl { position: relative; color: var(--hl-ink); z-index: 0; padding: 0 0.26em; margin: 0 0.18em; }
 .cap .w.hl .pill { position: absolute; inset: 0.04em 0 0.02em 0; background: var(--hl-bg); border: calc(var(--stroke) * 0.6) solid var(--ink); border-radius: calc(var(--radius) * 0.55); z-index: -1; transform-origin: 50% 50%; }
 .cap-underline .w.hl .pill { background: transparent; border: 0; border-bottom: 8px solid var(--hl-bg); border-radius: 0; inset: auto 0 0.04em 0; height: 0; }
 .cap-underline .w.hl { color: inherit; }
@@ -204,3 +204,5 @@ svg.bg-pat { overflow: visible; }
 .geometric-visual { display: flex; flex-direction: column; align-items: center; gap: 22px; }
 .geometric-visual svg { max-width: 100%; height: auto; }
 .geometric-label { font-size: 44px; font-weight: 700; text-align: center; }
+/* an element the layout guard dropped (vt.js guardLayout): the timeline sets display when an element arrives, so an inline display:none would be undone */
+.vt-gone { display: none !important; }

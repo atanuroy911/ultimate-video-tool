@@ -4,7 +4,7 @@ GROUPS = {
     "Text": "title keyword tag quote definition question cta",
     "Numbers & charts": "value_card big_number bar_chart ring line_chart stat_row price_tag pictogram gauge",
     "Lists & diagrams": "list equation steps timeline checklist pros_cons compare feature_grid flow cycle hierarchy venn funnel pyramid matrix",
-    "Pictures & characters": "icon icon_row sticker device speaker_card cartoon media_frame",
+    "Pictures & characters": "icon icon_row sticker device speaker_card cartoon story media_frame",
     "Shapes": "shape arrow",
 }
 NAMES = {"cta": "Call to action", "pros_cons": "Pros and cons", "stat_row": "Key numbers", "media_frame": "Framed picture",

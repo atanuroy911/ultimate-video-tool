@@ -9,7 +9,7 @@ let fails = 0;
 const check = (name, ok) => { console.log(`${ok ? "PASS" : "FAIL"} ${name}`); if (!ok) fails++; };
 const snap = async (page, name) => shots && page.screenshot({ path: `${shots}/${name}.png` });
 
-const b = await chromium.launch({ executablePath: chromePath() });
+const b = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 const page = await b.newPage({ viewport: { width: 1280, height: 800 } });
 await page.request.put(base + "/api/settings", { data: { autopilot: true } });
 

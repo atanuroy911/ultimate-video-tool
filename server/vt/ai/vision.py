@@ -99,7 +99,7 @@ def check_frame(png: Path, sentence: str, provider=None) -> dict:
             problems.append(k)
             if r.get("where"):
                 where.append(f"{k.replace('_', ' ')}: {r['where']}")
-    return {"ok": not problems, "problems": problems, "fix_hint": "; ".join(where)[:160]}
+    return {"ok": not problems, "problems": problems, "fix_hint": "; ".join(where)[:200].rsplit(" ", 1)[0] if len("; ".join(where)) > 200 else "; ".join(where)}
 
 
 # --------------------------------------------------------------------------- the whole video

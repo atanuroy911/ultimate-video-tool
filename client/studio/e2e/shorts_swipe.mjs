@@ -1,7 +1,7 @@
 import { chromium } from "playwright-core";
 import { chromePath } from "./common.mjs";
 
-const browser = await chromium.launch({ executablePath: chromePath() });
+const browser = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 const base = process.env.VT_URL || "http://127.0.0.1:5174";
 const project = { id: "qa-video", title: "QA video", duration: 125, audio_url: "/media/qa-video/input.mp4" };
@@ -14,7 +14,7 @@ await page.route("**/api/**", async route => {
   const body = path === "/api/projects" ? [project]
     : path === "/api/projects/qa-video/shorts" ? { highlights, preview_url: "/media/qa-video/input.mp4" }
     : path === "/api/health" ? { api_version: 6 }
-    : path === "/api/settings" ? { ui_language: "en" }
+    : path === "/api/settings" ? {}
     : path === "/api/ai/status" ? { provider: "off", available: false, model: "" }
     : {};
   await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });

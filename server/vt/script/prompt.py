@@ -39,16 +39,31 @@ Structure
 - Cover EVERY beat exactly once, in order. A scene spans 1-3 beats (about 3-8 seconds), scene ids s1, s2, ...
 - Prefer a few readable overlays per scene; do not discard requested content to meet an arbitrary count. Every `at_word` must be a word id inside that scene's beats. List actions and overlays in spoken order."""
 
+PLACEMENT = "Every overlay may also carry x and y (its centre, as a fraction of the frame, 0 to 1 from the left and from the top), scale, and rotation: you decide where it sits. Without them it is laid out in the middle of the frame, on top of whoever stands there. The captions take the bottom of the frame. A character in a cartoon may take arrive (seconds after the cartoon appears; 0 is already there, and give characters the same value to arrive together). An element with entrance \"none\" is already in place, with no fade. caption.y on a scene moves that scene's captions."
+
 OUTPUT = """\
 OUTPUT
 Return ONLY one JSON object (no commentary, no code fence) that matches the JSON schema below. Times are word ids, never seconds.
 Free text is allowed only in `bubble`, overlay texts and labels, within their length limits. Everything else must be an exact value from the catalogue."""
 
 
+def cartoon_choices() -> str:
+    """Every value a cartoon accepts, from the schema itself, so a director never guesses a pose or a set that does not exist."""
+    from typing import get_args
+
+    from ..schema import CharacterId, Expression, Pose, SetId
+
+    return (f"  A cartoon's exact values. who: {', '.join(get_args(CharacterId))} (elder is an old bald man with glasses, so a mother or any other woman is woman). "
+            f"pose: {', '.join(get_args(Pose))}. expression: {', '.join(get_args(Expression))}. set: {', '.join(get_args(SetId))}. "
+            "framing \"scene\" fills the whole frame with the place; \"card\" is a small picture in the layout. Leave a character's y out: it then stands on the floor above the captions.")
+
+
 def overlay_catalogue_text() -> str:
     lines = []
     for spec in component_catalogue():
         lines.append(f"- {spec['type']}: {spec['use_when']}  e.g. {json.dumps(spec['example'], ensure_ascii=False)}")
+        if spec["type"] == "cartoon":
+            lines.append(cartoon_choices())
     return "\n".join(lines)
 
 
@@ -76,7 +91,7 @@ def build_prompt(tr: Transcript, beats: Beats, *, kind: str = "stick", language:
     system = ROLE.format(kind_text=KIND_TEXT.get(kind, "explainer")) + "\n\n" + CRAFT_RULES
     user = [f"VIDEO: kind={kind}; language={language}; audience={audience or 'general'}; tone={tone or 'clear and friendly'}; aspect={aspect}.",
             "TRANSCRIPT (beat id, time, then word id:word):", transcript_text(tr, beats), "", "CATALOGUE", C.catalogue_text(),
-            "OVERLAYS (on-screen elements; each needs `type` and `at_word`, plus the fields shown):", overlay_catalogue_text()]
+            "OVERLAYS (on-screen elements; each needs `type` and `at_word`, plus the fields shown):", overlay_catalogue_text(), PLACEMENT]
     if kind == "stick":
         user.append("\nFor kind=stick: define `cast` (1-3 characters) and `sets` first, give every scene a `set`, and give most scenes at least one action.")
     elif kind == "emoji":
@@ -85,6 +100,9 @@ def build_prompt(tr: Transcript, beats: Beats, *, kind: str = "stick", language:
                     "never use the same emoji in two scenes in a row.")
     else:
         user.append(f"\nFor kind={kind}: leave `cast` and `sets` empty and `actions` empty; design with overlays only.")
+        if kind == "cartoon":
+            user.append("A `cartoon` overlay is used exactly as you write it: you choose its set, each character (who, name, pose, expression, x), framing \"scene\" to fill the frame, "
+                        "and the bubble. Keep one person looking the same in every scene.")
     if draft:
         user.append("\nDRAFT from the rule planner (improve it, keep what is good):\n" + json.dumps(draft, ensure_ascii=False)[:6000])
     if hint:

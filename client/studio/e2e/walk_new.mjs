@@ -1,7 +1,7 @@
 // The New flow, screen by screen, phone and desktop: types a script, presses OK until the last screen, screenshots each. Does not submit.
 import { chromium } from "playwright-core";
 import { base, chromePath } from "./common.mjs";
-const b = await chromium.launch({ executablePath: chromePath() });
+const b = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 for (const [vn, vp] of [["phone", { width: 390, height: 844 }], ["desktop", { width: 1440, height: 900 }]]) {
   const page = await (await b.newContext({ viewport: vp })).newPage();
   await page.goto(base + "/new", { waitUntil: "networkidle" });

@@ -6,7 +6,7 @@ import { base, chromePath, repo } from "./common.mjs";
 
 const out = process.argv[2] || path.join(repo, "studio", "e2e", "out");
 fs.mkdirSync(out, { recursive: true });
-const browser = await chromium.launch({ executablePath: chromePath() });
+const browser = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 const page = await (await browser.newContext({ viewport: { width: 1500, height: 950 } })).newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push("pageerror: " + e.message));

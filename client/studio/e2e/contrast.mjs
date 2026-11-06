@@ -8,7 +8,7 @@ const MIN = 3.0;
 const api = async (p, opts) => { const r = await fetch(base + p, opts); return r.json(); };
 const themes = (await api("/api/themes")).map((t) => t.name ?? t.id ?? t).filter(Boolean);
 const orig = (await api(`/api/projects/${pid}`)).theme;
-const browser = await chromium.launch({ executablePath: chromePath() });
+const browser = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 const page = await (await browser.newContext({ viewport: { width: 1500, height: 950 } })).newPage();
 let pass = 0, fail = 0;
 const check = (name, cond, extra = "") => { cond ? (pass++, console.log("  ok  ", name)) : (fail++, console.log("  FAIL", name, extra)); };

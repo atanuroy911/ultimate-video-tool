@@ -2,6 +2,7 @@
 from pathlib import Path
 import os
 import paramiko
+from safe_get import safe_get
 import shlex
 root='/home/roy/ultimate-video-tool-server'
 local=Path(__file__).resolve().parents[2]/'dist/recording-acceptance/pipeline-motion-preview'
@@ -21,6 +22,6 @@ try:
  if out.channel.recv_exit_status():raise RuntimeError(error or value)
  s=c.open_sftp()
  for name in s.listdir(root+'/qa-recordings/previews/pipeline-motion'):
-  if name.startswith('frame-') and name.endswith('.png'):s.get(root+'/qa-recordings/previews/pipeline-motion/'+name,str(local/name))
+  if name.startswith('frame-') and name.endswith('.png'):safe_get(s,root+'/qa-recordings/previews/pipeline-motion/'+name,str(local/name))
  print(value)
 finally:c.close()

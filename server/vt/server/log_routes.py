@@ -29,6 +29,32 @@ def calls(pid: str, after: int = 0, level: str = "", group: str = "", q: str = "
             "running": _running(pid)}
 
 
+@router.get("/ai-talk")
+def ai_talk(pid: str) -> dict[str, Any]:
+    """Every prompt and answer of this video, in order (vt/ai/talk.py): the list; one row's full text comes from /ai-talk/{seq}."""
+    from ..ai import talk
+
+    rows = []
+    for row in talk.load(project_or_404(pid).dir):
+        text = row.pop("prompt"), row.pop("system"), row.pop("answer")
+        row["size"] = sum(len(t) for t in text)
+        row["preview"] = ""
+        if row["kind"] == "tool":                       # the tool's name, for the list
+            row["preview"] = text[0].split('"tool": "')[-1].split('"')[0]
+        rows.append(row)
+    return {"rows": rows}
+
+
+@router.get("/ai-talk/{seq}")
+def ai_talk_row(pid: str, seq: int) -> dict[str, Any]:
+    from ..ai import talk
+
+    row = next((r for r in talk.load(project_or_404(pid).dir) if r["seq"] == seq), None)
+    if row is None:
+        raise HTTPException(404, "That conversation is not in this video's record.")
+    return row
+
+
 @router.get("/calls/technical")
 def technical(pid: str, lines: int = 2000) -> dict[str, str]:
     return {"text": read_technical(project_or_404(pid).dir, max_lines=max(1, min(lines, 2000)))}

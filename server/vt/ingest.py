@@ -12,6 +12,7 @@ from __future__ import annotations
 import ipaddress
 import json
 import re
+import shutil
 import socket
 import tempfile
 from pathlib import Path
@@ -264,3 +265,51 @@ def create_project(url: str, *, language: str = "en", title: str = "", use_subs:
     p.update_meta(origin={"url": got["url"], "title": got["title"], "uploader": got["uploader"], "license": got["license"], "subtitles": bool(raw),
                           "automatic_captions": got["automatic"] if raw else False, "video": bool(got.get("video"))})
     return p
+
+
+# --------------------------------------------------------------------------- the person's own subtitle file
+def cues_from_srt(path: Path) -> list[dict]:
+    """The lines of an .srt/.vtt file as they are written: start, end, text and how many words the line holds."""
+    out, lines, i = [], path.read_text(encoding="utf-8-sig", errors="replace").splitlines(), 0
+    sec = lambda h, m, s, ms: int(h or 0) * 3600 + int(m) * 60 + int(s) + int(ms.ljust(3, "0")[:3]) / 1000
+    while i < len(lines):
+        m = _VTT_TIME.search(lines[i])
+        i += 1
+        if not m:
+            continue
+        text = []
+        while i < len(lines) and lines[i].strip():
+            text.append(lines[i])
+            i += 1
+        t = _clean(" ".join(text))
+        if t:
+            out.append({"s": round(sec(*m.group(1, 2, 3, 4)), 3), "e": round(sec(*m.group(5, 6, 7, 8)), 3), "t": t, "n": len(t.split())})
+    return out
+
+
+def attach_subtitles(p, path: Path, language: str = "") -> dict:
+    """A recording that comes with its own subtitle file: the words and their timing come from the file, so speech recognition is skipped,
+    and each subtitle line stays one caption (the story engine cuts its scenes between them, as it did with its own SRT input).
+    One function behind the New video page, the CLI (`vt new --srt`) and MCP (create_project srt_path). Raises ValueError in words."""
+    from .util import write_json
+
+    path = Path(path)
+    if path.suffix.lower() not in (".srt", ".vtt"):
+        raise ValueError("The subtitles must be an .srt or .vtt file.")
+    cues = cues_from_srt(path)
+    if not cues:
+        raise ValueError("No subtitle lines were found in the file. Is it an .srt file?")
+    if not language or language == "auto":
+        language = "bn" if re.search("[ঀ-৿]", " ".join(c["t"] for c in cues)) else "en"
+    words = _dedupe([w for c in cues for w in _split_cue(c["t"], c["s"], c["e"])])
+    raw = {"language": language, "model": "srt", "exact": True, "duration": words[-1]["end"] if words else 0, "chunks": [], "chunks_without_speech": 0,
+           "words": words}
+    shutil.copyfile(path, p.dir / ("subtitles" + path.suffix.lower()))
+    write_json(p.dir / "subs.raw.json", raw)
+    write_json(p.dir / "subtitles.cues.json", cues)
+    m = p.meta()
+    m.language = language
+    m.options.use_subtitles = "any"
+    m.origin = {**(m.origin or {}), "subtitles": True, "subtitle_file": path.name}
+    p.save_meta(m)
+    return {"lines": len(cues), "words": len(words), "language": language}

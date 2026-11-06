@@ -16,7 +16,7 @@ function send(line) {
   let msg;
   try { msg = JSON.parse(line); } catch { return; }
   const body = Buffer.from(JSON.stringify(msg));
-  const headers = { "Content-Type": "application/json", Accept: "application/json, text/event-stream", Authorization: `Bearer ${token}`, "Content-Length": body.length };
+  const headers = { "Content-Type": "application/json", Accept: "application/json, text/event-stream", ...(token ? { Authorization: `Bearer ${token}` } : {}), "Content-Length": body.length };
   if (session) headers["Mcp-Session-Id"] = session;
   const req = lib.request(url, { method: "POST", headers }, (res) => {
     if (res.headers["mcp-session-id"]) session = res.headers["mcp-session-id"];

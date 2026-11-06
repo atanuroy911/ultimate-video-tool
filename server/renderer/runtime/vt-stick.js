@@ -731,11 +731,17 @@
       framed = true;
       const box = svg.getBoundingClientRect();
       if (!box.width) return;
+      const scenery = new Set((S.set && S.set.scenery) || []);                 // what the kind of place brings and nothing names (the composer works it out): nobody placed it
       Object.keys(spriteOf).forEach((n) => {
         const r = spriteOf[n].getBoundingClientRect();
         if (!r.width || !r.height) return;
         const vis = Math.max(0, Math.min(r.right, box.right) - Math.max(r.left, box.left)) * Math.max(0, Math.min(r.bottom, box.bottom) - Math.max(r.top, box.top));
-        if (vis / (r.width * r.height) < 0.75) { spriteOf[n].style.display = "none"; (window.__guard = window.__guard || []).push({ scene: sc.id, type: "prop:" + n, rule: "cut-off", fix: "dropped" }); }
+        if (vis / (r.width * r.height) < 0.75) {
+          if (scenery.has(n)) { spriteOf[n].style.display = "none"; return; }  // set decoration the shot cuts is not drawn, for every plan: half a desk reads as a mistake, and no director put it there
+          // a prop a director named in an action or the shot is kept in a scene an AI directed: the cut is only recorded (the facts tell the director)
+          if (sc.directed) (window.__guard = window.__guard || []).push({ scene: sc.src || sc.id, type: "prop:" + n, rule: "cut-off", fix: "would-drop", directed: true });
+          else { spriteOf[n].style.display = "none"; (window.__guard = window.__guard || []).push({ scene: sc.src || sc.id, type: "prop:" + n, rule: "cut-off", fix: "dropped" }); }
+        }
       });
     }
     function draw(t) {

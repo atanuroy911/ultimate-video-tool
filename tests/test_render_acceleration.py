@@ -3,7 +3,17 @@ import json
 import pytest
 
 
-def test_encoder_probe_skips_a_gpu_that_cannot_encode(monkeypatch):
+@pytest.fixture()
+def two_cards(monkeypatch):
+    """The V100 and the 3060, both allowed (the person has answered "all")."""
+    from vt import gpuassign
+    cards=[{'index':0,'name':'Tesla V100','uuid':'GPU-v100','free_gb':16.0,'total_gb':16.0,'load':0.0},
+           {'index':1,'name':'RTX 3060','uuid':'GPU-3060','free_gb':12.0,'total_gb':12.0,'load':0.0}]
+    monkeypatch.setattr(gpuassign,'_cards',lambda:[dict(c) for c in cards])
+    gpuassign.save({'allowed':'all'})
+
+
+def test_encoder_probe_skips_a_gpu_that_cannot_encode(monkeypatch,two_cards):
     from vt.render import browser_gpu as bg
     monkeypatch.delenv('CUDA_VISIBLE_DEVICES',raising=False)
     monkeypatch.setattr(bg.subprocess,'check_output',lambda *a,**k:'0, Tesla V100, GPU-v100, 16000\n1, RTX 3060, GPU-3060, 12000\n')
@@ -18,9 +28,11 @@ def test_encoder_probe_skips_a_gpu_that_cannot_encode(monkeypatch):
 
 
 @pytest.mark.parametrize('selected',['1','GPU-3060'])
-def test_explicit_gpu_selection_does_not_probe_another_card(monkeypatch,selected):
+def test_explicit_gpu_selection_does_not_probe_another_card(monkeypatch,selected,two_cards):
     from vt.render import browser_gpu as bg
+    from vt import gpuassign
     monkeypatch.setenv('CUDA_VISIBLE_DEVICES',selected)
+    monkeypatch.setattr(gpuassign,'_PIN',selected)                 # the launcher's own fence
     monkeypatch.setattr(bg.subprocess,'check_output',lambda *a,**k:'0, Tesla V100, GPU-v100, 16000\n1, RTX 3060, GPU-3060, 12000\n')
     monkeypatch.setattr(bg,'find_tool',lambda name:name)
     def probe(*args,**kwargs):

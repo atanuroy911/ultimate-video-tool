@@ -19,6 +19,15 @@ DOCKER (Linux with an NVIDIA card and the NVIDIA container toolkit)
     docker compose up -d
     docker compose logs engine      # shows the address and the pairing code
 
+WHICH GRAPHICS CARDS MAY VIDEO TOOL USE
+    With one card there is nothing to choose. With two or more, the installer asks, in the terminal, which
+    cards Video Tool may use; the others stay free for your own programs and Video Tool never touches them.
+    Say it up front instead:   ./install-engine.sh --gpus 1        .\install-engine.ps1 -Gpus 1,2
+                               (numbers as nvidia-smi shows them, or all, or none for the processor only)
+    Docker:                    VT_GPUS=1 docker compose up -d      (or set VT_GPUS in docker-compose.yml)
+    When nobody answers (a service, a script, Docker without VT_GPUS) it uses ONE card only, the one nobody
+    else is working on, and prints what it chose. Change it any time: vt gpu allow 0 1   (or the Server page).
+
 WHAT IT DOWNLOADS (about 30 GB with the picture models; 70 GB with short clips)
     uv + Python 3.11 + the packages, then Ollama and a small language model, ComfyUI with its
     own Python and the right PyTorch for your card, and the picture models. Stop it any time and

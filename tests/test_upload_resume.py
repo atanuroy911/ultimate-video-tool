@@ -63,7 +63,7 @@ def test_an_assistant_on_another_computer_sends_a_file_with_a_one_time_ticket(mo
     serve.configure(key="k" * 43, exposed=True)
     try:
         up = uploads.new_ticketed("talk.wav", 5)
-        away = TestClient(app, client=("192.168.1.30", 50000))
+        away = TestClient(app, client=("8.8.8.8", 50000))                                    # outside the server's network: on it, no ticket is needed
         assert away.put(f"/api/uploads/{up['id']}/file?ticket=wrong", content=b"hello").status_code == 401
         assert away.put(f"/api/uploads/{up['id']}?offset=0&ticket={up['ticket']}", content=b"hello").status_code == 401   # the ticket opens only /file
         assert away.put(f"/api/uploads/{up['id']}/file?ticket={up['ticket']}", content=b"hello").json()["done"]
@@ -71,4 +71,4 @@ def test_an_assistant_on_another_computer_sends_a_file_with_a_one_time_ticket(mo
         assert f.name == "talk.wav" and f.read_bytes() == b"hello"
     finally:
         services = saved.pop("services")
-        serve.configure(**{k: saved[k] for k in ("key", "code", "name", "exposed")}, services=services)
+        serve.configure(**{k: saved[k] for k in ("key", "name", "exposed")}, services=services)

@@ -10,7 +10,7 @@ fs.mkdirSync(out, { recursive: true });
 
 const browser = await chromium.launch({
   executablePath: exe,
-  args: ["--autoplay-policy=no-user-gesture-required", "--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"],
+  args: ["--disable-gpu", "--autoplay-policy=no-user-gesture-required", "--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"],
 });
 const ctx = await browser.newContext({ viewport: { width: 1500, height: 950 }, permissions: ["microphone"] });
 const page = await ctx.newPage();
@@ -62,7 +62,7 @@ await browser.close();
 console.log("Record with no speech -> clear error (fake microphone plays a noise file)");
 const browser2 = await chromium.launch({
   executablePath: exe,
-  args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream", "--use-file-for-fake-audio-capture=" + path.join(repo, "samples", "audio", "noise.wav") + ""],
+  args: ["--disable-gpu", "--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream", "--use-file-for-fake-audio-capture=" + path.join(repo, "samples", "audio", "noise.wav") + ""],
 });
 const ctx2 = await browser2.newContext({ viewport: { width: 1500, height: 950 }, permissions: ["microphone"] });
 const page2 = await ctx2.newPage();

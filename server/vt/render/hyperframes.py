@@ -69,8 +69,13 @@ def render_silent(comp_dir: Path, out: Path, *, fps: int = 30, quality: str = "l
     if workers=='auto' and configured_workers.isdigit() and 1<=int(configured_workers)<=16:
         workers=int(configured_workers)
     from .browser_gpu import nvidia_render_device,browser_environment
+    from .. import gpu as gpu_choice
+    notes: list[str]=[]
+    if gpu and not gpu_choice.usable():
+        gpu=False
+        notes.append('Video Tool may use no graphics card, so the frames are drawn and encoded on the processor.')
     device=nvidia_render_device() if gpu else None
-    acceleration={'gpu_requested':gpu,'selected_device':device,'attempts':[],'warnings':[]}
+    acceleration={'gpu_requested':gpu,'selected_device':device,'attempts':[],'warnings':notes}
     report=out.with_suffix('.acceleration.json')
     log=out.with_suffix('.render.log')
     def save_report():
@@ -151,6 +156,8 @@ def snapshot(comp_dir: Path, out_dir: Path, times: list[float], gpu: bool = True
     out_dir.mkdir(parents=True, exist_ok=True)
     for old in out_dir.glob("*.png"):
         old.unlink()
+    from .. import gpu as gpu_choice
+    gpu = gpu and gpu_choice.usable()                             # no card allowed: the browser draws on the processor
     args = ["snapshot", str(comp_dir), "--at", ",".join(f"{t:.3f}" for t in times), "-o", str(out_dir), "--describe", "false", "--no-end"]
     if gpu:
         args.append("--browser-gpu")
@@ -165,3 +172,70 @@ def snapshot(comp_dir: Path, out_dir: Path, times: list[float], gpu: bool = True
             else:
                 os.environ[k] = v
     return sorted(out_dir.glob("frame-*.png"))
+
+
+def _browser() -> str:
+    return run(hyperframes_cmd("browser", "path")).strip().splitlines()[-1].strip()
+
+
+def frame_facts(comp_dir: Path, times: list[float]) -> dict[float, list[str]]:
+    """What covers what at these moments, measured on the real page (renderer/scripts/frame-facts.mjs). Facts for the director to read; nothing is changed."""
+    script = paths.RENDERER / "scripts" / "frame-facts.mjs"
+    out = run([find_tool("node"), str(script), _browser(), str(comp_dir), json.dumps([float(t) for t in times])])
+    return {float(k): v for k, v in json.loads(out.strip().splitlines()[-1]).items()}
+
+
+def probe(comp_dir: Path, expression: str, at: float = 0.0, screenshot: Optional[Path] = None):
+    """Open the composition on the real page (a headless browser, software drawing), seek to `at` seconds and return what a JavaScript expression gives
+    (renderer/scripts/dom-probe.mjs), saving a screenshot too when `screenshot` is given. It sees what the viewer's browser sees; it changes nothing."""
+    script = paths.RENDERER / "scripts" / "dom-probe.mjs"
+    out = run([find_tool("node"), str(script), _browser(), str(comp_dir), str(float(at)), expression, *([str(screenshot)] if screenshot else [])])
+    return json.loads(out.strip().splitlines()[-1])["result"]
+
+
+def guard_log(comp_dir: Path) -> list[dict]:
+    """What the page's layout guard did (rule plans) or would have done (plans an AI directed), scene by scene: `window.__guard`."""
+    return probe(comp_dir, "window.__guard || []") or []
+
+
+SECTIONS = ("lint", "runtime", "layout", "motion", "contrast")
+PLAIN = {"lint": "Composition rules", "runtime": "Errors while playing", "layout": "Layout", "motion": "Motion", "contrast": "Text contrast"}
+
+
+def summarize_check(raw: dict) -> dict:
+    """HyperFrames' own `check` answer (lint, runtime, layout, motion, WCAG contrast) as one flat list the Studio, the CLI and the pipeline share."""
+    issues: list[dict] = []
+    for name in SECTIONS:
+        sec = raw.get(name) or {}
+        for f in sec.get("findings", []) or []:
+            sev = str(f.get("severity", "warning"))
+            if sev == "info":
+                continue
+            issues.append({"area": PLAIN[name], "severity": sev, "code": f.get("code", ""), "message": str(f.get("message", ""))[:300], "selector": f.get("selector", ""),
+                           "time": f.get("time", f.get("firstSeen", 0)), "fix": str(f.get("fixHint", ""))[:300]})
+    errors = sum(1 for i in issues if i["severity"] == "error")
+    return {"ok": errors == 0 and bool(raw.get("ok", True)), "errors": errors, "warnings": len(issues) - errors, "issues": issues[:60], "browser_skipped": bool(raw.get("browserSkipped"))}
+
+
+def check(comp_dir: Path, *, samples: int = 5, timeout: float = 120.0) -> dict:
+    """Run HyperFrames' pre-flight on a composition folder: it plays the page in a browser (software, a couple of seconds) and reports script errors, missing files, text
+    leaving the picture, text that cannot be read against its background and motion problems, before a long render. Never raises: a tool that cannot run says so."""
+    import subprocess
+
+    try:
+        cmd = hyperframes_cmd("check", str(comp_dir), "--json", "--samples", str(samples), "--no-browser-gpu")
+        done = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout, env=_env())
+        text = done.stdout
+        raw = json.loads(text[text.index("{"): text.rindex("}") + 1])
+        if raw.get("error") and not any(raw.get(n) for n in SECTIONS):          # no composition in that folder, or the tool failed before it looked
+            return {"ok": True, "errors": 0, "warnings": 0, "issues": [], "unavailable": str(raw.get("error"))}
+        out = summarize_check(raw)
+    except Exception as e:                                                       # noqa: BLE001
+        return {"ok": True, "errors": 0, "warnings": 0, "issues": [], "unavailable": f"{type(e).__name__}: {str(e)[:160]}"}
+    try:
+        from ..util import write_json
+
+        write_json(comp_dir / ".hyperframes_check.json", out)
+    except OSError:
+        pass
+    return out

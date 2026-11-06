@@ -63,13 +63,19 @@
       stage.style.removeProperty("--s");
       let s = parseFloat(getComputedStyle(stage).getPropertyValue("--s")) || 1;
       for (let i = 0; i < 4; i++) {
-        let worst = 1;
+        let worst = 1, stacked = 0, groups = 0;
+        const column = getComputedStyle(stage).flexDirection === "column";                  // groups one above the other (a tall frame) share the stage's height; side by side each has all of it
         stage.querySelectorAll(":scope > .grp").forEach((g) => {
-          const kids = Array.from(g.children);
+          const kids = Array.from(g.children).filter((k) => k.offsetHeight);
           const gap = parseFloat(getComputedStyle(g).rowGap) || 0;
           const need = kids.reduce((t, k) => t + k.offsetHeight, 0) + gap * Math.max(0, kids.length - 1);
           if (need > stage.clientHeight) worst = Math.min(worst, stage.clientHeight / need);
+          if (need) { stacked += need; groups++; }
         });
+        if (column && groups > 1) {
+          const between = (parseFloat(getComputedStyle(stage).rowGap) || 0) * (groups - 1);
+          if (stacked + between > stage.clientHeight) worst = Math.min(worst, stage.clientHeight / (stacked + between));
+        }
         if (worst >= 0.995) break;
         s *= worst * 0.97;
         stage.style.setProperty("--s", String(s));
@@ -687,6 +693,21 @@
     return layers;
   }
 
+  /* An element that is simply there: every fade-in it just added to the timeline is replaced by its finished state. Long moves (camera, lips, idling)
+     keep running, unmoved in time, and a moment the director chose (data "chosen") stays. Later than the scene's start it pops in at its time. */
+  function settleEntrance(tl, known, at, sceneStart, holder) {
+    tl.getChildren(false, true, false).forEach((tw) => {
+      const from = tw.vars && tw.vars.startAt;
+      if (known.has(tw) || !from || from.opacity !== 0 || tw.vars.data === "chosen" || tw.startTime() > at + 1.2) return;
+      const done = {};
+      Object.keys(from).forEach((k) => { if (k in tw.vars) done[k] = tw.vars[k]; });
+      const targets = tw.targets();
+      tw.kill();
+      gsap.set(targets, done);
+    });
+    if (holder && at > sceneStart + 0.06) { gsap.set(holder, { visibility: "hidden" }); tl.set(holder, { visibility: "visible" }, at); }
+  }
+
   /* Slow, loop-free motion placed on the paused timeline, so previews and renders show the same frame at the same time. */
   function animateBackground(tl, layers, theme, duration) {
     if (!theme.background || !theme.background.animated) return;
@@ -736,6 +757,9 @@
   function build(data) {
     (window.VTX.worldDisposers||[]).forEach(dispose=>dispose());window.VTX.worldDisposers=[];
     D = data;
+    window.VTX.lateLooks = [];                                 // corner-pin warps wait for the fonts (their corners are in pixels of the box)
+    window.__guard = [];                                       // what the layout guard did or would do, scene by scene (the stick scenes add their cut props while they draw)
+    window.__guardDone = false;
     const fmt = D.format;
     const W = fmt.width,
       H = fmt.height;
@@ -791,6 +815,9 @@
       scenesLayer.appendChild(el);
       if (sc.archetype === "reel") el.classList.add("arch-reel");          // the reel look: one design for every scene (labels match the captions)
       if (sc.backdrop && window.VTX.backdrop) window.VTX.backdrop(el, sc, tl, D);
+      if (sc.story && window.VTX.story) window.VTX.story(el, sc, tl, D);          // Cartoon 2: the story engine draws the whole frame (vt-story.js)
+      if (sc.story_overlay && window.VTX.story)                                      // Cartoon 1 with story-engine extras drawn on top at their words
+        window.VTX.story(el, { ...sc, story: { bg: { type: "plain", color: "transparent" }, items: sc.story_overlay, push: 0, tag: "" } }, tl, D, true);
       if (sc.stick && window.VTX.stick) {
         if(sc.stick.actions.some(a=>a._timed)) freeActors.push(sc);
         else window.VTX.stick(el, sc, tl, D);
@@ -849,7 +876,13 @@
         const at = Math.min(Math.max(e.at, sc.start + (first ? 0 : 0.05)), Math.max(sc.start, sc.end - 0.25));
         w._at = at;
         const customEntrance=e.entrance && e.entrance!=="auto";
-        if (si === 0 && ji === 0 && at <= sc.start + 0.8 && !customEntrance && !(e.type === "cartoon" && e.cues?.length)) {
+        const opening = si === 0 && ji === 0 && at <= sc.start + 0.8;
+        if (e.entrance === "none" || (opening && !customEntrance && e.type === "cartoon")) {
+          // already in place. A cartoon opens this way too: skipping ahead in its timeline (below) would put its lips and pose cues ahead of the voice
+          const known = new Set(tl.getChildren(false, true, false));
+          inst.enter(tl, at, M, ctxBase, sc);
+          settleEntrance(tl, known, at, sc.start, w);
+        } else if (opening && !customEntrance) {
           // the very first frame is the thumbnail feeds show and the first thing a scroller sees: the opening picture is already in place at 0 s
           const sub = gsap.timeline({ paused: true });
           inst.enter(sub, 0, M, ctxBase, sc);
@@ -887,7 +920,10 @@
       host.style.cssText = "opacity:1;pointer-events:none";
       if(sc.tone) applyTone(host, D.theme, sc.tone);
       const position = h("div", "free-position");
-      position.style.cssText = "position:absolute;left:" + ((e.x ?? .5)*100) + "%;top:" + ((e.y ?? .45)*100) + "%;width:max-content;max-width:90%;transform:translate(-50%,-50%) scale("+(e.scale ?? 1)+") rotate("+(e.rotation || 0)+"deg);opacity:"+(e.opacity ?? 1);
+      position.style.cssText = "position:absolute;left:" + ((e.x ?? .5)*100) + "%;top:" + ((e.y ?? .45)*100) + "%;width:max-content;max-width:90%";
+      const shape = h("div", "free-shape");                      // what the crop and the corner-pin warp act on; invisible (no box) when neither is used
+      shape.style.display = "contents";
+      window.VTX.look(position, shape, e, W, H);               // size, stretch, rotation, slant, flip, tilt, pivot, opacity, blur, blend, crop, warp (vt-keyframes.js)
       const wrap = h("div", "el el-"+e.type);
       if(e.text_style) wrap.classList.add("text-look-"+e.text_style);
       if(e.ink) wrap.style.setProperty("--letter-ink",e.ink);
@@ -901,13 +937,15 @@
         position.style.height=H+"px";
         position.style.top=((e.y ?? .5)*100)+"%";
       }
-      wrap.appendChild(inst.el); position.appendChild(wrap); host.appendChild(position); root.appendChild(host);
+      wrap.appendChild(inst.el); shape.appendChild(wrap); position.appendChild(shape); host.appendChild(position); root.appendChild(host);
       const at=Math.max(0,e.at), end=Math.min(D.duration,e.until ?? D.duration);
       gsap.set(host,{visibility:"hidden"});
       tl.set(host,{visibility:"visible"},at);
+      const known=new Set(tl.getChildren(false,true,false));
       inst.enter(tl,at,M,ctxBase,{...sc,start:at,end});
+      if(e.entrance==="none" || ((!e.entrance || e.entrance==="auto") && e.type==="cartoon" && sc===D.scenes[0] && at<=sc.start+.8)) settleEntrance(tl,known,at,at,null);
       if(e.entrance && !["auto","none"].includes(e.entrance)) window.VTX.motionEnter(e.entrance,tl,wrap,at,sc.id+":"+i);
-      if(e.keyframes?.length) window.VTX.keyframes(tl,position,e.keyframes,W,H);
+      if(e.keyframes?.length) window.VTX.keyframes(tl,position,e.keyframes,W,H,{x:!!(e.transform&&e.transform.flip_x),y:!!(e.transform&&e.transform.flip_y)});
       if(inst.hideInit) inst.hideInit.forEach(x=>x && gsap.set(x,{opacity:0}));
       tl.set(host,{visibility:"hidden"},end);
     });
@@ -991,7 +1029,7 @@
     }
 
     let flowed = false;
-    const finish = () => { runFit(); shrinkStages(); if (!flowed) { flowed = true; const cur = tl.time(); tl.time(0); flowStages(); tl.time(cur); } guardLayout(scenesLayer, W, H, tl, D); };
+    const finish = () => { runFit(); shrinkStages(); if (!flowed) { flowed = true; const cur = tl.time(); tl.time(0); flowStages(); tl.time(cur); } guardLayout(scenesLayer, W, H, tl, D); (window.VTX.lateLooks || []).forEach((f) => f()); };
     runFit();
     shrinkStages();
     if (document.fonts && document.fonts.status === "loaded") finish();
@@ -1007,7 +1045,11 @@
      2. overlap: two elements whose boxes overlap by more than 18 % of the smaller one (intersection over the smaller area): the one
         of lower rank goes (title > number card > keyword > quote > picture > tag);
      3. too small to read: a text element whose letters are under 26 px on the 1080-wide frame is dropped.
-     Every decision is kept in window.__guard for the QA scripts. */
+     Every decision is kept in window.__guard for the QA scripts and the call log (Details, Problems).
+     A dropped element gets the class vt-gone (display none !important) and a shrunk one the CSS scale property: the timeline writes display when an element arrives and transform on every frame,
+     which used to undo an inline display:none and a scale appended to transform.
+     A scene an AI directed (scene.directed, set by the composer) is only measured: nothing is shrunk, hidden or dropped. The same findings are kept in
+     window.__guard as "would-shrink", "would-drop" or "left", and frame-facts.mjs tells the director, who fixes its own plan (plan decision 1). */
   const RANK = { title: 9, value_card: 8, big_number: 8, stat_row: 8, price_tag: 8, bar_chart: 8, keyword: 7, question: 7, quote: 6, list: 6, sticker: 4, icon: 4, tag: 2 };
   const OPTIONAL = new Set(["tag", "sticker", "icon"]);
   function boxOf(node, upTo) {                     // the box as it is on screen (after re-flowing and entrances), in frame pixels
@@ -1015,14 +1057,45 @@
     const sc = parseFloat(getComputedStyle(node).getPropertyValue("--s")) || 1;
     return { x: (r.left - f.left) * k, y: (r.top - f.top) * k, w: r.width * k, h: r.height * k, s: sc };
   }
+  /* Layout's job, before anything is judged, across the frame: what a group holds can be wider than the stage (a long word cannot wrap; a grid column grows to hold its widest
+     item). The group is scaled down together, about the middle of what it holds, and moved back inside the stage. Nothing is hidden or dropped. The CSS scale and translate properties
+     are used because the timeline rewrites transform and display on every frame, but not these. Measured on the scene's last frame, when everything has arrived. (Up and down is
+     shrinkStages' job: it scales the whole stage.) */
+  function fitGroups(stage) {
+    const room = stage.getBoundingClientRect();
+    if (!room.width) return;
+    const alone = stage.querySelectorAll(":scope > .grp").length === 1;
+    stage.querySelectorAll(":scope > .grp").forEach((g) => {
+      ["scale", "translate", "transform-origin"].forEach((p) => g.style.removeProperty(p));
+      const rs = Array.from(g.children).filter((c) => getComputedStyle(c).display !== "none").map((c) => {
+        const r = c.getBoundingClientRect(), inner = c.firstElementChild, ir = inner ? inner.getBoundingClientRect() : r;     // what an element holds can reach past its own box
+        return { left: Math.min(r.left, ir.left), top: Math.min(r.top, ir.top), right: Math.max(r.right, ir.left + (inner ? inner.scrollWidth : 0)), bottom: Math.max(r.bottom, ir.bottom) };
+      }).filter((r) => r.right > r.left && r.bottom > r.top);
+      if (!rs.length) return;
+      const L = Math.min(...rs.map((r) => r.left)), R = Math.max(...rs.map((r) => r.right)), T = Math.min(...rs.map((r) => r.top)), B = Math.max(...rs.map((r) => r.bottom));
+      const gr = g.getBoundingClientRect();
+      if (L >= room.left - 2 && R <= room.right + 2) return;                                                               // it fits the stage (a group may reach into its neighbour's empty room)
+      const k = Math.max(0.45, Math.min(1, room.width / (R - L)));                                                         // not below 45 %: smaller is not a fit, it is unreadable (the facts tell the director)
+      const cx = (L + R) / 2, cy = (T + B) / 2;
+      const dx = alone ? Math.max(0, room.left - (cx - (cx - L) * k)) - Math.max(0, cx + (R - cx) * k - room.right) : 0;          // a group with neighbours only shrinks: moving it could put it on one
+      g.style.transformOrigin = (cx - gr.left).toFixed(1) + "px " + (cy - gr.top).toFixed(1) + "px";
+      g.style.scale = k.toFixed(4);
+      g.style.translate = dx.toFixed(1) + "px 0px";
+    });
+  }
   function guardLayout(layer, W, H, tl, D) {
-    const log = (window.__guard = []);
+    const log = (window.__guard = window.__guard || []);
     const keep = tl ? tl.time() : 0;
     Array.from(layer.querySelectorAll(":scope > .scene")).forEach((scene, si) => {
       const sd = D && D.scenes[si];
       if(sd && sd.edited) return;
+      /* A scene an AI directed (sd.directed) keeps everything the director put on it: nothing is shrunk, hidden or dropped. What the guard WOULD have done is recorded
+         ("would-shrink", "would-drop", "left") so the facts can tell the director, which fixes it itself (plan decision 1). Plans made by the rules keep the guard. */
+      const directed = !!(sd && sd.directed), id = scene.dataset.scene;
+      const said = (it, rule, fix, more) => { if (log.filter((g) => g.scene === id).length < 24) log.push({ scene: id, el: it.w.getAttribute("data-el"), type: it.type, rule, fix, ...(directed ? { directed: true } : {}), ...(more || {}) }); };
       if (tl && sd) tl.time(Math.max(sd.start, sd.end - 0.05));          // the scene's last frame: everything has entered and moved to its place
-      const els = Array.from(scene.querySelectorAll(".stage .el")).filter((w) => w.style.display !== "none");
+      scene.querySelectorAll(".stage").forEach(fitGroups);                // layout's job first (directed or not): fit by scaling together
+      const els = Array.from(scene.querySelectorAll(".stage .el")).filter((w) => w.style.display !== "none" && !w.classList.contains("vt-gone"));
       const items = els.map((w) => ({ w, type: (/el-(\w+)/.exec(w.className) || [])[1] || "", b: boxOf(w, scene) }));
       items.forEach((it) => {
         const { x, y, w, h } = it.b;
@@ -1030,12 +1103,18 @@
         const outside = (Math.max(0, -x) + Math.max(0, x + w - W)) / w + (Math.max(0, -y) + Math.max(0, y + h - H)) / h;
         if (outside > 0.12) {
           const k = Math.min(W / w, H / h) * 0.92;
-          if (k < 1 && k > 0.55) { it.w.style.transform = (it.w.style.transform || "") + " scale(" + k.toFixed(3) + ")"; log.push({ scene: scene.dataset.scene, type: it.type, rule: "cut-off", fix: "shrunk" }); }
-          else if (OPTIONAL.has(it.type)) { it.w.style.display = "none"; it.gone = true; log.push({ scene: scene.dataset.scene, type: it.type, rule: "cut-off", fix: "dropped" }); }
+          if (k < 1 && k > 0.55) {
+            if (directed) said(it, "cut-off", "would-shrink");
+            else { it.w.style.scale = k.toFixed(3); said(it, "cut-off", "shrunk"); }       // the CSS scale property: the timeline rewrites `transform` on every frame and would undo a scale put there
+          } else if (OPTIONAL.has(it.type)) {
+            if (directed) said(it, "cut-off", "would-drop");
+            else { it.w.classList.add("vt-gone"); it.gone = true; said(it, "cut-off", "dropped"); }
+          } else if (directed) said(it, "cut-off", "left");
         }
         const fs = Array.from(it.w.querySelectorAll("*")).filter((n) => n.childNodes.length && Array.from(n.childNodes).some((c) => c.nodeType === 3 && c.nodeValue.trim())).map((n) => parseFloat(getComputedStyle(n).fontSize) || 99);
         if (it.type === "tag" && fs.length && Math.max(...fs) * (it.b.s || 1) < 26) {          // only text-only labels: a sticker is its picture, a diagram keeps its small print
-          it.w.style.display = "none"; it.gone = true; log.push({ scene: scene.dataset.scene, type: it.type, rule: "too-small", fix: "dropped" });
+          if (directed) said(it, "too-small", "would-drop");
+          else { it.w.classList.add("vt-gone"); it.gone = true; said(it, "too-small", "dropped"); }
         }
       });
       for (let i = 0; i < items.length; i++) for (let j = i + 1; j < items.length; j++) {
@@ -1045,13 +1124,14 @@
         const iy = Math.max(0, Math.min(a.b.y + a.b.h, b.b.y + b.b.h) - Math.max(a.b.y, b.b.y));
         const small = Math.max(1, Math.min(a.b.w * a.b.h, b.b.w * b.b.h));
         if ((ix * iy) / small > 0.18) {
-          const lose = (RANK[a.type] || 5) >= (RANK[b.type] || 5) ? b : a;
-          lose.w.style.display = "none"; lose.gone = true;
-          log.push({ scene: scene.dataset.scene, type: lose.type, rule: "overlap", fix: "dropped" });
+          const lose = (RANK[a.type] || 5) >= (RANK[b.type] || 5) ? b : a, win = lose === a ? b : a;
+          if (directed) said(lose, "overlap", "would-drop", { with: win.w.getAttribute("data-el") });
+          else { lose.w.classList.add("vt-gone"); lose.gone = true; said(lose, "overlap", "dropped", { with: win.w.getAttribute("data-el") }); }
         }
       }
     });
     if (tl) tl.time(keep);
+    window.__guardDone = true;
   }
 
   function buildCaptions(root, tl, data, M, a169) {
@@ -1072,6 +1152,7 @@
     }
     data.captions.forEach((c) => {
       const box = h("div", "cap cap-" + style);
+      if (c.y != null) box.style.bottom = Math.round(data.format.height * (1 - c.y) - parseFloat(getComputedStyle(layer).bottom)) + "px";   // this scene's director chose the height
       const inner = h("div", "cap-inner");
       box.appendChild(inner);
       const spans = c.words.map((w) => {
@@ -1090,6 +1171,11 @@
       tl.fromTo(box, { opacity: 0, y: 24, scale: 0.94 }, { opacity: 1, y: 0, scale: 1, duration: 0.18, ease: "power2.out" }, c.start);
       tl.set(box, { opacity: 0 }, Math.max(c.start + 0.2, c.end));
       spans.forEach(({ s, pill, w }) => {
+        if (reveal === "words" && (style === "box" || style === "pill")) {      // the box fits the words said so far, never an empty box waiting for the rest of the line
+          const shown = getComputedStyle(s).display;
+          gsap.set(s, { display: "none" });
+          tl.set(s, { display: shown }, Math.max(c.start, w.start));
+        }
         if (reveal === "words") tl.fromTo(s, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.12, ease: "power2.out" }, Math.max(c.start, w.start));
         if (style === "pop" || style === "word" || style === "keyword") {      // the word being said lights up and bounces, then settles back (keyword: only the key word grows)
           const t0 = Math.max(c.start, w.start - 0.02);
@@ -1154,7 +1240,24 @@
     } else if (m.vt === "rect") {
       const el = document.querySelector('.scene[data-scene="' + m.scene + '"] .el[data-el="' + m.index + '"]');     // any page of the scene
       const b = el && el.getBoundingClientRect();
-      window.parent.postMessage({ vt: "rect", scene: m.scene, index: m.index, box: b && b.width ? [b.left, b.top, b.width, b.height] : null }, "*");
+      let size = null, quad = null, free = false;
+      if (el && b && b.width) {
+        size = [el.offsetWidth, el.offsetHeight];                                   // its own size before any transform (what the corner pins are fractions of)
+        const shape = el.closest(".free-shape");
+        free = !!shape;
+        if (shape) {                                                                // a hand-placed element: where its four corners really are, with rotation, tilt, slant and corner pin in
+          const host = shape.style.display === "contents" ? shape.parentElement : shape;
+          quad = [[0, 0], [1, 0], [1, 1], [0, 1]].map(([x, y]) => {
+            const k = document.createElement("i");
+            k.style.cssText = "position:absolute;width:0;height:0;pointer-events:none;left:" + x * 100 + "%;top:" + y * 100 + "%";
+            host.appendChild(k);
+            const r = k.getBoundingClientRect();
+            k.remove();
+            return [r.left, r.top];
+          });
+        }
+      }
+      window.parent.postMessage({ vt: "rect", scene: m.scene, index: m.index, box: b && b.width ? [b.left, b.top, b.width, b.height] : null, size, quad, free, frame: [innerWidth, innerHeight] }, "*");
     } else if (m.vt === "data") {
       const t = tl ? tl.time() : 0;
       build(m.data);

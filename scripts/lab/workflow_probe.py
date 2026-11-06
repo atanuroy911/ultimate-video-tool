@@ -1,4 +1,4 @@
-"""Readiness/pairing for a disposable split-product workflow; no engine changes."""
+"""Readiness for a disposable split-product workflow; no engine changes."""
 import argparse
 import json
 import os
@@ -6,7 +6,6 @@ import shlex
 import paramiko
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--pair', action='store_true')
 parser.add_argument('--project', default='')
 args = parser.parse_args()
 code = '''
@@ -22,10 +21,8 @@ with httpx.Client(timeout=20) as c:
         out[name]=data
     if PROJECT:
         r=c.get(base+'/api/jobs');r.raise_for_status();out['jobs']=[j for j in r.json() if j.get('project')==PROJECT]
-    if PAIR:
-        r=c.post(base+'/api/server/code');r.raise_for_status();out['pair']=r.json()['code']
 print(json.dumps(out))
-'''.replace('PAIR', repr(args.pair)).replace('PROJECT',repr(args.project))
+'''.replace('PROJECT',repr(args.project))
 ssh = paramiko.SSHClient()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 ssh.connect('192.168.123.47', username='roy', password=os.environ['GPU_PASS'], look_for_keys=False, allow_agent=False, timeout=15)

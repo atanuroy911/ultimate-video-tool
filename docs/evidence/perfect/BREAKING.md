@@ -1,0 +1,45 @@
+# Everything that is broken, blocked or risky (parked on purpose, to come back to)
+
+Written 2026-11-06 at the owner's request: "list all the breaking stuff and finish rest of the implementation and then come back to it later". The work goes on with everything that is not on this list. When a step turns out to be stuck, it is added here, with what is known, and the work moves on. Plan: `docs/plans/PLAN-PERFECT.MD`. Numbers below were true when this was written.
+
+## 1. Waiting for the owner (nothing can move until they answer)
+| # | What | Why it matters | What unblocks it |
+|---|---|---|---|
+| 1 | **The GPU server stopped hard twice on 2026-11-05** (about 17:00 and 21:25), both times during my full test runs, while the V100 was training. No cause in the logs (`A3-server-restarts.md`). | Until this is settled I run no full test suite and no real video render on the server. That blocks every step that makes or renders a video: M9 (the `make` half), M10, K6's check, A3, A5, A7 (the ones that need the server), A9, all of C that looks at renders, all of D, G, H2, H5, I. | The owner says whether I may render one video at a time on the server (I would read `uptime` before and after each, and stop and tell them at once if it restarted), or finds the cause first. |
+| 2 | **Everything of Video Tool's and the owner's ComfyUI now shares the RTX 3060's 12 GB.** (Corrected 2026-11-06: I had written that the owner's ComfyUI was on the V100 because `docs/ops/comfyui-server.md` said so; the service actually runs on the RTX 3060, `CUDA_VISIBLE_DEVICES=1`, and the V100 is empty.) With Video Tool's own gemma (9.6 GB) on the same card, pictures and the language AI cannot both stay loaded: Video Tool already asks ComfyUI to unload before the AI answers (`llm.make_room`), which costs about 40 s per switch. | Slower videos that use both, and a risk of "out of memory" if both load at once. | Measure it in the first real gemma video (K6 check, parked behind item 1). If it hurts, the owner can allow the V100 for the AI job on the Server page. |
+| 3 | **Start with the computer (M7)** needs the installed app and the owner's agreement to register a real login entry. | The helper only runs while someone has opened the app once per login until this is done. | The owner agrees, then H1 (the installed build). |
+| 4 | Things only the owner can supply (W-list): ElevenLabs key, social accounts, a code-signing certificate, a Mac, a clean Windows PC or VM (H8), `english sample.mp3` (one recording test skips without it), permission to delete the many test videos on the real server (W4), whether to try a better local vision model (W1). | Those steps stay unticked and are marked "needs the owner". | The owner. |
+
+## 2. Broken now, known
+| # | What | Evidence | Next step |
+|---|---|---|---|
+| 5 | **No full test run since the first restart.** The last full run (2026-11-05) was 13 failed, 9 errors, 1303 passed. Fixed since: the leak between tests, the ONNX provider test, the tunnel test. **Still open:** three golden-image tests (shorter caption chunks changed the pictures: the goldens must be looked at and regenerated on the server), `test_recordings_are_byte_identical[bn_plain]` (A5, cause never found), the English recording test (no sample file). | plan A3-A5 | Needs server runs (item 1). |
+| 6 | **The browser suites have not been run as a whole since the client/server split.** I made them able to run (`--disable-gpu`, the key for the dev proxy, `vt_lab.py scratch`), and several I wrote pass (`helper_card`, `gpu_card`, `connect`, `flow`...). The rest are untested: some are probably out of date. `crawl.mjs` takes more than 10 minutes. | plan A6, A7 | A7 (can start now against the real server, read-only). |
+| 7 | **Renderer fixes are checked only by eye** (character visible at t = 0, lips not ahead of the voice, quote spaces, caption position...). | plan A9 | Needs the real-browser tests, run on the server. |
+| 8 | **Code still overrides the directors in places** (hiding what an AI placed, repairs not reported, the reel and story paths). | plan B1-B7 | Phase B. |
+| 9 | **Drawing defects** found earlier: feet and floor off in 16:9 and 1:1, missing poses (`idle`, `run`, `laugh`, `count`, `confused`, riding), only a few kinds of people, word-by-word motion does not move, facts only for one style. | plan C1-C9 | Phase C (code can start; its checks need renders). |
+| 10 | **A server restart leaves a project "Processing…" for ever** (jobs live in memory; nothing recovers them). The owner's server did restart twice. | plan F1 | Phase F, can be done now with fakes. |
+| 11 | The editor, the New flow and the result page have known rough edges (three "New video" buttons, cut-off tiles, no way to reach Styles on a phone, "Craft score 49 with 12 violation(s)" wording, the redo dialog asks for "AI Provider"...). | plan E1-E9, E11-E16 | Phase E. |
+
+## 3. Found while working, not fixed yet
+| # | What | Where it stands |
+|---|---|---|
+| 12 | **K6's last check is open:** a gemma video through Video Tool's own Ollama, with `nvidia-smi` sampled every 2 s, to see that only the RTX 3060 is used, how long it takes, and whether gemma (9.6 GB) fits on the 12 GB card next to the owner's ComfyUI and VoiceStudio. Everything else of K1-K6 is on the owner's server and checked (2026-11-06, `K6-the-owners-server.md`). | One real video, behind item 1. |
+| 13 | A latent loop in my own K2 code (the card reading and the default card asked each other: 534 calls, minutes per reading in the unanswered state) was found by the fake-`nvidia-smi` test and fixed before it reached any server. Worth knowing because the same tests are the only guard. | Fixed, tests in `tests/test_gpu_setup.py`. |
+| 14 | The Server page has no **Restart** button for "the server must restart for this to apply". | Written into E15. |
+| 15 | `engine-management.js` (the page inside the server windows) still sends a card number with an install; the server accepts and ignores it. | K5, in progress. |
+| 16 | **Codex has never been run against the real Codex program** (it is not installed on this PC); only a stand-in. | B11, H2. |
+| 17 | The idle helper's working set is 83 MB (the plan said under 80): 58 MB private, no leak found. | Recorded in M6; accepted unless the owner objects. |
+| 18 | **Updating or uninstalling the app while its helper runs** may find files in use (the installer does not stop the helper yet). | H1, H4. |
+| 19 | The lab helper leaves "MSI-LAPTOP (lab)" on the owner's Server page as "Not connected" for 60 days. | Harmless; a "forget this computer" button would remove such leftovers (not planned). |
+| 20 | `docs/UI-REVIEW.md` and a few notes still describe a Bangla interface (removed on the owner's decision). | I3 (docs clean-up). |
+| 21 | The Linux server window (`server-manager-gtk.py`) and the install scripts can only be run for real on Linux. They get syntax and logic checks here, and a real run in H5. | K5, H5. |
+| 22 | On this PC, writes to files fail now and then with `OSError 22` (antivirus or indexer); scripts that edit files retry. `tests/test_gpu.py` ran once on the owner's RTX 4050 by accident (a few seconds); local runs leave it out now. | Known, harmless. |
+| 23 | **Automatic layout still does not fit everything.** It now scales a group together to fit across the stage (never below 45 %) and groups one above the other share the stage's height. Left over: a word that needs less than 45 % still passes the frame edge a little; a grid column holding a row of four numbers crushes them into each other; several groups side by side whose texts are wider than their own slots overlap each other. An AI director is told by the facts; a rule plan's guard hides the lower-ranked element. | B2, `B2-guard-and-layout.md`. |
+| 24 | **E17 (fix it by hand) is done except three small things:** there is no keyframe diamond beside each value (points are added in the Motion tab with "Save a point here", where every value has its slider); a corner pin dragged while the element is also tilted or slanted moves by the hand's distance without undoing the tilt (right for turn and size); media layers (the timeline's own clips) animate stretch, slant, tilt and blur through the shared keyframe code but have no static controls for them yet. | E17, `E17-fix-it-by-hand.md`. |
+
+## 4. Not a bug, but the owner should know
+- **B2 changed rule-made videos in one way:** what the layout guard dropped or shrank used to come back (a late element's `display` was written again by the timeline) or was lost on the first frame (GSAP rewrites `transform`). It now holds, so a crowded rule plan can show fewer cut-off elements than before. The reference video is unchanged in 9:16, 16:9 and 1:1 (80 element boxes each, old runtime against new).
+- **Nothing is committed or pushed.** 318 files are changed in the working tree since the last commit (`4d544a6`). I commit only when asked.
+- Several old dev servers started days ago are still running on ports 5173 and 5174 (not mine; left alone).
+- The server is untouched since the deploy at 21:18 on 2026-11-05, except the helper's own test computer listing.

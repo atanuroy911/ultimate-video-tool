@@ -67,7 +67,7 @@ export default function ProgressPage() {
   }, [job?.msg, job?.stage]);
 
   // leave when ready: to the finished video (autopilot) or to the editor
-  const dest = autopilot ? `/p/${id}/result` : `/p/${id}`;
+  const dest = project?.options?.review_script ? `/p/${id}/script` : autopilot ? `/p/${id}/result` : `/p/${id}`;
   const review = project?.status === "review";
   useEffect(() => {                                           // the director has a plan and is waiting: show it once, as a sheet; nothing is made before Start
     if (review && id && askedAbout.current !== id) { askedAbout.current = id; setPlanOpen(true); }
@@ -83,7 +83,7 @@ export default function ProgressPage() {
       }, 700);
       return () => { cancelled = true; clearTimeout(tm); };
     }
-    if (!job && project && project.status === "planned") nav(dest, { replace: true });
+    if (!job && project && !project.active_job && ["planned", "rendered"].includes(project.status)) nav(dest, { replace: true });
   }, [job?.status, project?.status, id, nav, job, dest]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const stages = [...(cat?.stages || []).map((s) => s.key).filter((k) => k !== "voice" || project?.source === "script"), ...(autopilot ? FINISH : [])];

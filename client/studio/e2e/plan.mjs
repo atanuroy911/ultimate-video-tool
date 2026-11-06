@@ -23,11 +23,11 @@ meta.status = "review";
 fs.writeFileSync(path.join(dir, "project.json"), JSON.stringify(meta));
 fs.rmSync(path.join(dir, "scenes.json"), { force: true });
 fs.rmSync(path.join(dir, "plan_doc.json"), { force: true });
-await api("/api/settings", { method: "PUT", body: { ui_language: "en", plan_review: "always", comfy_url: `http://127.0.0.1:${await free()}` } });
+await api("/api/settings", { method: "PUT", body: { plan_review: "always", comfy_url: `http://127.0.0.1:${await free()}` } });
 const made = await api("/api/projects/reference/plan/make", {});
 check("the plan is written with no picture drawn", made.plan && made.plan.state === "draft" && made.plan.moments.length >= 2 && made.plan.moments.every((m) => !m.media));
 
-const browser = await chromium.launch({ executablePath: chromePath() });
+const browser = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 const errors = [];
 const axeSource = process.env.AXE && fs.existsSync(process.env.AXE) ? fs.readFileSync(process.env.AXE, "utf8") : "";
 async function axeCheck(page, label) {                         // accessibility: no serious or critical findings on the sheet (AXE=<path to axe.min.js>)

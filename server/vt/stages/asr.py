@@ -22,12 +22,12 @@ MODEL_SPECS: dict[str, dict] = {
     # Bangla fine-tune of Whisper medium; lowest WER among open models in a 2026 Bengali long-form study.
     # This fine-tune was trained WITHOUT timestamp tokens: enabling them clips the first word and invites a hallucinated tail
     # (verified against the original model), so it decodes without them; word times come from attention alignment instead.
-    "bn-medium": {"hf": "bengaliAI/tugstugi_bengaliai-asr_whisper-medium", "convert": True, "timestamp_tokens": False, "languages": ["bn"],
+    "bn-medium": {"hf": "bengaliAI/tugstugi_bengaliai-asr_whisper-medium", "convert": True, "timestamp_tokens": False, "languages": ["bn"], "download_gb": 3.06,
                   "note": "Bangla fine-tune (converted locally to CTranslate2, ~1.5 GB)"},
     # General multilingual model; better for English words, weaker for Bangla.
-    "large-v3": {"hf": "Systran/faster-whisper-large-v3", "convert": False, "timestamp_tokens": True, "note": "multilingual, ~3 GB"},
-    "medium": {"hf": "Systran/faster-whisper-medium", "convert": False, "timestamp_tokens": True, "note": "multilingual, ~1.5 GB"},
-    "small": {"hf": "Systran/faster-whisper-small", "convert": False, "timestamp_tokens": True, "note": "fast, lower accuracy, ~480 MB"},
+    "large-v3": {"hf": "Systran/faster-whisper-large-v3", "download_gb": 3.09, "convert": False, "timestamp_tokens": True, "note": "multilingual, ~3 GB"},
+    "medium": {"hf": "Systran/faster-whisper-medium", "download_gb": 1.53, "convert": False, "timestamp_tokens": True, "note": "multilingual, ~1.5 GB"},
+    "small": {"hf": "Systran/faster-whisper-small", "download_gb": 0.48, "convert": False, "timestamp_tokens": True, "note": "fast, lower accuracy, ~480 MB"},
 }
 
 
@@ -38,6 +38,10 @@ def _prepare_cuda() -> None:
 
 def cuda_available() -> bool:
     _prepare_cuda()
+    from .. import gpu
+
+    if not gpu.usable():                                                # the person allowed no graphics card: the processor listens
+        return False
     try:
         import ctranslate2
         return ctranslate2.get_cuda_device_count() > 0
@@ -49,7 +53,9 @@ def model_for_language(key: str, language: str) -> str:
     """The Bangla fine-tune only knows Bangla; any other language falls back to a multilingual model."""
     langs = MODEL_SPECS[key].get("languages")
     if langs and language not in langs:
-        return "large-v3" if (model_dir("large-v3") / "model.bin").exists() else "medium"
+        # large-v3 is the multilingual model that reads English well. With a GPU it is the default and downloads itself on first use (~3 GB);
+        # on the processor the smaller medium is used unless large-v3 is already there.
+        return "large-v3" if ((model_dir("large-v3") / "model.bin").exists() or cuda_available()) else "medium"
     return key
 
 
@@ -80,7 +86,44 @@ def ensure_model(key: str, progress: Callable[[str, float, str], None] = noop_pr
         return dest
     spec = MODEL_SPECS[key]
     dest.parent.mkdir(parents=True, exist_ok=True)
-    progress("asr", 0.0, f"downloading model {key} (first run only)")
+    progress("asr", 0.0, f"Downloading the speech model {key} (first run only)")
+    stop = _watch_download(spec, progress)
+    try:
+        return _fetch(key, spec, dest, progress)
+    finally:
+        stop()
+
+
+def _watch_download(spec: dict, progress: Callable[[str, float, str], None]) -> Callable[[], None]:
+    """A first download is gigabytes: say how far it is every few seconds (it showed 0 % for minutes and looked frozen, 2026-11-05)."""
+    import threading
+    import time
+
+    from huggingface_hub.constants import HF_HUB_CACHE
+
+    folder = Path(HF_HUB_CACHE) / ("models--" + spec["hf"].replace("/", "--"))
+    total = float(spec.get("download_gb") or 0) * 1e9
+    done = threading.Event()
+
+    def loop():
+        last, t_last = 0, time.time()
+        while not done.wait(3):
+            have = sum(f.stat().st_size for f in folder.rglob("*") if f.is_file() and not f.is_symlink()) if folder.exists() else 0
+            now = time.time()
+            speed = (have - last) / max(0.1, now - t_last) / 1e6
+            last, t_last = have, now
+            if total and have < total * 0.995:
+                left = (total - have) / 1e6 / speed if speed > 0.05 else 0
+                progress("asr", min(0.5, 0.5 * have / total), f"Downloading the speech model (first run only): {have / 1e9:.1f} of {total / 1e9:.1f} GB"
+                         + (f", about {max(1, round(left / 60))} min left" if left else ""))
+            elif have:
+                progress("asr", 0.5, "Preparing the speech model (first run only, a minute or two)")
+
+    threading.Thread(target=loop, daemon=True).start()
+    return done.set
+
+
+def _fetch(key: str, spec: dict, dest: Path, progress: Callable[[str, float, str], None]) -> Path:
     if spec["convert"]:
         from ctranslate2.converters import TransformersConverter
 
@@ -151,7 +194,12 @@ def _transcribe(wav: Path, *, model: str = "bn-medium", language: str = "bn",
     use_cuda = (device == "cuda") or (device is None and cuda_available())
     progress("asr", 0.02, "loading model on " + ("GPU" if use_cuda else "CPU"))
     try:
-        wm = WhisperModel(str(path), device="cuda" if use_cuda else "cpu", compute_type="float16" if use_cuda else "int8")
+        from .. import gpuassign
+
+        index = gpuassign.cuda_index("speech") if use_cuda else 0                # the card chosen for speech recognition (Server page, `vt gpu`)
+        wm = WhisperModel(str(path), device="cuda" if use_cuda else "cpu", device_index=index, compute_type="float16" if use_cuda else "int8")
+        if use_cuda:
+            progress("asr", 0.03, f"speech recognition runs on GPU {index}")
     except Exception as e:                                                                  # a GPU that cannot be used (driver, memory): say so and go on with the CPU
         if not use_cuda:
             raise

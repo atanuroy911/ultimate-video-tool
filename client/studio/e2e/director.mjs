@@ -8,7 +8,7 @@ const shots = process.env.SHOTS || "";
 let fails = 0;
 const check = (name, ok, extra = "") => { console.log(`${ok ? "PASS" : "FAIL"} ${name} ${ok ? "" : extra}`); if (!ok) fails++; };
 
-const b = await chromium.launch({ executablePath: chromePath() });
+const b = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 const page = await b.newPage({ viewport: { width: 1280, height: 900 } });
 await page.goto(`${base}/p/${pid}/result`, { waitUntil: "networkidle" });
 await page.waitForSelector("video");

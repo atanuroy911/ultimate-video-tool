@@ -1,11 +1,11 @@
-// Another computer uses a Video Tool server (docs/plans/PLAN-CLIENT-SERVER.MD CS4 + CS5): the Connect screen asks for the pairing code once,
-// then the Studio works, and a big recording still arrives when the connection drops in the middle of the upload.
+// Another computer uses a Video Tool server (docs/plans/PLAN-CLIENT-SERVER.MD CS4 + CS5, docs/plans/PLAN-PERFECT.MD decision 7): a browser on the server's network
+// opens the Studio with nothing to enter, a page from another site is refused, and a big recording still arrives when the connection drops in the middle of the upload.
 //
 // Needs a scratch `vt server` (it listens beyond this computer) opened by its network address, so the browser counts as another computer:
 //   VT_DATA=<scratch dir> vt server --port 8771 --ollama off --comfy off --voicestudio off
 //   VT_URL=http://<this computer's LAN address>:8771 node e2e/connect.mjs
-// The test asks the server for a pairing code over 127.0.0.1, as the server's own Engines page does.
 import fs from "node:fs";
+import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { chromium } from "playwright-core";
@@ -13,7 +13,6 @@ import { base, chromePath, repo } from "./common.mjs";
 
 const local = base.replace(/\/\/[^:/]+/, "//127.0.0.1");
 if (local === base) { console.log("Open the server by its network address (VT_URL=http://192.168.x.x:port), not 127.0.0.1"); process.exit(2); }
-const newCode = async () => (await (await fetch(local + "/api/server/code", { method: "POST" })).json()).code;
 
 let pass = 0, fail = 0;
 const check = (name, cond, extra = "") => { cond ? (pass++, console.log("  ok  ", name)) : (fail++, console.log("  FAIL", name, extra)); };
@@ -27,26 +26,19 @@ h.write("RIFF", 0); h.writeUInt32LE(36 + n, 4); h.write("WAVEfmt ", 8); h.writeU
 h.writeUInt32LE(16000, 24); h.writeUInt32LE(32000, 28); h.writeUInt16LE(2, 32); h.writeUInt16LE(16, 34); h.write("data", 36); h.writeUInt32LE(n, 40);
 fs.writeFileSync(wav, Buffer.concat([h, Buffer.alloc(n)]));
 
-const browser = await chromium.launch({ executablePath: chromePath() });
+const browser = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 const page = await (await browser.newContext({ viewport: { width: 1280, height: 900 } })).newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 
 console.log("Connect to a server on another computer");
 await page.goto(base + "/", { waitUntil: "networkidle" });
-check("an unpaired browser sees the Connect screen", await page.getByTestId("pair-screen").isVisible());
-check("it names the server", /Connect to /.test(await page.locator("h1").innerText()));
-await page.getByTestId("pair-code").fill("0000-0000-0000");
-await page.getByTestId("pair-go").click();
-await page.getByRole("alert").waitFor();
-check("a wrong code is explained in words", /not right|already used/.test(await page.getByRole("alert").innerText()));
-await page.getByTestId("pair-code").fill(await newCode());
-await page.getByTestId("pair-go").click();
-const opened = await page.getByTestId("pair-screen").waitFor({ state: "detached", timeout: 20000 }).then(() => true, () => false);
-check("the right code opens the Studio", opened);
-check("and the server answers this browser now", await page.evaluate(async () => (await fetch("/api/health")).status === 200));
-const devices = await (await fetch(local + "/api/server/clients")).json();
-check("the server lists this browser as a paired device", devices.some((d) => /Chrome/.test(d.name)), JSON.stringify(devices));
+check("a browser on the server's network opens the Studio with nothing to enter", !(await page.getByTestId("refused-screen").isVisible().catch(() => false)) && (await page.locator("nav, aside, main").count()) > 0);
+check("and the server answers this browser", await page.evaluate(async () => (await fetch("/api/health")).status === 200));
+check("there is no code to ask for and no list of approved devices", (await fetch(local + "/api/server/code", { method: "POST" })).status === 404 && (await fetch(local + "/api/server/clients")).status === 404);
+const status = (headers) => new Promise((resolve, reject) => { const u = new URL(base + "/api/health"); http.get({ host: u.hostname, port: u.port, path: u.pathname, headers }, (r) => { r.resume(); resolve(r.statusCode); }).on("error", reject); });
+check("a page from another site is refused", (await status({ Origin: "https://evil.example" })) === 401);
+check("so is a name that anyone on the internet could point at this computer", (await status({ Host: "evil.example.com" })) === 401);
 
 console.log("A big recording, with the connection dropping halfway");
 let puts = 0, dropped = 0, last = null;

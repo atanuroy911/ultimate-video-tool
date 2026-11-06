@@ -64,7 +64,8 @@ def test_every_library_preview_compiles(ref):
         result=element_preview(spec["type"])
         assert result["url"].endswith("index.html")
         data=read_json(paths.PROJECTS/".elements"/spec["type"]/"data.json")
-        assert data["scenes"][0]["elements"][0]["type"]==spec["type"]
+        scene=data["scenes"][0]
+        assert scene.get("story") is not None if spec["type"]=="story" else scene["elements"][0]["type"]==spec["type"]
         assert data["captions_enabled"] is False
 
 

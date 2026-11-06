@@ -3,6 +3,8 @@ import { Diamond, Plus, Trash2 } from "lucide-react";
 import { timeStore } from "./timeStore";
 import type { MotionPoint } from "../types";
 import { sampleMotion } from "./motionMath";
+import { Value } from "./TransformControls.tsx";
+import { POINT_KEYS } from "./transformMath.ts";
 
 type Pose = {x?:number|null;y?:number|null;scale?:number;rotation?:number;opacity?:number;keyframes?:MotionPoint[]};
 export default function MotionEditor({value,start,end,onChange,seek}:{value:Pose;start:number;end:number;onChange:(frames:MotionPoint[])=>void;seek?:(t:number)=>void}) {
@@ -37,7 +39,10 @@ export default function MotionEditor({value,start,end,onChange,seek}:{value:Pose
         const t=Number(e.target.value);if(!Number.isFinite(t)||t< -36000||t>36000||index>0&&t<=points[index-1].time||index+1<points.length&&t>=points[index+1].time)return;
         patch({time:t});seek?.(t);
       }}/></label><button className="btn ghost icon" aria-label="Remove animation point" onClick={()=>{onChange(points.filter((_,i)=>i!==index));setSelected(Math.max(0,index-1));}}><Trash2 size={15}/></button></div>
-      {([["x","Left ↔ right",-.5,1.5,.01],["y","Top ↔ bottom",-.5,1.5,.01],["scale","Size",.05,5,.01],["rotation","Rotation",-360,360,1],["opacity","Opacity",0,1,.01]] as const).map(([key,label,min,max,step])=><label className="field" key={key}><span>{label} · {key==='rotation'?`${Math.round(point[key])}°`:`${Math.round(point[key]*100)}%`}</span><input aria-label={`Motion ${label}`} type="range" min={min} max={max} step={step} value={point[key]} onChange={e=>{seek?.(point.time);patch({[key]:Number(e.target.value)});}}/></label>)}
+      {([["x","Left ↔ right",-.5,1.5,100,"%"],["y","Top ↔ bottom",-.5,1.5,100,"%"],["scale","Size",.05,5,100,"%"],["rotation","Rotate",-360,360,1,"°"],["opacity","Opacity",0,1,100,"%"],
+         ["stretch_x","Stretch across",.1,5,100,"%"],["stretch_y","Stretch up and down",.1,5,100,"%"],["skew_x","Slant sideways",-60,60,1,"°"],["skew_y","Slant up and down",-60,60,1,"°"],
+         ["tilt_x","Lean back or forward",-80,80,1,"°"],["tilt_y","Turn left or right",-80,80,1,"°"],["blur","Blur",0,60,1,"px"]] as const).map(([key,label,min,max,shown,unit])=>
+        <Value key={key} label={label} aria={`Motion ${label}`} value={(point as any)[key]??POINT_KEYS[key][2]} def={POINT_KEYS[key][2]} min={min} max={max} step={1} unit={unit} shown={shown} onChange={v=>{seek?.(point.time);patch({[key]:v});}}/>)}
       <label className="field"><span>Movement</span><select value={point.ease} onChange={e=>patch({ease:e.target.value as MotionPoint['ease']})}>{[["smooth","Smooth"],["linear","Steady"],["in","Speed up"],["out","Slow down"],["hold","Hold, then jump"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label>
     </>}
   </div>;

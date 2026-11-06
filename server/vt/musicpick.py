@@ -23,7 +23,11 @@ FITS = {
 
 
 def pick(mood: Optional[str], seed: str) -> Optional[str]:
-    tracks = read_json(paths.MUSIC / "index.json", []) or []
+    tracks = list(read_json(paths.MUSIC / "index.json", []) or [])
+    for note in sorted(paths.USER_MUSIC.glob("*.credit.json")) if paths.USER_MUSIC.exists() else []:     # a track installed with its credit and mood (scripts/lab/fetch_bensound.py)
+        d = read_json(note, {}) or {}
+        if d.get("mood"):
+            tracks.append({"id": "user/" + note.name.removesuffix(".credit.json"), "mood": d["mood"]})
     for want in FITS.get(mood or "other", FITS["other"]):
         cands = sorted(m["id"] for m in tracks if m.get("mood") == want)
         if cands:

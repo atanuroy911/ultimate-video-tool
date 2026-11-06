@@ -13,6 +13,7 @@ from types import SimpleNamespace
 from typing import Optional
 
 from .. import art, llm
+from ..house_rules import prompt as house_rules
 from ..schema import Beats, Scene, ScenesFile, Transcript, Word, validate_scenes
 from ..stages.words import norm_token
 from ..visuals import emoji as emo
@@ -141,7 +142,9 @@ Rules
   watch, not eyes; "called his son" is shouting, not a phone). Never choose an option that only shares a letter or a loose idea.
 - The first option is the dictionary's default; keep it unless another clearly fits this sentence better.
 - If the word matters but NO option clearly depicts it, answer "text" (the word is shown in big letters) - never force a loose match. If it does not matter, leave it out.
-- Skip filler words, pronouns, numbers and words that cannot be pictured. Never pick the same word twice."""
+- Skip filler words, pronouns, numbers and words that cannot be pictured. Never pick the same word twice.
+
+""" + house_rules("plan")
 
 
 def _els_for(chosen: list[dict], pattern: int, words: dict[str, Word], long_scene: bool) -> list[dict]:

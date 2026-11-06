@@ -1,5 +1,12 @@
 # Plan: a thin client and one server that holds the brain
 
+> **2026-11-05: pairing was removed** (owner: "remove the key pairing altogether... just let user put the ip address"; [PLAN-PERFECT.MD](PLAN-PERFECT.MD) decision 7, step M5b).
+> Wherever this plan says pairing code, `/api/pair`, paired devices, per-device tokens, revoke or "New pairing code", read this instead: a computer on the server's own network
+> (this computer, a private or link-local address, Tailscale) connects with the address alone. A request from anywhere else, or one a proxy or tunnel forwarded, still needs the
+> server's own key (`Authorization: Bearer`, the `vt_token` cookie or `?token=`), and a request from a web page (another site's `Origin`, or a `Host` that is not an address or a
+> local name) is refused. `server/vt/server/serve.py` is the one place that decides (`trusted`). A computer names itself with the `X-VT-Device` header. `clients.py` is gone.
+> The separate "share this computer's engines" feature (`vt engine run`, `/v1/pair`) keeps its own code.
+
 Owner's request (2026-10-31): organise the project in two halves. The **server** runs anywhere that holds the models (Ollama, ComfyUI, the voices);
 the **client** is only the interface. Both are installable and runnable. The client finds a server on the local network, or the person types its
 address; both can also be installed on the same computer and simply work together.

@@ -232,7 +232,7 @@ def build(project, progress=None, force: bool = False) -> Optional[MediaItem]:
         tmp = Path(d) / "aroll.mp4"                                # written here first, moved into the media bin only when the cut succeeded
         script.write_text(filter_script([(a, b) for a, b in cuts.keep], MAX_LONG_SIDE, info["width"], info["height"]), encoding="utf-8")
         from . import gpu
-        encoder_args = ["-c:v", "h264_nvenc", "-preset", "p4", "-cq", "21"] if gpu.has_nvenc() else ["-c:v", "libx264", "-preset", "veryfast", "-crf", "21"]
+        encoder_args = ["-c:v", "h264_nvenc", *gpu.nvenc_device(), "-preset", "p4", "-cq", "21"] if gpu.has_nvenc() else ["-c:v", "libx264", "-preset", "veryfast", "-crf", "21"]
         cmd = [find_tool("ffmpeg"), "-y", "-v", "error", "-i", str(src), "-/filter_complex", str(script), "-map", "[out]", "-an", *encoder_args,
                "-movflags", "+faststart", str(tmp)]
         r = subprocess.run(cmd, capture_output=True, text=True, creationflags=CREATE_NO_WINDOW)

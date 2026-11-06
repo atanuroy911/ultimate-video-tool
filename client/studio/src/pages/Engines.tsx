@@ -1,6 +1,6 @@
 import { Check, Cpu, Image as ImageIcon, MessageSquare, Mic, Server } from "lucide-react";
 import { useEffect, useState } from "react";
-import { del, get, post, put } from "../api";
+import { get, post, put } from "../api";
 import { Group, Row, Steps } from "../ds";
 import { useFetch } from "../hooks";
 import { toast } from "../store";
@@ -39,17 +39,17 @@ export default function Engines() {
   const [editing, setEditing] = useState<Card | null>(null);
   const [wizard, setWizard] = useState(false);
   const server=useFetch<{name:string;computer?:string}>("/api/server");
-  const native=(window as any).vtDesktop?.companion;
+  const native=(window as any).vtDesktop?.server;
   return (
     <section className="card card-pad col" style={{ gap: 14 }} aria-label="Engines" data-testid="engines">
       <div className="row wrap">
         <h2 className="grow"><Server size={18} style={{ verticalAlign: -3 }} /> Processing server: {server.data?.name||'Connected server'}</h2>
-        {native&&<button className="btn sm" onClick={()=>native.chooseServer()}>Change processing server</button>}
+        {native&&<button className="btn sm" onClick={()=>native.choose()}>Change processing server</button>}
         <button className="btn sm" onClick={() => setWizard(true)} data-testid="run-setup">Run setup</button>
         <button className="btn sm" onClick={() => list.refetch()}>{list.loading ? <Spinner /> : "Check again"}</button>
       </div>
       <p className="muted" style={{ margin: 0 }}>
-        This server stores projects and makes the videos. Checks, downloads and installation folders below belong to this server. Your desktop client keeps Claude and Codex on your own PC through its local companion.
+        This server stores projects and makes the videos. Checks, downloads and installation folders below belong to this server. Claude and Codex stay on your own PC; the helper there keeps them ready for this server.
       </p>
       {list.loading && !list.data && <Spinner />}
       <div className="col" style={{ gap: 10 }}>
@@ -79,11 +79,8 @@ export default function Engines() {
 /* This computer as the engine for others: the same programs, offered at one address with one code (vt engine run). */
 interface HubState { running: boolean; port: number; addresses: string[]; offers?: string[]; mine: boolean; code?: string }
 type ServerInfo = { name: string; exposed: boolean; addresses?: string[]; autostart?: boolean };
-type Device = { id: string; name: string; paired: number };
-
-/** Started as a server (`vt server`), this Studio is already shared: show where to reach it, hand out pairing codes, list paired devices. */
+/** Started as a server (`vt server`), this Studio is already shared: show where to reach it. A computer on this network types an address and is in. */
 function ThisServerCard({ info }: { info: ServerInfo }) {
-  const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [auto, setAuto] = useState(info.autostart);
   const toggleAuto = async () => {
@@ -98,51 +95,15 @@ function ThisServerCard({ info }: { info: ServerInfo }) {
       setBusy(false);
     }
   };
-  const [devices, setDevices] = useState<Device[] | null>(null);
-  const loadDevices = () => get<Device[]>("/api/server/clients").then(setDevices).catch(() => setDevices(null));
-  useEffect(() => { if (info.addresses) loadDevices(); }, [info.addresses]);
-  const revoke = async (d: Device) => {
-    if (!confirm(`Turn "${d.name}" away? It will need a new pairing code to come back.`)) return;
-    try {
-      await del(`/api/server/clients/${d.id}`);
-      toast(`${d.name} can no longer use this server`, "ok");
-      loadDevices();
-    } catch (e: any) {
-      toast(e.errors?.[0] || e.message, "err", 8000);
-    }
-  };
-  const newCode = async () => {
-    setBusy(true);
-    try {
-      setCode((await post<{ code: string }>("/api/server/code")).code);
-    } catch (e: any) {
-      toast(e.errors?.[0] || e.message, "err", 8000);
-    } finally {
-      setBusy(false);
-    }
-  };
   return (
     <div className="engine-card" data-testid="this-server-card">
       <span className="engine-ic" aria-hidden><Server size={18} /></span>
       <div className="col grow" style={{ gap: 4, minWidth: 0 }}>
         <strong>This server: {info.name}</strong>
-        <span className="small muted">Other computers and phones on this network can open Video Tool here. They find it by themselves, or type an address below, then enter a pairing code once.</span>
+        <span className="small muted">Other computers and phones on this network can open Video Tool here. They find it by themselves, or type one of these addresses. Nothing else is needed.</span>
         {info.addresses?.map((a) => <span key={a} className="small bn" style={{ userSelect: "all" }}>Address: {a}</span>)}
-        {code && <span className="small" style={{ userSelect: "all" }}>Pairing code (works once): <strong data-testid="server-code">{code}</strong></span>}
-        {devices && devices.length > 0 && (
-          <div className="col" style={{ gap: 4, marginTop: 6 }} data-testid="paired-devices">
-            <span className="small muted">Paired devices</span>
-            {devices.map((d) => (
-              <span key={d.id} className="row small" style={{ gap: 8, alignItems: "center" }}>
-                <span className="grow">{d.name} <span className="muted">· since {new Date(d.paired * 1000).toLocaleDateString()}</span></span>
-                <button className="btn sm" onClick={() => revoke(d)}>Revoke</button>
-              </span>
-            ))}
-          </div>
-        )}
       </div>
       <div className="col" style={{ gap: 6, alignItems: "stretch" }}>
-        {info.addresses && <button className="btn sm primary" disabled={busy} onClick={newCode} data-testid="server-new-code">{busy ? <Spinner /> : "New pairing code"}</button>}
         {auto !== undefined && <button className="btn sm" disabled={busy} onClick={toggleAuto} data-testid="server-autostart" title="With the same engines and port as now">{auto ? "Don't start by itself" : "Start by itself"}</button>}
       </div>
     </div>

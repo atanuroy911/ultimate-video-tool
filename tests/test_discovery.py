@@ -18,7 +18,7 @@ def _free_udp() -> int:
 def test_the_broadcast_answer_lists_the_server_within_two_seconds():
     udp = _free_udp()
     a = discovery.Announcer(8765, udp_port=udp, bind="127.0.0.1", mdns=False,
-                            describe=lambda port: {"app": "video-tool", "name": "GPU box", "version": "1", "port": port, "needs_pairing": True}).start()
+                            describe=lambda port: {"app": "video-tool", "name": "GPU box", "version": "1", "port": port}).start()
     try:
         assert a.problems == []
         t = time.monotonic()
@@ -26,7 +26,7 @@ def test_the_broadcast_answer_lists_the_server_within_two_seconds():
         assert time.monotonic() - t < 2.5
     finally:
         a.stop()
-    assert found == [{"name": "GPU box", "url": "http://127.0.0.1:8765", "version": "1", "needs_pairing": True, "via": "broadcast"}]
+    assert found == [{"name": "GPU box", "url": "http://127.0.0.1:8765", "version": "1", "via": "broadcast"}]
 
 
 def test_strangers_on_the_port_are_ignored():
@@ -67,7 +67,7 @@ def test_a_taken_port_is_reported_not_fatal():
 def test_mdns_announce_is_heard():
     pytest.importorskip("zeroconf")
     a = discovery.Announcer(8799, udp_port=_free_udp(), bind="127.0.0.1",
-                            describe=lambda port: {"app": "video-tool", "name": "mdns test", "version": "1", "port": port, "needs_pairing": False}).start()
+                            describe=lambda port: {"app": "video-tool", "name": "mdns test", "version": "1", "port": port}).start()
     if any(p.startswith("mDNS") for p in a.problems):
         a.stop()
         pytest.skip(f"no multicast here: {a.problems}")

@@ -11,7 +11,7 @@
     "dist": "electron-builder --publish never",
     "dist:client": "electron-builder --publish never",
     "dist:dir": "electron-builder --dir --publish never",
-    "test": "node test-client-companion.js && node test-director-runner.js && node test-transport.js"
+    "test": "node test-director-runner.js && node test-helper.js && node test-helper-control.js && node test-transport.js"
   },
   "dependencies": {
     "ws": "^8.18.0"
@@ -35,8 +35,9 @@
       "assistants.js",
       "director-runner.js",
       "codex-runner.js",
-      "client-companion.js",
-      "assistant-status-worker.js",
+      "helper.js",
+      "helper-control.js",
+      "device.js",
       "assistant-command.js",
       "mcp-bridge.js",
       "preload.js",
@@ -48,6 +49,10 @@
       "mcp-bridge.js"
     ],
     "extraResources": [
+      {
+        "from": "build/icon.png",
+        "to": "icon.png"
+      },
       {
         "from": "../studio/dist",
         "to": "studio",

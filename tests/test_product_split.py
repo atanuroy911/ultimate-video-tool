@@ -21,8 +21,8 @@ def test_product_manifests_do_not_cross_bundle():
     server=json.loads((ROOT/'server/desktop/package.json').read_text())
     assert client['dependencies']=={'ws':'^8.18.0'}
     assert not any('bootstrap' in file or 'server-manager' in file for file in client['build']['files'])
-    assert client['build']['extraResources']==[{'from':'../studio/dist','to':'studio','filter':['**/*']}]
-    assert (ROOT/'client/desktop'/client['build']['extraResources'][0]['from']).resolve().is_relative_to(ROOT/'client')
+    assert {'from':'../studio/dist','to':'studio','filter':['**/*']} in client['build']['extraResources']
+    assert all((ROOT/'client/desktop'/item['from']).resolve().is_relative_to(ROOT/'client') for item in client['build']['extraResources'])
     assert not any('studio' in name or 'client' in name for item in server['build']['extraResources'] for name in item['filter'])
     assert (ROOT/'server/desktop'/server['build']['extraResources'][0]['from']).resolve()==ROOT/'server'
     assert not (ROOT/'server/studio').exists() and not (ROOT/'client/vt').exists()

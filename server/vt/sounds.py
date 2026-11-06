@@ -76,10 +76,12 @@ def _pipeline():
     global _pipe
     with _lock:
         if _pipe is None:
-            import torch
             from transformers import pipeline
 
-            _pipe = pipeline("audio-classification", model=MODEL, device=0 if torch.cuda.is_available() else -1)
+            from . import gpu
+
+            where = gpu.torch_device()                                      # the card chosen for speech and listening, or the processor
+            _pipe = pipeline("audio-classification", model=MODEL, device=int(where.split(":")[1]) if where != "cpu" else -1)
     return _pipe
 
 

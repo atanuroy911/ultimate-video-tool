@@ -10,6 +10,7 @@ The choice is written to the engines block of settings.json, so the pipeline, th
 from __future__ import annotations
 
 import socket
+import time
 from dataclasses import dataclass, field
 from typing import Literal, Optional
 
@@ -107,8 +108,16 @@ def decide(engine: str, choice: str = "auto", url: str = "") -> Placement:
     return Placement(engine, choice, "own", own_url(engine), note="our own copy, on its own port and folder")
 
 
+def own_dirs():
+    """Where our own Ollama's program and models live (the setup wizard's folders, else under the data folder): the same two the installer uses."""
+    from pathlib import Path
+
+    s = read_json(paths.SETTINGS, {}) or {}
+    return Path(s.get("install_dir") or paths.DATA / "engines") / "ollama", Path(s.get("models_dir") or paths.DATA / "models") / "ollama"
+
+
 def start(p: Placement, say=print) -> Placement:
-    """Start our own copy when that is the choice. An existing server is never touched."""
+    """Start our own copy when that is the choice, on the card its job has (vt/gpuassign.py: "ai" for Ollama, "pictures" for ComfyUI). An existing server is never touched."""
     if p.source != "own" or hub.reachable(p.engine, p.url, 1.0):
         return p
     from .. import llm
@@ -116,7 +125,8 @@ def start(p: Placement, say=print) -> Placement:
 
     port = int(p.url.rsplit(":", 1)[1])
     if p.engine == "ollama":
-        if not llm.start_server(p.url, wait=40):
+        program, models = own_dirs()
+        if not llm.start_server(p.url, wait=40, program_dir=program, model_dir=models):
             p.note = "our Ollama did not start: is it installed? (`vt engine setup --engines ollama`)"
     elif p.engine == "comfy":
         inst = ComfyInstaller(port=port)
@@ -127,6 +137,26 @@ def start(p: Placement, say=print) -> Placement:
             p.note = "our ComfyUI is starting (the first start takes a minute)"
     say(f"  {p.engine}: {p.note}")
     return p
+
+
+def restart_own(engines: list[str], say=print) -> list[str]:
+    """After a change of card: each of our own copies that is running, and is the program we started, is stopped and started again so it takes the card its job now has.
+    An engine that was already running before Video Tool, or is not running, is left alone. Returns the engines restarted."""
+    from . import pids
+
+    done = []
+    for e in engines:
+        if e not in OWN_BASE or pids.running(e) is None:
+            continue
+        p = decide(e, "own")
+        pids.stop(e)
+        for _ in range(40):                                        # the port is free again
+            if not hub.reachable(e, p.url, 0.5):
+                break
+            time.sleep(0.5)
+        start(p, say)
+        done.append(e)
+    return done
 
 
 def save(p: Placement) -> None:

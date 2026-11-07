@@ -1,0 +1,14 @@
+.result .result-disclosure { border-top: 1px solid var(--border-strong); padding-top: 12px; min-width: 0; }
+.result .result-disclosure > summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text); }
+.result .result-disclosure-body { margin-top: 12px; min-width: 0; }
+.result .result-quality { border-top: 0; padding-top: 0; }
+.result .result-quality > summary { color: var(--muted); font-weight: 500; line-height: 1.6; }
+.result .result-quality-item { gap: 3px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.result .result-quality-item time { color: var(--accent-text); font-weight: 650; margin-right: 4px; }
+.result .result-actions { margin-top: 4px; }
+.result .result-disclosure-body > .btn { align-self: flex-start; }
+@media (max-width: 820px) {
+  .result .result-grid { gap: 20px; }
+  .result .result-player { justify-self: center; }
+  .result .result-actions > .btn { min-height: 42px; }
+}

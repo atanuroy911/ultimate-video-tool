@@ -12,6 +12,7 @@ const check = (name, cond, extra = "") => { cond ? (pass++, console.log("  ok  "
 
 console.log("Quality checks");
 await page.goto(`${base}/p/reference/result`, { waitUntil: "networkidle" });
+await page.locator('.result-quality > summary').click();
 check("the card is there", await page.getByTestId("quality").isVisible());
 check("nothing is claimed before a video exists", (await page.getByTestId("quality").innerText()).includes("Not checked yet"));
 await page.getByTestId("quality-rate").click();

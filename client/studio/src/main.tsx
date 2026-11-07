@@ -34,11 +34,13 @@ const SettingsPage = lazyScreen(() => import("./pages/Settings"));
 const ShortsPage = lazyScreen(() => import("./pages/ShortsExtractor"));
 const SocialPage = lazyScreen(() => import("./pages/SocialHub"));
 import "./styles.css";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ReachGate>
     <BrowserRouter>
+      <ErrorBoundary>
       <Routes>
         <Route element={<Shell />}>
           <Route path="/" element={<ProjectsPage />} />
@@ -59,6 +61,7 @@ createRoot(document.getElementById("root")!).render(
           <Route path="*" element={<ProjectsPage />} />
         </Route>
       </Routes>
+      </ErrorBoundary>
     </BrowserRouter>
     </ReachGate>
   </React.StrictMode>

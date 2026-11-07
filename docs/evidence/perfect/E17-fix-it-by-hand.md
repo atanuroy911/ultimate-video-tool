@@ -31,3 +31,5 @@ Everything is on the element in the editor (Position tab and Motion tab) and on 
 - The keyframe diamond beside each value is not there: points are added in the Motion tab ("Save a point here"), where every value of the point has its slider.
 - A corner pin set while the element is also tilted or slanted moves the pin by the hand's distance without undoing the tilt (right for turn and size).
 - Media layers (the timeline's own clips) use the same keyframe code, so stretch, slant, tilt and blur animate on them, but they have no static look controls yet.
+
+Mutation checks: 16 of 16 caught on the data and page side, 9 of 9 on the Studio maths (one first missed: the take-over test now uses an off-centre element).

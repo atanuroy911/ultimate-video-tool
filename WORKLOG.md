@@ -321,3 +321,63 @@ Tests: tests/test_story_engine.py (8). Do not edit runtime/vt-story.js by hand. 
 - 2026-11-06 18:25: plan step B5 done: B5: Cartoon 2 no longer drops or replaces silently: notes, strict errors over MCP, all warnings returned, Details/Problems for the rest; prompts updated; 15 tests, 10 breakages caught.
 - 2026-11-06 18:30: plan step B6 done: B6: reel path read: nothing overrides the director; approving with open checks is now written down; 7 tests, 6 breakages caught.
 - 2026-11-06 18:40: plan step B7 done: B7: every style proven (explainer, stick, emoji, cartoon scripts; story and reel through B5/B6): 89 checks in test_director_authority.py; restoring the old guard fails them; scenery rule for set decoration.
+
+## 2026-11-06 — Codex continuation: queue reliability and restart recovery
+
+- F6 — Done by codex. Reproduced twelve duplicate jobs from simultaneous requests, then made busy-check/registration atomic. Added queue/order/cancellation regressions and locked collection snapshots.
+- F1 implementation — Done by codex; plan step remains open for a real scratch-server restart. Jobs persist under projects/.jobs, startup marks unfinished work interrupted, legacy Processing projects recover, and the dashboard/Progress screen offer Continue using valid stage caches. Reconnect replaces stale job state. Detailed prior job logs are not persisted; retention is still F11.
+- Checks: combined targeted Python run 20 passed (56 deselected); built Studio recovery browser test passes at 1280/light and 400/dark with fake HTTP/WebSocket responses, screenshots viewed; TypeScript/build and 32 timeline tests pass. No video render, GPU work or speech recognition on this PC. See docs/evidence/perfect/F6-many-jobs.md and F1-restart-recovery.md.
+- Owner answered in this chat: keep renders paused and finish unblocked code first. No server access/deployment/restart, commit or push performed. The pre-existing server/debug.log change was preserved.
+- Reconciled B8/B10/B11 ticks with Claude's existing evidence and the earlier 175-test passing audit; credit remains Claude implementation, Codex verification. E17 remains unticked because its documented remaining controls/warp limitations are still open.
+
+## 2026-11-06 — Further implementation - Done by codex
+
+- Completed and checked C5, E2, E7, E9, F2 and F4 in PLAN-PERFECT.MD. Evidence: docs/evidence/perfect/CODEX-IMPLEMENTATION-2026-11-06.md.
+- C5: real GSAP word-motion recipes work on inline-block spans in English and Bangla; missing-CSS mutation fails the test. Software text fixtures only, no video render.
+- E2: shared visual DirectorChoices and StyleChoices on New and Direct again; nine styles, all six directors; project-only run choices, no global provider/model edits.
+- E7/E9: redundant dashboard New removed; phone filters folded; five phone tabs with More for Looks/Settings, all destinations reachable with 44px bottom targets.
+- F2: cancellation bypasses error fallbacks, preserves checkpoints, reports cancelled in the module log and at late job return, and offers Continue. Tests cover all twelve stages with fake work and actual API/module cancellation.
+- F4: disk-full upload/job messages, actual resumable offsets, partial writes and atomic prior-document preservation. Upload tests now use a temporary store.
+- E17 implementation gaps coded: twelve value diamonds, projective pin inversion for tilt/slant, static media-layer transforms with schema/history/runtime support, rounded corners without crop. Full editor/export gate remains open.
+- E15 implementation coded: verified systemd user-service restart only when MainPID is this process; atomic idle job fence, failure recovery, no button without a supervisor; server numeric wording removed. Tests mock every system command. Full Server-page acceptance remains open.
+- E8 tile values wrap; full flow remains open. F10 clamps progress/logs and rejects stale earlier-stage heartbeats; real-run sample remains open.
+- Final relevant Python selection: 72 passed. Existing API cancellation: 1 passed separately. Studio TypeScript/Vite build and 34 timeline tests passed. UI fixtures passed in four modes for transform controls, redo and dashboard/navigation, plus six restart states, four word-motion cases and four interruption/cancellation cases. Screenshots inspected. Facts-only STATUS.md refresh reviewed.
+- Owner's render pause remains in force. No GPU/model/speech work, real video exports, owner-server access/restarts, autostart registration, commits or pushes. Existing unrelated edits preserved.
+- Remaining work is still substantial: C1-C4/C6-C10, D/video acceptance, most E app polish, further reliability/security/retention, G/H/I and owner-only gates. Do not report the rest of the plan complete.
+
+## 2026-11-06 — Frame measurements and readable Details - Done by codex
+
+- C6, C7 and E5 completed and marked Done by codex in PLAN-PERFECT.MD. Evidence: docs/evidence/perfect/CODEX-FRAME-DETAILS-2026-11-06.md.
+- Production frame measurements now cover named stick and Story cartoon faces plus photos with detector face metadata/object-fit crops. Story bundle rebuilt. Shared probe tested with actual stick/Story/media factories and software DOM fixtures; no video render.
+- Added measured text size, solid-background contrast, portrait platform zones and partial opacity facts. These inform the director/Quality check and change no elements.
+- Details opens with tabs visible, groups conversations by step, previews the question and displays retained image attachments. PNG/JPEG/WebP bytes are stored once per hash under the video, served through a project-scoped validated route. Older records say pictures were not retained; image-write failures keep the text record. Attachment retention remains F11.
+- C8 partial: facts lead the single-revision prompt; refused edits now name the actual field/reason. Real gemma acceptance and grounded visual suggestions remain open.
+- Checks: broader revision/conversation/Codex/one-director run 43 passed; final revision/conversation/image regressions 7 passed (overlapping selections). Studio build and 34 timeline tests pass. Frame checks and Details browser fixture pass; Details checked wide/phone, light/dark with screenshots viewed. Live-server log.mjs selectors updated, that suite not run.
+- No real renders, GPU/speech work, model calls, deployments, server restarts, commits or pushes. Owner render pause remains active. No claim that the whole plan is complete.
+- 2026-11-06 23:18: plan step E17 done: E17 done: full per-element transform editing, human in the loop.
+- 2026-11-06 23:18: plan step B8 done: B8 done: Claude model choice, real runs checked.
+- 2026-11-06 23:18: plan step B10 done: B10 done.
+- 2026-11-06 23:18: plan step B11 done: B11 done.
+- 2026-11-06 23:40: plan step F1 done: F1 verified by a real kill and restart of the scratch server.
+- 2026-11-06 23:46: plan step F8 done: F8: closed the /mcp/director path bypass and symlink log paths.
+- 2026-11-06 23:47: plan step K6 done: K6 done: real gemma video, cards sampled.
+- 2026-11-07 00:07: plan step C10 done: C10: goldens refreshed after review; server suite run, failures triaged.
+- 2026-11-07 04:08: plan step C1 done: C1: wide and square cartoons rendered on the server, feet on floor, captions clear; sticker over faces is the director's choice and is reported by facts
+- 2026-11-07 04:13: plan step C2 done: C2: qa_sets.py written, set layers widened to 1200, 30 contact sheets looked at, no edge gaps
+- 2026-11-07 08:40: plan step C9 done: C9: qa_preview_export.py, snapshot vs MP4 in 3 styles x 5 moments match
+- 2026-11-07 09:12: plan step C8 done: C8: 3 gemma videos checked; found and fixed a stale Quality check after the viewer-test revision (remeasure); big sticker over faces is gemma's limit
+- 2026-11-07 09:44 the GPU server went down: power cut (owner). Server steps wait; local work continues. C1, C2, C8, C9 ticked earlier today.
+- 2026-11-07 09:56: plan step E1 done: E1: GLOSSARY.md, renamed Studio/server/doc words to one name each
+- 2026-11-07 10:31: plan step E6 done: E6: editor suite updated and passing; editor_simple retired
+- 2026-11-07 10:31: plan step E8 done: E8: New tiles full values, suites pass
+- 2026-11-07 10:40: plan step A3 done: A3: full suite green on the server, goldens b refreshed, byte-identical test fixed (frozen director clock)
+- 2026-11-07 10:40: plan step A4 done: A4: full suite green on the server, goldens b refreshed, byte-identical test fixed (frozen director clock)
+- 2026-11-07 10:40: plan step A5 done: A5: full suite green on the server, goldens b refreshed, byte-identical test fixed (frozen director clock)
+- 2026-11-07 11:28: plan step E11 done: E11: every page in loading/empty/error/unreachable; error boundary, plain error words
+- 2026-11-07 11:28: plan step E12 done: E12: contrast fixes, arrow keys in radio groups, keyboard suite
+- 2026-11-07 11:43: plan step E15 done: E15: Server page checked, job kind words, parallel engine probes
+- 2026-11-07: E16 partial: connection banner and auto-reload added; address typing and app update wait for the real app (H1, H3).
+- 2026-11-07: E14 partial: 10-minute timeline measured, nodes cut 35%, still janky without a GPU; scenes-stay-laid-out is the next lever (BREAKING).
+- 2026-11-07 12:20: plan step A6 done: A6: browser suites run against the server's scratch with the proxy key
+- 2026-11-07 12:21: plan step H7 done: H7: packaging tests and set_version checked
+- 2026-11-07 13:01: plan step H6 done: H6: build_server_windows.sh, installer rebuilt with the right icon

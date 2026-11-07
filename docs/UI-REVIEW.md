@@ -5,7 +5,7 @@ Method: `client/studio/e2e/shots_all.mjs` takes a screenshot of ten pages at 144
 ## Changed
 | Found | Change |
 |---|---|
-| Phone: the top menu was cut off ("Socia") | A bottom tab bar on phones (Projects, Design Studio, Shorts, Social, Settings), as on iOS |
+| Phone: the top menu was cut off ("Socia") | A bottom tab bar on phones (Projects, Look, Shorts, Social, Settings), as on iOS |
 | Shorts page was a dark panel with unreadable text in light mode | Three colour names used by older pages did not exist; they now point to the real palette (`--card-bg`, `--input-bg`, `--fg`) |
 | Shorts header carried a "Powered by..." badge | Removed |
 | Projects with one video showed filters, Select and search | Select appears from 3 videos, search from 9, filters from 6 (the dashboard test already required the 9) |

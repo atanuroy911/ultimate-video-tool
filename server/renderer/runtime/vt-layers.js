@@ -48,12 +48,13 @@
       box.style.width = w + "px";
       if (hgt != null) box.style.height = hgt + "px";
       layer.appendChild(box);
+      if(c.transform || c.scale != null || c.rotation != null) X.look(box,inner,c,W,H);
       if(c.keyframes?.length) {
         const motion=document.createElement("div");
         motion.style.cssText="position:absolute;inset:0;visibility:hidden";
         layer.appendChild(motion);motion.appendChild(box);
         tl.set(motion,{visibility:"visible"},c.start);tl.set(motion,{visibility:"hidden"},c.end);
-        X.keyframes(tl,box,c.keyframes,W,H);
+        X.keyframes(tl,box,c.keyframes,W,H,{x:!!c.transform?.flip_x,y:!!c.transform?.flip_y});
       }
       const fi = Math.min(c.fade_in || 0, c.dur / 2), fo = Math.min(c.fade_out || 0, c.dur / 2);
       const fadeTarget=c.keyframes?.length?inner:box, opacity=c.keyframes?.length?1:c.opacity;

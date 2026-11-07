@@ -17,6 +17,7 @@ from .envelope import CallResult
 from .registry import get_module, list_modules
 from .resources import acquire
 from .workspace import Workspace, _atomic_json, _digest
+from ..util import Cancelled
 
 
 class Executor:
@@ -162,6 +163,13 @@ class Executor:
             return finish(CallResult(ok=True, status="ok", summary=summary,
                                      output=output.model_dump(mode="json"), artifacts=artifacts,
                                      cost={"seconds": round(elapsed, 4)}))
+        except Cancelled:
+            if budget is not None:
+                budget.charge(time.monotonic() - started)
+            result = finish(CallResult(ok=False, status="cancelled", summary="The step was cancelled."))
+            if raise_errors:
+                raise
+            return result
         except Exception as exc:
             if budget is not None:
                 budget.charge(time.monotonic() - started)

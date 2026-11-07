@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fmtTime, get, post, upload } from "../api";
 import { settingsStore, toast, useStore } from "../store";
-import type { ModelInfo, ProjectSummary } from "../types";
+import type { ModelInfo, ProjectSummary, VideoStyle } from "../types";
 
 interface VoiceEngine {
   id: string;
@@ -21,8 +21,8 @@ import { Seg, Spinner } from "../ui";
 import CatalogList from "../review/CatalogList";
 import ElementExample from "../review/ElementExample";
 import PictureChoices from "../components/PictureChoices";
-import { STYLE_DEFINITIONS } from "./StyleThumbnails";
-import { OptionPage, OptionsHub, optionDef, type OptionId, type OptionsCtx } from "./NewOptions";
+import StyleChoices from "../components/StyleChoices";
+import { DirectorChoices, OptionPage, OptionsHub, optionDef, type OptionId, type OptionsCtx } from "./NewOptions";
 
 /* ------------------------------------------------------------------ recorder */
 type RecState = "idle" | "recording" | "paused" | "recorded";
@@ -162,7 +162,6 @@ function useRecorder() {
    The backend still has every expert control, but those choices stay behind Customize on the final screen. */
 type SourceKind = "voice" | "file" | "link" | "script";
 type SourceMode = "talking_head" | "video" | "audio";
-type VideoStyle = "auto" | "reel" | "explainer" | "stick" | "cartoon" | "story" | "emoji" | "mixed";
 type StepId = "source" | "mode" | "style" | "director" | "shape" | "look" | "sound" | "voice" | "ready";
 type DirectorInfo = { id: string; label: string; available: boolean; note: string };
 type DirectorsResponse = { directors: DirectorInfo[] };
@@ -173,7 +172,7 @@ const isVideoFile = (f: File | null) => !!f && (/^video\//.test(f.type) || /\.(m
 const rememberedStyle = (): VideoStyle => {
   try {
     const saved = localStorage.getItem("vt-new-style");
-    return saved === "reel" || saved === "stick" || saved === "emoji" || saved === "cartoon" || saved === "story" || saved === "explainer" || saved === "mixed" ? saved : "auto";
+    return saved === "reel" || saved === "stick" || saved === "emoji" || saved === "cartoon" || saved === "story" || saved === "explainer" || saved === "infographic" || saved === "mixed" ? saved : "auto";
   } catch {
     return "auto";
   }
@@ -208,6 +207,7 @@ const STYLE_CHOICES: { value: VideoStyle; title: string; about: string }[] = [
   { value: "reel", title: "tf.style.reel", about: "tf.style.reel.about" },
   { value: "mixed", title: "tf.style.mixed", about: "tf.style.mixed.about" },
   { value: "explainer", title: "tf.style.explainer", about: "tf.style.explainer.about" },
+  { value: "infographic", title: "tf.style.infographic", about: "tf.style.infographic.about" },
   { value: "stick", title: "tf.style.stick", about: "tf.style.stick.about" },
   { value: "cartoon", title: "tf.style.cartoon", about: "tf.style.cartoon.about" },
   { value: "story", title: "tf.style.story", about: "tf.style.story.about" },
@@ -637,53 +637,7 @@ export default function NewPage() {
       question: speakerStays ? t("tf.style.q.speaker") : t("tf.style.q"),
       hint: speakerStays ? t("tf.style.hint.speaker") : "Pick the visual aesthetic for your video. Each style features custom animations and scene layouts.",
       body: () => (
-        <><div className="style-cards-grid" role="radiogroup" aria-label={t("tf.row.style")}>
-          {STYLE_DEFINITIONS.map((def) => {
-            const index = letterHandlers.current.length;
-            const letter = String.fromCharCode(65 + index);
-            letterHandlers.current.push(() => setStyle(def.value));
-            const selected = style === def.value;
-            return (
-              <button
-                key={def.value}
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                className={`style-card ${selected ? "sel" : ""}`}
-                onClick={() => setStyle(def.value)}
-              >
-                <div className="style-card-head">
-                  <span className="style-card-kbd">{letter}</span>
-                  <span className="style-card-badge">{def.badge}</span>
-                  {selected && <Check size={16} className="style-card-check" />}
-                </div>
-
-                <div className="style-card-thumb">
-                  {def.thumbnail}
-                </div>
-
-                <div className="style-card-title">
-                  <span>{t(def.titleKey)}</span>
-                </div>
-
-                <div className="style-card-about">
-                  {t(def.aboutKey)}
-                </div>
-
-                <div className="style-card-details">
-                  <div className="style-card-detail-item">
-                    <strong>Best for:</strong>
-                    <span>{def.idealFor}</span>
-                  </div>
-                  <div className="style-card-detail-item">
-                    <strong>Visuals:</strong>
-                    <span>{def.howItWorks}</span>
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+<><StyleChoices value={style} onChange={setStyle} onShortcut={pick=>{const letter=String.fromCharCode(65+letterHandlers.current.length);letterHandlers.current.push(pick);return letter;}}/>
         {style==="cartoon"&&<div style={{marginTop:18}}><h3 className="field-title">Character look</h3><PictureChoices label="Character look" value={cartoonTemplate} onChange={setCartoonTemplate} options={CARTOON_LOOKS.map((l)=>({...l,visual:<ElementExample kind="cartoon" look={l.value}/>}))}/><p className="small muted">Each picture is drawn by the same engine as your video. Change scenes, props and text later in the editor.</p></div>}</>
       ),
     },
@@ -691,14 +645,7 @@ export default function NewPage() {
       question: "Who directs this video?",
       hint: "The director reads the whole script and decides what every moment should show.",
       body: () => (
-        <div className="col tf-choices" role="radiogroup" aria-label="Director">
-          {(directors?.directors || [{ id: "best", label: "Best available", available: true, note: "Uses your fallback order." }]).map((d) => {
-            const index = letterHandlers.current.length;
-            const letter = String.fromCharCode(65 + index);
-            if (d.available) letterHandlers.current.push(() => setDirector(d.id));
-            return <Choice key={d.id} letter={letter} selected={director === d.id} title={d.label} about={d.note} onPick={() => d.available && setDirector(d.id)} />;
-          })}
-        </div>
+        <DirectorChoices value={director} onChange={setDirector} directors={directors?.directors || [{id:"best",label:"Best available",available:true,note:"Uses your fallback order."}]} onShortcut={pick=>{letterHandlers.current.push(pick);}}/>
       ),
     },
     shape: {
@@ -843,8 +790,8 @@ export default function NewPage() {
               icon: <SlidersHorizontal size={26} />,
               body: (
                 <Group>
-                  <Row label="Kind of video">
-                    <select value={usecase} onChange={(e) => setUsecase(e.target.value)} aria-label="Kind of video" data-testid="usecase">
+                  <Row label="Purpose">
+                    <select value={usecase} onChange={(e) => setUsecase(e.target.value)} aria-label="Purpose" data-testid="usecase">
                       {(usecases.data ?? [{ id: "auto", label: "Auto" }]).map((u) => <option key={u.id} value={u.id}>{u.label}</option>)}
                     </select>
                   </Row>

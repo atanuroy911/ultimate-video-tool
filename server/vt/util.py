@@ -16,6 +16,10 @@ from typing import Any, Callable, Optional
 CREATE_NO_WINDOW = 0x08000000 if sys.platform == "win32" else 0
 
 
+class Cancelled(BaseException):
+    """Stop requested by the person, not an engine error to retry or replace."""
+
+
 def now_iso() -> str:
     return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
 
@@ -64,7 +68,7 @@ def file_hash(*paths: Path | str, extra: str = "") -> str:
 
 def slugify(text: str) -> str:
     s = re.sub(r"[^A-Za-z0-9._-]+", "-", text).strip("-").lower()
-    return s[:40] or "video"
+    return s[:40].rstrip(".") or "video"  # Windows strips trailing dots when making a folder; the stored id must match that folder.
 
 
 def tool_dirs() -> list[Path]:

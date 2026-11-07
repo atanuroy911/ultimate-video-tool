@@ -37,10 +37,10 @@ check("secrets in the reason are removed", !(await page.locator("[data-testid=di
 await page.getByLabel("Search the log").fill("zzzz-no-such");
 check("search narrows the rows", (await page.locator("[data-testid=log-row]").count()) === 0);
 await page.getByLabel("Search the log").fill("");
-await page.getByRole("button", { name: "Decisions" }).click();
-check("Decisions shows the steps that carry a reason", (await page.locator("[data-testid=log-row]").count()) >= 1);
+await page.getByRole("button", { name: "AI conversations", exact: true }).click();
+check("AI conversations opens its own record", await page.getByTestId("director-log").isVisible());
 await page.getByRole("button", { name: "Problems" }).click();
-await page.getByRole("button", { name: "All", exact: true }).click();
+await page.getByRole("button", { name: "What happened", exact: true }).click();
 
 check("technical output is off until switched on", (await page.getByTestId("log-technical").count()) === 0);
 await page.getByLabel("Technical output").check();

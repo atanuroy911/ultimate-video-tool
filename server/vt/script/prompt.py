@@ -53,8 +53,9 @@ def cartoon_choices() -> str:
 
     from ..schema import CharacterId, Expression, Pose, SetId
 
-    return (f"  A cartoon's exact values. who: {', '.join(get_args(CharacterId))} (elder is an old bald man with glasses, so a mother or any other woman is woman). "
+    return (f"  A cartoon's exact values. who: {', '.join(get_args(CharacterId))} (elder is an old bald man with glasses; old_woman is an elder woman with a grey bun and glasses). "
             f"pose: {', '.join(get_args(Pose))}. expression: {', '.join(get_args(Expression))}. set: {', '.join(get_args(SetId))}. "
+            "ride includes a bicycle. The count pose uses count (1 to 5 fingers, default 3); a cue can override the character's count. Each character may set hair and clothes to #RRGGBB; empty uses the automatic look from who and name. Keep the same who, name and colours across scenes. "
             "framing \"scene\" fills the whole frame with the place; \"card\" is a small picture in the layout. Leave a character's y out: it then stands on the floor above the captions.")
 
 
@@ -89,9 +90,14 @@ def build_prompt(tr: Transcript, beats: Beats, *, kind: str = "stick", language:
                  draft: Optional[dict] = None, hint: str = "", schema: Optional[dict] = None, with_examples: bool = True) -> tuple[str, str]:
     """(system, user) for complete_json."""
     system = ROLE.format(kind_text=KIND_TEXT.get(kind, "explainer")) + "\n\n" + CRAFT_RULES
+    from ..visuals.choices import prompt as visual_choices
+
     user = [f"VIDEO: kind={kind}; language={language}; audience={audience or 'general'}; tone={tone or 'clear and friendly'}; aspect={aspect}.",
             "TRANSCRIPT (beat id, time, then word id:word):", transcript_text(tr, beats), "", "CATALOGUE", C.catalogue_text(),
             "OVERLAYS (on-screen elements; each needs `type` and `at_word`, plus the fields shown):", overlay_catalogue_text(), PLACEMENT]
+    choices = visual_choices([(beat.id, beat.text) for beat in beats.beats])
+    if choices:
+        user.append(choices)
     if kind == "stick":
         user.append("\nFor kind=stick: define `cast` (1-3 characters) and `sets` first, give every scene a `set`, and give most scenes at least one action.")
     elif kind == "emoji":

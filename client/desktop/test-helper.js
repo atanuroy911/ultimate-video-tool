@@ -122,14 +122,15 @@ const tmp = (name) => fs.mkdtempSync(path.join(os.tmpdir(), name));
 
     // planning sessions run one at a time across servers; the others wait instead of being refused
     claude.hold();
-    s1.send({ type: "direct", request: "d1", project: "p1", prompt: "plan one", assistant: "claude", model: "sonnet" });
+    s1.send({ type: "direct", request: "d1", project: "p1", prompt: "plan one", assistant: "claude", model: "sonnet", director_token: "scoped-one" });
     await wait(() => claude.running === 1, "the first session to start");
     s2.send({ type: "direct", request: "d2", project: "p2", prompt: "plan two", assistant: "claude" });
     s1.send({ type: "direct", request: "d3", project: "p1", prompt: "plan three", assistant: "claude" });
     await wait(async () => (await mine("GET", "/status")).body.queue.direct.waiting === 2, "two sessions to wait");
     assert.equal(claude.running, 1);
     assert.equal(s1.got("director_done").length + s2.got("director_done").length, 0, "nobody was refused");
-    assert.equal(claude.calls[0].task.model, "sonnet"); assert.equal(claude.calls[0].task.server, s1.url); assert.equal(claude.calls[0].task.token, "tok-one");
+    assert.equal(claude.calls[0].task.model, "sonnet"); assert.equal(claude.calls[0].task.server, s1.url);
+    assert.equal(claude.calls[0].task.token, ""); assert.equal(claude.calls[0].task.directorToken, "scoped-one", "a task receives only its project credential");
     assert(s1.got("director_log", "d1").length >= 1, "progress lines are passed on");
     claude.release();
     await wait(() => s1.got("director_done").length === 2 && s2.got("director_done").length === 1, "all three sessions to finish");

@@ -208,7 +208,7 @@
     const own = c.style && c.style.color && c.style.color !== "#1f2937" ? c.style.color : null;
     const col = own && contrast(own, BG()) >= 3 ? own : "var(--ink)";             // a figure that would disappear into the background (WCAG < 3:1) is drawn in the theme's ink
     const st = (o) => Object.assign({ fill: "none", stroke: col, "stroke-width": 9, "stroke-linecap": "round", "stroke-linejoin": "round" }, o || {});
-    const root = sv("g", { class: "stk-ch" });
+    const root = sv("g", { class: "stk-ch", "data-name": c.name || c.id });
     const body = sv("g", {}, root);
     const o = { id: c.id, c, idx, root, body };
     if (c.kind === "emoji" || c.kind === "toon") return buildActor(c, idx, root, o, propArt);
@@ -228,7 +228,7 @@
     o.legF = sv("path", st(), body);
     if (acc === "tie") o.tie = sv("path", { d: "M0 0 l-6 10 l6 26 l6 -26 z", fill: "var(--accent)", stroke: "none" }, body);
     if (acc === "scarf") o.scarf = sv("path", { d: "M-16 0 h32", stroke: "var(--accent)", "stroke-width": 12, "stroke-linecap": "round" }, body);
-    o.head = sv("g", {}, body);
+    o.head = sv("g", { "data-face": "stick" }, body);
     const hshape = (c.style && c.style.head) || "round";
     if (hshape === "square") sv("rect", { x: -HR, y: -HR, width: HR * 2, height: HR * 2, rx: 10, fill: skin, stroke: col, "stroke-width": 8 }, o.head);
     else if (hshape === "oval") sv("ellipse", { rx: HR * 0.86, ry: HR * 1.08, fill: skin, stroke: col, "stroke-width": 8 }, o.head);

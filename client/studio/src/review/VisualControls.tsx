@@ -9,7 +9,7 @@ export default function VisualControls({value,start,end,total,onChange,section}:
   return <div className="col visual-controls">
     {section!=="position"&&<><TimeRangeFields start={value.start??start} end={value.end??end} total={total} label="Visual" onChange={edit}/>
     </>}
-    {section!=="timing"&&<TransformControls value={value} patch={edit} pinning={mode==="warp"} onPin={on=>setMode(on?"warp":"move")}/>}
+    {section!=="timing"&&<TransformControls value={value} bounds={{start:value.start??start,end:value.end??end}} patch={edit} pinning={mode==="warp"} onPin={on=>setMode(on?"warp":"move")}/>}
     <button className="btn ghost sm" onClick={()=>onChange({...value,start:null,end:null,x:null,y:null,scale:1,rotation:0,opacity:1,transform:null,keyframes:[]})}>Reset timing, position & motion</button>
   </div>;
 }

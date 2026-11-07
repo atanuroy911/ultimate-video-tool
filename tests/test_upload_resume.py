@@ -7,6 +7,14 @@ import soundfile as sf
 from fastapi.testclient import TestClient
 
 
+@pytest.fixture(autouse=True)
+def isolated_upload_store(tmp_path, monkeypatch):
+    from vt.server import uploads
+    folder = tmp_path / "uploads"
+    folder.mkdir()
+    monkeypatch.setattr(uploads, "_dir", lambda: folder)
+
+
 @pytest.fixture()
 def client(ref):
     from vt.server.app import app

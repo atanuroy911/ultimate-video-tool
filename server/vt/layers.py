@@ -116,6 +116,16 @@ def validate(doc: Any, duration: float, media: dict[str, str]) -> tuple[dict, li
             out["style"] = {"size": round(_num(st.get("size"), 0.06, 0.015, 0.4), 3), "color": _color(st.get("color"), "#ffffff"),
                             "bg": _color(st.get("bg"), "") or None, "weight": int(_num(st.get("weight"), 800, 300, 900)), "align": st.get("align") if st.get("align") in ("left", "center", "right") else "center"}
         if ctype in ("text", "media"):
+            from .schema import Transform
+
+            for key, default, lo, hi in (("scale", 1, .05, 5), ("rotation", 0, -360, 360)):
+                if key in c:
+                    out[key] = _num(c[key], default, lo, hi)
+            if c.get("transform") is not None:
+                try:
+                    out["transform"] = Transform.model_validate(c["transform"]).model_dump(exclude_defaults=True) or None
+                except ValueError as exc:
+                    errors.append(f"clip {cid}: {exc}")
             if c.get("keyframes"):
                 from .visual_motion import validate_points
                 try:

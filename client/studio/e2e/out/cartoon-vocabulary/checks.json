@@ -1,0 +1,111 @@
+{
+  "people": 10,
+  "poses": 15,
+  "combinations": 150,
+  "results": {
+    "distinct": 6,
+    "bikeVisible": true,
+    "fingers": 3,
+    "laughingEyes": true,
+    "motion": {
+      "idle": true,
+      "run": true,
+      "laugh": true,
+      "ride": true
+    }
+  },
+  "identity": {
+    "autoSame": true,
+    "explicitSame": true,
+    "hair": "#ded0c4",
+    "clothes": "#8758ab",
+    "adultsDiffer": true
+  },
+  "expressions": [
+    {
+      "who": "woman",
+      "expression": "laugh",
+      "laugh": 1,
+      "question": 0
+    },
+    {
+      "who": "old_woman",
+      "expression": "laugh",
+      "laugh": 1,
+      "question": 0
+    },
+    {
+      "who": "robot",
+      "expression": "laugh",
+      "laugh": 1,
+      "question": 0
+    },
+    {
+      "who": "woman",
+      "expression": "confused",
+      "laugh": 0,
+      "question": 1
+    },
+    {
+      "who": "old_woman",
+      "expression": "confused",
+      "laugh": 0,
+      "question": 1
+    },
+    {
+      "who": "robot",
+      "expression": "confused",
+      "laugh": 0,
+      "question": 1
+    }
+  ],
+  "counting": {
+    "counts": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "directorCue": 5,
+    "directorVisible": 5
+  },
+  "transitions": [
+    {
+      "t": 0.5,
+      "bike": 1,
+      "fingers": 0,
+      "armY": -25
+    },
+    {
+      "t": 1.5,
+      "bike": 0,
+      "fingers": 0,
+      "armY": 0
+    },
+    {
+      "t": 2.8,
+      "bike": 0,
+      "fingers": 3,
+      "armY": 0
+    },
+    {
+      "t": 3.5,
+      "bike": 0,
+      "fingers": 0,
+      "armY": 0
+    },
+    {
+      "t": 0.5,
+      "bike": 1,
+      "fingers": 0,
+      "armY": -25
+    },
+    {
+      "t": 3.5,
+      "bike": 0,
+      "fingers": 0,
+      "armY": 0
+    }
+  ]
+}

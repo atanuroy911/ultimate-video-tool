@@ -6,6 +6,7 @@ import { STORE } from './data';
 const O = C.outline;
 
 export type PersonP = {
+  name?: string;
   x: number; y: number; s?: number; flip?: boolean; pose?: 'sit' | 'stand';
   skin: string; ear: string; shirt: string; pants: string; hair: string;
   long?: boolean; lungi?: string; glasses?: boolean; mustache?: string;
@@ -22,7 +23,7 @@ export const Person: React.FC<PersonP> = (p) => {
   const armPts = `0,-160 ${elbow[0]},${elbow[1]} ${hand[0]},${hand[1]}`;
   const torsoH = long && !sit ? 300 : 200;
   return (
-    <g transform={`translate(${x},${y}) scale(${flip ? -s : s},${s})`}>
+    <g data-name={p.name || "a character"} data-person="story" transform={`translate(${x},${y}) scale(${flip ? -s : s},${s})`}>
       {sit ? (
         <>
           <rect x={-45} y={-30} width={190} height={60} rx={28} fill={pants} stroke={O} strokeWidth={4} />
@@ -50,7 +51,7 @@ export const Person: React.FC<PersonP> = (p) => {
       {orna && <path d="M-40 -186 L40 -60" stroke={orna} strokeWidth={30} strokeLinecap="round" />}
       <rect x={-14} y={-228} width={30} height={40} rx={10} fill={skin} stroke={O} strokeWidth={4} />
       {bun && <circle cx={-52} cy={-300} r={30} fill={hair} stroke={O} strokeWidth={3} />}
-      <circle cx={6} cy={-272} r={62} fill={skin} stroke={O} strokeWidth={4} />
+      <circle data-face="story" cx={6} cy={-272} r={62} fill={skin} stroke={O} strokeWidth={4} />
       <ellipse cx={-16} cy={-262} rx={13} ry={19} fill={ear} stroke={O} strokeWidth={3} />
       {/* appeal (Video Tool): a small nose so the face reads in profile, and warm cheeks */}
       <path d="M66 -270 Q78 -258 66 -250" fill={skin} stroke={O} strokeWidth={3} strokeLinecap="round" />

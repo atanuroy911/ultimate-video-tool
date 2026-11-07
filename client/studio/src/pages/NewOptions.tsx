@@ -39,9 +39,9 @@ interface Def { id: OptionId; title: string; question: string; hint: string; ico
 
 const DEFS: Def[] = [
   { id: "language", title: "Language", question: "What language is spoken?", hint: "Automatic listens to the first seconds and decides.", icon: <Languages size={20} />, hue: 205, value: (c) => LANGUAGE_NAMES[c.language] ?? c.language, auto: (c) => c.language === "auto" },
-  { id: "style", title: "Visual style", question: "What should it look like?", hint: "The style decides what appears on screen while you speak.", icon: <Film size={20} />, hue: 275, value: (c) => c.styleTitle, auto: (c) => c.style === "auto" },
+  { id: "style", title: "Style", question: "What should it look like?", hint: "The style decides what appears on screen while you speak.", icon: <Film size={20} />, hue: 275, value: (c) => c.styleTitle, auto: (c) => c.style === "auto" },
   { id: "edit", title: "Edit this recording", question: "How much should we change your recording?", hint: "Your picture and pauses can stay exactly as they are.", icon: <MonitorPlay size={20} />, hue: 190, show: (c) => c.hasPicture, value: (c) => EDIT_NAMES[c.recordingEdit] ?? c.recordingEdit, auto: (c) => c.recordingEdit === "auto" },
-  { id: "director", title: "AI director", question: "Who directs this video?", hint: "The director reads the whole script and decides what every moment shows.", icon: <Bot size={20} />, hue: 255, value: (c) => c.directors.find((d) => d.id === c.director)?.label ?? "Best available", auto: (c) => c.director === "best" },
+  { id: "director", title: "Director", question: "Who directs this video?", hint: "The director reads the whole script and decides what every moment shows.", icon: <Bot size={20} />, hue: 255, value: (c) => c.directors.find((d) => d.id === c.director)?.label ?? "Best available", auto: (c) => c.director === "best" },
   { id: "look", title: "Look", question: "Pick the colours and type.", hint: "Colours, fonts and the feel of titles.", icon: <Palette size={20} />, hue: 330, value: (c) => (c.theme === "auto" ? "Automatic" : c.themes.find((t) => t.name === c.theme)?.label ?? c.theme), auto: (c) => c.theme === "auto" },
   { id: "music", title: "Music", question: "Which music sits under your voice?", hint: "It lowers by itself while someone speaks. You can fine-tune the level later in the editor.", icon: <Music size={20} />, hue: 20, value: (c) => (c.musicTrack === "auto" ? "Automatic" : c.musicTrack === "" ? "No music" : c.music.find((m) => m.id === c.musicTrack)?.title ?? c.musicTrack), auto: (c) => c.musicTrack === "auto" },
   { id: "captions", title: "Captions", question: "How should the words appear?", hint: "Each card shows the real look.", icon: <Subtitles size={20} />, hue: 45, value: (c) => CAPTION_LABELS[c.captions] ?? c.captions, auto: (c) => c.captions === "auto" },
@@ -133,6 +133,15 @@ function directorVisual(id: string): { icon: ReactNode; where: string } {
   return { icon: <Bot size={26} />, where: "" };
 }
 
+/** The same director choice on New and Direct again. */
+export function DirectorChoices({value,onChange,directors,onShortcut}:{value:string;onChange:(id:string)=>void;directors:OptionsCtx["directors"];onShortcut?:(pick:()=>void)=>void}) {
+ return <Grid label="Director" wide>{directors.map(d=>{
+   const v=directorVisual(d.id);
+   if(d.available) onShortcut?.(()=>onChange(d.id));
+   return <Card key={d.id} selected={value===d.id} disabled={!d.available} onPick={()=>onChange(d.id)} title={d.id==="best"?"Best available":d.label} tag={v.where||undefined} about={d.available?d.note:`Not available: ${d.note}`} visual={<Glyph hue={255}>{v.icon}</Glyph>}/>;
+ })}</Grid>;
+}
+
 /* ------------------------------------------------------------------ one page per choice */
 export function OptionPage({ id, c }: { id: OptionId; c: OptionsCtx }) {
   const filesFor = useMemo(() => c.pictures.map((f) => URL.createObjectURL(f)), [c.pictures]);
@@ -162,14 +171,7 @@ export function OptionPage({ id, c }: { id: OptionId; c: OptionsCtx }) {
         </Grid>
       );
     case "director":
-      return (
-        <Grid label="Director" wide>
-          {c.directors.map((d) => {
-            const v = directorVisual(d.id);
-            return <Card key={d.id} selected={c.director === d.id} disabled={!d.available} onPick={() => c.setDirector(d.id)} title={d.id === "best" ? "Best available" : d.label} tag={v.where || undefined} about={d.available ? d.note : `Not available: ${d.note}`} visual={<Glyph hue={255}>{v.icon}</Glyph>} />;
-          })}
-        </Grid>
-      );
+      return <DirectorChoices value={c.director} onChange={c.setDirector} directors={c.directors}/>;
     case "look":
       return (
         <Grid label="Look">

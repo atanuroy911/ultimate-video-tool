@@ -1,0 +1,7 @@
+# E1 - One name per thing
+
+`docs/GLOSSARY.md` written. Renamed in the Studio: Redo with AI model and Redo video with new AI model became Direct again; the nav item Styles and the Design Studio page became Look (page list Looks, Settings field Look, editor field Look); Render video became Export video (Exporting); Retention check and Viewer test became Quality check; Visual style, Drawing style became Style; the New page's Kind of video became Purpose (it meant what the video is for, a second meaning of the same words); "AI provider" became Director; "Check Projects" became Check Your videos; Ollama wording on the Directors page says Local AI. Server: `vt craft` prints Quality score; the auto-fix note in the director chat no longer shows "viewer test" or "retention risk" numbers. README and `docs/UI-REVIEW.md` updated.
+
+Search of `client/studio/src` for each replaced word: the only hits left are code (`m.from === "viewer test"` is the author key of notes already saved in a video's chat file, the `Judges` type, a comment). e2e suites updated (`design`, `editor`, `export`, `retention`, `settings_clarity`).
+
+Checks: `tsc --noEmit` clean; real browser: `e2e/settings_clarity.mjs` passes in 4 modes (1280 and 400, light and dark); `e2e/design.mjs` passes the Look and Type a script parts (its last part, "Local AI settings", still waits for an old selector from before the Settings rebuild; that is for A7).

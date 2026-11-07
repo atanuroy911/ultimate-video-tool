@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import logging
+import errno
+import re
 import queue
 import threading
 import time
@@ -9,16 +11,14 @@ import traceback
 import uuid
 from contextlib import nullcontext
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Callable, Optional
 
-from ..util import now_iso
+from ..util import Cancelled, now_iso, read_json, write_json
+from ..modules.calls import redact
 
 
 log = logging.getLogger("vt.jobs")
-
-
-class Cancelled(Exception):
-    pass
 
 
 DIRECTED = {"media", "plan", "qa", "autofix", "director", "polish", "context", "publish", "scene-direction", "redraw", "shorts"}      # the jobs that ask an AI about a video
@@ -30,6 +30,10 @@ class JobBusy(Exception):
     def __init__(self, job: "Job"):
         super().__init__(f"{job.label} is already running")
         self.job = job
+
+
+class ServerRestarting(Exception):
+    pass
 
 
 @dataclass
@@ -47,22 +51,23 @@ class Job:
     created_at: str = field(default_factory=now_iso)
     started_at: str = ""
     finished_at: str = ""
+    interrupted: bool = False
     lines: list = field(default_factory=list, repr=False)      # the job's own log: every step it reports and every log line it writes (newest 3000), shown on the Server page
     seq: int = 0
     cancel: threading.Event = field(default_factory=threading.Event, repr=False)
 
     def public(self) -> dict:
         """JSON-safe view (asdict would try to deep-copy the cancel Event, which cannot be pickled)."""
-        return {k: getattr(self, k) for k in ("id", "kind", "project", "label", "status", "stage", "frac", "msg", "result", "error", "created_at", "started_at", "finished_at")}
+        return redact({k: getattr(self, k) for k in ("id", "kind", "project", "label", "status", "stage", "frac", "msg", "result", "error", "created_at", "started_at", "finished_at", "interrupted")})
 
     def add(self, level: str, text: str) -> None:
         self.seq += 1
-        self.lines.append({"n": self.seq, "t": round(time.time(), 2), "level": level, "text": text[:2000]})
+        self.lines.append({"n": self.seq, "t": round(time.time(), 2), "level": level, "text": redact(text)[:2000]})
         if len(self.lines) > 3200:
             del self.lines[:200]
 
     def log_after(self, after: int = 0) -> dict:
-        return {"lines": [ln for ln in list(self.lines) if ln["n"] > after], "status": self.status}
+        return redact({"lines": [ln for ln in list(self.lines) if ln["n"] > after], "status": self.status})
 
 
 class _JobLog(logging.Handler):
@@ -82,9 +87,13 @@ class _JobLog(logging.Handler):
 
 
 class JobManager:
-    def __init__(self, on_event: Callable[[dict], None]):
+    def __init__(self, on_event: Callable[[dict], None], store: Optional[Callable[[], Path]] = None):
         self.current: Optional[Job] = None
         self.jobs: dict[str, Job] = {}
+        self._lock = threading.RLock()
+        self._accepting = True
+        self._store = store
+        self._recovered: set[Path] = set()
         self._q: "queue.Queue[tuple[Job, Callable[[Callable], Any]]]" = queue.Queue()
         self._on_event = on_event
         self._t = threading.Thread(target=self._worker, daemon=True, name="vt-jobs")
@@ -98,17 +107,93 @@ class JobManager:
         """fn receives a progress callback (stage, frac, msg) that also raises Cancelled when the job is cancelled.
         when_busy: if a job of the same kind is already queued or running for this project, "queue" (start another), "reuse" (return the running one: a double
         click or a page reload does not start the work twice) or "refuse" (raise JobBusy, which the API answers with 409)."""
-        if when_busy != "queue":
-            for j in self.jobs.values():
-                if j.kind == kind and j.project == project and j.status in ("queued", "running"):
-                    if when_busy == "reuse":
-                        return j
-                    raise JobBusy(j)
-        job = Job(id=uuid.uuid4().hex[:10], kind=kind, project=project, label=label)
-        self.jobs[job.id] = job
-        self._q.put((job, fn))
-        self._emit(job)
-        return job
+        # API requests run in different threads. Checking and registering must
+        # be one operation or two clicks can both find no existing job.
+        with self._lock:
+            if not self._accepting:
+                raise ServerRestarting("The server is restarting. It will reconnect shortly; then try again.")
+            if when_busy != "queue":
+                for j in self.jobs.values():
+                    if j.kind == kind and j.project == project and j.status in ("queued", "running"):
+                        if when_busy == "reuse":
+                            return j
+                        raise JobBusy(j)
+            job = Job(id=uuid.uuid4().hex[:10], kind=kind, project=project, label=label)
+            self.jobs[job.id] = job
+            self._emit(job)
+            self._q.put((job, fn))
+            return job
+
+    def snapshot(self) -> list[Job]:
+        """Copy the collection before API/worker threads can add another job."""
+        with self._lock:
+            return list(self.jobs.values())
+
+    def pause_submissions(self) -> bool:
+        with self._lock:
+            if any(job.status in ("queued","running") for job in self.jobs.values()) or not self._accepting:
+                return False
+            self._accepting = False
+            return True
+
+    def resume_submissions(self) -> None:
+        with self._lock:
+            self._accepting = True
+
+    @property
+    def restarting(self) -> bool:
+        with self._lock:
+            return not self._accepting
+
+    def recover(self) -> None:
+        """At server startup, expose unfinished work as interrupted, never replay it.
+
+        A Continue request runs the normal pipeline with force=False: its input
+        hashes and finished-stage outputs decide what can safely be reused.
+        """
+        if self._store is None:
+            return
+        from ..project import Project
+
+        with self._lock:
+            folder = self._store()
+            if folder in self._recovered:
+                return
+            interrupted_projects = set()
+            for file in sorted(folder.glob("*.json")):
+                try:
+                    data = read_json(file)
+                    if not isinstance(data, dict) or data.get("id") != file.stem or not re.fullmatch(r"[A-Za-z0-9_-]+", file.stem):
+                        raise ValueError("invalid job record")
+                    keys = Job("", "", None, "").public()
+                    job = Job(**{key: value for key, value in data.items() if key in keys})
+                    if job.status in ("queued", "running"):
+                        if job.kind == "pipeline" and job.project:
+                            interrupted_projects.add(job.project)
+                        job.status, job.interrupted = "error", True
+                        job.error = "The server stopped before this job finished. You can continue; completed stages are kept."
+                        job.finished_at = now_iso()
+                        job.add("warning", job.error)
+                        self.jobs[job.id] = job
+                        self._emit(job)
+                    else:
+                        self.jobs[job.id] = job
+                except (OSError, ValueError, TypeError):
+                    log.warning("Could not recover job record %s", file.name, exc_info=True)
+            for project in Project.list_all():
+                try:
+                    if project.meta().status != "processing" and project.id not in interrupted_projects:
+                        continue
+                    project.update_meta(status="interrupted")
+                    # Upgrades from the memory-only queue have no saved job.
+                    if not any(j.project == project.id and j.interrupted and j.kind == "pipeline" for j in self.snapshot()):
+                        job = Job(uuid.uuid4().hex[:10], "pipeline", project.id, "Make video", status="error", interrupted=True,
+                                  error="The server stopped before this video finished. You can continue; completed stages are kept.", finished_at=now_iso())
+                        self.jobs[job.id] = job
+                        self._emit(job)
+                except (OSError, ValueError):
+                    log.warning("Could not recover project %s", project.id, exc_info=True)
+            self._recovered.add(folder)
 
     def _directed(self, job: Job):
         """The AI steps of a job on a video go to that video's director and onto its record, the same as the pipeline's own stages."""
@@ -136,13 +221,20 @@ class JobManager:
 
     def active_for(self, project: str, kinds: tuple[str, ...] = ("pipeline", "export")) -> Optional[Job]:
         """The running/queued job that makes a project 'busy'. Background chores such as thumbnails do not count."""
-        for j in self.jobs.values():
+        for j in self.snapshot():
             if j.project == project and j.kind in kinds and j.status in ("queued", "running"):
                 return j
         return None
 
     def _emit(self, job: Job) -> None:
-        self._on_event({"type": "job", "job": job.public()})
+        with self._lock:
+            public = job.public()
+            if self._store is not None:
+                try:
+                    write_json(self._store() / f"{job.id}.json", public)
+                except (OSError, TypeError, ValueError):
+                    log.warning("Could not save job %s for restart recovery", job.id, exc_info=True)
+            self._on_event({"type": "job", "job": public})
 
     def _worker(self) -> None:
         while True:
@@ -163,9 +255,15 @@ class JobManager:
                 import time
                 if job.cancel.is_set():
                     raise Cancelled()
+                if job.kind == "pipeline":
+                    from ..pipeline import ORDER
+                    order = [*ORDER, "render", "check", "publish"]
+                    if stage in order and job.stage in order and order.index(stage) < order.index(job.stage):
+                        return  # a heartbeat from a finished stage arrived late
+                frac = max(0.0, min(1.0, float(frac)))
+                frac = max(frac, job.frac) if stage == job.stage else frac
                 if stage != job.stage or (msg and msg != job.msg):
                     job.add("step", f"{stage} · {int(float(frac) * 100)}%" + (f" · {msg}" if msg else ""))
-                frac = max(float(frac), job.frac) if stage == job.stage else float(frac)      # a stage never runs backward, whichever step inside it reports
                 job.stage, job.frac, job.msg = stage, frac, str(msg)
                 now = time.time()
                 if now - last["t"] > 0.25 or frac in (0.0, 1.0):  # throttle websocket chatter
@@ -175,17 +273,22 @@ class JobManager:
             try:
                 with self._directed(job):
                     job.result = fn(progress)
+                if job.cancel.is_set():
+                    raise Cancelled()
                 job.status, job.frac = "done", 1.0
                 job.add("info", "Finished")
             except Cancelled:
                 job.status = "cancelled"
+                job.result = None
+                job.msg = "Stopped by you. Continue when you are ready."
                 job.add("warning", "Cancelled")
             except Exception as e:  # noqa: BLE001
                 job.status = "error"
-                job.error = str(e)                      # plain message for the UI; the traceback goes to the server log only
+                full = isinstance(e, OSError) and (e.errno in (errno.ENOSPC, getattr(errno, "EDQUOT", errno.ENOSPC)) or getattr(e, "winerror", None) in (39, 112))
+                job.error = "The server needs more disk space. Free some space, then try this job again. Completed stages are kept." if full else str(e)
                 job.add("error", job.error)
                 job.add("trace", traceback.format_exc())
-                log.error("job %s (%s) failed: %s", job.id, job.label, traceback.format_exc())
+                log.error("job %s (%s) failed: %s", job.id, redact(job.label), redact(traceback.format_exc()))
             job.finished_at = now_iso()
             self.current = None
             self._emit(job)

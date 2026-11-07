@@ -21,7 +21,7 @@ from .stages import audio as A
 from .stages.align import snap_words
 from .stages.chunks import plan_chunks
 from .stages import words as W
-from .util import ProgressFn, file_hash, noop_progress, now_iso, read_json, write_json
+from .util import Cancelled, ProgressFn, file_hash, noop_progress, now_iso, read_json, write_json
 
 log = logging.getLogger(__name__)
 REEL_HOLD_S = 3.0                     # the three-second rule: something changes on screen at least this often (longer videos breathe: x1.6, see vt/reel/slots.py)
@@ -48,6 +48,10 @@ LABELS = {
 
 class NoSpeechError(RuntimeError):
     """The recording contains no recognisable speech."""
+
+
+class InvalidRecordingError(RuntimeError):
+    """The source cannot be decoded; a person can replace or convert it."""
 
 
 NO_SPEECH_MESSAGE = ("No speech was found in this recording. Check that the microphone is on and not too quiet, "
@@ -100,7 +104,7 @@ class Pipeline:
                 self._frac = frac
             try:
                 self.progress(stage, frac, msg)
-            except Exception:              # the job was cancelled: the stage itself stops at its next report
+            except (Cancelled, Exception):  # the stage itself stops at its next report
                 return
 
     def director(self) -> str:
@@ -154,6 +158,9 @@ class Pipeline:
             with talk.for_project(self.p.dir), (AIP.use_provider(provider) if provider is not None else nullcontext()):
                 run_classic(self, stages, force=force)
             self.p.update_meta(status="review" if self.pause_reason == "plan" else "planned")
+        except Cancelled:
+            self.p.update_meta(status="cancelled")
+            raise
         except Exception:
             self.p.update_meta(status="error")   # the job keeps the failing stage as its current stage, so the UI can mark it
             raise
@@ -205,7 +212,16 @@ class Pipeline:
             return
         if not p.input_audio.exists():
             raise FileNotFoundError(f"no input audio in {p.dir}")
-        A.preprocess(p.input_audio, p.master, p.asr_wav, denoise=denoise)
+        try:
+            A.preprocess(p.input_audio, p.master, p.asr_wav, denoise=denoise)
+        except RuntimeError as e:
+            # Decode failures need a useful next step. Tool, storage and other infrastructure failures keep their actual reason.
+            if any(marker in str(e).lower() for marker in ("invalid data found when processing input", "moov atom not found",
+                                                           "does not contain any stream", "matches no streams", "error while decoding",
+                                                           "could not find codec parameters")):
+                raise InvalidRecordingError("This recording could not be read. It may be damaged, have no audio, or use an unsupported format. "
+                                            "Try playing the original file, then export it as WAV or MP4 and choose it again.") from e
+            raise
         p.mark_stage("preprocess", h)
 
     def stage_silence(self, force: bool = False) -> None:
@@ -798,6 +814,8 @@ class Pipeline:
                                  fallback_reason=unavailable or ("The selected AI was unavailable, so the rule director wrote the plan." if actual == "rules" else ""))
                 notice = notice or unavailable
         except Exception as e:                  # the script step never breaks the video
+            import logging
+            logging.getLogger("pipeline.plan").warning("script step failed", exc_info=True)       # the traceback goes to the video's technical log
             notice = notice or f"Script step skipped: {type(e).__name__}: {str(e)[:120]}"
         if retry:
             return self.stage_plan(force=True)                           # the next director in the person's order (the Local AI, at the end of it), with one line saying why

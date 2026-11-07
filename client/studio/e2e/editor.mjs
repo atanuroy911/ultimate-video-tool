@@ -23,14 +23,14 @@ const frame = () => page.frames().find((f) => f.url().includes("/composition/9x1
 console.log("Editor window");
 await page.goto(`${base}/p/${pid}/pro`, { waitUntil: "networkidle" });
 await page.waitForSelector(".scene-card");
-check("title bar has menus", (await page.getByRole("toolbar", { name: "Menus" }).getByRole("button").count()) === 5);
+check("title bar has the Edit menu, Script, AI and Export", (await page.getByRole("button", { name: "Edit ▾" }).count()) >= 1 && (await page.getByRole("button", { name: "Export" }).count()) >= 1 && (await page.getByRole("button", { name: "Director's script" }).count()) === 1);
 check("nothing is selected at first: scene inspector shows the first scene", await page.getByRole("heading", { name: "Scene 1" }).isVisible());
 
 // Escape -> the video inspector
 await page.locator(".ed").click({ position: { x: 5, y: 5 } });
 await page.keyboard.press("Escape");
 check("Escape shows the video settings", await page.getByRole("heading", { name: "Video", exact: true }).isVisible());
-check("video settings have the drawing style", (await page.getByRole("group", { name: "Drawing style" }).count()) === 1);
+check("video settings have the drawing style", (await page.getByRole("group", { name: "Style" }).count()) === 1);
 
 // canvas selection: click an element in the preview
 await page.locator(".scene-card").nth(0).click();
@@ -75,54 +75,54 @@ await page.getByRole("button", { name: "Zoom out" }).click();
 await page.getByRole("button", { name: "Zoom out" }).click();
 await page.waitForTimeout(200);
 
-// drag the edge between scene 2 and 3 back to the start of beat b3 (5.0 s)
+// drag the boundary between scene 2 and 3 earlier: the scene change moves freely in time (it is not tied to a sentence)
 const c2 = await clips.nth(1).boundingBox();
 const timing = (await api(`/api/projects/${pid}/scenes`)).timing.scenes;
 const pps = c2.width / (timing[1].end - timing[1].start);
-const grab = await clips.nth(1).locator(".grab:not(.l)").boundingBox();
+const grab = await page.getByRole("button", { name: "Boundary between scenes 2 and 3" }).boundingBox();
 await page.mouse.move(grab.x + grab.width / 2, grab.y + grab.height / 2);
 await page.mouse.down();
-await page.mouse.move(c2.x + (5.0 - timing[1].start) * pps, grab.y + grab.height / 2, { steps: 8 });
-check("a snap line shows while dragging", (await page.locator(".tl-snap").count()) === 1);
+await page.mouse.move(grab.x + grab.width / 2 - 1.5 * pps, grab.y + grab.height / 2, { steps: 8 });
+check("a line shows where the scene will end while dragging", (await page.locator(".tl-snap.land").count()) === 1);
 await page.mouse.up();
 await page.waitForTimeout(1500);
-let plan = (await api(`/api/projects/${pid}/scenes`)).plan.scenes;
-check("dragging the edge moved the sentence to the next scene", JSON.stringify(plan[1].beats) === '["b2"]' && plan[2].beats[0] === "b3", JSON.stringify(plan.map((s) => s.beats)));
+let moved = (await api(`/api/projects/${pid}/scenes`)).timing.scenes;
+check("dragging the boundary moved the scene change earlier", moved[1].end < timing[1].end - 1 && Math.abs(moved[2].start - moved[1].end) < 0.05, JSON.stringify(moved.map((s) => [s.start, s.end])));
 await page.keyboard.press("Control+z");
 await page.waitForTimeout(1300);
-plan = (await api(`/api/projects/${pid}/scenes`)).plan.scenes;
-check("undo puts it back", plan[1].beats.length === 3);
+moved = (await api(`/api/projects/${pid}/scenes`)).timing.scenes;
+check("undo puts it back", Math.abs(moved[1].end - timing[1].end) < 0.05, `${moved[1].end} vs ${timing[1].end}`);
 
 // menus + command palette
-await page.getByRole("button", { name: "View", exact: true }).click();
+await page.getByRole("button", { name: "Edit ▾" }).click();
 await page.getByRole("menuitem", { name: /Phone safe area/ }).click();
 await page.waitForTimeout(300);
-check("View menu toggles the safe area", (await page.locator(".phone .safe").count()) === 1);
-await page.getByRole("button", { name: "View", exact: true }).click();
+check("Edit menu toggles the safe area", (await page.locator(".phone .safe").count()) === 1);
+await page.getByRole("button", { name: "Edit ▾" }).click();
 await page.getByRole("menuitem", { name: /Phone safe area/ }).click();
 await page.keyboard.press("Control+k");
 check("Ctrl+K opens the command palette", await page.getByRole("dialog", { name: "Command palette" }).isVisible());
 await page.getByLabel("Search commands").fill("stick");
 check("palette filters commands", (await page.getByRole("option").count()) >= 1);
 await page.keyboard.press("Escape");
-await page.getByRole("button", { name: "Help", exact: true }).click();
+await page.getByRole("button", { name: "Edit ▾" }).click();
 await page.getByRole("menuitem", { name: "Keyboard shortcuts" }).click();
 check("shortcuts sheet opens", await page.getByRole("dialog", { name: "Keyboard shortcuts" }).isVisible());
 await page.keyboard.press("Escape");
 
 // resizable panels, remembered
 const w0 = await page.locator(".ed-left").evaluate((e) => e.getBoundingClientRect().width);
-const sp = await page.getByRole("separator", { name: "Resize the browser" }).boundingBox();
+const sp = await page.getByRole("separator", { name: "Resize the editing tools" }).boundingBox();
 await page.mouse.move(sp.x + 3, sp.y + 200);
 await page.mouse.down();
 await page.mouse.move(sp.x + 103, sp.y + 200, { steps: 5 });
 await page.mouse.up();
 const w1 = await page.locator(".ed-left").evaluate((e) => e.getBoundingClientRect().width);
-check("dragging the splitter resizes the browser", w1 > w0 + 60, `${w0} -> ${w1}`);
+check("dragging the splitter resizes the tools panel", w1 > w0 + 60, `${w0} -> ${w1}`);
 await page.reload({ waitUntil: "networkidle" });
 const w2 = await page.locator(".ed-left").evaluate((e) => e.getBoundingClientRect().width);
 check("the size is remembered", Math.abs(w2 - w1) < 3, `${w1} vs ${w2}`);
-await page.getByRole("separator", { name: "Resize the browser" }).dblclick();
+await page.getByRole("separator", { name: "Resize the editing tools" }).dblclick();
 const w3 = await page.locator(".ed-left").evaluate((e) => e.getBoundingClientRect().width);
 check("double-click resets it", Math.abs(w3 - w0) < 3, `${w3} vs ${w0}`);
 
@@ -132,10 +132,12 @@ await page.keyboard.press("Escape");
 // the stick-figure choice exists on the New page and in the Settings assistants section
 await page.goto(`${base}/new`, { waitUntil: "networkidle" });
 await page.getByLabel("Link or script").fill("A short story about a lost wallet.");          // the style choice appears once there is something to make a video from
-await page.getByRole("button", { name: /^OK/ }).click();                                // the style question comes next
+await page.getByRole("button", { name: /^OK/ }).click();                                // the shape question
+await page.getByRole("button", { name: /^OK/ }).click();                                // then every choice at once
+await page.getByRole("button", { name: /^Style/ }).click();                             // the Style tile opens its choices
 check("New video offers stick figures", (await page.getByRole("radio", { name: /Stick figures/ }).count()) >= 1);
 await page.goto(`${base}/settings`, { waitUntil: "networkidle" });
-check("Settings shows the AI provider and assistants", (await page.getByText("AI that directs your videos").count()) === 1 && (await page.getByText("Use your own AI assistant").count()) === 1);
+check("Settings shows the directors and the assistants", (await page.getByText("Use your own AI assistant").count()) === 1 && (await page.getByText("Server AI connection").count()) >= 1);
 await page.screenshot({ path: out + "/e3-settings-ai.png", fullPage: true });
 
 await browser.close();

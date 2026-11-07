@@ -86,9 +86,12 @@ def _png(path: Path, side: int = 768) -> bytes:
 
 
 def _scene_prompt(sc: Scene, words: str, facts: Optional[list[str]] = None) -> str:
+    from .visuals.choices import prompt as visual_choices
+
     els = [{"element": i, **e.model_dump(exclude_none=True, exclude_defaults=True, exclude={"edited", "id"})} for i, e in enumerate(sc.elements)]
-    measured = "\n\nMeasured on this exact frame (exact numbers; your eyes can miss these):\n" + "\n".join("- " + f for f in facts) if facts else ""
-    return f'The narrator is saying: "{words}"\n\nWhat is on screen in this frame, by number:\n{json.dumps(els, ensure_ascii=False, indent=1)}{measured}'
+    measured = "Measured on this exact frame (exact numbers; your eyes can miss these):\n" + "\n".join("- " + f for f in facts) + "\nFor each problem fact, give one change to the element it names. Change only what those facts name; leave correct parts alone. This is your one revision.\n\n" if facts else ""
+    choices = visual_choices([(sc.id, words)])
+    return f'{measured}The narrator is saying: "{words}"\n\nWhat is on screen in this frame, by number:\n{json.dumps(els, ensure_ascii=False, indent=1)}' + ("\n\n" + choices if choices else "")
 
 
 def apply_changes(sc: Scene, changes: list[dict]) -> tuple[Scene, list[str]]:
@@ -118,7 +121,11 @@ def apply_changes(sc: Scene, changes: list[dict]) -> tuple[Scene, list[str]]:
         try:
             current = Scene.model_validate(d)
         except Exception as e:
-            skipped.append(f"element {i}: {str(e).splitlines()[0][:160]}")
+            if hasattr(e, "errors"):
+                details = "; ".join(f"{'.'.join(map(str, error['loc']))}: {error['msg']}" for error in e.errors()[:3])
+            else:
+                details = str(e)
+            skipped.append(f"element {i}: {details[:400]}")
     if gone:
         d = current.model_dump(exclude_none=True)
         d["elements"] = [e for i, e in enumerate(d["elements"]) if i not in gone]
@@ -202,3 +209,24 @@ def review(p: Project, progress: Callable[[float, str], None] = lambda f, m: Non
     report["scenes_hash"] = file_hash(p.scenes_path)
     write_json(p.dir / REPORT, report)
     return report
+
+
+def remeasure(p: Project) -> None:
+    """The cut was changed after the director looked (the viewer-test revision): measure the cut as it now stands, page facts only, so the Quality check lists what is
+    really left for the person. Nobody is asked and nothing is changed; the director's own record of what it saw stays as it was."""
+    from .render.hyperframes import frame_facts
+
+    report = read_json(p.dir / REPORT, None)
+    if not report or report.get("error"):
+        return                                                                  # no look was made: there is nothing to bring up to date
+    tag = FORMATS[p.meta().aspect]["tag"]
+    times = _frame_times(p.comp_dir / tag, p.scenes())
+    try:
+        measured = (times, frame_facts(p.comp_dir / tag, [t for _, t in times])) if times else None
+        report.pop("facts_error", None)
+        report["left"] = _left(measured)
+    except Exception as e:                                                      # noqa: BLE001
+        report["facts_error"] = str(e)[:200]
+    report["scenes_hash"] = file_hash(p.scenes_path)
+    report["remeasured"] = now_iso()
+    write_json(p.dir / REPORT, report)

@@ -34,6 +34,7 @@ export function useCallLog(pid: string | undefined, open: boolean) {
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [running, setRunning] = useState<RunningCall[]>([]);
   const [error, setError] = useState("");
+  const [loaded,setLoaded]=useState(false);
   const last = useRef(0);
 
   const load = useCallback(async () => {
@@ -51,6 +52,7 @@ export function useCallLog(pid: string | undefined, open: boolean) {
         }),
       );
       setError("");
+      setLoaded(true);
     } catch (e: any) {
       setError(e.message || "Could not read the log");
     }
@@ -60,6 +62,7 @@ export function useCallLog(pid: string | undefined, open: boolean) {
     last.current = 0;
     setEntries([]);
     setRunning([]);
+    setLoaded(false);
   }, [pid]);
 
   useEffect(() => {
@@ -77,5 +80,5 @@ export function useCallLog(pid: string | undefined, open: boolean) {
     };
   }, [open, pid, load]);
 
-  return { entries, running, error, reload: load };
+  return { entries, running, error, loaded, reload: load };
 }

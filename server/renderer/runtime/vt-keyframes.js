@@ -15,9 +15,9 @@
     });
     if (t.blur) position.style.filter = "blur(" + t.blur + "px)";
     if (t.blend && t.blend !== "normal") position.style.mixBlendMode = t.blend;
-    if (shape && ((t.crop && t.crop.some((n) => n > 0)) || t.warp)) {
+    if (shape && ((t.crop && t.crop.some((n) => n > 0)) || t.crop_radius || t.warp)) {
       shape.style.display = "block";
-      if (t.crop && t.crop.some((n) => n > 0)) shape.style.clipPath = "inset(" + t.crop.map((n) => (n * 100).toFixed(2) + "%").join(" ") + (t.crop_radius ? " round " + (t.crop_radius * 50).toFixed(2) + "%" : "") + ")";
+      if (t.crop_radius || (t.crop && t.crop.some((n) => n > 0))) shape.style.clipPath = "inset(" + (t.crop || [0,0,0,0]).map((n) => (n * 100).toFixed(2) + "%").join(" ") + (t.crop_radius ? " round " + (t.crop_radius * 50).toFixed(2) + "%" : "") + ")";
       if (t.warp) (X.lateLooks = X.lateLooks || []).push(() => X.warp(shape, t.warp));       // the corners are in pixels: the box is known once the fonts are in
     }
   };

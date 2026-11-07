@@ -40,6 +40,14 @@ export interface StyleDefinition {
 
 export const STYLE_DEFINITIONS: StyleDefinition[] = [
   {
+    value:"reel",titleKey:"tf.style.reel",aboutKey:"tf.style.reel.about",badge:"Picture-led",idealFor:"Short stories and visual explanations",howItWorks:"A full-frame picture for each stretch of narration",
+    thumbnail:<svg viewBox="0 0 320 180" aria-hidden><rect width="320" height="180" rx="10" fill="#132e43"/><circle cx="245" cy="48" r="23" fill="#f6c66b"/><path d="M0 150 95 58 170 135 225 92 320 165V180H0Z" fill="#427f76"/><rect x="66" y="129" width="188" height="30" rx="12" fill="#fff"/><text x="160" y="149" textAnchor="middle" fill="#173149" fontSize="15">One picture, one moment</text></svg>,
+  },
+  {
+    value:"infographic",titleKey:"tf.style.infographic",aboutKey:"tf.style.infographic.about",badge:"Facts & figures",idealFor:"Numbers, comparisons and clear steps",howItWorks:"Charts, labels and diagrams follow the spoken facts",
+    thumbnail:<svg viewBox="0 0 320 180" aria-hidden><rect width="320" height="180" rx="10" fill="#f2f5fc"/><path d="M55 35V145H275" fill="none" stroke="#65728c" strokeWidth="3"/><rect x="82" y="100" width="36" height="44" rx="4" fill="#7398d5"/><rect x="143" y="69" width="36" height="75" rx="4" fill="#557ec2"/><rect x="204" y="39" width="36" height="105" rx="4" fill="#315aa2"/></svg>,
+  },
+  {
     value: "auto",
     titleKey: "tf.style.auto",
     aboutKey: "tf.style.auto.about",

@@ -2,7 +2,8 @@ import { Check, Copy, Cpu, Key, Plug, RefreshCw, Sparkles, Star, Zap } from "luc
 import { useEffect, useState } from "react";
 import { get, post, put } from "../api";
 import { useFetch } from "../hooks";
-import { settingsStore, toast, useStore } from "../store";
+import { settingsStore, toast } from "../store";
+import type { Settings } from "../types";
 import { Field, Spinner, copyText } from "../ui";
 
 interface AIStatus {
@@ -181,7 +182,6 @@ function ProviderCard({ id, icon, title, subtitle, selected, status, onSelect, c
 
 /** Settings: which AI directs the videos, and how other assistants (Claude, ChatGPT, Cursor ...) connect through MCP. */
 export default function AIAssistants() {
-  const settings = useStore(settingsStore) as any;
   const st = useFetch<AIStatus>("/api/ai/status");
   const con = useFetch<Connect>("/api/mcp/connect");
   const [test, setTest] = useState<string>("");
@@ -194,8 +194,8 @@ export default function AIAssistants() {
 
   const save = async (patch: Record<string, unknown>) => {
     try {
-      await put("/api/settings", { ...settings, ...patch });
-      settingsStore.set({ ...settings, ...patch });
+      const confirmed = await put<Settings>("/api/settings", patch);
+      settingsStore.set(current => ({ ...current, ...confirmed }));
       st.refetch();
     } catch (e: any) {
       toast(e.message, "err");
@@ -263,9 +263,11 @@ export default function AIAssistants() {
 
   return (
     <>
-      <section className="card card-pad col" style={{ gap: 16 }} aria-label="AI model">
+      <details className="card card-pad ai-server-details" data-testid="server-details">
+        <summary>Server details</summary>
+      <section className="col" style={{ gap: 16 }} aria-label="Server AI connection">
         <div className="row">
-          <h2 className="grow">AI services the server can call</h2>
+          <h3 className="grow">Server AI connection</h3>
           {st.data && (
             <span className={`chip ${st.data.available ? "ok" : "warn"}`}>
               {st.data.available ? <Check size={12} /> : null} {st.data.provider}{st.data.model ? ` · ${st.data.model}` : ""}{st.data.available ? "" : " · not available"}
@@ -273,10 +275,10 @@ export default function AIAssistants() {
           )}
         </div>
         <p className="muted" style={{ margin: 0 }}>
-          Used by the server itself, after the directors above. Built-in rules always back it up, so a video is made even when AI is off.
+          Connection and account settings for AI steps that run on the server. Your next director is shown in the order above.
         </p>
 
-        <div className="provider-grid" role="radiogroup" aria-label="AI provider">
+        <div className="provider-grid" role="radiogroup" aria-label="Director">
           {providers.map((p) => {
             const isSelected = provider === p.id;
             let statusNode: React.ReactNode = null;
@@ -299,10 +301,11 @@ export default function AIAssistants() {
                       </select>
                     </Field>
                   ) : (
-                    <span className="small muted">No Ollama models found. Make sure Ollama is running and has at least one model pulled.</span>
+                    <span className="small muted">No models found. Make sure the Local AI (Ollama) is running and has at least one model.</span>
                   )}
                   <Field label="Computer address" hint="Where the free AI helper is running">
                     <input
+                      aria-label="Computer address"
                       type="text"
                       defaultValue={llmStatus?.ollama_url ?? "http://localhost:11434"}
                       placeholder="http://localhost:11434"
@@ -314,9 +317,10 @@ export default function AIAssistants() {
               );
             } else if (p.id === "claude_cli" || p.id === "best") {
               const cl = st.data?.claude;
-              statusNode = cl ? (
-                <span className={`chip ${cl.logged_in ? "ok" : "warn"}`} style={{ fontSize: 11 }}>
-                  {cl.logged_in ? <><Check size={10} /> Ready</> : "Not ready"}
+              const ready = !!cl?.logged_in || (p.id === "best" && !!llmStatus?.reachable && !!llmStatus?.model_ready && llmStatus?.llm_mode !== "off");
+              statusNode = cl || llmStatus ? (
+                <span className={`chip ${ready ? "ok" : "warn"}`} style={{ fontSize: 11 }}>
+                  {ready ? <><Check size={10} /> Ready</> : "Needs attention"}
                 </span>
               ) : null;
               bodyNode = cl ? (
@@ -375,8 +379,9 @@ export default function AIAssistants() {
           <button className="btn sm" onClick={runTest} disabled={busy}>{busy ? <Spinner /> : <Plug size={13} />} Test AI connection</button>
           {test && <span className="small muted" role="status">{test}</span>}
         </div>
-        <span className="small muted">Keys stay on this computer and are never shown again.</span>
+        <span className="small muted">Keys are saved on the processing server and are never shown again.</span>
       </section>
+      </details>
 
       <section className="card card-pad col" style={{ gap: 12 }} aria-label="AI assistants">
         <div className="row">

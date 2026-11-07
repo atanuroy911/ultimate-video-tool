@@ -476,7 +476,7 @@ def craft(action: str = typer.Argument("rules", help="rules or check"), project:
     from .project import Project
 
     rep = C.check(Project(project))
-    console.print(f"Craft score: [bold]{rep['score']}[/bold]")
+    console.print(f"Quality score: [bold]{rep['score']}[/bold]")
     for v in rep["violations"]:
         console.print(f"  {v['severity']:8} {v['t0']:6.1f}s {v['rule']}: {v['says']} -> {v['fix']}")
 

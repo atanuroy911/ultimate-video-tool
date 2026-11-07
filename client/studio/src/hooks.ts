@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { get } from "./api";
 import { jobsStore, useChanged, useStore } from "./store";
+import { BACK_EVENT } from "./connection";
 import type { Catalogue, JobInfo, MusicTrack, ProjectSummary, Theme } from "./types";
 
 /** Fetch with loading/error state and manual refetch. */
@@ -36,6 +37,13 @@ export function useFetch<T>(url: string | null, deps: unknown[] = []) {
     return () => { ++seq.current; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url, ...deps]);
+  const failed = useRef(false);
+  failed.current = error !== null;
+  useEffect(() => {                                                    // the server is back: whatever failed to load because it was away asks again by itself
+    const again = () => { if (failed.current) refetch(); };
+    window.addEventListener(BACK_EVENT, again);
+    return () => window.removeEventListener(BACK_EVENT, again);
+  }, [refetch]);
   return { data: dataUrl.current === url ? data : null, error, loading, refetch, setData };
 }
 
@@ -49,7 +57,7 @@ export function useProjectJob(projectId: string | undefined): JobInfo | null {
   const jobs = useStore(jobsStore);
   if (!projectId) return null;
   const mine = Object.values(jobs).filter((j) => j.project === projectId && j.kind === "pipeline");
-  mine.sort((a, b) => (a.id < b.id ? 1 : -1));
+  mine.reverse().sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
   const active = mine.find((j) => j.status === "queued" || j.status === "running");
   return active || null;
 }

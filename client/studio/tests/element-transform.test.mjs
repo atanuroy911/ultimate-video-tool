@@ -4,6 +4,7 @@ const {applyGesture,turned,reach,bearing}=await import('../src/review/gestures.t
 const {tidy,hasTransform,withTransform,corners,cropOf,repositionTransform,POINT_KEYS}=await import('../src/review/transformMath.ts');
 const {applyPreviewEdit}=await import('../src/review/previewEdits.ts');
 const {repositionMotion,sampleMotion}=await import('../src/review/motionMath.ts');
+const {saveMotionPoint}=await import('../src/review/motionMath.ts');
 const start=(el={},extra={})=>({el:{type:'title',at_word:'w1',...el},center:[540,960],frame:[1080,1920],size:[400,100],...extra});
 const near=(a,b,t=1e-3)=>assert.ok(Math.abs(a-b)<=t,`${a} is not ${b}`);
 
@@ -11,6 +12,26 @@ test('nothing set is not a transform, and defaults are dropped from what is set'
  assert.equal(tidy(null),null);assert.equal(tidy({}),null);assert.equal(tidy({stretch_x:1,flip_x:false,crop:[0,0,0,0],blend:'normal',pivot_x:.5}),null);
  assert.deepEqual(tidy({stretch_x:1.5,skew_y:0,flip_y:true}),{stretch_x:1.5,flip_y:true});
  assert.equal(hasTransform({blur:3}),true);assert.equal(hasTransform({blur:0}),false);
+});
+
+test('a value diamond saves the full current pose, including static effects, at the playhead',()=>{
+ const el={x:.3,y:.4,scale:1.2,transform:{stretch_x:2,tilt_y:30,blur:4}};
+ const points=saveMotionPoint(el,1,0,4,'tilt_y');
+ assert.deepEqual(points.map(p=>p.time),[0,1]);
+ for(const p of points) {near(p.stretch_x,2);near(p.tilt_y,30);near(p.blur,4);near(p.x,.3);}
+ const changed=saveMotionPoint({...el,keyframes:points,transform:{...el.transform,tilt_y:50}},1,0,4,'tilt_y');
+ assert.equal(changed.length,2);near(changed[0].tilt_y,30);near(changed[1].tilt_y,50);
+ assert.equal(saveMotionPoint(el,99,0,4,'x').at(-1).time,4);
+});
+
+test('corner pin follows the pointer through a projective tilt and slant',()=>{
+ const size=[400,100],warp=[[.1,0],[0,0],[0,0],[0,0]];
+ const local=[[40,0],[400,0],[400,100],[0,100]];
+ const project=([x,y])=>[(1.1*x+.3*y+200)/(1+.001*x),(.2*x+.9*y+300)/(1+.001*x)];
+ const quad=local.map(project),from=quad[1],target=project([420,12]);
+ const p=applyGesture(start({transform:{warp,tilt_y:40,skew_x:20}},{quad,size}),{kind:'pin',corner:1,dx:target[0]-from[0],dy:target[1]-from[1]});
+ near(p.transform.warp[1][0],.05);near(p.transform.warp[1][1],.12);
+ assert.deepEqual(p.transform.warp[0],warp[0]);
 });
 test('changing one thing keeps the others, and giving the default takes it away',()=>{
  const el=withTransform({type:'title',at_word:'w1'},{tilt_x:30});assert.deepEqual(el.transform,{tilt_x:30});

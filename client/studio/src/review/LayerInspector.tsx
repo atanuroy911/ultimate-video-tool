@@ -7,6 +7,7 @@ import { timeStore } from "./timeStore";
 import MotionEditor from "./MotionEditor";
 import { useState } from "react";
 import { repositionMotion } from "./motionMath";
+import TransformControls from "./TransformControls";
 
 /** A range input that shows the change at once and saves when it is let go. */
 function Num({ label, value, min, max, step, unit, layers, onSet, fmt }: { label: string; value: number; min: number; max: number; step: number; unit?: string; layers: Layers; onSet: (v: number) => void; fmt?: (v: number) => string }) {
@@ -93,8 +94,7 @@ export default function LayerInspector({ layers, clip, media, total, onSelect, s
       )}
       {visual && active==="position" && (
         <Panel title="Position & size">
-          <Num label="Left ↔ right" value={clip.x ?? 0.5} min={0} max={1} step={0.005} layers={layers} onSet={(v) => set({ x: v })} fmt={pct} />
-          <Num label="Top ↔ bottom" value={clip.y ?? 0.5} min={0} max={1} step={0.005} layers={layers} onSet={(v) => set({ y: v })} fmt={pct} />
+          <TransformControls value={clip} defaultY={.5} bounds={{start:clip.start,end:clip.start+clip.dur}} patch={patch=>commitNow({...patch,...(patch.keyframes?{anim:"none"}:{})})}/>
           <Num label="Width" value={clip.w ?? 1} min={0.05} max={2} step={0.01} layers={layers} onSet={(v) => set({ w: v })} fmt={pct} />
           {clip.type === "media" && (
             <label className="field"><span>Height</span>
@@ -114,7 +114,6 @@ export default function LayerInspector({ layers, clip, media, total, onSelect, s
               {[["none", "None"], ["zoom_in", "Slow zoom in"], ["zoom_out", "Slow zoom out"], ["slide_left", "Slide in from the right"], ["slide_right", "Slide in from the left"], ["slide_up", "Slide in from below"], ["slide_down", "Slide in from above"], ["pulse", "Gentle pulse"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           </label>
-          <Num label="Opacity" value={clip.opacity ?? 1} min={0} max={1} step={0.01} layers={layers} onSet={(v) => set({ opacity: v })} fmt={pct} />
           <div className="row" style={{ gap: 6 }}>
             <button className="btn sm" onClick={() => commitNow({ x: 0.5, y: 0.5, w: 1, h: null })}>Full frame</button>
             <button className="btn sm" onClick={() => commitNow({ x: 0.8, y: 0.2, w: 0.3, h: null })}>Corner picture</button>

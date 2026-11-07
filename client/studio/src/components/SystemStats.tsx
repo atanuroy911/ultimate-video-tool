@@ -37,7 +37,7 @@ let paused = false;
 function tick() {
   if (document.hidden || paused) return;                           // nothing to show, or the person paused it: do not ask
   get<SystemStats>("/api/system/stats")
-    .then((stats) => { latest = { stats, failed: false, at: Date.now() }; listeners.forEach((l) => l(latest)); })
+    .then((stats) => { if (!stats || !Array.isArray(stats.gpus) || !stats.summary || !stats.engines) throw new Error("not a reading"); latest = { stats, failed: false, at: Date.now() }; listeners.forEach((l) => l(latest)); })      // an answer that is not a reading is treated like no answer
     .catch(() => { latest = { stats: latest.stats, failed: true, at: latest.at }; listeners.forEach((l) => l(latest)); });     // an older server has no such route
 }
 export function setSystemPaused(p: boolean) { paused = p; if (!p) tick(); }

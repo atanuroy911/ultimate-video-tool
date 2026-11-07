@@ -410,3 +410,41 @@ Read `docs/plans/PLAN-PERFECT.MD` (ticks and Evidence lines), then `docs/evidenc
 - **Test habits that mattered:** a fake `nvidia-smi` on the path (`tests/test_gpu_setup.py`) found an infinite-ish loop in the card readings (534 calls); `tests/conftest.py` makes every test see a computer with no NVIDIA card and no remembered readings unless it gives its own; run card tests locally with `cd server && ../.venv/Scripts/python.exe -m pytest -c /dev/null --rootdir=.. ../tests/<file>` and leave `tests/test_gpu.py` off this PC (it uses the card).
 - **Do not render on the owner's server** until they answer the question in `docs/evidence/perfect/A3-server-restarts.md` (it stopped hard twice on 2026-11-05 during render-heavy test runs). Reading, deploying code, one-file CPU tests are fine. Read `uptime` before and after anything heavy.
 - **Nothing is committed.** Commit only when the owner asks, with no attribution lines.
+
+## 2026-11-06 — Codex continuation: queue reliability and restart recovery
+
+- F6 — Done by codex. Reproduced twelve duplicate jobs from simultaneous requests, then made busy-check/registration atomic. Added queue/order/cancellation regressions and locked collection snapshots.
+- F1 implementation — Done by codex; plan step remains open for a real scratch-server restart. Jobs persist under projects/.jobs, startup marks unfinished work interrupted, legacy Processing projects recover, and the dashboard/Progress screen offer Continue using valid stage caches. Reconnect replaces stale job state. Detailed prior job logs are not persisted; retention is still F11.
+- Checks: combined targeted Python run 20 passed (56 deselected); built Studio recovery browser test passes at 1280/light and 400/dark with fake HTTP/WebSocket responses, screenshots viewed; TypeScript/build and 32 timeline tests pass. No video render, GPU work or speech recognition on this PC. See docs/evidence/perfect/F6-many-jobs.md and F1-restart-recovery.md.
+- Owner answered in this chat: keep renders paused and finish unblocked code first. No server access/deployment/restart, commit or push performed. The pre-existing server/debug.log change was preserved.
+- Reconciled B8/B10/B11 ticks with Claude's existing evidence and the earlier 175-test passing audit; credit remains Claude implementation, Codex verification. E17 remains unticked because its documented remaining controls/warp limitations are still open.
+
+## 2026-11-06 — Further implementation - Done by codex
+
+- Completed and checked C5, E2, E7, E9, F2 and F4 in PLAN-PERFECT.MD. Evidence: docs/evidence/perfect/CODEX-IMPLEMENTATION-2026-11-06.md.
+- C5: real GSAP word-motion recipes work on inline-block spans in English and Bangla; missing-CSS mutation fails the test. Software text fixtures only, no video render.
+- E2: shared visual DirectorChoices and StyleChoices on New and Direct again; nine styles, all six directors; project-only run choices, no global provider/model edits.
+- E7/E9: redundant dashboard New removed; phone filters folded; five phone tabs with More for Looks/Settings, all destinations reachable with 44px bottom targets.
+- F2: cancellation bypasses error fallbacks, preserves checkpoints, reports cancelled in the module log and at late job return, and offers Continue. Tests cover all twelve stages with fake work and actual API/module cancellation.
+- F4: disk-full upload/job messages, actual resumable offsets, partial writes and atomic prior-document preservation. Upload tests now use a temporary store.
+- E17 implementation gaps coded: twelve value diamonds, projective pin inversion for tilt/slant, static media-layer transforms with schema/history/runtime support, rounded corners without crop. Full editor/export gate remains open.
+- E15 implementation coded: verified systemd user-service restart only when MainPID is this process; atomic idle job fence, failure recovery, no button without a supervisor; server numeric wording removed. Tests mock every system command. Full Server-page acceptance remains open.
+- E8 tile values wrap; full flow remains open. F10 clamps progress/logs and rejects stale earlier-stage heartbeats; real-run sample remains open.
+- Final relevant Python selection: 72 passed. Existing API cancellation: 1 passed separately. Studio TypeScript/Vite build and 34 timeline tests passed. UI fixtures passed in four modes for transform controls, redo and dashboard/navigation, plus six restart states, four word-motion cases and four interruption/cancellation cases. Screenshots inspected. Facts-only STATUS.md refresh reviewed.
+- Owner's render pause remains in force. No GPU/model/speech work, real video exports, owner-server access/restarts, autostart registration, commits or pushes. Existing unrelated edits preserved.
+- Remaining work is still substantial: C1-C4/C6-C10, D/video acceptance, most E app polish, further reliability/security/retention, G/H/I and owner-only gates. Do not report the rest of the plan complete.
+
+## 2026-11-06 — Frame measurements and readable Details - Done by codex
+
+- C6, C7 and E5 completed and marked Done by codex in PLAN-PERFECT.MD. Evidence: docs/evidence/perfect/CODEX-FRAME-DETAILS-2026-11-06.md.
+- Production frame measurements now cover named stick and Story cartoon faces plus photos with detector face metadata/object-fit crops. Story bundle rebuilt. Shared probe tested with actual stick/Story/media factories and software DOM fixtures; no video render.
+- Added measured text size, solid-background contrast, portrait platform zones and partial opacity facts. These inform the director/Quality check and change no elements.
+- Details opens with tabs visible, groups conversations by step, previews the question and displays retained image attachments. PNG/JPEG/WebP bytes are stored once per hash under the video, served through a project-scoped validated route. Older records say pictures were not retained; image-write failures keep the text record. Attachment retention remains F11.
+- C8 partial: facts lead the single-revision prompt; refused edits now name the actual field/reason. Real gemma acceptance and grounded visual suggestions remain open.
+- Checks: broader revision/conversation/Codex/one-director run 43 passed; final revision/conversation/image regressions 7 passed (overlapping selections). Studio build and 34 timeline tests pass. Frame checks and Details browser fixture pass; Details checked wide/phone, light/dark with screenshots viewed. Live-server log.mjs selectors updated, that suite not run.
+- No real renders, GPU/speech work, model calls, deployments, server restarts, commits or pushes. Owner render pause remains active. No claim that the whole plan is complete.
+
+## 2026-11-06 Phase B done (except B9), E17 done
+- B1-B8, B10, B11 and E17 are ticked in docs/plans/PLAN-PERFECT.MD with Evidence lines (docs/evidence/perfect/B*.md, E17-*.md). Decision 9 (owner): the director makes one look and one revision (ROUNDS = 1); the person fixes the rest by hand: every element has stretch, slant, flip, pivot, 3D tilt, corner pin, crop, blur, blend (schema `Transform`, `vt-keyframes.js look/warp`, Studio `TransformControls`, `TransformHandles`).
+- Code never hides what an AI placed (`directed` scenes; `layout_check.py`, `repairs.py`); a failed client director hands the video on with one plain line; Codex is sent no Claude model name.
+- Next: Phase C onward; C needs renders, paused until the owner answers the server-restart question (A3-server-restarts.md). Nothing is committed.

@@ -16,6 +16,7 @@ from ..modules.registry import ModuleSpec, get_module, list_modules
 from ..modules.toolspec import export_tool
 from ..modules.workspace import Workspace
 from ..project import Project
+from .. import paths
 
 router = APIRouter(prefix="/api", tags=["modules"])
 
@@ -28,6 +29,11 @@ def project_or_404(pid: str) -> Project:
     if not re.fullmatch(r"[A-Za-z0-9._-]{1,80}", pid) or pid in (".", ".."):
         raise HTTPException(400, "Invalid project ID")
     project = Project(pid)
+    try:
+        if not project.dir.resolve().is_relative_to(paths.PROJECTS.resolve()):
+            raise HTTPException(400, "Invalid project ID")
+    except (OSError, RuntimeError):
+        raise HTTPException(400, "Invalid project ID")
     if not project.exists():
         raise HTTPException(404, f"Project '{pid}' not found")
     return project

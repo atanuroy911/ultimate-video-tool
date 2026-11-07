@@ -70,8 +70,8 @@ export default function AIPanel({ r, id, scene, kind, onClose, onChat, onTools, 
       </Panel>
 
       <Panel title="Make it better">
-        <Button variant="primary" onClick={() => setRedoOpen(true)}><Wand2 size={15} /> Redo video with new AI model…</Button>
-        <span className="small muted">Choose an AI model (Ollama, Claude, OpenAI) to completely re-plan the scenes, visuals and story graphics.</span>
+        <Button variant="primary" onClick={() => setRedoOpen(true)}><Wand2 size={15} /> Direct this video again…</Button>
+        <span className="small muted">Choose a director (Local AI, Claude, Codex) to completely re-plan the scenes, visuals and story graphics.</span>
         <Button onClick={() => r.askClaude("full", null, "", 1).then((x) => x && toast("Request queued for your assistant", "ok"))}><Sparkles size={15} /> Plan with Codex or Claude (MCP)</Button>
         <Button onClick={() => { onClose(); onChat(); }}><MessageSquare size={15} /> Ask a chat assistant</Button>
         <Button onClick={r.undo} disabled={!r.canUndo}>Undo the last change</Button>

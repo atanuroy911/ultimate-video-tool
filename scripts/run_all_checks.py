@@ -27,7 +27,7 @@ NPX = "npx.cmd" if os.name == "nt" else "npx"
 NODE = "node"
 SCRATCH_PORT = 8777
 # browser suites that are expected to pass on the current screens (the stale ones are tracked in docs/STATUS.md section 6)
-E2E_SUITES = ["editor_simple", "new_flow", "design", "edge", "log", "engines", "quality", "plan", "context", "contrast", "flow", "layers", "layers_media", "menus", "script", "scroll", "shorts_swipe", "sounds", "timeline2", "timeline3"]
+E2E_SUITES = ["editor", "new_flow", "design", "edge", "log", "engines", "quality", "plan", "context", "contrast", "flow", "layers", "layers_media", "menus", "script", "scroll", "shorts_swipe", "sounds", "timeline2", "timeline3"]
 # a short reference voice for the cloning workflows: the verified Breeze sample kept as evidence (a synthetic voice, so no person's consent is involved)
 REF_VOICE = ROOT / "docs" / "evidence" / "2026-10-28" / "breeze-design-sample.wav"
 REF_TEXT = "It was the last normal night of your life, but you did not know that yet."

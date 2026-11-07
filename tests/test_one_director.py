@@ -588,11 +588,11 @@ def test_a_director_is_told_when_its_overlay_cannot_be_kept(ref):
     words = list(ref.transcript().by_id())
     beats = ref.beats().beats
     script = {"kind": "cartoon", "scenes": [{"id": "s1", "beats": [b.id for b in beats],
-                                             "overlays": [{"type": "cartoon", "at_word": words[0], "cast": [{"who": "girl", "pose": "idle"}]}]}]}
+                                             "overlays": [{"type": "cartoon", "at_word": words[0], "cast": [{"who": "girl", "pose": "levitate"}]}]}]}
     res = service.apply_script(ref, script, strict=True)
     assert res["ok"] is False and any("pose" in e and "left out" in e for e in res["errors"])
     text = overlay_catalogue_text()
-    assert "pose: stand" in text and "a mother or any other woman is woman" in text
+    assert "pose: stand" in text and "old_woman is an elder woman" in text
 
 
 

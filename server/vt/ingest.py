@@ -238,7 +238,7 @@ def raw_transcript_from_subs(path: Path, language: str, duration: float) -> Opti
     """The same shape the speech recogniser writes (raw_transcript.json), or None when the subtitles hold too little text to trust."""
     try:
         words = words_from_json3(path) if path.suffix == ".json3" else words_from_vtt(path)
-    except (OSError, ValueError, KeyError):
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
         return None
     if len(words) < 8 or (duration and words[-1]["end"] < duration * 0.25):
         return None
@@ -268,31 +268,45 @@ def create_project(url: str, *, language: str = "en", title: str = "", use_subs:
 
 
 # --------------------------------------------------------------------------- the person's own subtitle file
+_CUE_TIME = re.compile(r"\s*(?:(\d+):)?(\d{2}):(\d{2})[.,](\d{1,3})\s+-->\s+(?:(\d+):)?(\d{2}):(\d{2})[.,](\d{1,3})(?:\s+.*)?\s*")
+
+
 def cues_from_srt(path: Path) -> list[dict]:
-    """The lines of an .srt/.vtt file as they are written: start, end, text and how many words the line holds."""
-    out, lines, i = [], path.read_text(encoding="utf-8-sig", errors="replace").splitlines(), 0
-    sec = lambda h, m, s, ms: int(h or 0) * 3600 + int(m) * 60 + int(s) + int(ms.ljust(3, "0")[:3]) / 1000
-    while i < len(lines):
-        m = _VTT_TIME.search(lines[i])
-        i += 1
-        if not m:
+    """Read every personal subtitle cue or refuse with its block number; never silently discard a malformed cue."""
+    try:
+        content = path.read_text(encoding="utf-8-sig")
+    except UnicodeError as e:
+        raise ValueError("The subtitle file could not be read. Save it as UTF-8 and try again.") from e
+    except OSError as e:
+        raise ValueError("The subtitle file could not be opened. Choose the file again and try again.") from e
+    out = []
+    for number, block in enumerate(re.split(r"\n\s*\n", content.strip()), 1):
+        lines = block.splitlines()
+        if not lines:
             continue
-        text = []
-        while i < len(lines) and lines[i].strip():
-            text.append(lines[i])
-            i += 1
-        t = _clean(" ".join(text))
-        if t:
-            out.append({"s": round(sec(*m.group(1, 2, 3, 4)), 3), "e": round(sec(*m.group(5, 6, 7, 8)), 3), "t": t, "n": len(t.split())})
+        first = lines[0].strip()
+        if ((number == 1 and (first == "WEBVTT" or first.startswith("WEBVTT "))) or first == "NOTE" or first.startswith("NOTE ")
+                or first in ("STYLE", "REGION")):
+            continue
+        timing = 0 if "-->" in lines[0] else 1
+        m = _CUE_TIME.fullmatch(lines[timing]) if timing < len(lines) else None
+        if not m:
+            raise ValueError(f"Subtitle block {number} has invalid timing. Use a start and end such as 00:00:01,000 --> 00:00:03,000.")
+        if any(int(m.group(i)) >= 60 for i in (2, 3, 6, 7)):
+            raise ValueError(f"Subtitle block {number} has invalid timing. Minutes and seconds must be between 00 and 59.")
+        sec = lambda h, mins, s, ms: int(h or 0) * 3600 + int(mins) * 60 + int(s) + int(ms.ljust(3, "0")) / 1000
+        start, end = sec(*m.group(1, 2, 3, 4)), sec(*m.group(5, 6, 7, 8))
+        if end <= start:
+            raise ValueError(f"Subtitle block {number} must end after it starts.")
+        t = _clean(" ".join(lines[timing + 1:]))
+        if not t:
+            raise ValueError(f"Subtitle block {number} has no words. Add its text or remove the empty block.")
+        out.append({"s": round(start, 3), "e": round(end, 3), "t": t, "n": len(t.split())})
     return out
 
 
-def attach_subtitles(p, path: Path, language: str = "") -> dict:
-    """A recording that comes with its own subtitle file: the words and their timing come from the file, so speech recognition is skipped,
-    and each subtitle line stays one caption (the story engine cuts its scenes between them, as it did with its own SRT input).
-    One function behind the New video page, the CLI (`vt new --srt`) and MCP (create_project srt_path). Raises ValueError in words."""
-    from .util import write_json
-
+def read_subtitles(path: Path, language: str = "") -> tuple[list[dict], dict]:
+    """Validate personal subtitles without creating or changing a project. Return the cues and the exact raw transcript."""
     path = Path(path)
     if path.suffix.lower() not in (".srt", ".vtt"):
         raise ValueError("The subtitles must be an .srt or .vtt file.")
@@ -302,8 +316,22 @@ def attach_subtitles(p, path: Path, language: str = "") -> dict:
     if not language or language == "auto":
         language = "bn" if re.search("[ঀ-৿]", " ".join(c["t"] for c in cues)) else "en"
     words = _dedupe([w for c in cues for w in _split_cue(c["t"], c["s"], c["e"])])
+    if not words:
+        raise ValueError("The subtitle lines are too short for their words. Give each line more time and try again.")
     raw = {"language": language, "model": "srt", "exact": True, "duration": words[-1]["end"] if words else 0, "chunks": [], "chunks_without_speech": 0,
            "words": words}
+    return cues, raw
+
+
+def attach_subtitles(p, path: Path, language: str = "") -> dict:
+    """A recording that comes with its own subtitle file: the words and their timing come from the file, so speech recognition is skipped,
+    and each subtitle line stays one caption (the story engine cuts its scenes between them, as it did with its own SRT input).
+    One function behind the New video page, the CLI (`vt new --srt`) and MCP (create_project srt_path). Raises ValueError in words."""
+    from .util import write_json
+
+    path = Path(path)
+    cues, raw = read_subtitles(path, language)
+    language = raw["language"]
     shutil.copyfile(path, p.dir / ("subtitles" + path.suffix.lower()))
     write_json(p.dir / "subs.raw.json", raw)
     write_json(p.dir / "subtitles.cues.json", cues)
@@ -312,4 +340,4 @@ def attach_subtitles(p, path: Path, language: str = "") -> dict:
     m.options.use_subtitles = "any"
     m.origin = {**(m.origin or {}), "subtitles": True, "subtitle_file": path.name}
     p.save_meta(m)
-    return {"lines": len(cues), "words": len(words), "language": language}
+    return {"lines": len(cues), "words": len(raw["words"]), "language": language}

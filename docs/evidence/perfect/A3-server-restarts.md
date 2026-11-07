@@ -21,3 +21,6 @@ Only the deploy at 21:18 (code into `/home/roy/ultimate-video-tool-server/app`, 
 
 ## Decision
 No more full-suite or render-heavy runs on the server until the owner has read this and answered (see the trap in PLAN-PERFECT.MD section 0.5). Light work (reading, deploying code, single small test files that do not render) continues.
+
+## 2026-11-07: the server went down again, and this time it was the power
+The server stopped answering at about 09:44 while the full suite ran (no ping, no ssh). The owner says there is no electricity, so this was a power cut and not my test run. The two stops on 2026-11-05 have no known cause, and this one shows that a stop during a long run is not proof the run did it. Server steps wait until the power is back.

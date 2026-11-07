@@ -171,7 +171,7 @@ export default function ShortsExtractor() {
         setStatusMsg(current.msg || "Downloading the video…");
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
-      if (!project) throw new Error("Import is still running. Check Projects and return when it finishes.");
+      if (!project) throw new Error("Import is still running. Check Your videos and return when it finishes.");
       setSelectedPid(project);
       setProjects(await get<ProjectSummary[]>("/api/projects"));
       setStatusMsg("Video imported. Waiting for transcript…");
@@ -259,7 +259,7 @@ export default function ShortsExtractor() {
       setStatusMsg(job.msg || "Working on Shorts…");
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
-    throw new Error("Still working. Check Projects shortly.");
+    throw new Error("Still working. Check Your videos shortly.");
   };
 
   const handleBatchExport = async () => {

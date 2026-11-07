@@ -38,20 +38,25 @@ export function DirectorLogButton({ pid, label = "Details" }: { pid: string; lab
 }
 
 export function DirectorLog({ pid, onClose }: { pid: string; onClose: () => void }) {
-  const { entries, running, error, reload } = useCallLog(pid, true);
+  const { entries, running, error, loaded, reload } = useCallLog(pid, true);
   const [filter, setFilter] = useState<Filter>("all");
   const [q, setQ] = useState("");
   const [technical, setTechnical] = useState(false);
   const [pause, setPause] = useState(false);
   const end = useRef<HTMLLIElement>(null);
+  const lastCount = useRef<number|null>(null);
   const start = useMemo(() => (entries.length ? Date.parse(entries[0].t) : Date.now()), [entries]);
   const shown = entries.filter((e) => {
     if (filter === "problems" && e.level !== "error" && e.level !== "warn") return false;
     return !q.trim() || JSON.stringify(e).toLowerCase().includes(q.trim().toLowerCase());
   });
   useEffect(() => {
-    if (!pause) end.current?.scrollIntoView?.({ block: "end" });
-  }, [shown.length, running.length, pause]);
+    // Opening starts at the tabs. Follow only entries arriving afterwards.
+    if(!loaded)return;
+    const count=shown.length+running.length;
+    if (!pause && lastCount.current!==null && count>lastCount.current) end.current?.scrollIntoView?.({ block: "end" });
+    lastCount.current=count;
+  }, [shown.length, running.length, pause, loaded]);
   const copy = () => copyText(shown.map((e) => e.plain).join("\n")).then(() => toast("Copied"));
 
   return (

@@ -7,7 +7,7 @@ import type { HandleMode } from "./transformUi";
 export interface Located { box: number[]; size: number[] | null; quad: number[][] | null; free: boolean; frame: number[] }
 
 /** What the Inspector hears (it owns the element and saves it): a hand began, moved, or let go. */
-export interface GestureEvent { scene: string; index: number; phase: "start" | "move" | "end"; gesture?: Gesture; center: [number, number]; frame: [number, number]; size: [number, number] }
+export interface GestureEvent { scene: string; index: number; phase: "start" | "move" | "end"; gesture?: Gesture; center: [number, number]; frame: [number, number]; size: [number, number]; quad?: number[][] }
 export const sendGesture = (detail: GestureEvent) => window.dispatchEvent(new CustomEvent("vt-element-gesture", { detail }));
 
 const NAMES = ["top left", "top right", "bottom right", "bottom left"];
@@ -34,7 +34,7 @@ export default function TransformHandles({ at, scale, mode, scene, index, width,
     e.stopPropagation(); e.preventDefault();
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
     drag.current = { kind, corner, from: frameAt(e), center, frame, size };
-    sendGesture({ scene, index, phase: "start", center, frame, size });
+    sendGesture({ scene, index, phase: "start", center, frame, size, quad });
   };
   const gesture = (e: React.PointerEvent): Gesture | null => {
     const d = drag.current;

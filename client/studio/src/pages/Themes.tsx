@@ -196,7 +196,7 @@ export default function ThemesPage() {
   return (
     <div className="themes" style={{ height: "100%" }}>
       <section aria-label="Theme list">
-        <div className="panel-head"><h3 className="grow">Themes</h3></div>
+        <div className="panel-head"><h3 className="grow">Looks</h3></div>
         {(list || []).map((t) => (
           <div key={t.name} className={`theme-item ${t.name === name ? "sel" : ""}`} onClick={() => nav(`/themes/${t.name}`)} tabIndex={0} role="button" onKeyDown={(e) => e.key === "Enter" && nav(`/themes/${t.name}`)}>
             <span className="swatches">{[t.color.bg, t.color.accent, t.color.accent2, t.color.ink].map((c, i) => <i key={i} style={{ background: c }} />)}</span>

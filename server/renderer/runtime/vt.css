@@ -206,3 +206,6 @@ svg.bg-pat { overflow: visible; }
 .geometric-label { font-size: 44px; font-weight: 700; text-align: center; }
 /* an element the layout guard dropped (vt.js guardLayout): the timeline sets display when an element arrives, so an inline display:none would be undone */
 .vt-gone { display: none !important; }
+/* Word and grapheme spans need boxes for GSAP transforms; whitespace stays
+   inside each word so seeking hidden scenes cannot join adjacent words. */
+.mw, .mc { display: inline-block; white-space: pre; }

@@ -125,7 +125,7 @@ export default function ExportPage() {
       <div className="row wrap">
         <Link className="btn ghost" to={`/p/${id}`}><ArrowLeft size={15} /> Back to review</Link>
         <h1 className="grow bn" style={{ marginLeft: 8, minWidth: 220 }}>Export · {p?.title}</h1>
-        <button className="btn magic" onClick={() => setRedoOpen(true)}><Wand2 size={15} /> Redo with AI model</button>
+        <button className="btn magic" onClick={() => setRedoOpen(true)}><Wand2 size={15} /> Direct again</button>
       </div>
 
       <div className="two-col">
@@ -199,7 +199,7 @@ export default function ExportPage() {
               ]} />
           )}
           <button className="btn primary lg" onClick={start} disabled={!!running}>
-            {running ? <Spinner /> : <Film size={16} />} {running ? "Rendering…" : "Render video"}
+            {running ? <Spinner /> : <Film size={16} />} {running ? "Exporting…" : "Export video"}
           </button>
         </div>
 
@@ -228,9 +228,9 @@ export default function ExportPage() {
                   {latest.acceleration.warnings.map((warning,index)=><p key={index} style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{warning}</p>)}
                 </details>
               </div>}
-              <section className="col" aria-label="Retention check" style={{ gap: 6 }}>
+              <section className="col" aria-label="Quality check" style={{ gap: 6 }}>
                 <div className="row" style={{ alignItems: "center" }}>
-                  <strong className="grow">Retention check</strong>
+                  <strong className="grow">Quality check</strong>
                   {latest.retention && <span className="small" style={{ fontVariantNumeric: "tabular-nums" }} title="100 is best. Made from how soon something appears, how long nothing changes, empty stretches, silence and reading speed.">Score {latest.retention.score}/100</span>}
                   <button className="btn sm ghost" disabled={scoring} onClick={() => { setScoring(true); post(`/api/projects/${id}/retention?name=${encodeURIComponent(latest.name)}`).then(() => files.refetch()).catch((e: any) => toast(e.errors?.[0] || e.message, "err")).finally(() => setScoring(false)); }}>{scoring ? <Spinner /> : null} {latest.retention ? "Check again" : "Check now"}</button>
                 </div>

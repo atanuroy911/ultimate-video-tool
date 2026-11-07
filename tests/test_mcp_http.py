@@ -65,7 +65,7 @@ def test_script_tools_over_stdio(ref, projects_dir):
             task = _text(await c.call_tool("get_script_task", {"project": ref.id, "kind": "stick"}))
             assert "CRAFT RULES" in task["instructions"] and task["schema"]["properties"]["scenes"] and "EXAMPLE 1" in task["task"]
             bad = _text(await c.call_tool("submit_script", {"project": ref.id, "script": {"version": "1.0", "kind": "stick", "scenes": "not a list"}}))
-            assert bad["ok"] is True and bad["repaired"] >= 1        # garbage is repaired (every beat gets a scene), never crashes
+            assert bad["ok"] is False and bad["errors"]        # garbage is told to the director as errors (B4), never crashes and is never silently repaired
             tr, beats = ref.transcript(), ref.beats()
             from vt.script.rules_stick import rules_script
             from vt.planner import plan_rules

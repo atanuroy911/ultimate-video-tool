@@ -63,6 +63,7 @@ class PendingRun:
     result: dict[str, Any] = field(default_factory=dict)
     message: dict[str, Any] = field(default_factory=dict, repr=False)          # what was sent, to send again when the computer comes back
     resend: bool = False
+    mcp_token: str = field(default="", repr=False)
 
 
 class DirectorBroker:
@@ -150,6 +151,9 @@ class DirectorBroker:
                     why = (f"{who} on that computer lost its connection to this server and did not come back within {int(self.grace)} seconds. "
                            "Open Video Tool there (its helper starts with the computer), or use a director on the server.")
                     run.result = {"ok": False, "error_kind": "other", "reason": why, "error": why[:500]}
+                    from .mcp.scope import revoke
+
+                    revoke(run.mcp_token)
                     run.event.set()
                     self._abandoned.setdefault(key, []).append(run.id)
 
@@ -183,18 +187,22 @@ class DirectorBroker:
             pass
 
     def request(self, device_id: str, project: str, prompt: str, timeout: Optional[float], assistant: str = 'claude') -> dict[str, Any]:
+        from .mcp.scope import issue, revoke
+
         with self._lock:
             device = self._devices.get(self._key(device_id, assistant))
             if not device or not device.logged_in or device.send is None:
                 return {"ok": False, "reason": "Claude on that device is not connected and logged in."}
             run = PendingRun(uuid.uuid4().hex[:12], device_id, project, "direct", assistant)
+            run.mcp_token = issue(project, ttl=86400 if timeout is None else timeout + ASK_EXTRA_WAIT + self.grace)
             run.message = {"type": "direct", "request": run.id, "project": project, "task": "plan", "prompt": prompt, 'assistant': assistant,
-                           "model": task_model(assistant)}
+                           "model": task_model(assistant), "director_token": run.mcp_token}
             self._runs[run.id] = run
             try:
                 device.send(run.message)
             except Exception as e:
                 self._runs.pop(run.id, None)
+                revoke(run.mcp_token)
                 return {"ok": False, "reason": f"The director request could not be sent ({type(e).__name__})."}
         from . import paths
         from .ai import talk
@@ -203,7 +211,10 @@ class DirectorBroker:
         folder = paths.PROJECTS / project
         who = who_asked(assistant)
         talk.record(who, "", prompt=prompt, kind="sent", folder=folder)
-        answered = run.event.wait(timeout)
+        try:
+            answered = run.event.wait(timeout)
+        finally:
+            revoke(run.mcp_token)
         with self._lock:
             self._runs.pop(run.id, None)
         if not answered:
@@ -243,6 +254,9 @@ class DirectorBroker:
             if run is None or (device_id is not None and run.device_id!=device_id):
                 return False
             run.result = {"ok": bool(ok), "error": error[:500], **(detail or {})}
+            from .mcp.scope import revoke
+
+            revoke(run.mcp_token)
             run.event.set()
             return True
 

@@ -27,6 +27,12 @@
       node.alt = "";
     }
     node.className = cls || "";
+    if (m.faces?.length) {
+      node.dataset.faces = JSON.stringify(m.faces);
+      node.dataset.personName = m.caption || id;
+      node.dataset.sourceWidth = m.w || 0;
+      node.dataset.sourceHeight = m.h || 0;
+    }
     node.style.objectPosition = Math.round((m.fx != null ? m.fx : 0.5) * 100) + "% " + Math.round((m.fy != null ? m.fy : 0.5) * 100) + "%";
     return { node, m };
   }

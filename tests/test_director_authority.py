@@ -524,3 +524,30 @@ def test_the_quality_check_is_told_what_is_left_and_what_the_guard_changed(ref, 
         later = client.get(f"/api/projects/{ref.id}/look-at").json()
         assert later["current"] is False and later["guard_current"] is False, "the person is told the plan changed since it was looked at"
         assert client.get("/api/projects/nope/look-at").status_code == 404
+
+
+def test_a_cut_changed_after_the_look_is_measured_again_so_the_quality_check_is_not_stale(ref, monkeypatch):
+    # the viewer-test revision rewrites the plan after the director looked: what is left is measured on the new cut (page facts only, nobody is asked)
+    import vt.director_review as R
+    import vt.render.hyperframes as H
+    from vt.util import file_hash, read_json, write_json
+
+    report, asked, ids = _look(ref, monkeypatch, lambda n: {1.0: [], 2.0: []}, [RIGHT, RIGHT])
+    assert report["left"] == []
+    sf = ref.scenes()
+    sf.scenes[0].elements[0] = sf.scenes[0].elements[0].model_copy(update={"opacity": 0.5})        # the plan is rewritten: its file changes
+    ref.save_scenes(sf)
+    assert read_json(ref.dir / R.REPORT)["scenes_hash"] != file_hash(ref.scenes_path)
+    monkeypatch.setattr(H, "frame_facts", lambda comp, times: {1.0: [TAG], 2.0: []})
+    R.remeasure(ref)
+    now = read_json(ref.dir / R.REPORT)
+    assert now["left"] == [{"scene": ids[0], "at": 1.0, "facts": [TAG]}] and now["scenes_hash"] == file_hash(ref.scenes_path)
+    assert now["rounds"] == report["rounds"], "what the director saw stays as it was"
+
+
+def test_a_cut_nobody_looked_at_is_not_given_a_record_by_the_remeasure(ref):
+    import vt.director_review as R
+
+    (ref.dir / R.REPORT).unlink(missing_ok=True)
+    R.remeasure(ref)
+    assert not (ref.dir / R.REPORT).exists()

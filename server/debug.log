@@ -120,3 +120,51 @@
 [1106/202036.545:WARNING:ui\gl\angle_platform_impl.cc:50] vulkan_icd.cpp:389 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
 [1106/202039.444:ERROR:ui\gl\angle_platform_impl.cc:45] vulkan_icd.cpp:157 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
 [1106/202039.651:WARNING:ui\gl\angle_platform_impl.cc:50] vulkan_icd.cpp:389 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1106/202044.027:ERROR:ui\gl\angle_platform_impl.cc:45] vulkan_icd.cpp:157 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1106/202044.235:WARNING:ui\gl\angle_platform_impl.cc:50] vulkan_icd.cpp:389 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1106/202047.596:ERROR:ui\gl\angle_platform_impl.cc:45] vulkan_icd.cpp:157 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1106/202047.774:WARNING:ui\gl\angle_platform_impl.cc:50] vulkan_icd.cpp:389 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1106/202051.066:ERROR:ui\gl\angle_platform_impl.cc:45] vulkan_icd.cpp:157 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1106/202051.278:WARNING:ui\gl\angle_platform_impl.cc:50] vulkan_icd.cpp:389 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1106/202054.513:ERROR:ui\gl\angle_platform_impl.cc:45] vulkan_icd.cpp:157 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1106/202054.726:WARNING:ui\gl\angle_platform_impl.cc:50] vulkan_icd.cpp:389 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1106/202058.555:ERROR:ui\gl\angle_platform_impl.cc:45] vulkan_icd.cpp:157 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1106/202058.756:WARNING:ui\gl\angle_platform_impl.cc:50] vulkan_icd.cpp:389 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1106/202102.336:ERROR:ui\gl\angle_platform_impl.cc:45] vulkan_icd.cpp:157 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1106/202102.570:WARNING:ui\gl\angle_platform_impl.cc:50] vulkan_icd.cpp:389 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1106/202107.412:ERROR:ui\gl\angle_platform_impl.cc:45] vulkan_icd.cpp:157 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1106/202107.612:WARNING:ui\gl\angle_platform_impl.cc:50] vulkan_icd.cpp:389 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1106/202110.868:ERROR:ui\gl\angle_platform_impl.cc:45] vulkan_icd.cpp:157 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1106/202111.092:WARNING:ui\gl\angle_platform_impl.cc:50] vulkan_icd.cpp:389 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1106/202115.040:ERROR:ui\gl\angle_platform_impl.cc:45] vulkan_icd.cpp:157 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1106/202115.257:WARNING:ui\gl\angle_platform_impl.cc:50] vulkan_icd.cpp:389 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1106/202118.970:ERROR:ui\gl\angle_platform_impl.cc:45] vulkan_icd.cpp:157 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1106/202119.208:WARNING:ui\gl\angle_platform_impl.cc:50] vulkan_icd.cpp:389 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1106/202122.669:ERROR:ui\gl\angle_platform_impl.cc:45] vulkan_icd.cpp:157 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1106/202122.853:WARNING:ui\gl\angle_platform_impl.cc:50] vulkan_icd.cpp:389 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1106/202125.283:ERROR:ui\gl\angle_platform_impl.cc:45] vulkan_icd.cpp:157 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1106/202125.445:WARNING:ui\gl\angle_platform_impl.cc:50] vulkan_icd.cpp:389 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1106/202128.034:ERROR:ui\gl\angle_platform_impl.cc:45] vulkan_icd.cpp:157 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1106/202128.171:WARNING:ui\gl\angle_platform_impl.cc:50] vulkan_icd.cpp:389 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1106/202130.376:ERROR:ui\gl\angle_platform_impl.cc:45] vulkan_icd.cpp:157 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1106/202130.537:WARNING:ui\gl\angle_platform_impl.cc:50] vulkan_icd.cpp:389 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1106/202133.025:ERROR:ui\gl\angle_platform_impl.cc:45] vulkan_icd.cpp:157 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1106/202133.148:WARNING:ui\gl\angle_platform_impl.cc:50] vulkan_icd.cpp:389 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1106/202135.063:ERROR:ui\gl\angle_platform_impl.cc:45] vulkan_icd.cpp:157 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1106/202135.260:WARNING:ui\gl\angle_platform_impl.cc:50] vulkan_icd.cpp:389 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1106/202138.374:ERROR:ui\gl\angle_platform_impl.cc:45] vulkan_icd.cpp:157 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1106/202138.566:WARNING:ui\gl\angle_platform_impl.cc:50] vulkan_icd.cpp:389 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1106/202140.967:ERROR:ui\gl\angle_platform_impl.cc:45] vulkan_icd.cpp:157 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1106/202141.099:WARNING:ui\gl\angle_platform_impl.cc:50] vulkan_icd.cpp:389 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1106/202143.864:ERROR:ui\gl\angle_platform_impl.cc:45] vulkan_icd.cpp:157 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1106/202144.035:WARNING:ui\gl\angle_platform_impl.cc:50] vulkan_icd.cpp:389 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1106/202146.128:ERROR:ui\gl\angle_platform_impl.cc:45] vulkan_icd.cpp:157 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1106/202146.269:WARNING:ui\gl\angle_platform_impl.cc:50] vulkan_icd.cpp:389 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1106/202149.087:ERROR:ui\gl\angle_platform_impl.cc:45] vulkan_icd.cpp:157 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1106/202149.269:WARNING:ui\gl\angle_platform_impl.cc:50] vulkan_icd.cpp:389 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1106/202151.422:ERROR:ui\gl\angle_platform_impl.cc:45] vulkan_icd.cpp:157 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1106/202151.563:WARNING:ui\gl\angle_platform_impl.cc:50] vulkan_icd.cpp:389 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1106/214350.213:ERROR:ui\gl\angle_platform_impl.cc:45] vulkan_icd.cpp:157 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1106/214350.371:WARNING:ui\gl\angle_platform_impl.cc:50] vulkan_icd.cpp:389 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1106/214352.521:ERROR:ui\gl\angle_platform_impl.cc:45] vulkan_icd.cpp:157 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1106/214352.668:WARNING:ui\gl\angle_platform_impl.cc:50] vulkan_icd.cpp:389 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.

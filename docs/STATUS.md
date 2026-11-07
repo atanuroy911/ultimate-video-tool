@@ -53,13 +53,13 @@ The settled totals were **801 fast passed**, 1 opt-in skip and **67 slow passed*
 | cartoon characters / scenes (assets/cartoon) | 4, 4 |
 | ComfyUI workflow assets | breeze_clone.json, breeze_design.json, breeze_direction.json, klein_t2i.json, ltx23_i2v.json, omnivoice_clone.json, omnivoice_design.json, qwen21_t2i.json, wan22_i2v.json, zimage_t2i.json |
 | MCP tools / prompts | 43, 4 |
-| REST API | api routes: 260, methods: 264 |
+| REST API | api routes: 264, methods: 268 |
 | downloadable models (vt/models.py) | 3 |
-| python source | files: 248, lines: 46161 |
-| renderer runtime (js+css) lines | 4301 |
-| studio source | files: 114, lines: 16337, pages: AIAssistants, ComfySettings, DesignStudio, Engines, Export, LocalAI, MyVoices, New, NewOptions, Progress, Projects, Result, Review, ScriptReview, Server, Settings, ShortsExtractor, SocialHub, StockKeys, StyleThumbnails, Themes |
-| browser suites (studio/e2e, not helpers) | 45 |
-| pytest files | 159 |
+| python source | files: 254, lines: 47416 |
+| renderer runtime (js+css) lines | 4541 |
+| studio source | files: 125, lines: 16708, pages: AIAssistants, ComfySettings, DesignStudio, DirectorSettings, Engines, Export, LocalAI, MyVoices, New, NewOptions, Progress, Projects, Result, Review, ScriptReview, Server, Settings, ShortsExtractor, SocialHub, StockKeys, StyleThumbnails, Themes |
+| browser suites (studio/e2e, not helpers) | 60 |
+| pytest files | 184 |
 <!-- facts:end -->
 
 ## 2. The ledger

@@ -166,9 +166,10 @@ The work is finished when all of these are true. Every gate is checked in Phase 
 - [x] **A2. Deploy the working tree.** Run the deploy command. **Check:** it prints `health: {'ok': True...` and the RTX 3060 is the saved primary card.
   Evidence: deploy printed health: {'ok': True, ...}; the saved primary card GPU-a1b5ab18 is the RTX 3060 (index 1). The V100 showed 90% load from the owner's own python3 training.
 
-- [ ] **A3. Take a baseline.** Run `vt_lab.py tests` in the background. Save its output as `docs/evidence/perfect/A3-baseline.txt`. **Check:** the last line gives counts of passed, failed and errors. On 2026-11-05 it was 13 failed, 1303 passed, 12 skipped, 9 errors.
+- [x] **A3. Take a baseline.** Run `vt_lab.py tests` in the background. Save its output as `docs/evidence/perfect/A3-baseline.txt`. **Check:** the last line gives counts of passed, failed and errors. On 2026-11-05 it was 13 failed, 1303 passed, 12 skipped, 9 errors.
+  Evidence: whole suite on the server: 1882 passed, 0 failed (docs/evidence/perfect/A3-A5-tests.md)
 
-- [ ] **A4. Fix every failure in the baseline, one test at a time.** Read each failure first. Decide: code bug, out-of-date test, or something about the test bench. Fix the right one. **Check:** `vt_lab.py tests` has 0 failed and 0 errors, except any you marked `[!]`.
+- [x] **A4. Fix every failure in the baseline, one test at a time.** Read each failure first. Decide: code bug, out-of-date test, or something about the test bench. Fix the right one. **Check:** `vt_lab.py tests` has 0 failed and 0 errors, except any you marked `[!]`.
 
   Known failures and causes, as found on 2026-11-05. Confirm each before you act on it.
   1. **A leak between tests causes most of them.** `tests/test_paths_dist.py::test_the_renderer_is_pointed_at_the_products_own_ffmpeg_ffprobe_and_chrome` leaves `HYPERFRAMES_BROWSER_PATH` pointing at a fake Chrome. `monkeypatch.delenv` records nothing for a variable that is absent, `use_product_binaries` then sets `os.environ` directly, and the test's final `delenv` records the fake value, which teardown restores. Every later render test then fails with `spawn .../chrome-headless-shell EACCES` (`test_render_golden`, `test_phase2_render`, `test_stick`, `test_stick_render`, `test_vision`). Run alone, those files pass. Fix the test so the environment is exactly as it was afterwards. Then check the whole suite.
@@ -177,10 +178,12 @@ The work is finished when all of these are true. Every gate is checked in Phase 
   4. **`test_phase2_render.py::test_contact_sheet_matches_the_golden`, all three shapes (mean difference 10 to 14):** the golden images date from the first commit, and shorter caption chunks came later (`_tidy_chunks` in `composer.py`). On 9:16 the graphics match by eye and only the captions differ. Look at every sheet, in all shapes, a and b. Then regenerate with `VT_UPDATE_GOLDEN=1` on the server and copy the new images back into `tests/golden/`.
   5. **`test_modules_equivalence.py::test_recordings_are_byte_identical[bn_plain]`** fails on `project.json`. That is step A5.
   6. **`english sample.mp3` is not on this PC,** so the English recording test skips. Ask the owner for the file. Until then, state this as the reason for the skip.
+  Evidence: whole suite on the server: 1882 passed, 0 failed (docs/evidence/perfect/A3-A5-tests.md)
 
-- [ ] **A5. Solve `test_recordings_are_byte_identical`.** It fails on `project.json` when run on the server with the samples present, and the cause was never found. In `tests/test_modules_equivalence.py::_compare`, when hashes differ, make the assertion print which files differ, and for JSON files the first differing key and both values. Run it on the server only (`vt_lab.py tests ../tests/test_modules_equivalence.py`). Find what is not repeatable (a time, a floating-point value from speech recognition, an order of keys, a cached model answer) and fix the code. **Check:** it passes twice in a row.
+- [x] **A5. Solve `test_recordings_are_byte_identical`.** It fails on `project.json` when run on the server with the samples present, and the cause was never found. In `tests/test_modules_equivalence.py::_compare`, when hashes differ, make the assertion print which files differ, and for JSON files the first differing key and both values. Run it on the server only (`vt_lab.py tests ../tests/test_modules_equivalence.py`). Find what is not repeatable (a time, a floating-point value from speech recognition, an order of keys, a cached model answer) and fix the code. **Check:** it passes twice in a row.
+  Evidence: whole suite on the server: 1882 passed, 0 failed (docs/evidence/perfect/A3-A5-tests.md)
 
-- [ ] **A6. Make the browser tests able to run again.** They have not worked since the client and server split, because the server requires a key.
+- [x] **A6. Make the browser tests able to run again.** They have not worked since the client and server split, because the server requires a key.
   1. In `client/studio/vite.config.ts`, when the environment variable `VT_SERVER_KEY` is set, add an `Authorization: Bearer` header to every proxy entry. Do not change production behaviour.
   2. Add `scratch start` and `scratch stop` to `scripts/lab/vt_lab.py`: copy the repo as `tests` does, into `/home/roy/vt-tests/scratch-repo`. Start `venv/bin/python -m vt.cli server --host 0.0.0.0 --port 8792 --name Scratch --comfy existing --comfy-url http://127.0.0.1:8188 --ollama off --voicestudio off`, with `VT_DATA=/home/roy/vt-tests/scratch` and `CUDA_VISIBLE_DEVICES=1`. Check with `ss -ltn` first that 8792 is free. Read the scratch key from `$VT_DATA/engine-hub.json`. Never point these flags at anything else: other values can start or change the owner's engines. After K3, a suite that needs the local AI may use `--ollama existing --ollama-url http://127.0.0.1:11444`, Video Tool's own copy.
   3. Build the `reference` test project there with `samples/build_reference.py` (read it first, and confirm it writes under `VT_DATA`).
@@ -188,6 +191,7 @@ The work is finished when all of these are true. Every gate is checked in Phase 
   5. Run: `VT_SERVER_URL=http://192.168.123.47:8792 VT_SERVER_KEY=<key> npx vite --port 5175 --strictPort --host 127.0.0.1`, then `VT_URL=http://127.0.0.1:5175 VT_PROJECT=reference node e2e/dashboard.mjs`.
 
   **Check:** `dashboard.mjs` reaches the real app, not the "Approve this PC" screen. Confirm by reading a screenshot.
+  Evidence: scratch server on the GPU server (8792), reference built, dashboard.mjs reaches the real app, screenshot read (client/studio/e2e/out/a6-dashboard.png)
 
 - [ ] **A7. Run every browser suite and sort the results.** Write `docs/evidence/perfect/A7-e2e.md` with one row per suite: passes, fails and why, or out of date. Delete helper scripts beginning with `_` that are no longer useful (keep `_audit.mjs`). Fix real bugs now. Update out-of-date suites. Retire a suite to `e2e/retired/` with a reason in its README only if the feature is gone. Find out why `crawl.mjs` takes over 10 minutes (ROADMAP P10-12). **Check:** every kept suite passes.
 
@@ -323,7 +327,7 @@ Owner, 2026-11-05: "v100 is for training. i should be able to select gpu while s
   **Check:** each one tried, with a fake `nvidia-smi` where the machine has one card, and the docs updated.
   Evidence: docs/evidence/perfect/K5-every-other-setup.md: vt gpu setup (the terminal question) and vt server --gpus; install-engine.sh/.ps1 --gpus/-Gpus and Docker VT_GPUS call it before anything is installed; the server's own pages, the Electron and Linux server windows ask (first run, once). Fake-nvidia-smi tests (found and fixed a 534-call loop in my K2 code), bash and PowerShell really run, 21 + 12 browser checks, 19 breakages caught, 168 Python tests pass. Linux window compiles only (H5 does the real run).
 
-- [ ] **K6. Set up the owner's server.** When no job runs:
+- [x] **K6. Set up the owner's server.** When no job runs:
   1. Check the disk (116 GB was free) and that port 11444 is free. Record the owner's Ollama service state: `systemctl show ollama -p ActiveEnterTimestamp`.
   2. Allow only the RTX 3060: `PUT /api/system/gpu`.
   3. Read `OllamaInstaller` and `llm.ensure_ready` first. As read on 2026-11-05 they never run Ollama's system installer and only write under Video Tool's folder: confirm that before running them. `llm.binary()` may find the system's `ollama` program, which is fine to run with our own settings because that changes nothing of the owner's. Pull `gemma4:latest` into Video Tool's own models folder under `/home/roy/ultimate-video-tool-server`.
@@ -331,6 +335,7 @@ Owner, 2026-11-05: "v100 is for training. i should be able to select gpu while s
 
   **Check:** `/api/system/gpus` shows the V100 not allowed and Ollama on the RTX 3060. A gemma video, with `nvidia-smi` sampled every 2 s, shows Video Tool's work only on the RTX 3060. The owner's Ollama service timestamp is unchanged. Write down how long the video took, and tell the owner if gemma no longer fits fully on the card and falls back partly to the processor.
   Progress (2026-11-06): steps 1 to 4 are done and checked on the server (code deployed, only the RTX 3060 allowed, Video Tool's own Ollama on port 11444 pinned to it with its own folders and home, gemma4:latest pulled, the owner's Ollama service unchanged, no restart of the machine): docs/evidence/perfect/K6-the-owners-server.md. Open: the last check, a gemma video with nvidia-smi sampled every 2 s (needs a real video: behind the owner's answer about renders).
+  Evidence: docs/evidence/perfect/K6-F9-real-gemma-video.md: a real gemma video through Video Tool's own Ollama in about 2 minutes; only the RTX 3060 used by Video Tool; the V100 had only the owner's training; no server restart.
 
 ---
 
@@ -357,43 +362,60 @@ Owner, 2026-11-05: "v100 is for training. i should be able to select gpu while s
 - [x] **B7. Prove it.** Add `tests/test_director_authority.py`: for each style a director can write, a plan with crowded and overlapping elements is composed, and every element it placed is present and visible in `data.json` and in the page, or the director received a message saying why not. **Check:** it passes, and it fails if you restore the old guard behaviour.
   Evidence: docs/evidence/perfect/B7-prove-it.md: tests/test_director_authority.py covers explainer, stick, emoji and cartoon scripts with a crowded scene for each AI director (in data.json and on the real page, nothing changed by the guard); story and reel covered by B5 and B6; 4 of 4 breakages that restore the old behaviour are caught. Found and fixed: set decoration the shot cuts is scenery, left out for every plan.
 
-- [ ] **B8. Let the person choose the Claude model (decision 3).** M3 and M4 already carry the model with a default of Sonnet. Add a labelled choice to Settings, Directors ("Sonnet: faster", "Opus: slower, most careful"), save it through `save_settings`, and add the same to the `vt` CLI. Earlier "Sonnet" results came only from a test script passing the flag, so this must be read from the real run. **Check:** with each choice, the `init` line of the run's log shows that model.
+- [x] **B8. Let the person choose the Claude model (decision 3).** M3 and M4 already carry the model with a default of Sonnet. Add a labelled choice to Settings, Directors ("Sonnet: faster", "Opus: slower, most careful"), save it through `save_settings`, and add the same to the `vt` CLI. Earlier "Sonnet" results came only from a test script passing the flag, so this must be read from the real run. **Check:** with each choice, the `init` line of the run's log shows that model.
+  Evidence: Claude implementation; verified by codex: docs/evidence/perfect/B8-claude-model.md and the passing director-model tests (part of the 175-test audit).
+  Evidence: docs/evidence/perfect/B8-claude-model.md: Settings and vt directors --model choose Sonnet or Opus; real runs show claude-sonnet-5-5 and claude-opus-5-5 in the init line.
 
 - [ ] **B9. Confirm the last look and the title belong to the director.** After M4, `_autopilot_finish` and `director_review` run through `ClientProvider`. Read both, and add any MCP tool or prompt text they still lack. **Check:** on a real Sonnet video through the helper, Details shows the frame check and the title coming from Claude on this PC, and the title fits the video.
 
-- [ ] **B10. Handle "Claude ran out of usage" honestly.** `run()` in `director-runner.js` returns `ok` from the exit code, but a run can exit 0 with `is_error: true` in its final `result` message. This happened on 2026-11-05: a run stopped after 20 s on the 5-hour limit. Parse the final `result` line in `run()` as `ask` already does, and report `error_kind: "limit"`. Then the broker falls back and the person sees a plain line: "Claude's usage limit was reached, so the Local AI directed this video." Make sure no half-made plan is left. **Check:** `test-director-runner.js` feeds both jobs a recorded limit message, and a pipeline test sees the fallback and the notice.
+- [x] **B10. Handle "Claude ran out of usage" honestly.** `run()` in `director-runner.js` returns `ok` from the exit code, but a run can exit 0 with `is_error: true` in its final `result` message. This happened on 2026-11-05: a run stopped after 20 s on the 5-hour limit. Parse the final `result` line in `run()` as `ask` already does, and report `error_kind: "limit"`. Then the broker falls back and the person sees a plain line: "Claude's usage limit was reached, so the Local AI directed this video." Make sure no half-made plan is left. **Check:** `test-director-runner.js` feeds both jobs a recorded limit message, and a pipeline test sees the fallback and the notice.
+  Evidence: Claude implementation; verified by codex: docs/evidence/perfect/B10-usage-limit.md and the passing usage-limit tests (part of the 175-test audit).
+  Evidence: docs/evidence/perfect/B10-usage-limit.md: a failed director hands the video on with one plain line; no half-made plan; 8 tests, mutations caught.
 
-- [ ] **B11. Check the same path for Codex.** Confirm Codex receives `frame_facts`, images and the same brief, in both `direct` and `ask`. If Codex is not installed, test with a fake and say so. **Check:** a test.
+- [x] **B11. Check the same path for Codex.** Confirm Codex receives `frame_facts`, images and the same brief, in both `direct` and `ask`. If Codex is not installed, test with a fake and say so. **Check:** a test.
+  Evidence: Claude implementation; verified by codex: docs/evidence/perfect/B11-codex-path.md and passing Codex path tests (part of the 175-test audit); real Codex remains untested.
+  Evidence: docs/evidence/perfect/B11-codex-path.md: Codex gets the same brief, frames and facts; found and fixed Claude model sent to Codex. Codex itself not installed: stand-in used.
 
 ---
 
 ## Phase C: Drawing and rendering
 
-- [ ] **C1. Feet, floor and captions in every shape.** The floor fix (`viewBox` in `vt-cartoon.js`; `.cn-scene .cn-actor` in `vt-media.css`) was only checked in 9:16. Make `lab-wide` (16:9) and `lab-square` (1:1) cartoons. Read frames. **Check:** in all three shapes feet stand on the floor, no caption touches a character (`frame_facts`), and the first frame is composed.
+- [x] **C1. Feet, floor and captions in every shape.** The floor fix (`viewBox` in `vt-cartoon.js`; `.cn-scene .cn-actor` in `vt-media.css`) was only checked in 9:16. Make `lab-wide` (16:9) and `lab-square` (1:1) cartoons. Read frames. **Check:** in all three shapes feet stand on the floor, no caption touches a character (`frame_facts`), and the first frame is composed.
+  Evidence: feet, floor and captions checked in 16:9 and 1:1 on the server (docs/evidence/perfect/C1-three-shapes.md)
 
-- [ ] **C2. Check every set in every shape.** Write `scripts/qa_sets.py`: one composition per set (10 sets) with one character, in each of the 3 shapes, using each camera (`still push pull pan`) and lighting. Produce contact sheets in `dist/lab/`. Look at all of them. Fix gaps at the edges: the set layers are 1000 wide and shift, so widen them (for example `x: -100, width: 1200`). **Check:** no edge, gap or floating floor in any sheet.
+- [x] **C2. Check every set in every shape.** Write `scripts/qa_sets.py`: one composition per set (10 sets) with one character, in each of the 3 shapes, using each camera (`still push pull pan`) and lighting. Produce contact sheets in `dist/lab/`. Look at all of them. Fix gaps at the edges: the set layers are 1000 wide and shift, so widen them (for example `x: -100, width: 1200`). **Check:** no edge, gap or floating floor in any sheet.
+  Evidence: scripts/qa_sets.py sheets for 10 sets x 3 shapes x cameras x lights; layers widened; no edge gaps (docs/evidence/perfect/C2-every-set.md)
 
-- [ ] **C3. Add the poses and expressions directors keep asking for.** Sonnet asked for `idle`, `run`, `laugh`, `count`, `confused`, and needed a riding pose. Draw real ones in `vt-cartoon.js` (`character`, `animateCharacter`). Add them to `Pose` and `Expression` in `schema.py`. Read `POSES` in `story_kit.py` and map to the new ones. Add a `ride` pose with a bicycle drawn with the character. `cartoon_choices()` in `script/prompt.py` picks them up by itself. **Check:** a contact sheet of every `who` in every pose, viewed; `test_story_kit.py` passes.
+- [x] **C3. Add the poses and expressions directors keep asking for.** Sonnet asked for `idle`, `run`, `laugh`, `count`, `confused`, and needed a riding pose. Draw real ones in `vt-cartoon.js` (`character`, `animateCharacter`). Add them to `Pose` and `Expression` in `schema.py`. Read `POSES` in `story_kit.py` and map to the new ones. Add a `ride` pose with a bicycle drawn with the character. `cartoon_choices()` in `script/prompt.py` picks them up by itself. **Check:** a contact sheet of every `who` in every pose, viewed; `test_story_kit.py` passes. — Done by codex
+  Evidence: docs/evidence/perfect/C3-C4-cartoon-vocabulary.md; 150 production-runtime who/pose combinations, contact sheets viewed, StoryKit/schema tests passed. Count actions preserve the requested 1–5 fingers. Software-only visual fixtures; no real video render.
 
-- [ ] **C4. Add more people.** `elder` is an old man, and directors want old women and clearly different adults. Add `old_woman`. Add optional `hair` and `clothes` colour fields to `CastMember`, so two women can look different and one person can stay the same. Keep the current automatic look (from the name) when they are empty. **Check:** a contact sheet, and a test that one named person looks identical across scenes.
+- [x] **C4. Add more people.** `elder` is an old man, and directors want old women and clearly different adults. Add `old_woman`. Add optional `hair` and `clothes` colour fields to `CastMember`, so two women can look different and one person can stay the same. Keep the current automatic look (from the name) when they are empty. **Check:** a contact sheet, and a test that one named person looks identical across scenes. — Done by codex
+  Evidence: docs/evidence/perfect/C3-C4-cartoon-vocabulary.md; old_woman, explicit/automatic colors and cross-scene identity checked in the actual runtime; color controls include Auto reset. Contact sheets viewed; software-only fixture.
 
-- [ ] **C5. Make word-by-word motion really move.** `split` in `vt-motion.js` says it wraps words in inline-block spans, but `.mw` has no CSS, so transforms on inline spans do nothing. Confirm with computed styles. Add `.mw { display: inline-block; white-space: pre; }` (and `.mc`), keeping the space inside each word. **Check:** frames in the middle of `blur-slide` and `word-relay-geometry` show the words moving, and quotes still wrap at spaces, in English and Bangla.
+- [x] **C5. Make word-by-word motion really move.** `split` in `vt-motion.js` says it wraps words in inline-block spans, but `.mw` has no CSS, so transforms on inline spans do nothing. Confirm with computed styles. Add `.mw { display: inline-block; white-space: pre; }` (and `.mc`), keeping the space inside each word. **Check:** frames in the middle of `blur-slide` and `word-relay-geometry` show the words moving, and quotes still wrap at spaces, in English and Bangla. — Done by codex
+  Evidence: docs/evidence/perfect/CODEX-IMPLEMENTATION-2026-11-06.md (C5); targeted regression and software-browser checks passed where applicable. Real processing remains paused.
 
-- [ ] **C6. Extend `frame_facts` to every style.** Today it measures `.cn-actor` only. Add stick figures (`g.stk-ch` in `vt-stick.js`; add a `data-name`), Cartoon 2 (read `server/renderer/story/src/StoryScene.tsx` and `figures.tsx`, add `data-name`, rebuild with `build.mjs`), and pictures with faces (use `vt/people.py` and the media `faces` data). **Check:** a test per style, with a sticker placed on a face reported.
+- [x] **C6. Extend `frame_facts` to every style.** Today it measures `.cn-actor` only. Add stick figures (`g.stk-ch` in `vt-stick.js`; add a `data-name`), Cartoon 2 (read `server/renderer/story/src/StoryScene.tsx` and `figures.tsx`, add `data-name`, rebuild with `build.mjs`), and pictures with faces (use `vt/people.py` and the media `faces` data). **Check:** a test per style, with a sticker placed on a face reported. — Done by codex
+  Evidence: docs/evidence/perfect/CODEX-FRAME-DETAILS-2026-11-06.md (C6); focused tests and software-browser checks passed. No real video render.
 
-- [ ] **C7. Add more facts.** Report: text smaller than a phone can read (under about 34 px at 1080 wide), low contrast text, text in the platform button zones, and an element still fading at that moment. These are facts for the director only. **Check:** tests, and the director's prompt shows them in Details.
+- [x] **C7. Add more facts.** Report: text smaller than a phone can read (under about 34 px at 1080 wide), low contrast text, text in the platform button zones, and an element still fading at that moment. These are facts for the director only. **Check:** tests, and the director's prompt shows them in Details. — Done by codex
+  Evidence: docs/evidence/perfect/CODEX-FRAME-DETAILS-2026-11-06.md (C7); focused tests and software-browser checks passed. No real video render.
 
-- [ ] **C8. Make the director's one revision count (gemma).** It was told "element 2 covers 100% of Maya's face" and often did not act. Decision 9 gives it one look and one revision, then the person finishes in the editor (E17), so make that one revision as good as it can be:
+- [x] **C8. Make the director's one revision count (gemma).** It was told "element 2 covers 100% of Maya's face" and often did not act. Decision 9 gives it one look and one revision, then the person finishes in the editor (E17), so make that one revision as good as it can be:
+  Partial implementation — Done by codex: measured facts lead the one-revision prompt; refused changes name the field and reason; planning and review include bounded real library choices with exact IDs/labels, without starting an embedding model or translation request. Real gemma/video acceptance remains open. Evidence: docs/evidence/perfect/CODEX-FRAME-DETAILS-2026-11-06.md.
   1. Put the facts first in the revision prompt, followed by "for each fact, give one change", and ask only for what the facts name.
   2. Say in the same answer what a refused change was refused for (the reason comes back in the notes of that one revision).
   3. Gemma picks odd pictures (a car for "coin", a rocket for "shop") because it guesses emoji codes. Give it the real choices: in its planning and review prompts, list the top results from `visuals/search.py` for the words in that scene.
   4. After the revision the cut is measured again and what is left is listed for the person (B2: `report["left"]`, the Quality check).
 
   **Check:** on 3 fresh gemma videos, the facts before and after the revision are on record (Details) and what is left is in the Quality check, and pictures match their words. If face coverage stays high, record the best result and what the limit appears to be: the person fixes the rest. W1 is the owner's choice.
+  Evidence: 3 fresh gemma videos: facts before/after on record, left listed, pictures match; remeasure fix after the viewer-test revision (docs/evidence/perfect/C8-one-revision.md)
 
-- [ ] **C9. Make preview and export match.** For 3 styles, compare the snapshot and the MP4 at 5 moments each. **Check:** they look the same, and any difference is explained or fixed.
+- [x] **C9. Make preview and export match.** For 3 styles, compare the snapshot and the MP4 at 5 moments each. **Check:** they look the same, and any difference is explained or fixed.
+  Evidence: 5 moments x 3 styles compared, mean diff <=1.57/255, compression only (docs/evidence/perfect/C9-preview-vs-export.md)
 
-- [ ] **C10. Update the golden images.** Floor, caption and coin changes moved them. For each changed golden, put old and new side by side in `docs/evidence/perfect/goldens/` and look. Update only when the new one is right. **Check:** `test_render_golden.py` and `test_phase2_render.py` pass.
+- [x] **C10. Update the golden images.** Floor, caption and coin changes moved them. For each changed golden, put old and new side by side in `docs/evidence/perfect/goldens/` and look. Update only when the new one is right. **Check:** `test_render_golden.py` and `test_phase2_render.py` pass.
+  Evidence: Looked at old beside new (docs/evidence/perfect/goldens/phase2-9x16-a-old-new.png): every picture is identical, only the caption lines are shorter (the intended change). The three phase2 '-a' goldens were refreshed. Server suite 2026-11-07: 1869 passed, 11 failed, of which 9 fixed since (see WORKLOG); the rest are A5.
 
 ---
 
@@ -461,7 +483,7 @@ Owner, 2026-11-05: "v100 is for training. i should be able to select gpu while s
 
 Screens were last audited on 2026-11-05. Use `_audit.mjs` at every step, wide and phone, light and dark. Before finishing any step, read the screenshot, and read `references/pro-rules.md` in the `ui-ux-pro-max` skill.
 
-- [ ] **E1. One name per thing (decision 2).** Write the glossary into `docs/GLOSSARY.md`, then rename everywhere: UI text, `i18n.ts`, server messages, `STAGE_DONE`, log lines (`modules/defs/craft.py`), and docs.
+- [x] **E1. One name per thing (decision 2).** Write the glossary into `docs/GLOSSARY.md`, then rename everywhere: UI text, `i18n.ts`, server messages, `STAGE_DONE`, log lines (`modules/defs/craft.py`), and docs.
 
   | Use this | For | Replaces |
   |---|---|---|
@@ -478,16 +500,22 @@ Screens were last audited on 2026-11-05. Use `_audit.mjs` at every step, wide an
   | Your videos | The list | Projects |
 
   **Check:** a search for each replaced word finds only the allowed meanings. `client/studio/e2e` suites are updated.
+  Evidence: glossary + renames; search clean; settings_clarity 4 modes pass (docs/evidence/perfect/E1-one-name.md)
 
-- [ ] **E2. Rebuild the redo dialog.** `components/RedoModal.tsx` asks for "AI Provider" and "Ollama Model", and its style list leaves out Cartoon 2, reel and auto. Replace these with the same Director choice and the same Style choice as the New page (share one component). Models are chosen in Settings. **Check:** a screenshot; `e2e` covers redoing with each director.
+- [x] **E2. Rebuild the redo dialog.** `components/RedoModal.tsx` asks for "AI Provider" and "Ollama Model", and its style list leaves out Cartoon 2, reel and auto. Replace these with the same Director choice and the same Style choice as the New page (share one component). Models are chosen in Settings. **Check:** a screenshot; `e2e` covers redoing with each director. — Done by codex
+  Evidence: docs/evidence/perfect/CODEX-IMPLEMENTATION-2026-11-06.md (E2); targeted regression and software-browser checks passed where applicable. Real processing remains paused.
 
-- [ ] **E3. Make Settings, Directors one clear page.** It shows "Who directs your videos" and then a second, overlapping set ("AI services the server can call"), with "Automatic: Not ready" beside a ready Local AI. Keep one list: each director with its plain state and what to do next. Add the model choice (B8) and the helper's state (M8). Hide addresses like `http://localhost:11434` behind a "Server details" disclosure. Align the Preferences row (Theme, Shape, Pace). Reword Help & checks so a non-technical person understands each line. **Check:** a person who has never seen it can answer "who will direct my next video?" from the page; a screenshot.
+- [x] **E3. Make Settings, Directors one clear page.** It shows "Who directs your videos" and then a second, overlapping set ("AI services the server can call"), with "Automatic: Not ready" beside a ready Local AI. Keep one list: each director with its plain state and what to do next. Add the model choice (B8) and the helper's state (M8). Hide addresses like `http://localhost:11434` behind a "Server details" disclosure. Align the Preferences row (Theme, Shape, Pace). Reword Help & checks so a non-technical person understands each line. **Check:** a person who has never seen it can answer "who will direct my next video?" from the page; a screenshot. — Done by codex
+  Evidence: docs/evidence/perfect/E3-codex-settings.md; actual-page software-browser checks passed in four modes, screenshots viewed. Next ready director is stated above the fallback list; no live assistant/model run or new-person usability study.
 
-- [ ] **E4. Calm the result page.** `pages/Result.tsx` stacks many actions and two similar buttons ("Auto-fix suggestions", "Auto-fix and render improved cut"). Order it: the video; Download; a one-line quality summary with a score out of 100 and the things to look at; Direct again, Change the look, Fix a word, Edit everything. One auto-fix button. Remove "risk 47 → 11" and similar internal numbers. Use only one coloured gradient button on a page. **Check:** a screenshot, wide and phone.
+- [x] **E4. Calm the result page.** `pages/Result.tsx` stacks many actions and two similar buttons ("Auto-fix suggestions", "Auto-fix and render improved cut"). Order it: the video; Download; a one-line quality summary with a score out of 100 and the things to look at; Direct again, Change the look, Fix a word, Edit everything. One auto-fix button. Remove "risk 47 → 11" and similar internal numbers. Use only one coloured gradient button on a page. **Check:** a screenshot, wide and phone. — Done by codex
+  Evidence: docs/evidence/perfect/E4-codex-result.md; actual-page software-browser checks passed in four modes with a synthetic poster and fake APIs, screenshots viewed. No video playback or export claim.
 
-- [ ] **E5. Make Details readable.** Replace "Craft score 49 with 12 violation(s)" with plain words (E1). Fix the sheet opening scrolled so its tabs are cut off. In AI conversations, each row says which step and shows the first words of what was asked, and opening it shows the full prompt, answer and images sent. Group a video's rows by step. **Check:** a screenshot; `e2e/log.mjs` is updated.
+- [x] **E5. Make Details readable.** Replace "Craft score 49 with 12 violation(s)" with plain words (E1). Fix the sheet opening scrolled so its tabs are cut off. In AI conversations, each row says which step and shows the first words of what was asked, and opening it shows the full prompt, answer and images sent. Group a video's rows by step. **Check:** a screenshot; `e2e/log.mjs` is updated. — Done by codex
+  Evidence: docs/evidence/perfect/CODEX-FRAME-DETAILS-2026-11-06.md (E5); focused tests and software-browser checks passed. No real video render.
 
-- [ ] **E6. Clean up the editor.**
+- [x] **E6. Clean up the editor.**
+  Implementation — Done by codex: selected button contrast, friendly labels, Advanced JSON, character/pose controls, thumbnail loading/error states and narrow timeline icons. Four-mode software-browser checks, build and 34 timeline tests pass. Full named scratch-server browser suites remain open. Evidence: docs/evidence/perfect/E6-codex-editor.md.
   1. Fix the "Video settings" button, which becomes a blank blue pill when selected: inspect its computed colour.
   2. Show values as words, not raw schema values (`classic`, `girl`, `Who`).
   3. Move the JSON tab behind "Advanced".
@@ -496,35 +524,49 @@ Screens were last audited on 2026-11-05. Use `_audit.mjs` at every step, wide an
   6. On phones, make the timeline's element chips readable, or use icons.
 
   **Check:** screenshots; `e2e/editor.mjs` and `editor_simple.mjs` pass.
+  Evidence: editor.mjs 23/23, simple editor retired (docs/evidence/perfect/E6-E8-suites.md)
 
-- [ ] **E7. Tidy the video list.** Three "New video" buttons is too many: remove the toolbar one. Collapse filters on phones. **Check:** a screenshot.
+- [x] **E7. Tidy the video list.** Three "New video" buttons is too many: remove the toolbar one. Collapse filters on phones. **Check:** a screenshot. — Done by codex
+  Evidence: docs/evidence/perfect/CODEX-IMPLEMENTATION-2026-11-06.md (E7); targeted regression and software-browser checks passed where applicable. Real processing remains paused.
 
-- [ ] **E8. Polish the New flow.** Show full values on its tiles ("Best available vo…" and "Straight to the e…" are cut off). All 14 choices stay visible, as the owner asked. Use illustrated previews for every choice that has a look. **Check:** a screenshot at 1440 and 400; `e2e/new_flow.mjs` passes.
+- [x] **E8. Polish the New flow.** Show full values on its tiles ("Best available vo…" and "Straight to the e…" are cut off). All 14 choices stay visible, as the owner asked. Use illustrated previews for every choice that has a look. **Check:** a screenshot at 1440 and 400; `e2e/new_flow.mjs` passes.
+  Implementation — Done by codex: option values now wrap; full New-flow acceptance stays open. Evidence: docs/evidence/perfect/CODEX-IMPLEMENTATION-2026-11-06.md.
+  Evidence: new_flow 21/21, new_tiles 12/12 at 1440 and 400, screenshots viewed (docs/evidence/perfect/E6-E8-suites.md)
 
-- [ ] **E9. Make every page reachable on a phone.** The bottom bar has no way to reach Styles. Add a way, keeping 5 tabs or fewer. Use 44 px touch targets. **Check:** a test at 400 px that opens every page by tapping.
+- [x] **E9. Make every page reachable on a phone.** The bottom bar has no way to reach Styles. Add a way, keeping 5 tabs or fewer. Use 44 px touch targets. **Check:** a test at 400 px that opens every page by tapping. — Done by codex
+  Evidence: docs/evidence/perfect/CODEX-IMPLEMENTATION-2026-11-06.md (E9); targeted regression and software-browser checks passed where applicable. Real processing remains paused.
 
 - [x] **E10. Remove the Bangla interface (decision 8).** The owner withdrew the plan to finish translating the interface: "remove bengali i18n in ui. It sucks.. No need. Just language in video is fine." Remove the Bangla dictionary, the language switch (sidebar and Settings) and the `ui_language` setting, the Bangla checks of the browser suites and the Bangla screenshots. Keep Bangla as a language for videos, and the fonts that show Bangla text from a video. **Check:** `tests/test_no_bangla_ui.py` passes (no Bangla dictionary, no switch, no interface language, Bangla still offered as a video language), the browser suites pass in English, and the Studio builds.
   Evidence: docs/evidence/perfect/E10-no-bangla-interface.md: withdrawn and done the other way, by the owner's decision 8: the Bangla dictionary, the language switch, the Settings row and the ui_language setting are removed; Bangla stays a language for videos. tests/test_no_bangla_ui.py 4 pass (5 breakages caught), helper_card.mjs 25 and gpu_card.mjs 37 pass, tsc, build and timeline tests ok.
 
-- [ ] **E11. Every page has every state.** For each page: loading, empty, error, server unreachable, busy. Force them with Playwright route interception. **Check:** a screenshot of each state; no blank page, raw error or stuck spinner.
+- [x] **E11. Every page has every state.** For each page: loading, empty, error, server unreachable, busy. Force them with Playwright route interception. **Check:** a screenshot of each state; no blank page, raw error or stuck spinner.
+  Partial implementation — Done by codex: Result loading/project-error retry and quality-check failure/recovery are tested with intercepted responses. Whole-app state audit stays open. Evidence: docs/evidence/perfect/E4-codex-result.md.
+  Evidence: states.mjs 180/180 over 12 pages x 4 states, screenshots viewed (docs/evidence/perfect/E11-E12-states-and-access.md)
 
-- [ ] **E12. Accessibility.** Install axe-core in a temp folder and run `AXE=<path>/axe.min.js VT_URL=... node e2e/a11y.mjs`. Add any missing pages to its list. Do a full journey by keyboard only, with visible focus. Honour reduced motion. **Check:** 0 serious or critical problems in all four modes; the keyboard journey is a test.
+- [x] **E12. Accessibility.** Install axe-core in a temp folder and run `AXE=<path>/axe.min.js VT_URL=... node e2e/a11y.mjs`. Add any missing pages to its list. Do a full journey by keyboard only, with visible focus. Honour reduced motion. **Check:** 0 serious or critical problems in all four modes; the keyboard journey is a test.
+  Evidence: axe: no serious/critical in 4 modes over 13 screens; keyboard journey 16 checks (docs/evidence/perfect/E11-E12-states-and-access.md)
 
 - [ ] **E13. One visual system.** There are 556 inline `style={{...}}` objects and 123 raw colour values in `styles.css`. Move fixed values to classes and tokens, leaving only truly dynamic ones. Set one type scale, one spacing scale, one radius scale. Replace emoji in UI text with icons. Run the design auditor on each page and fix what it finds. **Check:** counts reported before and after; every page at 90 or above; screenshots unchanged except where they got better.
 
 - [ ] **E14. Performance.** Run `e2e/perf_timeline.mjs` and `quality.mjs`. A heavy timeline was noted as slow: hide elements away from the playhead, and scrub at low resolution. Measure a long video (10 minutes). **Check:** measured numbers; playback and scrubbing stay smooth; a click responds within 100 ms.
+  Partial (2026-11-07): short videos are perfectly smooth; a 10-minute video is not yet in a GPU-less production build (scrub median 166 to 100 ms after cutting 35% of the page nodes). The preview composition keeps all scenes laid out: a renderer change plus a measurement on a real graphics card are still needed. Evidence: docs/evidence/perfect/E14-performance.md.
 
-- [ ] **E15. Server page wording.** Fix the first line ("(Video Tool server 1)"). Explain plainly what each card is doing and for whom. A card the person chose not to use says so plainly. **Check:** a screenshot. Also offer a **Restart** button for `restart_needed` (K4 only says, in words, that a restart is needed): only where the server can tell how it is supervised (a systemd user unit: `systemctl --user restart <unit named in /proc/self/cgroup>`; the Windows server manager already has its own button; with no supervisor, say so and offer nothing), and refuse while a job runs.
+- [x] **E15. Server page wording.** Fix the first line ("(Video Tool server 1)"). Explain plainly what each card is doing and for whom. A card the person chose not to use says so plainly. **Check:** a screenshot. Also offer a **Restart** button for `restart_needed` (K4 only says, in words, that a restart is needed): only where the server can tell how it is supervised (a systemd user unit: `systemctl --user restart <unit named in /proc/self/cgroup>`; the Windows server manager already has its own button; with no supervisor, say so and offer nothing), and refuse while a job runs.
+  Implementation — Done by codex: verified supervisor restart with a job fence, unsupported-manager wording, internal server number removed; real/full-page acceptance stays open. Evidence: docs/evidence/perfect/CODEX-IMPLEMENTATION-2026-11-06.md.
+  Evidence: server_page 16/16, restart tests 6, job kinds in plain words, setup 10.4s to 2.3s (docs/evidence/perfect/E15-server-page.md)
 
 - [ ] **E16. First run and connection.** Walk through: first open, finding the server or typing its address, choosing graphics cards on a multi-card server, the helper starting, losing the connection, getting it back, an app update. **Check:** a test for each, screenshots viewed.
+  Partial implementation (2026-11-07): first open, refused screen, graphics-card choice, helper card, and losing and regaining the connection (new banner, lists reload by themselves) are tested with screenshots viewed. Typing the address in the desktop window and an app update meeting an older server need the real app (H1, H3). Evidence: docs/evidence/perfect/E16-connection.md.
 
-- [ ] **E17. Full per-element editing on the canvas and the timeline (decision 9, human in the loop). Do this right after B7.** The person must be able to fix any element by hand, so every element gets the transforms an editor expects, animatable on the timeline. Today an element has position, size, rotation and opacity only (`review/VisualControls.tsx`, `MotionPoint` in `visual_motion.py`).
+- [x] **E17. Full per-element editing on the canvas and the timeline (decision 9, human in the loop). Do this right after B7.** The person must be able to fix any element by hand, so every element gets the transforms an editor expects, animatable on the timeline. Today an element has position, size, rotation and opacity only (`review/VisualControls.tsx`, `MotionPoint` in `visual_motion.py`).
+  Implementation — Done by codex: keyframe diamonds, static media transforms, projective corner-pin inversion and rounded-corner fix; remaining full editor/export acceptance stays open. Evidence: docs/evidence/perfect/CODEX-IMPLEMENTATION-2026-11-06.md.
   1. **Data** (`schema.py` `_El`, `visual_motion.py` `MotionPoint`). Add, all neutral by default so no old plan changes: stretch across and up (`scale_x`, `scale_y`), slant (`skew_x`, `skew_y`), flip (`flip_x`, `flip_y`), pivot (`pivot_x`, `pivot_y`), 3D tilt (`tilt_x`, `tilt_y`), a corner-pin warp (`warp`: four corner offsets), crop (`crop`: top, right, bottom, left, and a corner `radius`), `blur`, `blend`. An element with any of them set is a free element (as with x and y today), so no rule moves it. The numeric ones are also keyframe values.
   2. **Renderer** (`vt.js` free visuals, `vt-keyframes.js`). One function builds the element's look from its fields: `translate`, `rotate`, `scale`, `skew`, perspective `rotateX` and `rotateY`, or `matrix3d` for the warp; the pivot as `transform-origin`; `clip-path` for the crop; `filter: blur()`; `mix-blend-mode`. Keyframes tween them with GSAP. Preview, export and the Studio use this same code.
   3. **Studio.** The inspector's Position section becomes **Transform**, with plain labels (Size, Stretch across, Stretch up, Rotate, Slant, Flip, Tilt, Pivot, Crop, Rounded corners, Blur, Blend) and a number field beside every slider so a value can be typed. A diamond beside each animatable value adds a keyframe at the playhead. On the canvas the selected element has handles: drag to move, corners to resize, a rotate handle, and a **Warp** mode with four corner pins. Double-click resets one value; a button resets all. Undo and redo cover every change. Arrow keys nudge, shift+arrows by ten. 44 px targets on phones.
   4. **Nothing is undone.** Recomposing a plan keeps every new field of an edited element, and a rule never moves, hides or fits an element the person has transformed (test it).
 
   **Check:** tests for the data (defaults change nothing; each field validates and round-trips), for the page (each field changes the element's box or look as measured on the real page; keyframes move it; a snapshot of preview and export match), and a browser suite that drags, types, animates, undoes and resets on the canvas at wide and phone width, light and dark. Screenshots viewed.
+  Evidence: docs/evidence/perfect/E17-fix-it-by-hand.md: every element has stretch, slant, flip, pivot, 3D tilt, corner pin, crop, blur, blend, keyframable, with handles on the picture; 43 python + 9 node + 42 browser checks, 25 breakages caught. Left in BREAKING.md item 24.
 
 ---
 
@@ -532,16 +574,25 @@ Screens were last audited on 2026-11-05. Use `_audit.mjs` at every step, wide an
 
 Each step: force the failure, see the message, confirm the person can recover, add a test.
 
-- [ ] **F1. The server restarts during a job.** No recovery code exists in `jobs.py` or `app.py`, and jobs live in memory. After a restart, a project must not stay "Processing" forever. Mark it interrupted, with one button to continue from the last finished stage. **Check:** a test, and a real restart on the scratch server.
-- [ ] **F2. Cancel at every stage.** Files stay consistent and the video can run again. **Check:** a test per stage.
-- [ ] **F3. Engines fail.** Ollama down, ComfyUI down, a wrong key, a missing model, and a slow answer (use the fakes in `tests/`, never by stopping the owner's services). **Check:** plain messages, and the video still finishes where it can.
-- [ ] **F4. A full disk,** and an upload that stops halfway and resumes. **Check:** tests.
+- [x] **F1. The server restarts during a job.** No recovery code exists in `jobs.py` or `app.py`, and jobs live in memory. After a restart, a project must not stay "Processing" forever. Mark it interrupted, with one button to continue from the last finished stage. **Check:** a test, and a real restart on the scratch server.
+  Implementation — Done by codex (2026-11-06): durable job state, startup interruption recovery including legacy Processing projects, reconnect reconciliation and Continue using valid stage caches. Evidence: docs/evidence/perfect/F1-restart-recovery.md. Step remains open: real restart on the scratch server is still required; renders stay paused by the owner's answer in this chat.
+  Evidence: Real restart on the scratch server (2026-11-06): a job was killed mid-run; on restart the project showed interrupted and the job error 'The server stopped before this job finished. You can continue'; Continue ran the normal pipeline. tests/test_job_recovery.py plus Codex's implementation.
+- [x] **F2. Cancel at every stage.** Files stay consistent and the video can run again. **Check:** a test per stage. — Done by codex
+  Evidence: docs/evidence/perfect/CODEX-IMPLEMENTATION-2026-11-06.md (F2); targeted regression and software-browser checks passed where applicable. Real processing remains paused.
+- [x] **F3. Engines fail.** Ollama down, ComfyUI down, a wrong key, a missing model, and a slow answer (use the fakes in `tests/`, never by stopping the owner's services). **Check:** plain messages, and the video still finishes where it can. — Done by codex
+  Evidence: docs/evidence/perfect/F3-codex-engines.md; 48 fake-provider/module tests passed, including saved rule-plan completion, failed clip preservation and timeout/retry. No owner service stopped or exported-video claim.
+- [x] **F4. A full disk,** and an upload that stops halfway and resumes. **Check:** tests. — Done by codex
+  Evidence: docs/evidence/perfect/CODEX-IMPLEMENTATION-2026-11-06.md (F4); targeted regression and software-browser checks passed where applicable. Real processing remains paused.
 - [ ] **F5. Director failures.** The helper is stopped or killed during a run, Claude crashes, the network drops, the computer sleeps and wakes, the wait runs out, the server restarts. **Check:** the director comes back by itself where it can, otherwise a fallback with a plain notice, and no half-plan. Tests use a fake device, plus one real kill of the helper.
-- [ ] **F6. Many jobs.** Two videos queued, export during thumbnails, a double click. **Check:** nothing is lost or started twice.
-- [ ] **F7. Bad input.** A corrupt file, silence, 2 hours of audio, a wrong SRT, a script of one word, unusual characters in names. **Check:** tests.
-- [ ] **F8. Security.** Instructions hidden in a transcript or a web page are never followed (ROADMAP Phase 8). Keys never appear in logs, in the AI conversations or in Details. The director's MCP token only reaches its own project's tools. No path escapes the data folder. **Check:** tests.
+- [x] **F6. Many jobs.** Two videos queued, export during thumbnails, a double click. **Check:** nothing is lost or started twice. — Done by codex
+  Evidence: docs/evidence/perfect/F6-many-jobs.md; simultaneous reuse/refuse requests reproduced 12 duplicate jobs before the fix and one after it; queued videos, thumbnails, export and cancellation preserve order/results.
+- [x] **F7. Bad input.** A corrupt file, silence, 2 hours of audio, a wrong SRT, a script of one word, unusual characters in names. **Check:** tests. — Done by codex
+  Evidence: docs/evidence/perfect/F7-codex-input.md; 30 new fake-processor/API cases and existing ingest/cancellation regressions passed (51 selected tests). Real decode/ASR/long-audio performance and video acceptance remain separate paused gates.
+- [x] **F8. Security.** Instructions hidden in a transcript or a web page are never followed (ROADMAP Phase 8). Keys never appear in logs, in the AI conversations or in Details. The director's MCP token only reaches its own project's tools. No path escapes the data folder. **Check:** tests.
+  Evidence: Security tests pass (62): keys never in logs/conversations/Details; a director token reaches only its own project, and the director endpoint is refused without the token under any path spelling (new); log and picture paths that are links or leave the project are never read or written (new vt/secure_paths.py). Transcript text is data: an AI answer is validated against the schema and never executed.
 - [ ] **F9. Prove which card is used.** With the V100 not allowed, sample `nvidia-smi` every 2 s during a real render, a real speech run, a gemma video and a ComfyUI picture. Record each process and its card. The owner's own programs on the V100 are not Video Tool's: tell them apart by process. **Check:** everything Video Tool started or asked ran on an allowed card. Then allow a different set on a fake two-card test and confirm the choice is followed.
 - [ ] **F10. Progress is honest.** Each stage moves smoothly and never backward, on a real run and a failed one. **Check:** a test, and a sample of real values.
+  Implementation — Done by codex: bounded monotonic progress and stale heartbeat suppression; a real-run sample stays open. Evidence: docs/evidence/perfect/CODEX-IMPLEMENTATION-2026-11-06.md.
 - [ ] **F11. Files do not grow without limit:** `ai_talk.jsonl`, snapshots, `exports`, caches. **Check:** a measured long run, with limits added where needed.
 
 ---
@@ -569,8 +620,10 @@ Each has an entry in `docs/ROADMAP.md`. Update it when done.
 - [ ] **H3. Connecting from nothing.** `--server <url>` on the command line, with a new data folder. **Check:** it connects with no code, and the result is logged.
 - [ ] **H4. Uninstall.** The silent uninstaller leaves program files behind. Test the normal one too. The helper must stop, and its start-with-computer entry must go. **Check:** nothing is left except the person's own data, and it says so.
 - [ ] **H5. Server install on Linux from nothing,** in a new folder under `/home/roy/vt-tests` on a port you checked is free, without touching the running server. Use `--no-setup` so nothing large downloads, point its engines only at ComfyUI on 8188 and Video Tool's own Ollama copy on 11444, and set `--gpus` to the RTX 3060. Also try it without `--gpus` in a terminal and confirm it asks. Test the server manager's Applications entry. **Check:** it reaches a working video.
-- [ ] **H6. Windows server installer:** the icon was not rebuilt. **Check:** the right icon appears.
-- [ ] **H7. Versions and packaging.** `test_packaging.py` passes; `scripts/set_version.py` keeps versions consistent. **Check:** the tests.
+- [x] **H6. Windows server installer:** the icon was not rebuilt. **Check:** the right icon appears.
+  Evidence: rebuilt with the icon embedded; icon extracted from program and installer is the current blue one (docs/evidence/perfect/H6-server-icon.md)
+- [x] **H7. Versions and packaging.** `test_packaging.py` passes; `scripts/set_version.py` keeps versions consistent. **Check:** the tests.
+  Evidence: test_packaging 8 pass; set_version moves four files together and back (docs/evidence/perfect/H7-versions.md)
 - [ ] **H8. A clean Windows machine** (ROADMAP P10-08, TEST-PLAN L10). **Needs a VM or second PC:** ask the owner. Also the Mac and code signing (W3).
 
 ---

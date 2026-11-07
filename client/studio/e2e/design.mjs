@@ -1,4 +1,4 @@
-// Design Studio, the "Type a script" tab and the Local AI settings, in the real Studio.
+// Look, the "Type a script" tab and the Local AI settings, in the real Studio.
 import { chromium } from "playwright-core";
 import fs from "node:fs";
 import path from "node:path";
@@ -20,9 +20,9 @@ const bgOf = async () => {
   return sf ? sf.evaluate(() => ({ blobs: document.querySelectorAll(".bg-blob").length, pat: document.querySelectorAll(".bg-pat").length, accent: getComputedStyle(document.getElementById("root")).getPropertyValue("--accent").trim() })) : null;
 };
 
-console.log("Design Studio");
+console.log("Look");
 await page.goto(base + "/", { waitUntil: "networkidle" });
-check("navigation says Design Studio", (await page.getByRole("link", { name: "Design Studio" }).count()) === 1);
+check("navigation says Look", (await page.getByRole("link", { name: "Look" }).count()) === 1);
 await page.goto(base + "/themes/paper", { waitUntil: "networkidle" });
 await page.waitForSelector(".design-studio");
 await page.waitForTimeout(2500);

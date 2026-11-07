@@ -26,7 +26,7 @@ const total = (await api("/api/projects")).length;
 check("one card per video, plus the New video card", (await page.locator(".dash2-card").count()) === total && (await page.locator(".dash2-new").count()) === 1);
 check("no filter bar, stats strip or tiles", (await page.locator(".dash-stats, .dash-tiles, .dash-filters").count()) === 0);
 check("every card has one status line", (await page.locator(".dash2-status").count()) === total);
-check("search only appears once there are many videos", (await page.locator(".dash2-search").count()) === (total >= 9 ? 1 : 0));
+check("the list has a search box", (await page.getByPlaceholder("Search videos").count()) === 1);
 await page.locator(".dash2-new").click();
 await page.waitForURL(/\/new$/);
 check("New video opens the first question", (await page.locator(".tf-question").innerText()).includes("What are we working with"));

@@ -12,3 +12,5 @@ Done on 2026-11-06. **Codex is not installed on this PC**, so these checks use a
 
 ## Checks
 `tests/test_codex_path.py` (4 checks) and one more line in `client/desktop/test-director-runner.js` (no model, no `-m`, for both Codex commands). Mutation checks: see below.
+
+Mutation checks, 10 of 10 caught across B8, B10 and B11 (settings route, free text, CLI, Codex model twice, limit wording, failure memory, half-made plan, hand-over, asking a failed director again).

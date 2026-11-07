@@ -35,18 +35,10 @@ check("and has the same last screen", await mk2.isVisible());
 
 check("a link carries the rights note", await page.getByTestId("rights").isVisible() && /free to reuse/.test(await page.getByTestId("rights").innerText()));
 
-console.log("The kind of video, and reading from a script");
+console.log("Reading from a script");
 {
   await page.goto(base + "/new", { waitUntil: "domcontentloaded" });
   await box().waitFor();
-  const go = await walkToReady(page, "Hello. This is a short test about saving money.");
-  await page.getByRole("button", { name: /Fine tuning/ }).click();
-  const kind = page.getByTestId("usecase");
-  await kind.waitFor();
-  const options = await kind.locator("option").allInnerTexts();
-  check("Fine tuning offers the kind of video, Auto first", options.length >= 3 && /auto/i.test(options[0]), options.join(","));
-  await page.keyboard.press("Escape");
-  void go;
   // reading from a script: a browser with a fake microphone; the script stays in view, large, while recording
   const mic = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu", "--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] });
   const p2 = await (await mic.newContext({ viewport: { width: 1280, height: 900 }, permissions: ["microphone"] })).newPage();

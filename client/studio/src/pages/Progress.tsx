@@ -35,7 +35,7 @@ export default function ProgressPage() {
   const t = useT();
   const { id } = useParams();
   const nav = useNavigate();
-  const { data: project, refetch } = useProject(id);
+  const { data: project, refetch, error: projectError } = useProject(id);
   const cat = useCatalogue();
   const settings = useStore(settingsStore);
   const autopilot = settings.autopilot !== false;
@@ -56,7 +56,7 @@ export default function ProgressPage() {
   // the most recent pipeline job for this project (active, or just finished)
   const latest = Object.values(jobs)
     .filter((j) => j.project === id && j.kind === "pipeline")
-    .sort((a, b) => (a.id < b.id ? 1 : -1))[0];
+    .reverse().sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""))[0];
   const job = active || latest;
 
   useEffect(() => {
@@ -89,11 +89,13 @@ export default function ProgressPage() {
   const stages = [...(cat?.stages || []).map((s) => s.key).filter((k) => k !== "voice" || project?.source === "script"), ...(autopilot ? FINISH : [])];
   const cur = job?.stage || "";
   const curIdx = Math.max(0, stages.indexOf(cur));
-  const failed = job?.status === "error";
+  const interrupted = job?.interrupted || (!active && project?.status === "interrupted");
+  const cancelled = job?.status === "cancelled" || (!active && project?.status === "cancelled");
+  const failed = job?.status === "error" || interrupted || cancelled;
   const done = job?.status === "done";
   const overall = done ? 1 : (curIdx + (job?.frac ?? 0)) / Math.max(1, stages.length);
   const elapsed = (Date.now() - started.current) / 1000;
-  const left = overall > 0.08 && !done ? Math.max(0, elapsed / overall - elapsed) : null;
+  const left = overall > 0.08 && !done && !failed ? Math.max(0, elapsed / overall - elapsed) : null;
   const fmt = (s: number) => (s < 60 ? `${Math.round(s)} s` : `${Math.round(s / 60)} min`);
 
   const retry = async (from?: string) => {
@@ -106,12 +108,22 @@ export default function ProgressPage() {
     }
   };
 
+  if (projectError && !project) return (                       // the server cannot say what this video is: say so, with a way on, never a spinner with no end
+    <div className="page-inner making" style={{ maxWidth: 640 }}>
+      <div className="card card-pad col" role="alert" style={{ gap: 12 }}>
+        <h1 style={{ margin: 0 }}>Could not open this video</h1>
+        <p className="muted" style={{ margin: 0 }}>{projectError}</p>
+        <div className="row wrap" style={{ gap: 8 }}><button className="btn" onClick={refetch}>Try again</button><Link className="btn ghost" to="/">Your videos</Link></div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="page-inner making" style={{ maxWidth: 640 }}>
       <div className="card card-pad col" style={{ gap: 16 }}>
         <span className="small muted bn">{project?.title}</span>
         <h1 style={{ margin: 0 }} aria-live="polite">
-          {review ? t("pr.ready") : failed ? "Something went wrong" : done ? "Your video is ready" : SAY[cur] || "Getting started"}
+          {review ? t("pr.ready") : interrupted ? "The server stopped" : cancelled ? "Making this video was stopped" : failed ? "Something went wrong" : done ? "Your video is ready" : SAY[cur] || "Getting started"}
           {!failed && !done && !review && "…"}
         </h1>
         <ProgressBar frac={overall} />
@@ -129,9 +141,9 @@ export default function ProgressPage() {
 
         {failed && (
           <div className="banner err col" style={{ alignItems: "flex-start" }}>
-            <strong>{job?.error || "The job failed."}</strong>
+            <strong>{job?.error || (interrupted || cancelled ? "You can continue; completed stages are kept." : "The job failed.")}</strong>
             <div className="row wrap">
-              <button className="btn" onClick={() => retry(cur && !FINISH.includes(cur) ? cur : undefined)}>Try again</button>
+              <button className="btn" onClick={() => retry(!interrupted && !cancelled && cur && !FINISH.includes(cur) ? cur : undefined)}>{interrupted || cancelled ? "Continue" : "Try again"}</button>
               <button className="btn ghost" onClick={() => retry("preprocess")}>Start over</button>
               <Link className="btn ghost" to={`/p/${id}`}>Open the editor</Link>
             </div>

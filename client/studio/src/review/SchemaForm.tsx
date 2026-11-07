@@ -3,6 +3,9 @@ import { useMemo, useState } from "react";
 import type { ComponentSpec, El, MediaItem } from "../types";
 import { PackIcon } from "../ui";
 import VisualPicker from "./VisualPicker";
+import PictureChoices from "../components/PictureChoices";
+import PosePicture from "./PosePicture";
+import "./editor-cleanup.css";
 
 export interface WordLite {
   id: string;
@@ -46,8 +49,22 @@ export function blank(s0: Schema, defs: Schema): any {
   return null;
 }
 
-const NAMES: Record<string, string> = { arrive: "Arrives after (seconds)", y: "Height of the feet" };
+const NAMES: Record<string, string> = {
+  arrive: "Arrives after (seconds)", x: "Horizontal position", y: "Vertical position", who: "Character", cast: "Characters",
+  character_style: "Character look", flip: "Face the other way", cues: "Character actions", artifacts: "Picture props",
+  framing: "Scene size", world: "Background", speaker: "Speaking character", actor: "Character",
+  hair: "Hair colour", clothes: "Clothes colour",
+};
 const label = (k: string) => NAMES[k] ?? k.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+const VALUE_NAMES: Record<string, Record<string, string>> = {
+  character_style: { classic: "Classic colour", ink: "Ink outlines", paper: "Paper cutout" },
+  framing: { card: "Card in the layout", scene: "Fill the video frame" },
+  world: { illustrated: "Illustrated scene", "3d": "3D environment" },
+  camera: { still: "Hold still", push: "Move closer", pull: "Move away", pan: "Move across" },
+  who: { old_woman: "Elder woman" },
+  pose: { stand: "Stand", point: "Point", think: "Think", wave: "Wave", celebrate: "Celebrate", sad: "Sad", shrug: "Shrug", walk: "Walk", sit: "Sit", idle: "Relax", run: "Run", laugh: "Laugh", count: "Count", confused: "Confused", ride: "Ride a bike" },
+};
+const optionLabel = (k: string, value: string) => VALUE_NAMES[k]?.[value] ?? value.replace(/_/g, " ").replace(/^./, c => c.toUpperCase());
 
 interface Ctx {
   media?:MediaItem[];
@@ -88,6 +105,30 @@ function Counter({ value, max }: { value: string; max?: number }) {
   if (!max) return null;
   const n = [...value].length;
   return <span className="small" style={{ color: n > max ? "var(--err)" : n > max * 0.8 ? "var(--warn)" : "var(--muted)", fontWeight: 400 }}>{n}/{max}</span>;
+}
+
+function CharacterPosition({ label: name, value, fallback, optional = false, onChange }: { label: string; value?: number | null; fallback: number; optional?: boolean; onChange: (v: number | null) => void }) {
+  const percent = Math.round((value ?? fallback) * 100);
+  return <div className="editor-character-position" role="group" aria-label={name}>
+    <div className="row"><span className="grow">{name} · {value == null && optional ? "Automatic floor" : `${percent}%`}</span>{optional && value != null && <button type="button" className="btn sm" onClick={() => onChange(null)}>Use floor</button>}</div>
+    <label><span className="sr-only">{name}</span><input type="range" min={0} max={100} step={1} value={percent} onChange={e => onChange(Number(e.target.value) / 100)} /></label>
+    <span className="small muted">{optional ? "0% is the top of the frame; 100% is the bottom. Automatic keeps the feet on the floor." : "0% is the left edge; 100% is the right edge."}</span>
+  </div>;
+}
+
+function CharacterFields({ schema, value, onChange, ctx, index }: { schema: Schema; value: Record<string, any>; onChange: (v: any) => void; ctx: Ctx; index: number }) {
+  const fields = schema.properties ?? {};
+  const patch = (k: string, v: any) => onChange({ ...value, [k]: v });
+  const poses: string[] = resolve(fields.pose, ctx.defs).enum ?? [];
+  return <fieldset className="editor-character"><legend>{value.name || `Character ${index + 1}`}</legend>
+    {["name", "who", "expression"].filter(k => fields[k]).map(k => <Node key={k} k={k} schema={fields[k]} value={value[k]} onChange={v => patch(k, v)} ctx={ctx} />)}
+    {poses.length > 0 && <div className="field"><span>Pose</span><PictureChoices label="Pose" value={value.pose ?? "stand"} onChange={v => patch("pose", v)} options={poses.map(pose => ({ value: pose, title: optionLabel("pose", pose), visual: <PosePicture pose={pose} /> }))} /></div>}
+    {fields.x && <CharacterPosition label="Horizontal position" value={value.x} fallback={.5} onChange={v => patch("x", v)} />}
+    {fields.y && <CharacterPosition label="Height of the feet" value={value.y} fallback={.69} optional onChange={v => patch("y", v)} />}
+    {fields.arrive && <label className="field"><span>Arrives after (seconds)</span><input aria-label="Arrives after (seconds)" type="number" min={0} max={30} step={.1} placeholder="Automatic" value={value.arrive ?? ""} onChange={e => patch("arrive", e.target.value === "" ? null : Number(e.target.value))} /><span className="small muted">0 means already there. Leave empty for characters to arrive one after another.</span></label>}
+    {fields.flip && <Node k="flip" schema={fields.flip} value={value.flip} onChange={v => patch("flip", v)} ctx={ctx} />}
+    {Object.keys(fields).filter(k => !["type", "id", "name", "who", "expression", "pose", "x", "y", "arrive", "flip"].includes(k)).map(k => <Node key={k} k={k} schema={fields[k]} value={value[k]} onChange={v => patch(k, v)} ctx={ctx} />)}
+  </fieldset>;
 }
 
 function Node({ k, schema, value, onChange, ctx }: { k: string; schema: Schema; value: any; onChange: (v: any) => void; ctx: Ctx }) {
@@ -132,6 +173,7 @@ function Node({ k, schema, value, onChange, ctx }: { k: string; schema: Schema; 
   }
 
   if(k === "media") return <label className="field"><span>Picture or video</span><select value={value??""} onChange={e=>onChange(e.target.value||null)}><option value="">Choose a file…</option>{(ctx.media??[]).map(m=><option key={m.id} value={m.id}>{m.caption||m.file} ({m.kind})</option>)}</select></label>;
+  if (s.type === "boolean") return <label className="check"><input type="checkbox" checked={!!value} onChange={e => onChange(e.target.checked)} /><span>{label(k)}</span></label>;
   if (s.enum) {
     return (
       <label className="field">
@@ -139,7 +181,7 @@ function Node({ k, schema, value, onChange, ctx }: { k: string; schema: Schema; 
         <select value={value ?? s.enum[0]} onChange={(e) => onChange(e.target.value)}>
           {s.enum.map((o: string) => (
             <option key={o} value={o}>
-              {o}
+              {optionLabel(k, String(o))}
             </option>
           ))}
         </select>
@@ -147,8 +189,12 @@ function Node({ k, schema, value, onChange, ctx }: { k: string; schema: Schema; 
     );
   }
 
+  if (["hair", "clothes"].includes(k) && s.type === "string") {
+    const custom = /^#[0-9a-f]{6}$/i.test(value ?? "");
+    return <div className="field"><div className="row"><label className="grow">{label(k)}<input type="color" aria-label={label(k)} value={custom ? value : k === "hair" ? "#493026" : "#3b82f6"} onChange={e => onChange(e.target.value)}/></label>{custom ? <button type="button" className="btn sm" aria-label={`Reset ${label(k).toLowerCase()} to automatic`} onClick={() => onChange("")}>Automatic</button> : <span className="small muted">Automatic</span>}</div></div>;
+  }
   if (k === "color" && s.pattern?.includes("0-9a-fA-F")) {
-    return <label className="field"><span>Color</span><input type="color" value={/^#[0-9a-f]{6}$/i.test(value) ? value : "#6366f1"} onChange={e => onChange(e.target.value)}/></label>;
+    return <label className="field"><span>Colour</span><input type="color" value={/^#[0-9a-f]{6}$/i.test(value) ? value : "#6366f1"} onChange={e => onChange(e.target.value)}/></label>;
   }
   if (k === "width" && ctx.componentType === "shape") {
     return <label className="field"><span>Size · {Math.round((value ?? .65)*100)}%</span><input type="range" min={10} max={100} step={1} value={Math.round((value ?? .65)*100)} onChange={e => onChange(Number(e.target.value)/100)}/></label>;
@@ -212,7 +258,7 @@ function Node({ k, schema, value, onChange, ctx }: { k: string; schema: Schema; 
             <div key={i} className="row" style={{ alignItems: "flex-start" }}>
               <div className="grow">
                 {item.type === "object" ? (
-                  <div className="sub">
+                  item.properties?.who && item.properties?.pose ? <CharacterFields schema={item} value={it} onChange={v => onChange(items.map((x, j) => j === i ? v : x))} ctx={ctx} index={i} /> : <div className="sub">
                     <ObjectFields schema={item} value={it} onChange={(v) => onChange(items.map((x, j) => (j === i ? v : x)))} ctx={ctx} />
                   </div>
                 ) : (

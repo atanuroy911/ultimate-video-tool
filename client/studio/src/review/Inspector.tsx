@@ -19,6 +19,7 @@ import ShowAs from "./ShowAs";
 import StoryEditor from "./story/StoryEditor";
 import JsonField from "./JsonField";
 import type { Review } from "./useReview";
+import "./editor-cleanup.css";
 
 function summary(e: El): string {
   const v = e.text ?? e.value ?? e.label ?? e.name ?? (e.items ? e.items.join(", ") : "") ?? "";
@@ -45,7 +46,7 @@ export default forwardRef<InspectorHandle, {
   const [els, setEls] = useState<El[]>(scene.elements);
   const [open, setOpen] = useState<Set<number>>(new Set([0]));
   const [tab, setTab] = useState<InspectorTab>("elements");
-  const [elementTab, setElementTab] = useState<"content"|"position"|"timing"|"motion"|"json">("content");
+  const [elementTab, setElementTab] = useState<"content"|"position"|"timing"|"motion">("content");
   const [menu, setMenu] = useState(false);
   const [hint, setHint] = useState("");
   const [alts, setAlts] = useState<1 | 2 | 3>(1);
@@ -106,7 +107,7 @@ export default forwardRef<InspectorHandle, {
       if (d.scene !== now.scene.id) return;
       if (d.phase === "start") {
         const el = now.els[d.index];
-        hand.current = el ? { index: d.index, start: { el, center: d.center, frame: d.frame, size: d.size } } : null;
+        hand.current = el ? { index: d.index, start: { el, center: d.center, frame: d.frame, size: d.size, quad: d.quad } } : null;
         return;
       }
       const h = hand.current;
@@ -213,8 +214,7 @@ export default forwardRef<InspectorHandle, {
                 )}
                 {isOpen && spec && e.type !== "story" && (
                   <div className="el-body">
-                    <Seg value={elementTab} onChange={setElementTab} label="Element controls" options={[{value:'content',label:'Content'},{value:'position',label:'Position'},{value:'motion',label:'Motion'},{value:'timing',label:'Timing'},{value:'json',label:'JSON'}]}/>
-                    {elementTab==="json"&&<JsonField title="Everything about this visual (checked when saved)" rows={14} value={e} set={(v)=>{if(v&&typeof v==="object"&&v.type)commit(els.map((x,j)=>j===i?v:x));}}/>}
+                    <Seg value={elementTab} onChange={setElementTab} label="Element controls" options={[{value:'content',label:'Content'},{value:'position',label:'Position'},{value:'motion',label:'Motion'},{value:'timing',label:'Timing'}]}/>
                     {elementTab==="motion"&&<MotionEditor value={e} seek={props.seek} start={e.start??r.sc.data?.elements?.[`${scene.id}:${i}`]?.start??props.time?.start??0} end={e.end??r.sc.data?.elements?.[`${scene.id}:${i}`]?.end??props.time?.end??r.timing.duration} onChange={keyframes=>commit(els.map((x,j)=>j===i?{...x,keyframes}:x))}/>}
                     {elementTab==="motion"&&<label className="field"><span>Entrance</span><select value={e.entrance??'auto'} onChange={ev=>commit(els.map((x,j)=>j===i?{...x,entrance:ev.target.value}:x))}><option value="auto">Automatic</option><option value="none">Already in place</option>{cat?.motion?.entrances.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></label>}
                     {(elementTab==="position"||elementTab==="timing")&&<VisualControls section={elementTab} value={e} start={r.sc.data?.elements?.[`${scene.id}:${i}`]?.start ?? props.time?.start ?? 0} end={r.sc.data?.elements?.[`${scene.id}:${i}`]?.end ?? props.time?.end ?? r.timing.duration} total={r.timing.duration} onChange={v=>commit(els.map((x,j)=>j===i?v:x))}/>}
@@ -227,6 +227,10 @@ export default forwardRef<InspectorHandle, {
                         start={props.time?.start ?? 0} end={props.time?.end ?? r.timing.duration} seek={props.seek} media={r.project.data?.media ?? []} />
                     </details>}
                     <button className="btn sm" onClick={()=>{commit([...els.slice(0,i+1),{...structuredClone(e),id:undefined},...els.slice(i+1)],true);setOpen(new Set([i+1]));}}>Duplicate visual</button>
+                    <details className="editor-advanced">
+                      <summary>Advanced</summary>
+                      <JsonField title="Everything about this visual (checked when saved)" rows={14} value={e} set={(v)=>{if(v&&typeof v==="object"&&v.type)commit(els.map((x,j)=>j===i?v:x));}}/>
+                    </details>
                   </div>
                 )}
               </div>
@@ -276,8 +280,8 @@ export default forwardRef<InspectorHandle, {
       }}/><button className="btn sm" onClick={()=>r.splitAt(scene.id, (props.time!.start+props.time!.end)/2)}>Split this scene in half</button></div>}
 
         <ShowAs r={r} id={r.project.data?.id ?? ""} scene={scene} media={r.project.data?.media ?? []} />
-        <details className="scene-json">
-          <summary>Everything about this scene as JSON</summary>
+        <details className="scene-json editor-advanced">
+          <summary>Advanced · scene JSON</summary>
           <JsonField title="Layout, transitions, camera, backdrop, captions, sounds and more (beats and timing move with the timeline)" rows={12}
             value={Object.fromEntries(Object.entries(scene).filter(([k]) => !["id", "beats", "start", "elements"].includes(k)))}
             set={(v) => { if (v && typeof v === "object") { const { id: _i, beats: _b, start: _s, elements: _e, ...rest } = v as any; r.patchScene(scene.id, rest); } }} />

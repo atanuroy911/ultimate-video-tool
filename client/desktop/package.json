@@ -11,7 +11,7 @@
     "dist": "electron-builder --publish never",
     "dist:client": "electron-builder --publish never",
     "dist:dir": "electron-builder --dir --publish never",
-    "test": "node test-director-runner.js && node test-helper.js && node test-helper-control.js && node test-transport.js"
+    "test": "node test-director-runner.js && node test-director-scope.js && node test-helper.js && node test-helper-control.js && node test-transport.js"
   },
   "dependencies": {
     "ws": "^8.18.0"

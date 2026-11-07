@@ -69,17 +69,18 @@ function args(configPath, model) {
     "--strict-mcp-config", "--mcp-config", configPath, "--tools", "", "--allowedTools", "mcp__video-tool__*", "--model", modelName(model)];
 }
 
-function definition({ mcp, server, token }) {
+function definition({ mcp, server, token, directorToken }) {
+  if (directorToken) return { type: "http", url: new URL("/mcp/director", server).href, headers: { "X-VT-Director-Token": directorToken } };
   if (mcp && mcp.command) return { command: mcp.command, args: mcp.args || [], env: mcp.env || {} };
   return { type: "http", url: `${server.replace(/\/$/, "")}/mcp`, ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}) };       // a server on the person's own network needs no key
 }
 
-function run({ prompt, mcp, server, token, signal, model }, onLog = () => {}, deps = {}) {
+function run({ prompt, mcp, server, token, directorToken, signal, model }, onLog = () => {}, deps = {}) {
   return new Promise((resolve) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vt-director-"));
     const work = path.join(dir, "work"), config = path.join(dir, "mcp.json");     // the key sits beside the working folder, not in it
     fs.mkdirSync(work);
-    fs.writeFileSync(config, JSON.stringify({ mcpServers: { "video-tool": definition({ mcp, server, token }) } }));
+    fs.writeFileSync(config, JSON.stringify({ mcpServers: { "video-tool": definition({ mcp, server, token, directorToken }) } }), { mode: 0o600 });
     const cleanup = () => fs.rmSync(dir, { recursive: true, force: true });
     let command;try{command=deps.command||commandFor('claude');}catch(e){cleanup();resolve({ok:false,error:e.message,error_kind:'login'});return;}
     const child = (deps.spawn||spawn)(command.file, [...command.prefix,...args(config, model)], { cwd: work, windowsHide: true, shell:false,env:cleanEnv(command.env), stdio: ["pipe", "pipe", "pipe"] });

@@ -20,17 +20,17 @@ export default function VideoInspector({ r, p, useCases, onRedirect, onRepace }:
         <span className="small muted">Choose the look, captions and shape for the whole video. Return to selection to keep editing an individual item.</span>
       </div>
       <Panel title="Look">
-        <label className="field"><span>Theme</span>
+        <label className="field"><span>Look</span>
           <select value={p.theme} onChange={(e) => r.patchProject({ theme: e.target.value })}>
             {(themes || []).map((t) => <option key={t.name} value={t.name}>{t.label || t.name}</option>)}
           </select>
         </label>
         <div className="col" style={{ gap: 5 }}>
-          <span className="small muted" style={{ fontWeight: 600 }}>Drawing style</span>
-          <Segmented value={kind as "explainer" | "stick" | "emoji"} label="Drawing style" onChange={(k) => post(`/api/projects/${p.id}/script/generate?kind=${k}`).then(onRedirect).catch((e: any) => toast(e.message, "err"))}
+          <span className="small muted" style={{ fontWeight: 600 }}>Style</span>
+          <Segmented value={kind as "explainer" | "stick" | "emoji"} label="Style" onChange={(k) => post(`/api/projects/${p.id}/script/generate?kind=${k}`).then(onRedirect).catch((e: any) => toast(e.message, "err"))}
             options={[{ value: "explainer", label: "Pictures" }, { value: "stick", label: "Stick figures" }, { value: "emoji", label: "Emoji" }]} />
         </div>
-        <label className="field"><span>Kind of video</span>
+        <label className="field"><span>Purpose</span>
           <select value={p.usecase ?? "auto"} onChange={(e) => r.patchProject({ usecase: e.target.value }).then(() => toast("Changed. Use AI → Direct the whole video again to apply.", "ok", 4000))}>
             {useCases.map((u) => <option key={u.id} value={u.id}>{u.id === "auto" && p.usecase_used ? `Auto (${p.usecase_used.profile})` : u.label}</option>)}
           </select>

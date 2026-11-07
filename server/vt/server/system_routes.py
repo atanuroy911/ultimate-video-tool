@@ -2,12 +2,25 @@
 import threading
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from .. import gpuassign, sysstats
 
 router = APIRouter(prefix="/api/system", tags=["system"])
+
+
+@router.get("/restart")
+def restart_status(request: Request) -> dict:
+    from . import restart
+    manager = request.app.state.jobs
+    return {**restart.describe(),"busy":any(j.status in ("queued","running") for j in manager.snapshot()),"restarting":manager.restarting,"error":restart.last_error}
+
+
+@router.post("/restart")
+def restart_server(request: Request, background: BackgroundTasks) -> dict:
+    from .restart import request as restart_request
+    return restart_request(request.app.state.jobs,background)
 
 
 @router.get("/stats")

@@ -64,9 +64,9 @@ def revise(script: VideoScript, tr: Transcript, beats: Beats, system: str, schem
         if not rv["issues"]:
             break
         say(0.6 + 0.15 * rnd, f"Reviewing the cut: {len(rv['issues'])} note(s) for the director")
-        notes = "\n".join(f"- {i['scene']}: {i['problem']}. Fix: {i['fix']}." for i in rv["issues"][:12])
+        editor_notes = "\n".join(f"- {i['scene']}: {i['problem']}. Fix: {i['fix']}." for i in rv["issues"][:12])
         user = ("This is your Video Script:\n" + json.dumps(best.model_dump(by_alias=True, exclude_none=True), ensure_ascii=False)
-                + "\n\nAn experienced editor watched it and wrote these notes:\n" + notes
+                + "\n\nAn experienced editor watched it and wrote these notes:\n" + editor_notes
                 + "\n\nReturn the whole script as JSON with these notes fixed. Change only the scenes named in the notes; keep every beat, "
                   "word id and the order of scenes exactly as they are. Do not invent facts that are not in the words.")
         mine: list[dict] = []

@@ -321,7 +321,7 @@ class Helper {
     const t = job.task;
     if (job.type === "direct") {
       const onLog = (message) => this.send(job.link, { type: "director_log", request: job.request, project: job.project, message });
-      return runner.run({ prompt: t.prompt, server: job.link.server, token: job.link.token, model: t.model, signal: job.controller.signal }, onLog);
+      return runner.run({ prompt: t.prompt, server: job.link.server, token: t.director_token ? "" : job.link.token, directorToken: t.director_token || "", model: t.model, signal: job.controller.signal }, onLog);
     }
     return runner.ask({ system: String(t.system || ""), prompt: t.prompt, schema: t.schema, images: t.images || [], model: t.model, timeout: Number(t.timeout) || 300, signal: job.controller.signal });
   }

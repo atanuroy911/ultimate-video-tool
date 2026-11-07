@@ -7,6 +7,7 @@ chunk. After a drop it asks `GET /api/uploads/{id}` where to carry on. A finishe
 from __future__ import annotations
 
 import os
+import errno
 import re
 import secrets
 import shutil
@@ -17,6 +18,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
+from starlette.requests import ClientDisconnect
 
 from .. import paths
 from ..util import read_json, write_json
@@ -47,6 +49,39 @@ def _part(uid: str) -> Path:
     return _dir() / f"{uid}.part"
 
 
+def _storage_error(error: OSError, path: Path) -> HTTPException:
+    full = error.errno in (errno.ENOSPC, getattr(errno, "EDQUOT", errno.ENOSPC)) or getattr(error, "winerror", None) in (39, 112)
+    message = "The server needs more disk space. Free some space, then resume this upload." if full else "The server could not save this upload. Check its storage, then try again."
+    try:
+        offset = path.stat().st_size
+    except OSError:
+        offset = 0
+    return HTTPException(507 if full else 500, {"errors": [message], "offset": offset})
+
+
+async def _receive(path: Path, mode: str, request: Request, have: int, size: int, limit: int) -> None:
+    """Keep bytes that arrived, including a partial write when the disk fills."""
+    written = 0
+    try:
+        with path.open(mode, buffering=0) as file:
+            try:
+                async for piece in request.stream():
+                    written += len(piece)
+                    if written > limit or have + written > size:
+                        file.truncate(have)
+                        raise HTTPException(413, "That chunk is too big for this upload.")
+                    pending = memoryview(piece)
+                    while pending:
+                        count = file.write(pending)
+                        if not count:
+                            raise OSError(errno.EIO, "The storage did not accept the upload.")
+                        pending = pending[count:]
+            except ClientDisconnect:
+                pass  # the next request resumes from the actual file size
+    except OSError as error:
+        raise _storage_error(error, path) from error
+
+
 def _status(uid: str, m: dict) -> dict[str, Any]:
     p = _part(uid)
     offset = p.stat().st_size if p.exists() else 0
@@ -74,8 +109,11 @@ def start(body: NewUpload) -> dict[str, Any]:
     uid = secrets.token_hex(12)
     suffix = Path(body.name).suffix.lower()[:10]
     m = {"name": body.name, "suffix": suffix if suffix[1:].isalnum() else "", "size": body.size, "created": int(time.time())}
-    write_json(_dir() / f"{uid}.json", m)
-    _part(uid).touch()
+    try:
+        write_json(_dir() / f"{uid}.json", m)
+        _part(uid).touch()
+    except OSError as error:
+        raise _storage_error(error, _part(uid)) from error
     return _status(uid, m)
 
 
@@ -92,19 +130,7 @@ async def chunk(uid: str, offset: int, request: Request) -> dict[str, Any]:
     have = p.stat().st_size if p.exists() else 0
     if offset != have:
         raise HTTPException(409, {"errors": [f"Expected the chunk at {have}."], "offset": have})
-    written = 0
-    with p.open("ab") as f:
-        try:
-            async for piece in request.stream():
-                written += len(piece)
-                if written > MAX_CHUNK or have + written > m["size"]:
-                    f.truncate(have)
-                    raise HTTPException(413, "That chunk is too big for this upload.")
-                f.write(piece)
-        except HTTPException:
-            raise
-        except Exception:                                                               # noqa: BLE001
-            f.flush()                                                                     # the connection dropped: keep what arrived
+    await _receive(p, "ab", request, have, m["size"], MAX_CHUNK)
     return _status(uid, m)
 
 
@@ -114,14 +140,7 @@ async def whole(uid: str, request: Request, ticket: str = "") -> dict[str, Any]:
     Allowed with the upload's one-time ticket instead of a key (vt/server/serve.py Guard); a retry starts the file again."""
     m = _meta(uid)
     p = _part(uid)
-    written = 0
-    with p.open("wb") as f:
-        async for piece in request.stream():
-            written += len(piece)
-            if written > m["size"]:
-                f.truncate(0)
-                raise HTTPException(413, f"The file is bigger than the {m['size']} bytes announced.")
-            f.write(piece)
+    await _receive(p, "wb", request, 0, m["size"], m["size"])
     return _status(uid, m)
 
 

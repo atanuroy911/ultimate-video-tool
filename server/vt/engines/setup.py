@@ -94,10 +94,14 @@ def _server_name() -> str:
 def overview() -> dict[str, Any]:
     import socket
     from . import placement
+    from concurrent.futures import ThreadPoolExecutor
     hw = hardware.detect()
     st = state()
+    names = ('comfy', 'ollama')
+    with ThreadPoolExecutor(max_workers=len(names)) as pool:                       # each engine's addresses cost a second when nothing answers: ask both at once
+        existing = dict(zip(names, pool.map(placement.find_existing, names)))
     return {**st, 'recommended_gpu':_recommended_gpu(hw), 'server':{'name':_server_name(),'data_dir':str(paths.DATA),'os':__import__('platform').system()},
-            'existing':{name:placement.find_existing(name) for name in ('comfy','ollama')},
+            'existing':existing,
             "hardware": hw, "recommended": {k:v for k,v in hardware.recommend(hw).items() if k in ASKED}, "engines": [{"id": e.id, "label": e.label, "about": e.about, "local_install": e.local_install, "installable": e.id in installers.INSTALLERS,
                                                                                   "mode": registry.endpoint(e.id).mode} for e in registry.engines() if e.id in ASKED],
             "bundle_catalog": {k: [p.rsplit("/", 1)[-1] for p in v] for k, v in installers.BUNDLES.items()}, "steps": STEPS}

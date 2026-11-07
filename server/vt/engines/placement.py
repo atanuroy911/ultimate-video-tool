@@ -44,12 +44,14 @@ class Placement:
 
 def find_existing(engine: str, skip: tuple[str, ...] = ()) -> list[str]:
     """Servers of this engine answering on this computer's usual ports, best first. Our own copy (its port) is skipped."""
-    found = []
-    for port in USUAL[engine]:
-        url = f"http://127.0.0.1:{port}"
-        if url not in skip and hub.reachable(engine, url, 1.0):
-            found.append(url)
-    return found
+    from concurrent.futures import ThreadPoolExecutor
+
+    urls = [f"http://127.0.0.1:{port}" for port in USUAL[engine] if f"http://127.0.0.1:{port}" not in skip]
+    if not urls:
+        return []
+    with ThreadPoolExecutor(max_workers=len(urls)) as pool:                            # an address that does not answer costs a second: ask all of them at once, keep the order
+        answers = list(pool.map(lambda url: hub.reachable(engine, url, 1.0), urls))
+    return [url for url, ok in zip(urls, answers) if ok]
 
 
 def _free(port: int) -> bool:

@@ -21,7 +21,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 from .. import paths, planning, scene_ops
 from ..compose import FORMATS, scene_timing
@@ -34,7 +34,7 @@ from ..schema import ELEMENT_MODELS, ProjectMeta, Scene, ScenesFile, Theme, vali
 from ..stages import asr as asr_mod
 from ..thumbs import make_thumbnails, thumbs_dir
 from ..util import now_iso, read_json, write_json
-from .jobs import JobBusy, JobManager
+from .jobs import JobBusy, JobManager, ServerRestarting
 
 ID_RE = re.compile(r"^[A-Za-z0-9._-]{1,80}$")
 THEME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,40}$")
@@ -77,14 +77,20 @@ class Hub:
 
 
 hub = Hub()
-jobs = JobManager(hub.emit)
+jobs = JobManager(hub.emit, store=lambda: paths.PROJECTS / ".jobs")
 app.state.jobs = jobs
 app.state.hub = hub
+
+
+@app.exception_handler(ServerRestarting)
+async def server_restarting(request: Request, error: ServerRestarting):
+    return JSONResponse(status_code=503,content={"detail":{"errors":[str(error)]}})
 
 
 @app.on_event("startup")
 async def _startup() -> None:
     hub.loop = asyncio.get_running_loop()
+    jobs.recover()
     app.state.jobs = jobs
     app.state.hub = hub
     from ..social.core import start_worker
@@ -124,7 +130,7 @@ async def ws_endpoint(ws: WebSocket) -> None:
     device_name = "This computer"
     send_to_device = lambda m, sock=ws: hub.send(sock, m)
     try:
-        await ws.send_text(json.dumps({"type": "hello", "boot": directors.BOOT, "jobs": [j.public() for j in jobs.jobs.values() if j.status in ("queued", "running")]}))
+        await ws.send_text(json.dumps({"type": "hello", "boot": directors.BOOT, "jobs": [j.public() for j in jobs.snapshot()]}))
         while True:
             try:
                 msg = json.loads(await ws.receive_text())
@@ -384,8 +390,17 @@ def get_directors() -> dict:
 
 def _public_settings(s: dict) -> dict:
     """Settings for the browser: API keys never leave this computer's disk through the API (only whether they are set)."""
-    engines = {i: {"mode": e.get("mode"), "url": e.get("url"), "has_key": bool(e.get("key"))} for i, e in (s.get("engines") or {}).items()}
-    return {k: v for k, v in s.items() if not k.endswith("_key") and k != "engines"} | {"stock_keys": {k[:-4]: bool(v) for k, v in s.items() if k.endswith("_key")}, "engines": engines}
+    from ..modules.calls import is_secret_key, redact
+
+    def visible(value):
+        if isinstance(value, dict):
+            return {key: visible(item) for key, item in value.items() if not is_secret_key(key)}
+        if isinstance(value, list):
+            return [visible(item) for item in value]
+        return redact(value)
+
+    engines = {i: {"mode": e.get("mode"), "url": redact(e.get("url")), "has_key": bool(e.get("key"))} for i, e in (s.get("engines") or {}).items()}
+    return visible({k: v for k, v in s.items() if k != "engines"}) | {"stock_keys": {k[:-4]: bool(v) for k, v in s.items() if k.endswith("_key")}, "engines": engines}
 
 
 @app.put("/api/settings")
@@ -915,7 +930,7 @@ def autofix_project(pid: str) -> dict:
         cdata = read_json(chat_f, {"messages": []}) or {"messages": []}
         cdata["messages"].append({
             "from": "director",
-            "text": f"Auto-fixed viewer test suggestions: caption reading speed and scene framing resolved. Retention risk improved from {old_risk} to {card2['risk']}.",
+            "text": "Fixed the things to look at: caption reading speed and scene framing. The new cut is easier to keep watching.",
             "at": now_iso(),
             "ok": True
         })
@@ -1107,6 +1122,14 @@ async def create_project(audio: Optional[UploadFile] = File(None), audio_upload:
     else:
         raise HTTPException(400, "No recording was sent.")
     try:
+        sub = None
+        if subtitles is not None and subtitles.filename:          # refuse bad subtitles before making a project or starting its job
+            from ..ingest import read_subtitles
+
+            sub = tmp.parent / ("subtitles" + (Path(subtitles.filename).suffix.lower() or ".srt"))
+            with sub.open("wb") as f:
+                shutil.copyfileobj(subtitles.file, f)
+            read_subtitles(sub, language)
         name = title.strip() or (Path(filename).stem if filename and not filename.startswith("recording.") else f"Recording {time.strftime('%d %b %Y')}")
         p = Project.create(name, tmp, language=language, aspect=aspect, theme=theme, pace=pace,
                            options=ProjectMeta(id="x", options=opts).options.model_dump() if opts else None)
@@ -1119,23 +1142,16 @@ async def create_project(audio: Optional[UploadFile] = File(None), audio_upload:
             m = p.meta()
             m.options.recording_edit = mode
             p.save_meta(m)
+        if sub is not None:                                     # the person's own timing replaces speech recognition
+            from ..ingest import attach_subtitles
+
+            attach_subtitles(p, sub, language)
     except ValidationError as e:
         raise HTTPException(422, str(e))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
     finally:
         shutil.rmtree(tmp.parent, ignore_errors=True)
-    if subtitles is not None and subtitles.filename:                # the person's own .srt: its words and timing replace speech recognition
-        from ..ingest import attach_subtitles
-
-        sub_dir = Path(tempfile.mkdtemp())
-        try:
-            sub = sub_dir / ("subtitles" + (Path(subtitles.filename).suffix.lower() or ".srt"))
-            with sub.open("wb") as f:
-                shutil.copyfileobj(subtitles.file, f)
-            attach_subtitles(p, sub, language)
-        except ValueError as e:
-            raise HTTPException(400, str(e))
-        finally:
-            shutil.rmtree(sub_dir, ignore_errors=True)
     if not title.strip():
         p.update_meta(auto_title=True)
     p = _set_usecase(p, usecase)
@@ -1357,6 +1373,12 @@ def watch_and_revise(p: Project, card: dict, first: Path, cb, qa: Optional[dict]
         for f in (first, first.with_suffix(".retention.json"), first.with_suffix(".srt")):
             _remove(f)
         write_json(p.dir / "revise.json", {"before": card["risk"], "after": card2["risk"], "notes": notes, "kept": True})
+        try:
+            from ..director_review import remeasure
+
+            remeasure(p)                                         # the cut changed after the director looked: list what is really left for the person
+        except Exception as e:                                   # noqa: BLE001  a report, never a reason to lose the cut
+            log.warning("could not re-measure %s: %s", p.id, e)
         return True
     for n, d in saved.items():                                   # worse or no better: the first cut stays
         if d is not None:
@@ -1601,6 +1623,7 @@ def delete_project(pid: str) -> dict:
 
 
 class RunBody(BaseModel):
+    director: Optional[str] = Field(default=None, max_length=80)
     from_stage: Optional[str] = None
     force: bool = False
     rerender: bool = False
@@ -1619,8 +1642,16 @@ def run_project(pid: str, body: RunBody) -> dict:
     if body.video_kind:
         from ..script import service
 
-        if body.video_kind in ("stick", "emoji", "explainer", "infographic", "cartoon", "mixed"):
-            service.set_script_kind(p, body.video_kind)
+        if body.video_kind not in ("auto", "story", "reel", "stick", "emoji", "explainer", "infographic", "cartoon", "mixed"):
+            raise HTTPException(400, "Choose one of the available video styles.")
+        service.set_script_kind(p, body.video_kind if body.video_kind not in ("auto", "story", "reel") else "explainer")
+        meta = p.meta()
+        meta.options.look = body.video_kind if body.video_kind in ("story", "reel") else "classic"
+        p.save_meta(meta)
+    if body.director is not None:
+        meta = p.meta()
+        meta.options.director = body.director or "best"
+        p.save_meta(meta)
     if body.ai_provider or body.ai_model:
         s = load_settings()
         if body.ai_provider:
@@ -1641,7 +1672,7 @@ def run_project(pid: str, body: RunBody) -> dict:
 
 @app.get("/api/jobs")
 def list_jobs() -> list[dict]:
-    return [j.public() for j in jobs.jobs.values()]
+    return [j.public() for j in jobs.snapshot()]
 
 
 @app.get("/api/jobs/{jid}")

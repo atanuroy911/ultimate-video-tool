@@ -479,15 +479,15 @@ class SpeakerCard(_El):
     color: int = Field(default=0, ge=0, le=5)
 
 
-CharacterId = Literal["man", "woman", "boy", "girl", "elder", "worker", "teacher", "doctor", "robot"]
-Pose = Literal["stand", "point", "think", "wave", "celebrate", "sad", "shrug", "walk", "sit"]
-Expression = Literal["neutral", "happy", "sad", "surprised", "angry", "thinking"]
+CharacterId = Literal["man", "woman", "boy", "girl", "elder", "old_woman", "worker", "teacher", "doctor", "robot"]
+Pose = Literal["stand", "point", "think", "wave", "celebrate", "sad", "shrug", "walk", "sit", "idle", "run", "laugh", "count", "confused", "ride"]
+Expression = Literal["neutral", "happy", "sad", "surprised", "angry", "thinking", "laugh", "confused"]
 SetId = Literal["plain", "village", "market", "home", "office", "classroom", "street", "nature", "studio", "shop"]
 
 
 class CastMember(BaseModel):
     model_config = STRICT
-    who: CharacterId = Field(default="man", description="elder is an old bald man with glasses; a mother or any other woman is woman, a girl is girl")
+    who: CharacterId = Field(default="man", description="elder is an old bald man with glasses; old_woman is an elder woman with a grey bun and glasses; woman and man are other adults")
     pose: Pose = "stand"
     expression: Expression = "neutral"
     x: float = Field(default=0.5, ge=0, le=1, description="horizontal position on the set, 0 left to 1 right")
@@ -495,6 +495,9 @@ class CastMember(BaseModel):
     arrive: Optional[float] = Field(default=None, ge=0, le=30, description="seconds after the cartoon appears when this character arrives; 0 is already there; empty lets them arrive one after another")
     flip: bool = False
     name: str = Field(default="", max_length=14)
+    hair: str = Field(default="", pattern=r"^(?:|#[0-9a-fA-F]{6})$", description="Hair colour as #RRGGBB; empty keeps the automatic look from who and name. Reuse it with the same name in every scene.")
+    clothes: str = Field(default="", pattern=r"^(?:|#[0-9a-fA-F]{6})$", description="Clothes colour as #RRGGBB; empty keeps the automatic look from who and name. Reuse it with the same name in every scene.")
+    count: int = Field(default=3, ge=1, le=5, description="How many fingers to show in the count pose, from 1 to 5")
 
 
 class CartoonArtifact(BaseModel):
@@ -525,6 +528,7 @@ class CartoonCue(BaseModel):
     end: float = Field(default=1, gt=0)
     pose: Pose = "stand"
     expression: Expression = "neutral"
+    count: Optional[int] = Field(default=None, ge=1, le=5, description="How many fingers to show in the count pose; empty keeps this character's count")
 
     @model_validator(mode="after")
     def forward_time(self):

@@ -567,5 +567,5 @@ export const ElementView: React.FC<{ el: El; c: Ctx }> = ({ el, c }) => {
   const loopDefault = el.type === 'person' && el.loop === undefined ? { ...el, loop: 'breathe' as const } : el;
   const a = animState(loopDefault, c.t, c.f, c.sceneS, c.sceneE);
   if (!a.visible) return null;
-  return <g transform={a.transform} opacity={a.opacity}>{R0(el, { ...c, k: a.k })}</g>;
+  return <g data-story-type={el.type} transform={a.transform} opacity={a.opacity}>{R0(el, { ...c, k: a.k })}</g>;
 };

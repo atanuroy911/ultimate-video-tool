@@ -10,6 +10,9 @@ import AIAssistants from "./AIAssistants";
 import HelperCard from "../components/HelperCard";
 import MyVoices from "./MyVoices";
 import StockKeys from "./StockKeys";
+import DirectorSettings from "./DirectorSettings";
+import { explainCheck } from "./settingsChecks";
+import "../settings-clarity.css";
 
 export default function SettingsPage() {
   const [params, setParams] = useSearchParams();
@@ -93,8 +96,8 @@ export default function SettingsPage() {
             options={[{ value: "when_expensive", label: "When it is big" }, { value: "always", label: "Always" }, { value: "never", label: "Never" }]} />
           <span className="small muted">Before any picture is drawn, a reel shows what it plans: you can change it, then press Start. Only reels have a plan to look at.</span>
         </div>
-        <div className="row wrap" style={{ gap: 16, alignItems: "flex-start" }}>
-          <Field label="Theme">
+        <div className="settings-preferences">
+          <Field label="Look">
             <select value={settings.default_theme} onChange={(e) => save({ default_theme: e.target.value })}>
               <option value="auto">Automatic (a new look that matches each video)</option>
               {(themes || []).map((t) => <option key={t.name} value={t.name}>{t.label || t.name}</option>)}
@@ -156,39 +159,9 @@ export default function SettingsPage() {
       </section>
 
       <div id="ai" className="col" style={{ gap: 22 }}>
+      <DirectorSettings settings={settings} directors={directors.data?.directors} loading={directors.loading} onSave={save} />
       <HelperCard />
-      <section className="card card-pad col" style={{ gap: 12 }}>
-        <h2>Who directs your videos</h2>
-        <p className="muted" style={{ margin: 0 }}>Automatic tries these directors in order. If one is asleep or does not answer, the next one takes over.</p>
-        <Field label="Try these directors in this order">
-          <select value={(settings.director_order || ["claude-client", "codex-client", "claude-server", "local"]).join(",")} onChange={(e) => save({ director_order: e.target.value.split(",") })}>
-            <option value="claude-client,codex-client,claude-server,local">This PC’s Claude → this PC’s Codex → server AI</option>
-            <option value="codex-client,claude-client,claude-server,local">This PC’s Codex → this PC’s Claude → server AI</option>
-            <option value="local,claude-client,codex-client,claude-server">Server AI → this PC’s assistants</option>
-            <option value="claude-client,claude-server,local">This PC's Claude → server Claude → local AI</option>
-            <option value="claude-server,claude-client,local">Server Claude → this PC's Claude → local AI</option>
-            <option value="local,claude-client,claude-server">Local AI first</option>
-          </select>
-        </Field>
-        <Field label="Which Claude directs">
-          <select value={settings.director_model || "sonnet"} onChange={(e) => save({ director_model: e.target.value })} data-testid="director-model">
-            <option value="sonnet">Sonnet: faster</option>
-            <option value="opus">Opus: slower, the most careful</option>
-            {settings.director_model && !["sonnet", "opus"].includes(settings.director_model) && <option value={settings.director_model}>{settings.director_model}</option>}
-          </select>
-        </Field>
-        <Field label="How long to wait for another computer">
-          <select value={String(settings.director_wait_seconds ?? 120)} onChange={(e) => save({ director_wait_seconds: e.target.value === "wait" ? "wait" : Number(e.target.value) })}>
-            <option value="30">30 seconds</option><option value="120">2 minutes</option><option value="300">5 minutes</option><option value="wait">Wait for me</option>
-          </select>
-        </Field>
-        <div className="col" style={{ gap: 6 }}>{(directors.data?.directors || []).filter((d) => d.id !== "best").map((d) => <div className="row" key={d.id}><span className={`chip ${d.available ? "ok" : "warn"}`}>{d.available ? "Ready" : "Unavailable"}</span><strong>{d.label}</strong><span className="small muted">{d.note}</span></div>)}</div>
-        {!(directors.data?.directors || []).some((d) => d.kind === "claude-client") && (
-          <div className="row" data-testid="claude-pc-missing"><span className="chip warn">Not connected</span><strong>Claude on this PC</strong>
-            <span className="small muted">Install and open the Ultimate Video Tool app on your PC, signed in to Claude Code. Its helper joins this server by itself and appears here.</span></div>
-        )}
-        <span className="small muted">Claude today: {directors.data?.claude_usage_today.calls || 0} calls · {Math.round(directors.data?.claude_usage_today.seconds || 0)} seconds.</span>
-      </section>
+      <span className="small muted">Claude today: {directors.data?.claude_usage_today.calls || 0} calls · {Math.round(directors.data?.claude_usage_today.seconds || 0)} seconds.</span>
       <AIAssistants />
       </div>
       <div id="stock"><StockKeys /></div>
@@ -201,17 +174,16 @@ export default function SettingsPage() {
           <button className="btn sm" onClick={() => doctor.refetch()}><RefreshCw size={13} /> Re-check</button>
         </div>
         {doctor.loading && <div className="row muted"><Spinner /> Checking…</div>}
-        <table className="table">
-          <tbody>
-            {(doctor.data || []).map((d) => (
-              <tr key={d.name}>
-                <td style={{ width: 28 }}>{d.ok ? <Check size={15} color="var(--ok)" /> : <X size={15} color="var(--err)" />}</td>
-                <td><strong>{d.name}</strong></td>
-                <td className="muted">{d.detail}{!d.ok && d.fix ? <div className="small" style={{ color: "var(--warn)" }}>Fix: <code>{d.fix}</code></div> : null}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <ul className="settings-checks">{(doctor.data || []).map((d) => {
+          const plain = explainCheck(d);
+          return <li key={d.name}>
+            {d.ok ? <Check size={17} color="var(--ok)" aria-label="Ready" /> : <X size={17} color="var(--warn)" aria-label="Needs attention" />}
+            <div className="col" style={{ gap: 4 }}><strong>{plain.title}</strong><span className="small muted">{plain.message}</span>
+              <details><summary>Technical details</summary><p className="small muted">{d.detail}</p>{!d.ok && d.fix && <code>{d.fix}</code>}</details>
+            </div>
+          </li>;
+        })}</ul>
+        {doctor.error && <p role="alert">Could not check this server. Reconnect, then press Re-check.</p>}
       </section>
       </div>
       </div>

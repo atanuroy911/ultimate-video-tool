@@ -11,7 +11,14 @@ import { ProgressBar } from "../ui";
 interface Line { n: number; t: number; level: string; text: string }
 type Filter = "all" | "steps" | "problems";
 
-const KIND: Record<string, string> = { pipeline: "Making a video", export: "Exporting", thumb: "Preview picture", reel: "Drawing pictures", comfy: "Making a clip" };
+const KIND: Record<string, string> = {
+  pipeline: "Making a video", export: "Exporting", thumb: "Preview picture", thumbs: "Scene pictures for the editor", reel: "Drawing pictures", comfy: "Making a clip",
+  autofix: "Fixing the things to look at", catalog: "Reading the picture library", context: "Working out what the video is about", cutout: "Cutting out a picture",
+  director: "A director is working", import: "Bringing in a video", llm: "The Local AI is working", media: "Preparing your pictures and sounds", model: "Getting a model",
+  overdub: "Replacing a voice", plan: "Planning the scenes", polish: "Polishing the cut", publish: "Writing the title and hashtags", qa: "Looking at every scene",
+  redraw: "Drawing a picture again", setup: "Setting up the server", shorts: "Finding short clips", shorts_batch: "Making short clips", shorts_export: "Exporting a short clip",
+  shorts_slice: "Cutting a short clip", sounds: "Choosing sounds",
+};
 const kindName = (j: JobInfo) => KIND[j.kind] ?? j.kind;
 const secs = (ms: number) => { const s = Math.max(0, Math.round(ms / 1000)); return s >= 3600 ? `${Math.floor(s / 3600)} h ${Math.floor((s % 3600) / 60)} min` : s >= 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s} s`; };
 const stamp = (t: number) => new Date(t * 1000).toLocaleTimeString([], { hour12: false });

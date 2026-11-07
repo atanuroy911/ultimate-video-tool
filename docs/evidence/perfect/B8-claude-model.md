@@ -19,3 +19,5 @@ Done on 2026-11-06.
 
 ## Checks
 `tests/test_director_model.py`, 8 checks (the default; the page saves each choice; nothing but a model name is saved; every `direct` and `ask` task carries the choice; a change reaches the next task without a restart; the command line chooses, and free text becomes the default); `client/studio/e2e/director_model.mjs`, 16 browser checks (labelled in plain words, the two choices say what they cost, saved and kept after a reload, wide and phone width, light and dark, no sideways scroll); screenshots viewed.
+
+Mutation checks, 10 of 10 caught across B8, B10 and B11 (settings route, free text, CLI, Codex model twice, limit wording, failure memory, half-made plan, hand-over, asking a failed director again).

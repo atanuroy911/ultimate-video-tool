@@ -6,6 +6,7 @@ import SystemPanel from "../components/SystemStats";
 import ComfySettings from "./ComfySettings";
 import Engines from "./Engines";
 import LocalAI from "./LocalAI";
+import ServerRestart from "../components/ServerRestart";
 
 /* The computer that does the work, in one place: how busy it is, which graphics card each job uses, and the engines it runs.
    (Settings holds the person's choices; this page holds the machine. docs/plans/PLAN-CLIENT-UX.MD) */
@@ -18,13 +19,14 @@ export default function ServerPage() {
     <div className="page-inner" style={{ maxWidth: 1060 }}>
       <h1>Server</h1>
       <p className="muted" style={{ marginTop: -8 }}>
-        {card ? <><strong>{card.name}</strong> is the computer that does the work (Video Tool server {card.server}). Everything below is about it.</> : "The computer that does the work."}
+        {card ? <><strong>{card.name}</strong> is the computer that does the work. Everything below is about it.</> : "The computer that does the work."}
       </p>
       <div className="col" style={{ gap: 18 }}>
         <JobsPanel />
         <SystemPanel />
         <ConnectedComputers />
         <GpuChoice />
+        <ServerRestart />
         <Engines />
         <details className="card card-pad settings-more">
           <summary><strong>Language AI settings</strong> <span className="small muted">address, model version, test</span></summary>

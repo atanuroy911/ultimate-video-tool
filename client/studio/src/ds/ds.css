@@ -380,6 +380,12 @@ select, select option, select optgroup, .menu, .ds-menu, [role="listbox"] { back
 .clip-grip.left { left:0; border-left:2px solid currentColor; }
 .clip-grip.right { right:0; border-right:2px solid currentColor; }
 .tl-editable:hover .clip-grip { background: rgb(255 255 255 / .25); }
+/* the trim handles of a chip (visuals, words, actions) are drawn here, not as elements of their own: Timeline.tsx decides from the pointer which edge was grabbed */
+.tl-chip.tl-editable::before, .tl-chip.tl-editable::after, .tl-word.tl-editable::before, .tl-word.tl-editable::after { content: ""; position: absolute; top: 0; bottom: 0; width: 8px; cursor: ew-resize; border-radius: 3px; }
+.tl-chip.tl-editable::before, .tl-word.tl-editable::before { left: 0; border-left: 2px solid currentColor; }
+.tl-chip.tl-editable::after, .tl-word.tl-editable::after { right: 0; border-right: 2px solid currentColor; }
+.tl-chip.tl-editable:hover::before, .tl-chip.tl-editable:hover::after, .tl-word.tl-editable:hover::before, .tl-word.tl-editable:hover::after { background: rgb(255 255 255 / .25); }
+.tl-lane { contain: layout paint style; }
 .visual-controls { padding-bottom:12px; border-bottom:1px solid var(--border); gap:8px; }
 .component-add { display:block; width:100%; padding:0; border:0; background:transparent; color:inherit; cursor:pointer; text-align:left; }
 .component-add:disabled { opacity:.45; cursor:default; }

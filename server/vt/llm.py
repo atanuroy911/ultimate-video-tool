@@ -352,5 +352,7 @@ def chat_json(messages: list[dict], schema: dict, *, model: Optional[str] = None
         talk.record("ollama", body["model"], system=system, prompt=prompt, answer=answer, seconds=time.time() - began)
         return json.loads(answer)
     except (httpx.HTTPError, KeyError, json.JSONDecodeError) as e:
+        from .ai.failures import service_failure
+
         talk.record("ollama", body["model"], system=system, prompt=prompt, seconds=time.time() - began, error=f"{type(e).__name__}: {e}")
-        raise LLMUnavailable(f"The local AI did not answer ({type(e).__name__}: {str(e)[:120]}).") from e
+        raise LLMUnavailable(service_failure("The local AI", e, local=True)) from e

@@ -5,7 +5,7 @@ import { toast } from "../store";
 import { copyText } from "../ui";
 
 interface TalkRow { seq: number; at: string; stage: string; who: string; model: string; kind: string; seconds: number; error: string; cached: boolean; images: number; preview: string; size: number }
-interface TalkFull extends TalkRow { system: string; prompt: string; answer: string }
+interface TalkFull extends TalkRow { system: string; prompt: string; answer: string; image_files?:string[]; image_save_error?:string }
 
 const STAGE: Record<string, string> = { voice: "Voice", context: "Understanding the video", plan: "Planning the scenes", tighten: "Tightening", compose: "Putting it together", render: "Rendering", check: "Watching it back", publish: "Publishing" };
 const NAMES: Record<string, string> = { ollama: "Local AI", claude: "Claude", "claude-pc": "Claude on this PC", "codex-pc": "Codex on this PC", "claude-cli": "Claude on the server", anthropic: "Claude (API key)", openai: "OpenAI", assistant: "Assistant", codex: "Codex", fake: "Test AI" };
@@ -27,9 +27,11 @@ function Block({ title, text }: { title: string; text: string }) {
 function Row({ pid, row }: { pid: string; row: TalkRow }) {
   const [full, setFull] = useState<TalkFull | null>(null);
   const [open, setOpen] = useState(false);
+  const [error,setError]=useState("");
+  const load=()=>{setError("");get<TalkFull>(`/api/projects/${pid}/ai-talk/${row.seq}`).then(setFull).catch(e=>setError(e.message));};
   const toggle = () => {
     setOpen(!open);
-    if (!full) get<TalkFull>(`/api/projects/${pid}/ai-talk/${row.seq}`).then(setFull).catch((e) => toast(e.message, "err"));
+    if (!full) load();
   };
   const Icon = row.kind === "tool" ? Wrench : Bot;
   return (
@@ -37,19 +39,23 @@ function Row({ pid, row }: { pid: string; row: TalkRow }) {
       <button className="talk-head" onClick={toggle} aria-expanded={open}>
         <Icon size={14} aria-hidden />
         <span className="talk-title"><strong>{name(row)}</strong> {action(row)}
-          <span className="muted small">{STAGE[row.stage] || row.stage}{row.seconds ? ` · ${row.seconds} s` : ""}{row.cached ? " · saved answer, not asked again" : ""}{row.images ? ` · ${row.images} pictures` : ""}</span>
+          <span className="muted small">{STAGE[row.stage] || row.stage}{row.seconds ? ` · ${row.seconds} s` : ""}{row.cached ? " · saved answer, not asked again" : ""}{row.images ? ` · ${row.images} ${row.images===1?"picture":"pictures"}` : ""}</span>
+          {row.kind!=="tool"&&row.preview&&<span className="small talk-preview">{row.preview}</span>}
         </span>
         <ChevronRight size={13} className="log-chev" aria-hidden />
       </button>
       {open && (
         <div className="talk-body">
-          {!full && <p className="muted small">Loading…</p>}
+          {error?<p role="alert">{error} <button className="btn" onClick={load}>Try again</button></p>:!full && <p className="muted small">Loading…</p>}
           {full && <>
             {full.model && <p className="muted small">Model: {full.model}</p>}
             {full.error && <p className="banner err small">{full.error}</p>}
+            {full.image_save_error&&<p className="banner err small">{full.image_save_error}</p>}
             <Block title="Its instructions" text={full.system} />
             <Block title={row.kind === "tool" ? "What it called" : "What it was asked"} text={full.prompt} />
             <Block title={row.kind === "tool" ? "What it got back" : "What it answered"} text={full.answer} />
+            {!!full.image_files?.length&&<section className="col"><strong className="small">Pictures sent</strong><div className="talk-pictures">{full.image_files.map((file,i)=><a key={file} href={`/api/projects/${pid}/ai-talk-images/${file}`} target="_blank" rel="noreferrer"><img src={`/api/projects/${pid}/ai-talk-images/${file}`} alt={`Picture ${i+1} sent to the director`} loading="lazy"/></a>)}</div></section>}
+            {full.images>0&&!full.image_files?.length&&<p className="small muted">This older record kept the picture count, but not the pictures.</p>}
           </>}
         </div>
       )}
@@ -75,7 +81,7 @@ export function AiTalk({ pid }: { pid: string }) {
   return (
     <div className="col" style={{ gap: 10 }} data-testid="ai-talk">
       <p className="small talk-minds"><strong>{minds.length === 1 ? "One AI worked on this video:" : `${minds.length} AIs worked on this video:`}</strong> {minds.join(", ")}</p>
-      <ul className="talk-list">{rows.map((r) => <Row key={r.seq} pid={pid} row={r} />)}</ul>
+      {Array.from(new Set(rows.map(r=>r.stage))).map(stage=><section key={stage||"other"} className="col" aria-label={STAGE[stage]||stage||"Other steps"}><h3>{STAGE[stage]||stage||"Other steps"}</h3><ul className="talk-list">{rows.filter(r=>r.stage===stage).map(r=><Row key={r.seq} pid={pid} row={r}/>)}</ul></section>)}
     </div>
   );
 }

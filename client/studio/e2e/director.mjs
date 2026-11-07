@@ -14,6 +14,7 @@ await page.goto(`${base}/p/${pid}/result`, { waitUntil: "networkidle" });
 await page.waitForSelector("video");
 const before = await page.locator("video").getAttribute("src");
 check("the director card is on the Result screen", await page.getByLabel("Talk to the director").isVisible());
+await page.getByLabel("Talk to the director").locator(':scope > summary').click();
 await page.getByLabel("Note for the director").fill("Less talking: the saver should drop a coin and chase it");
 await page.getByRole("button", { name: "Send" }).click();
 await page.waitForFunction(() => document.querySelector("[aria-label='Talk to the director']")?.textContent?.includes("🎬"), null, { timeout: 10 * 60 * 1000 });

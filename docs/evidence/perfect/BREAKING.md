@@ -1,5 +1,11 @@
 # Everything that is broken, blocked or risky (parked on purpose, to come back to)
 
+Next Codex set (2026-11-06): C6/C7/E5 completed (Done by codex): named stick/Story/photo face measurements; text-size/contrast/platform/opacity facts; readable grouped conversations with retained pictures and opening tabs kept visible. C8 has facts-first prompt/validation-detail improvements but stays open for real gemma acceptance and grounded visual choices. Evidence: CODEX-FRAME-DETAILS-2026-11-06.md. Saved picture attachments add to the still-open F11 retention work. Real renders remain paused.
+
+Further Codex implementation (2026-11-06): C5, E2, E7, E9, F2 and F4 are now checked in the plan. Item 24's three editor implementation gaps have been coded (value diamonds, projective pins, static media effects); E17 still needs its full editor/export acceptance. Item 14 has a supervisor-verified restart implementation and tests, with real/full-page acceptance still open. F10 progress code is hardened but its real-run sample is pending. Latest evidence and exact limits: CODEX-IMPLEMENTATION-2026-11-06.md. Real renders remain paused by the owner.
+
+2026-11-06 Codex update: F6's duplicate-request race is fixed and its tests pass (Done by codex). Item 10 now has a restart-recovery implementation and tested Continue UI; F1 stays open for its real scratch-server restart check. Items 8 and 15 below are historical: B1-B7 and K5 have since been implemented; B8/B10/B11 also have evidence and passing focused checks. The owner reconfirmed in this chat that renders stay paused. See F1-restart-recovery.md and F6-many-jobs.md. The working tree was committed as fdbc5e2 before this continuation; the Codex changes described here remain uncommitted.
+
 Written 2026-11-06 at the owner's request: "list all the breaking stuff and finish rest of the implementation and then come back to it later". The work goes on with everything that is not on this list. When a step turns out to be stuck, it is added here, with what is known, and the work moves on. Plan: `docs/plans/PLAN-PERFECT.MD`. Numbers below were true when this was written.
 
 ## 1. Waiting for the owner (nothing can move until they answer)
@@ -43,3 +49,14 @@ Written 2026-11-06 at the owner's request: "list all the breaking stuff and fini
 - **Nothing is committed or pushed.** 318 files are changed in the working tree since the last commit (`4d544a6`). I commit only when asked.
 - Several old dev servers started days ago are still running on ports 5173 and 5174 (not mine; left alone).
 - The server is untouched since the deploy at 21:18 on 2026-11-05, except the helper's own test computer listing.
+
+## Added 2026-11-06 (late)
+- **B9** (the last look and the title belong to the director, checked on a real Sonnet video through the helper) is parked: it needs a real video made on the server (item 1). The code path is covered by B8, B10, B11 tests.
+- Codex worked on the same repo in parallel (poses, `old_woman`, facts for text size and contrast, one-revision prompt). Two old tests that assumed `idle` was not a pose and a reworded catalogue line were updated.
+
+## Added 2026-11-07
+- **Intermittent "Script step skipped: TypeError: 'str' object does not support item assignment"** on one of five gemma videos (`2026-11-07-c8-a`, which fell back to the rule director). Not reproduced from the AI's saved answers through repair, enrich, animalize, toonify, compile or the story kit. The plan stage now logs the traceback to the video's technical log; read it the next time it happens. Evidence: C8-one-revision.md.
+- **One gemma revision does not move a big sticker that covers 100% of two faces** (the "Mother" face emoji in the lab story). Recorded as the plan asks; the person fixes it with the element controls (E17).
+- **The GPU server is down (2026-11-07 ~09:44): the owner says there is no electricity.** A power cut, not my test run. Server steps (A3, A4, A5, A7, D, F, I) wait until it is back; local work continues.
+- **A 10-minute video is still janky to scrub in the editor** in a GPU-less test (median 100 ms, was 166). The preview composition keeps every scene laid out (`.scene { opacity: 0 }`); hiding off-screen scenes in `vt.js` is the next lever and needs golden comparisons plus a measurement on a real graphics card. E14 stays open. See E14-performance.md.
+- **Old selectors in three browser suites** (`timeline2`, `timeline3`, `layers`): for A7.

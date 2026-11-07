@@ -12,3 +12,5 @@ Done on 2026-11-06. On 2026-11-05 a Claude run stopped after 20 s on the five-ho
 
 ## Checks
 `tests/test_usage_limit.py`, 8 checks: a limit hands the video on with exactly that line; a second computer takes it with its own name in the line; a limit, a missing sign-in and any other failure each in plain words; a plan the director had half made is taken back; a director that did finish leaves no failure behind; the wording of `failure_line`. Mutation checks: see the end of this file.
+
+Mutation checks, 10 of 10 caught across B8, B10 and B11 (settings route, free text, CLI, Codex model twice, limit wording, failure memory, half-made plan, hand-over, asking a failed director again).

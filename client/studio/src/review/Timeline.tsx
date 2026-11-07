@@ -1,4 +1,4 @@
-import { Magnet, Minus, Plus, Scissors, MousePointer2, Maximize2, VolumeX, Volume2, Trash2, Type, Layers as LayersIcon } from "lucide-react";
+import { Magnet, Minus, Plus, Scissors, MousePointer2, Maximize2, VolumeX, Volume2, Trash2, Type, Layers as LayersIcon, BarChart3, Image as ImageIcon, List, MessageSquare, Shapes, UserRound, ArrowRight } from "lucide-react";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { fmtTime } from "../api";
 import type { MediaItem, SoundEvents } from "../types";
@@ -11,6 +11,17 @@ import * as Ops from "./layerOps";
 import type { Layers } from "./useLayers";
 import { timeStore } from "./timeStore";
 import type { Review } from "./useReview";
+import SceneThumbnail from "./SceneThumbnail";
+
+const ELEMENT_NAMES: Record<string, string> = { value_card: "Value card", big_number: "Number", icon_row: "Icons", bar_chart: "Bar chart", media_frame: "Picture or video", speaker_card: "Speaker", cartoon: "Cartoon", story: "Story cartoon" };
+const elementName = (type: string) => ELEMENT_NAMES[type] ?? type.replace(/_/g, " ").replace(/^./, c => c.toUpperCase());
+const ElementIcon = ({ type }: { type: string }) => {
+  const Icon = ["cartoon", "story", "speaker_card"].includes(type) ? UserRound : ["title", "keyword", "tag"].includes(type) ? Type : ["bar_chart", "big_number", "value_card"].includes(type) ? BarChart3 : ["media_frame", "device", "image"].includes(type) ? ImageIcon : type === "list" ? List : type === "quote" ? MessageSquare : type === "arrow" ? ArrowRight : Shapes;
+  return <Icon size={14} aria-hidden="true" />;
+};
+
+/** Which part of a chip the pointer is on: the first or last 8 px trim it, the rest moves it. (The trim handles are drawn by CSS, not as extra elements: a long video has thousands of chips.) */
+const edgeSide = (e: React.PointerEvent): "move" | "start" | "end" => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); return e.clientX - r.left <= 8 ? "start" : r.right - e.clientX <= 8 && r.width > 24 ? "end" : "move"; };
 
 export type Tool = "select" | "blade";
 export interface Sel { o0: number; o1: number }
@@ -451,7 +462,8 @@ export default function Timeline({ r, duration, seek, selected, onSelect, select
     if (tt >= 0) ticks.push({ t: tt, big: Math.abs(tt / major - Math.round(tt / major)) < 1e-4 });
   }
 
-  const words = useMemo(()=>r.words.filter(w=>(w.caption_end??w.end)>=v0 && (w.caption_start??w.start)<=v1),[r.words,v0,v1]);
+  const wordsReadable = pps >= 30;                       // a word is about 0.4 s: narrower than ~12 px it is a smear, and a long video would draw thousands of them
+  const words = useMemo(()=>wordsReadable ? r.words.filter(w=>(w.caption_end??w.end)>=v0 && (w.caption_start??w.start)<=v1) : [],[r.words,v0,v1,wordsReadable]);
   const startWord=(e:React.PointerEvent,w:typeof r.words[number],side:"move"|"start"|"end")=>{
     if(e.button!==0) return;e.stopPropagation();e.preventDefault();
     const start=w.caption_start??w.start,end=w.caption_end??w.end,origin=tAt(e.clientX),len=end-start;
@@ -469,10 +481,9 @@ export default function Timeline({ r, duration, seek, selected, onSelect, select
     const t=wordDrag?.id===w.id?wordDrag:{start:w.caption_start??w.start,end:w.caption_end??w.end};
     return <div key={w.id} role="button" tabIndex={0} className={`tl-word tl-editable bn ${w.cut?"cut":""}`} style={{left:x(t.start),width:Math.max(18,(t.end-t.start)*pps-1)}}
       aria-label={`Caption ${w.text}`} title={`${w.text} · drag to move; double-click to edit text and timing`}
-      onPointerDown={e=>startWord(e,w,"move")} onDoubleClick={()=>onEditWord?.(w.id)} onKeyDown={e=>{if(e.key==="Enter") onEditWord?.(w.id);}}
+      onPointerDown={e=>startWord(e,w,edgeSide(e))} onDoubleClick={()=>onEditWord?.(w.id)} onKeyDown={e=>{if(e.key==="Enter") onEditWord?.(w.id);}}
       onContextMenu={e=>{e.preventDefault();onEditWord?.(w.id);}}>
-      <span className="clip-grip left" role="button" aria-label={`Trim caption start: ${w.text}`} onPointerDown={e=>startWord(e,w,"start")}/>
-      {w.text}<span className="clip-grip right" role="button" aria-label={`Trim caption end: ${w.text}`} onPointerDown={e=>startWord(e,w,"end")}/>
+      {w.text}
     </div>;
   });
 
@@ -560,7 +571,7 @@ export default function Timeline({ r, duration, seek, selected, onSelect, select
                   style={{ left: x(t.start), width: Math.max(8, w - 2) }}
                   onClick={(e) => { if (tool === "blade") return bladeScene(s.id, e.clientX, e.clientY); onSelect(s.id); seek(t.start); }}
                   onKeyDown={(e) => e.key === "Enter" && (onSelect(s.id), seek(t.start))}>
-                  {th && w > 46 && <img src={th} alt="" draggable={false} />}
+                  {w > 46 && <SceneThumbnail src={th} label={`Scene ${i + 1} preview`} />}
                   <span>{i + 1}</span>
                   {s.archetype && w > 90 && <span className="muted" style={{ fontWeight: 500 }}>{s.archetype.replace("_", " ")}</span>}
                 </div>
@@ -588,19 +599,18 @@ export default function Timeline({ r, duration, seek, selected, onSelect, select
               const live=visualDrag?.sid===q.s.id && visualDrag.k===q.k?visualDrag:q;
               if(live.end<v0 || live.start>v1) return null;
               const on=selectedEl?.scene===q.s.id && selectedEl.index===q.k;
-              return <div key={`${q.s.id}-${q.k}`} role="button" tabIndex={0} aria-label={`Edit ${q.el.type} visual`} className={`tl-chip tl-editable ${on?"sel":""}`}
-                style={{left:x(live.start),top:4+elPack.rows[n]*ROW,width:Math.max(20,(live.end-live.start)*pps-1)}}
-                title="Drag to move. Drag either end to trim. Right-click for duplicate, split or remove."
-                onPointerDown={e=>startVisual(e,q,"move")} onKeyDown={e=>{if(e.key==="Enter") onSelectEl(q.s.id,q.k);}}
+              const chipWidth=Math.max(22,(live.end-live.start)*pps-1);
+              return <div key={`${q.s.id}-${q.k}`} role="button" tabIndex={0} aria-pressed={on} aria-label={`Edit ${elementName(q.el.type)} visual`} className={`tl-chip tl-editable tl-element ${chipWidth<65?"narrow":""} ${on?"sel":""}`}
+                style={{left:x(live.start),top:4+elPack.rows[n]*ROW,width:chipWidth}}
+                title={`${elementName(q.el.type)} · Drag to move. Drag either end to trim. Right-click for duplicate, split or remove.`}
+                onPointerDown={e=>startVisual(e,q,edgeSide(e))} onKeyDown={e=>{if(e.key==="Enter") onSelectEl(q.s.id,q.k);}}
                 onContextMenu={e=>{e.preventDefault();onSelectEl(q.s.id,q.k);setMenu({x:e.clientX,y:e.clientY,items:[
                   {label:"Edit visual",run:()=>onSelectEl(q.s.id,q.k)},
                   {label:"Duplicate",run:()=>r.patchElement(q.s.id,q.k,{duplicate:true})},
                   {label:"Split at playhead",run:()=>r.patchElement(q.s.id,q.k,{split:timeStore.t})},
                   {label:"Remove visual",danger:true,run:()=>r.patchElement(q.s.id,q.k,{delete:true})},
                 ]});}}>
-                <span role="button" aria-label={`Trim start of ${q.el.type}`} className="clip-grip left" onPointerDown={e=>startVisual(e,q,"start")}/>
-                {q.el.type.replace(/_/g," ")}
-                <span role="button" aria-label={`Trim end of ${q.el.type}`} className="clip-grip right" onPointerDown={e=>startVisual(e,q,"end")}/>
+                {chipWidth>=44 && <ElementIcon type={q.el.type}/>}<span className="tl-element-name">{elementName(q.el.type)}</span>
               </div>;
             })}
           </div>
@@ -612,10 +622,10 @@ export default function Timeline({ r, duration, seek, selected, onSelect, select
                 const { s, a, k } = q;
                 if (a.end < v0 || a.start > v1) return null;
                 const live = actDrag && actDrag.sid === s.id && actDrag.k === k;
-                return <span key={`a-${s.id}-${k}`} role="button" tabIndex={0} aria-label={`Action ${a.do}`} className="tl-chip tl-editable" onPointerDown={(e) => startAction(e, s.id, k)}
+                return <span key={`a-${s.id}-${k}`} role="button" tabIndex={0} aria-label={`Action ${a.do}`} className="tl-chip tl-editable" onPointerDown={(e) => startAction(e, s.id, k, edgeSide(e))}
                   style={{ left: x(live ? actDrag!.t : a.start), top: 4 + actPack.rows[n] * ROW, width: Math.max(10, ((live ? actDrag!.end : a.end) - (live ? actDrag!.t : a.start)) * pps), background: "var(--ok-soft)", color: "var(--ok)", cursor: "grab", opacity: live ? 0.7 : 1 }}
                   onKeyDown={e=>{if(e.key==="Enter") window.dispatchEvent(new CustomEvent("vt-action-select",{detail:{scene:s.id,index:k}}));}}
-                  title="Drag to move, drag ends to trim, select to edit the action"><span className="clip-grip left" onPointerDown={e=>startAction(e,s.id,k,"start")}/>{a.do.replace("_", " ")}<span className="clip-grip right" onPointerDown={e=>startAction(e,s.id,k,"end")}/></span>;
+                  title="Drag to move, drag ends to trim, select to edit the action">{a.do.replace("_", " ")}</span>;
               })}
             </div>
           )}
@@ -639,6 +649,7 @@ export default function Timeline({ r, duration, seek, selected, onSelect, select
           <div className="tl-lane slim" role="group" aria-label="Words" onPointerDown={(e) => e.target === e.currentTarget && scrub(e)}>
             <div className="tl-label">Words</div>
             {wordLane}
+            {!wordsReadable && r.words.length > 0 && <span className="small muted" style={{ position: "absolute", left: LABEL + 8, top: 4 }}>Zoom in to see and edit the words.</span>}
           </div>
 
           <div className="tl-lane voice" role="group" aria-label="Audio" onPointerDown={onVoiceDown} onContextMenu={(e) => openMenu(e, clipAt(tAt(e.clientX)))}>

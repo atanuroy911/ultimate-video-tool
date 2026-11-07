@@ -24,18 +24,25 @@ async function parse(res: Response) {
     if (d && typeof d === "object" && Array.isArray(d.errors)) throw new ApiError(res.status, d.errors[0], d.errors);
     if (Array.isArray(d)) throw new ApiError(res.status, d.map((x: any) => x.msg).join("; "));
     if (res.status === 405) throw new ApiError(405, "The Studio server does not support this action. It is probably older than this page: close the Studio and start it again (vt studio).");
-    throw new ApiError(res.status, typeof d === "string" ? d : `Request failed (${res.status})`);
+    const plain = typeof d === "string" && !/^(Internal Server Error|Bad Gateway|Service Unavailable|Gateway Timeout)$/i.test(d.trim()) ? d : "";
+    throw new ApiError(res.status, plain || (res.status >= 500 ? `The server hit a problem (error ${res.status}). Try again; if it keeps happening, look at Details.` : `Request failed (${res.status})`));
   }
   return data;
 }
 
 export async function api<T = any>(method: string, url: string, body?: unknown): Promise<T> {
   return trackRequest(method, url, async () => {                       // anything slow shows the full-screen loading layer (busycore.ts / busy.tsx)
-    const res = await fetch(url, {
-      method,
-      headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    });
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method,
+        headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+      });
+    } catch (e) {
+      if (e instanceof TypeError) throw new ApiError(0, "The server did not answer. Check that it is running and that this computer can reach it.");     // the browser's own words ("Failed to fetch") mean nothing to a person
+      throw e;
+    }
     return parse(res);
   });
 }

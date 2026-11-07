@@ -2,16 +2,16 @@ import { useState } from "react";
 import { Diamond, Plus, Trash2 } from "lucide-react";
 import { timeStore } from "./timeStore";
 import type { MotionPoint } from "../types";
-import { sampleMotion } from "./motionMath";
+import { saveMotionPoint } from "./motionMath";
 import { Value } from "./TransformControls.tsx";
 import { POINT_KEYS } from "./transformMath.ts";
 
-type Pose = {x?:number|null;y?:number|null;scale?:number;rotation?:number;opacity?:number;keyframes?:MotionPoint[]};
+type Pose = {x?:number|null;y?:number|null;scale?:number;rotation?:number;opacity?:number;keyframes?:MotionPoint[];transform?:Record<string,any>|null};
 export default function MotionEditor({value,start,end,onChange,seek}:{value:Pose;start:number;end:number;onChange:(frames:MotionPoint[])=>void;seek?:(t:number)=>void}) {
   const points=value.keyframes??[];
   const [selected,setSelected]=useState(0);
   const index=Math.min(selected,Math.max(0,points.length-1)), point=points[index];
-  const pose=(time:number):MotionPoint=>({time,x:value.x??.5,y:value.y??.5,scale:value.scale??1,rotation:value.rotation??0,opacity:value.opacity??1,ease:"smooth"});
+  const pose=(time:number):MotionPoint=>saveMotionPoint({...value,keyframes:[]},time,time,time)[0];
   const pick=(i:number)=>{setSelected(i);seek?.(points[i].time);};
   const patch=(data:Partial<MotionPoint>)=>onChange(points.map((p,i)=>i===index?{...p,...data}:p));
   function preset(name:string) {
@@ -26,7 +26,7 @@ export default function MotionEditor({value,start,end,onChange,seek}:{value:Pose
     const at=Math.round(Math.min(end,Math.max(start,timeStore.t))*1000)/1000;
     const existing=points.findIndex(p=>Math.abs(p.time-at)<.001);
     if(existing>=0) {pick(existing);return;}
-    const next=[...points,sampleMotion(points,at,pose(at))].sort((a,b)=>a.time-b.time);
+    const next=saveMotionPoint(value,at,start,end);
     onChange(next);setSelected(next.findIndex(p=>p.time===at));seek?.(at);
   }
   return <div className="col motion-editor">

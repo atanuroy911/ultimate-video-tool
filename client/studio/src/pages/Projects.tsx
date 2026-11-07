@@ -25,11 +25,13 @@ const timeAgo = (iso?: string | null) => {
 };
 const isBusy = (project: ProjectSummary) => project.status === "processing" || !!project.active_job;
 /** The video is still being made (not just a download being rendered): only then does opening it show progress. A finished video that is exporting opens in the editor. */
-export const isBeingMade = (project: ProjectSummary) => project.status === "processing" || (!!project.active_job && project.active_job.kind !== "export");
+export const isBeingMade = (project: ProjectSummary) => ["processing", "interrupted", "cancelled"].includes(project.status) || (!!project.active_job && project.active_job.kind !== "export");
 const MODE_ICON: Record<string, React.ReactNode> = { talking_head: <UserSquare size={12} />, audio: <Mic size={12} />, script: <Type size={12} /> };
 
 function statusLine(project: ProjectSummary, jobFraction: number | null, t: (key: string) => string): { text: string; tone: "" | "ok" | "warn" | "err" } {
   if (isBusy(project)) return { text: jobFraction != null ? `${t("dash.making")} ${Math.round(jobFraction * 100)}%` : t("dash.making"), tone: "" };
+  if (project.status === "interrupted") return { text: "Interrupted · open to continue", tone: "warn" };
+  if (project.status === "cancelled") return { text: "Stopped · open to continue", tone: "warn" };
   if (project.status === "error") return { text: t("dash.error"), tone: "err" };
   if (project.pending_requests > 0) return { text: "Waiting for Claude", tone: "warn" };
   if (project.export_count > 0) return { text: `${t("dash.ready")} · ${t("dash.edited")} ${timeAgo(project.updated_at || project.created_at)}`, tone: "ok" };
@@ -49,6 +51,7 @@ export default function ProjectsPage() {
   const [aspectFilter, setAspectFilter] = useState<AspectFilter>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [selecting, setSelecting] = useState(false);
+  const [filtersOpen,setFiltersOpen]=useState(false);
   const [toDelete, setToDelete] = useState<ProjectSummary | null>(null);
   const [toBatchDelete, setToBatchDelete] = useState(false);
   const [toRename, setToRename] = useState<ProjectSummary | null>(null);
@@ -75,7 +78,7 @@ export default function ProjectsPage() {
     const counts: Record<string, number> = { all: allProjects.length, ready: 0, processing: 0, error: 0, draft: 0 };
     for (const p of allProjects) {
       if (isBusy(p)) counts.processing++;
-      else if (p.status === "error") counts.error++;
+      else if (["error", "interrupted"].includes(p.status)) counts.error++;
       else if (p.export_count > 0) counts.ready++;
       else counts.draft++;
     }
@@ -88,10 +91,10 @@ export default function ProjectsPage() {
       .filter((p) => !words || p.title.toLowerCase().includes(words))
       .filter((p) => {
         if (aspectFilter !== "all" && p.aspect !== aspectFilter) return false;
-        if (statusFilter === "ready") return p.export_count > 0 && !isBusy(p) && p.status !== "error";
+        if (statusFilter === "ready") return p.export_count > 0 && !isBusy(p) && !["error", "interrupted"].includes(p.status);
         if (statusFilter === "processing") return isBusy(p);
-        if (statusFilter === "error") return p.status === "error";
-        if (statusFilter === "draft") return p.export_count === 0 && !isBusy(p) && p.status !== "error";
+        if (statusFilter === "error") return ["error", "interrupted"].includes(p.status);
+        if (statusFilter === "draft") return p.export_count === 0 && !isBusy(p) && !["error", "interrupted"].includes(p.status);
         return true;
       })
       .sort((a, b) => (b.updated_at || b.created_at).localeCompare(a.updated_at || a.created_at));
@@ -187,7 +190,7 @@ export default function ProjectsPage() {
           <Popover label={`Actions for ${project.title}`} align="right" trigger={<MoreHorizontal size={16} aria-label={`Actions for ${project.title}`} />}>
             <MenuItem onClick={() => open(project)}>Open</MenuItem>
             <MenuItem onClick={() => nav(`/p/${project.id}/export`)} disabled={isBusy(project) || !project.scene_count}>Download…</MenuItem>
-            <MenuItem onClick={() => setRedoProject(project)} disabled={isBusy(project)}>Redo with AI model…</MenuItem>
+            <MenuItem onClick={() => setRedoProject(project)} disabled={isBusy(project)}>Direct again…</MenuItem>
             <MenuSep />
             <MenuItem onClick={() => { setToRename(project); setNewName(project.title); }}>Rename…</MenuItem>
             <MenuItem onClick={() => duplicate(project)} disabled={isBusy(project)}>Duplicate</MenuItem>
@@ -235,13 +238,12 @@ export default function ProjectsPage() {
         >
           <CheckSquare size={14} /> {selecting ? `${selected.size} selected` : "Select"}
         </button>}
-        <button className="btn sm primary" onClick={() => nav("/new")} aria-label={t("projects.new")}>
-          <Plus size={14} /> New
-        </button>
       </div>
 
       {/* ── Filter bar ── */}
-      {allProjects.length >= 2 && <div className="dash2-filters-bar">
+      {allProjects.length >= 2 && <div className={`dash2-filter-wrap ${filtersOpen?"expanded":"collapsed"}`}>
+        <button className="btn ghost dash2-filter-toggle" aria-expanded={filtersOpen} aria-controls="video-filters" onClick={()=>setFiltersOpen(v=>!v)}><Filter size={14}/>Filters</button>
+        <div className="dash2-filters-bar" id="video-filters">
         <Filter size={13} style={{ color: "var(--muted)", flexShrink: 0 }} />
         <div className="dash-filters" role="group" aria-label="Filter by status">
           {filterBtns.map((f) => (
@@ -259,7 +261,7 @@ export default function ProjectsPage() {
             </button>
           ))}
         </div>
-      </div>}
+      </div></div>}
 
       {/* ── Batch actions bar (when selecting) ── */}
       {selecting && selected.size > 0 && (
@@ -290,7 +292,7 @@ export default function ProjectsPage() {
         </div>
       )}
 
-      {error && <div className="banner err">Could not load your videos: {error}. Is the Studio server running?</div>}
+      {error && <div className="banner err">Could not load your videos. {error}</div>}
       {loading && !data && <div className="row muted"><Spinner /> Loading…</div>}
 
       <div className="dash2-grid">

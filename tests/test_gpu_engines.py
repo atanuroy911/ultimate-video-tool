@@ -40,6 +40,10 @@ def sleeper():
     def start(*words):
         proc = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)", *words], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         started.append(proc)
+        for _ in range(100):                                       # the program has its own command line only once it has started (on Linux, between fork and exec it still has its parent's)
+            if all(w in pids._cmdline(proc.pid) for w in words):
+                break
+            time.sleep(0.03)
         return proc
 
     yield start

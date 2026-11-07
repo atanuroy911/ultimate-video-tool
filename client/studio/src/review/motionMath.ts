@@ -1,6 +1,22 @@
 import type { MotionPoint } from "../types";
 import { POINT_KEYS, repositionTransform } from "./transformMath.ts";
 
+/** Save a value at the playhead without changing any other animation points. */
+export function saveMotionPoint(value: Record<string, any>, time: number, start: number, end: number, key?: keyof typeof POINT_KEYS): MotionPoint[] {
+  const at = Math.round(Math.max(start, Math.min(end, time)) * 1000) / 1000;
+  const pose: any = {time: at, ease: "smooth"};
+  for (const name of Object.keys(POINT_KEYS) as (keyof typeof POINT_KEYS)[])
+    pose[name] = value[name] ?? value.transform?.[name] ?? POINT_KEYS[name][2];
+  let points: MotionPoint[] = value.keyframes ?? [];
+  const current = sampleMotion(points, at, pose);
+  if (key) (current as any)[key] = pose[key];
+  const existing = points.findIndex(p => Math.abs(p.time - at) < .001);
+  if (existing >= 0) return points.map((p, i) => i === existing ? current : p);
+  if (points.length >= 100) return points;
+  if (!points.length && at > start) points = [{...pose, time: start}];
+  return [...points, current].sort((a,b) => a.time-b.time);
+}
+
 /** Reposition an entire animated path when the ordinary Position controls change. */
 export function repositionMotion(value: Record<string,any>, patch: Record<string,any>, defaultY=.5): Record<string,any> {
   if (!value.keyframes?.length || 'keyframes' in patch) return patch;

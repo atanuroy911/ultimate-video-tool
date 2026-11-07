@@ -1,5 +1,5 @@
 export type Aspect = "9:16" | "1:1" | "16:9";
-export type VideoStyle = "auto" | "explainer" | "stick" | "cartoon" | "story" | "emoji" | "mixed" | "reel";
+export type VideoStyle = "auto" | "explainer" | "infographic" | "stick" | "cartoon" | "story" | "emoji" | "mixed" | "reel";
 
 export interface Options {
   recording_edit?: "auto" | "subtitles" | "screen";
@@ -38,6 +38,7 @@ export interface JobInfo {
   created_at?: string;
   started_at?: string;
   finished_at?: string;
+  interrupted?: boolean;
 }
 
 export interface ProjectSummary {
@@ -303,6 +304,7 @@ export interface UseCase {
 /** Layers: extra tracks of text, pictures, video clips and sounds (vt/layers.py). Tracks are listed top layer first. */
 export interface LTrack { id: string; name: string; kind: "visual" | "audio"; hidden: boolean; muted: boolean; locked: boolean }
 export interface LClip {
+  scale?: number; rotation?: number; transform?: import("./review/transformMath").Transform | null;
   keyframes?: MotionPoint[];
   id: string; track: string; type: "text" | "media" | "audio"; start: number; dur: number; fade_in: number; fade_out: number;
   media?: string; in?: number; text?: string; anim?: string; x?: number; y?: number; w?: number; h?: number | null; opacity?: number; fit?: "cover" | "contain"; volume?: number;

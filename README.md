@@ -54,7 +54,7 @@ three minutes to render on an RTX 4050 laptop (measured: 17 s of audio → 12 s,
 | **New video** | Record in the browser (level meter, clipping warnings, script prompter), upload a file, type a script and pick a voice (it is spoken for you), or **paste a link** (YouTube or a direct audio/video file: the audio and subtitles are downloaded, only for material you may reuse). Pick shape (9:16 or 16:9), look (**Auto** by default), pace, music. |
 | **Progress** | Seven stages with live progress; plain-language errors with *Retry this step*. |
 | **Review** | Scenes (left), live preview with transcript (centre), scene inspector (right). Click a word to jump, double-click to fix a spelling, right-click for more. |
-| **Design Studio** | 10 looks × 18 palettes (every pair readable), 11 backgrounds including moving ones, **Surprise me**, plus the full kit: colours, fonts (Bangla + English pairs), shapes, soft shadows, motion, captions. Live preview of a sample using every element. Save as new, import/export `.vttheme`. |
+| **Look** | 10 looks × 18 palettes (every pair readable), 11 backgrounds including moving ones, **Surprise me**, plus the full kit: colours, fonts (Bangla + English pairs), shapes, soft shadows, motion, captions. Live preview of a sample using every element. Save as new, import/export `.vttheme`. |
 | **Export** | 720p/1080p, 30/60 fps, quality, captions burned in or `.srt`, music volume, sound effects, both shapes in one go. |
 | **Settings** | Local AI (address, model, one-click setup), Claude connection, defaults, speech models, system check. |
 
@@ -63,7 +63,7 @@ Shortcuts in Review: `Space` play · `←` `→` previous/next word · `J` `K` p
 
 ## Automatic by default
 
-* **Look**: with *Auto*, the app reads what the video is about (by meaning, locally) and designs a look for it from the Design Studio kit; each video gets its own.
+* **Look**: with *Auto*, the app reads what the video is about (by meaning, locally) and designs a look for it from the Look kit; each video gets its own.
 * **Pictures**: for each sentence the app finds the words that deserve a picture (loudness, pitch and length of the speaker's voice, rarity of the word)
   and shows several ideas per sentence ("His son was lazy and careless" → boy, sloth, shrug), each appearing as its word is spoken. Bangla and other
   non-English words are translated to English (Google Translate through `deep-translator`, MyMemory as backup; single words only, cached on disk,

@@ -37,13 +37,13 @@ def svg_for(vid: str) -> dict:
     return {"inner": inner(vid) or ""}
 
 
-def search(query: str, kind: Optional[str] = None, limit: int = 10) -> list[dict]:
+def search(query: str, kind: Optional[str] = None, limit: int = 10, *, use_embedder: bool = True, use_translation: bool = True) -> list[dict]:
     """kind: 'icon' (line icons), 'sticker' (colour emoji) or None. Blocked emoji never appear."""
     q = norm(query)
     if not q:
         return []
     lex = Lexicon.get()
-    if re.search(r"[^\x00-\u024f]", q):  # not Latin script: translate (cached) so the English dictionary can answer
+    if use_translation and re.search(r"[^\x00-\u024f]", q):  # not Latin script: translate (cached) so the English dictionary can answer
         from . import translate
 
         translate.prefetch([q])
@@ -67,7 +67,7 @@ def search(query: str, kind: Optional[str] = None, limit: int = 10) -> list[dict
     try:
         from .picker import _embedder
 
-        emb = _embedder()
+        emb = _embedder() if use_embedder else None
         if emb is not None and lex.ok:
             vec = emb.encode([q], prefix="query: ", max_len=24)[0]
             for vid, _, _ in lex.nearest(vec, limit * 2, "line" if kind == "icon" else "sticker" if kind == "sticker" else None):

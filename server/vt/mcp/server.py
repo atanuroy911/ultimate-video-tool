@@ -8,6 +8,7 @@ Never print to stdout here: stdout carries the MCP protocol.
 from __future__ import annotations
 
 import functools
+import inspect
 import os
 import threading
 import time
@@ -25,9 +26,11 @@ from ..planner.catalogue import catalogue_summary
 from ..project import Project, list_themes, load_theme
 from ..schema import ScenesFile, Theme, validate_scenes
 from ..util import now_iso, read_json, write_json
+from . import scope as project_scope
 
 server = MCPServer(
     "video-tool",
+    middleware=[project_scope.middleware],
     instructions=(
         "Tools for a local voice-to-video app. Typical flow: list_pending_requests -> get_planning_task -> submit_scenes "
         "(fix any returned errors and resubmit). You can also create_project from an audio file, run the pipeline, "
@@ -44,6 +47,7 @@ def tool(fn):
 
     @functools.wraps(fn)
     def wrapper(*a, **kw):
+        project_scope.check_tool(fn.__name__, dict(inspect.signature(fn).bind(*a, **kw).arguments))
         try:
             client = os.environ.get("VT_MCP_CLIENT", "assistant").strip().lower() or "assistant"
             seen = {"at": now_iso(), "tool": fn.__name__, "client": client}
@@ -62,7 +66,9 @@ def tool(fn):
         from .. import directors
 
         who = directors.broker.who_directing(str(project)) or os.environ.get("VT_MCP_CLIENT", "assistant").strip().lower() or "assistant"     # the director running this session, by the name its other conversations carry
-        folder, began = paths.PROJECTS / str(project), time.time()
+        # Validate before even logging a failed call: an invalid id must not
+        # create ai_talk.jsonl in an existing directory outside the project store.
+        folder, began = _proj(str(project)).dir, time.time()
         asked = {"tool": fn.__name__, "arguments": {**dict(zip(fn.__code__.co_varnames, a)), **kw}}
         try:
             out = fn(*a, **kw)
@@ -77,8 +83,13 @@ def tool(fn):
 
 
 def _proj(pid: str) -> Project:
+    scoped = project_scope.current_project()
+    if scoped is not None and pid != scoped:
+        from mcp.shared.exceptions import MCPError
+
+        raise MCPError(-32001, "This director may use only its own project's tools.")
     p = Project(pid)
-    if Path(pid).name != pid or not p.dir.resolve().is_relative_to(paths.PROJECTS.resolve()):
+    if Path(pid).name != pid or "\\" in pid or ":" in pid or not p.dir.resolve().is_relative_to(paths.PROJECTS.resolve()):          # one folder name: no slash of either kind, no drive
         raise ValueError("invalid project id")
     if not p.exists():
         raise ValueError(f"project '{pid}' not found. Use list_projects.")
@@ -150,7 +161,12 @@ def _bg(kind: str, pid: str, fn) -> str:
 @tool
 def list_pending_requests() -> list[dict]:
     """Planning requests waiting for an assistant, across all projects."""
-    return planning.pending()
+    scoped = project_scope.current_project()
+    if scoped is None:
+        return planning.pending()
+    project = _proj(scoped)
+    return [{"project": project.id, "title": project.meta().title, **request.model_dump()}
+            for request in project.requests() if request.status == "queued"]
 
 
 @tool
@@ -197,7 +213,8 @@ def check_reel_plan(project: str) -> dict:
 def list_projects() -> list[dict]:
     """All projects with status, duration and scene count."""
     out = []
-    for p in Project.list_all():
+    scoped = project_scope.current_project()
+    for p in ([_proj(scoped)] if scoped is not None else Project.list_all()):
         m = p.meta()
         sf = p.scenes()
         cuts = p.cuts()
@@ -261,7 +278,13 @@ def run_pipeline(project: str, from_stage: Optional[str] = None, force: bool = F
 @tool
 def job_status(job: str) -> dict:
     """Status of a background job started by run_pipeline or render."""
-    return _BG.get(job) or {"error": "unknown job"}
+    record = _BG.get(job)
+    scoped = project_scope.current_project()
+    if scoped is not None and record is not None and record["project"] != scoped:
+        from mcp.shared.exceptions import MCPError
+
+        raise MCPError(-32001, "This director may read jobs only for its own project.")
+    return record or {"error": "unknown job"}
 
 
 @tool

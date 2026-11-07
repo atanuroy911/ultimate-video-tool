@@ -27,14 +27,20 @@ async function statusAsync(exec=execAsync){
   const version=await exec(command.file,[...command.prefix,'--version'],opts);if(version.error||version.status!==0)return interpret(version,{});
   return interpret(version,await exec(command.file,[...command.prefix,'login','status'],opts));
 }
-function args(server,token,model){
+function args(server,token,model,directorToken){
+  if(directorToken){
+    const scoped=args(server,'',model);
+    const index=scoped.findIndex(value=>value.startsWith('mcp_servers='));
+    scoped[index]='mcp_servers={video-tool={url='+JSON.stringify(new URL('/mcp/director',server).href)+',default_tools_approval_mode="auto",http_headers={"X-VT-Director-Token"='+JSON.stringify(directorToken)+'}}}';
+    return scoped;
+  }
   return ['exec','--json','--ephemeral','--ignore-user-config','--sandbox','read-only','--skip-git-repo-check',...(model?['-m',modelName(model)]:[]),
     '-c','approval_policy="never"','-c',`mcp_servers={video-tool={url=${JSON.stringify(new URL('/mcp',server).href)},default_tools_approval_mode="auto"${token?`,http_headers={Authorization=${JSON.stringify('Bearer '+token)}}`:''}}}`,'-'];
 }
-function run({prompt,server,token,signal,model},onLog=()=>{}){
+function run({prompt,server,token,directorToken,signal,model},onLog=()=>{}){
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'vt-codex-'));
   // Inline TOML preserves the user's normal login, while isolating MCP and config.
-  const command=args(server,token,model);
+  const command=args(server,token,model,directorToken);
   return new Promise(resolve=>{
     let exe;try{exe=commandFor('codex');}catch(e){fs.rmSync(dir,{recursive:true,force:true});resolve({ok:false,error:e.message,error_kind:'login'});return;}
     const child=spawn(exe.file,[...exe.prefix,...command],{cwd:dir,windowsHide:true,shell:false,env:{...process.env,...exe.env},stdio:['pipe','pipe','pipe']});let error='';

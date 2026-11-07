@@ -122,6 +122,13 @@ def trusted(scope: dict) -> bool:
 
 def allowed(scope: dict) -> bool:
     path = scope.get("path", "")
+    from urllib.parse import unquote
+
+    parts = [s for s in unquote(path).split("/") if s]                  # the director's endpoint however the path is written: doubled or encoded slashes, dots, a longer path
+    if parts[:1] == ["mcp"] and (parts[1:2] == ["director"] or ".." in parts):
+        from ..mcp.scope import HEADER, project_for
+
+        return project_for(_header(scope, HEADER.encode())) is not None
     mcp = path == "/mcp" or path.startswith("/mcp/")
     if not mcp and (not STATE["exposed"] or not _guarded(path)):
         return True
@@ -143,12 +150,17 @@ class Guard:
 
     async def __call__(self, scope, receive, send) -> None:
         if scope["type"] not in ("http", "websocket") or allowed(scope):
+            if scope["type"] in ("http", "websocket") and [s for s in scope.get("path", "").split("/") if s][:2] == ["mcp", "director"]:
+                scope["vt_scoped"] = True                          # the director's endpoint was checked against its task token
             await self.app(scope, receive, send)
             return
         if scope["type"] == "websocket":
             await send({"type": "websocket.close", "code": 4401})
             return
-        body = json.dumps({"detail": {"errors": ["This Video Tool server only accepts computers on its own network. Connect from a computer on the same network, using the server's address."]}}).encode()
+        why = ("This director task has finished or expired. Start the task again."
+               if scope.get("path") == "/mcp/director" else
+               "This Video Tool server only accepts computers on its own network. Connect from a computer on the same network, using the server's address.")
+        body = json.dumps({"detail": {"errors": [why]}}).encode()
         await send({"type": "http.response.start", "status": 401, "headers": [(b"content-type", b"application/json"), (b"www-authenticate", b"Bearer")]})
         await send({"type": "http.response.body", "body": body})
 
@@ -239,6 +251,8 @@ class _MCPEndpoint:
             await send({"type": "http.response.start", "status": 404, "headers": [(b"content-type", b"application/json")]})
             await send({"type": "http.response.body", "body": body})
             return
+        if scope.get("path") == "/mcp/director":
+            scope = {**scope, "path": "/mcp", "raw_path": b"/mcp"}
         await _mcp["app"](scope, receive, send)
 
 
@@ -248,6 +262,7 @@ def install_mcp(app) -> None:
     from starlette.routing import Route
 
     app.router.routes.insert(0, Route("/mcp", endpoint=_MCPEndpoint(), methods=["GET", "POST", "DELETE"]))
+    app.router.routes.insert(0, Route("/mcp/director", endpoint=_MCPEndpoint(), methods=["GET", "POST", "DELETE"]))
 
     @app.on_event("startup")
     async def _mcp_up() -> None:

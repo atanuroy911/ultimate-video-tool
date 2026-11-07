@@ -9,6 +9,7 @@ import RedoModal from "../components/RedoModal";
 import SocialDispatch from "../components/SocialDispatch";
 import { DirectorLogButton } from "../log/DirectorLog";
 import QualityCheck, { type Judges } from "../components/QualityCheck";
+import "./result-cleanup.css";
 
 /* The finished video: watch it, download it, and the three things people most often want to change. Everything else is in the editor. */
 interface ExportFile {
@@ -21,6 +22,10 @@ interface ExportFile {
 interface Decision {
   text: string;
   reason: string;
+}
+interface CraftReport {
+  score: number | null;
+  violations: { rule: string; t0: number; t1: number; says: string; fix: string }[];
 }
 interface Kit {
   title: string;
@@ -38,11 +43,13 @@ const shapeOf = (name: string) => SHAPES.find((s) => name.includes(`-${s.tag}-`)
 
 export default function ResultPage() {
   const { id } = useParams();
-  const { data: p, refetch } = useProject(id);
+  const { data: p, refetch, error: projectError } = useProject(id);
   const files = useFetch<ExportFile[]>(id ? `/api/projects/${id}/exports` : null);
   const kit = useFetch<{ kit: Kit | null }>(id ? `/api/projects/${id}/publish` : null);
   const dec = useFetch<{ retakes: Decision[]; tighten: { target: number | null; cuts: Decision[] }; revise: { before: number; after: number; kept: boolean } | null }>(id ? `/api/projects/${id}/decisions` : null);
   const director = useFetch<{ report: { score: number; issues: { scene: string; problem: string }[] } | null; messages: { from: string; text: string }[] }>(id ? `/api/projects/${id}/director` : null);
+  const craft = useFetch<CraftReport>(id ? `/api/projects/${id}/craft` : null);
+  const [fixing, setFixing] = useState(false);
   const [note, setNote] = useState("");
   const ask = async (text: string) => {
     if (!text.trim()) return;
@@ -63,11 +70,14 @@ export default function ResultPage() {
     }
   };
   const autofix = async () => {
+    setFixing(true);
     try {
       await post(`/api/projects/${id}/autofix`, {});
-      toast("Auto-fixing suggestions and rendering improved cut…");
+      toast("Applying the suggestions and making a new video…");
     } catch (e: any) {
       toast(e.message, "err", 7000);
+    } finally {
+      setFixing(false);
     }
   };
   // any job on this video: the first render, another shape, a new look, a request to the director
@@ -80,6 +90,7 @@ export default function ResultPage() {
     if (lastAutofix?.status === "done") {
       toast("Auto-fix applied successfully!");
       director.refetch();
+      craft.refetch();
       files.refetch();
       dec.refetch();
       refetch();
@@ -87,7 +98,7 @@ export default function ResultPage() {
   }, [lastAutofix?.id, lastAutofix?.status]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (lastDirector?.status === "error") toast(lastDirector.error || "The director could not do that.", "err", 9000);
-    if (lastDirector?.status === "done") director.refetch();
+    if (lastDirector?.status === "done") { director.refetch(); craft.refetch(); }
   }, [lastDirector?.id, lastDirector?.status]); // eslint-disable-line react-hooks/exhaustive-deps
   const [looks, setLooks] = useState(false);
   const [redoOpen, setRedoOpen] = useState(false);
@@ -96,6 +107,7 @@ export default function ResultPage() {
     kit.refetch();
     dec.refetch();
     director.refetch();
+    craft.refetch();
     refetch();
   });
   useEffect(() => {
@@ -108,6 +120,9 @@ export default function ResultPage() {
   const list = files.data || [];
   const main = list.find((f) => shapeOf(f.name) === p?.aspect) || list[0];
   const busy = !!job && (job.status === "running" || job.status === "queued");
+  const score = craft.data?.score;
+  const things = craft.data?.violations ?? [];
+  const hasSuggestions = things.length > 0 || (main?.retention?.risk ?? 0) > 15 || (director.data?.messages ?? []).some(m => m.from === "viewer test") || !!(dec.data?.revise && !dec.data.revise.kept);
 
   const render = async (aspects: string[]) => {
     try {
@@ -126,7 +141,9 @@ export default function ResultPage() {
     }
   };
 
-  if (!p) return <div className="page-inner"><Spinner /></div>;
+  if (!p) return <div className="page-inner result">
+    {projectError ? <div className="card card-pad col" role="alert"><h1>Could not open this video</h1><p>{projectError}</p><div className="row wrap"><button className="btn" onClick={refetch}>Try again</button><Link className="btn ghost" to="/">Back to your videos</Link></div></div> : <div className="row muted" role="status"><Spinner /> Loading your video…</div>}
+  </div>;
   return (
     <div className="page-inner result">
       <div className="result-grid">
@@ -151,21 +168,44 @@ export default function ResultPage() {
         <div className="col" style={{ gap: 14 }}>
           <div className="col" style={{ gap: 4 }}>
             <h1 className="bn" style={{ margin: 0 }}>{p.title}</h1>
-            {main?.retention && (
-              <span className={`small ${main.retention.risk > 35 ? "warn-text" : "muted"}`} role="status">
-                {main.retention.verdict}
-                {main.retention.risk > 15 && <> <Link to={`/p/${id}`}>Show me</Link></>}
-              </span>
-            )}
           </div>
 
-          {id && <DirectorLogButton pid={id} label="How this was made" />}
           {main && (
             <a className="btn primary lg" href={main.url} download={main.name}>
               <Download size={16} /> Download
             </a>
           )}
-          <div className="row wrap" aria-label="Other shapes">
+          {id && <details className="result-quality result-disclosure">
+            <summary>{craft.error ? "Quality check unavailable" : craft.loading ? "Checking quality…" : score == null ? "Quality check not available yet" : `Quality check: ${score}/100 · ${things.length ? `${things.length} ${things.length === 1 ? "thing" : "things"} to look at` : "Nothing to look at"}`}</summary>
+            <div className="col result-disclosure-body">
+              {craft.error && <div className="banner warn" role="alert"><span className="grow">{craft.error}</span><button className="btn sm" onClick={craft.refetch}>Try again</button></div>}
+              {score != null && <span className="small muted">This score checks the current plan. The automatic checks below check the exported video.</span>}
+              {things.map((v, i) => <div key={`${v.rule}-${i}`} className="col result-quality-item"><span className="small"><time>{v.t0.toFixed(1)}s</time> {v.says}</span><span className="small muted">{v.fix}</span></div>)}
+              {hasSuggestions && <button className="btn sm" disabled={busy || fixing} onClick={autofix}><Sparkles size={14}/>{fixing ? "Applying suggestions…" : "Auto-fix suggestions"}</button>}
+              <QualityCheck pid={id} judges={main?.judges} file={main?.name} onChecked={files.refetch} />
+            </div>
+          </details>}
+
+          <div className="col result-actions" role="group" aria-label="Change this video">
+            <button className="btn magic" onClick={() => setRedoOpen(true)} disabled={busy}><Wand2 size={15} /> Direct again</button>
+            <button className="btn" onClick={() => setLooks(!looks)} aria-expanded={looks} disabled={busy}><Palette size={15} /> Change the look</button>
+            <Link className="btn" to={`/p/${id}?tab=words`}><PenLine size={15} /> Fix a word</Link>
+            <Link className="btn" to={`/p/${id}`}><SlidersHorizontal size={15} /> Edit everything</Link>
+          </div>
+          {looks && (
+            <div className="row wrap" aria-label="Choose a look">
+              {(themes || []).filter((th) => !th.name.startsWith("auto-")).slice(0, 8).map((th) => (
+                <button key={th.name} className={`theme-item ${p.theme === th.name ? "sel" : ""}`} style={{ margin: 0 }} onClick={() => changeLook(th.name)} disabled={busy}>
+                  <span className="swatches">{[th.color.bg, th.color.accent, th.color.accent2, th.color.ink].map((c, i) => <i key={i} style={{ background: c }} />)}</span>
+                  <span style={{ fontWeight: 600 }}>{th.label || th.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          <details className="result-disclosure">
+          <summary>Other shapes</summary>
+          <div className="row wrap result-disclosure-body" aria-label="Other shapes">
             {SHAPES.filter((s) => s.aspect !== p.aspect).map((s) => {
               const f = list.find((x) => shapeOf(x.name) === s.aspect);
               return f ? (
@@ -175,36 +215,11 @@ export default function ResultPage() {
               );
             })}
           </div>
+          </details>
 
-          {id && <QualityCheck pid={id} judges={main?.judges} file={main?.name} onChecked={files.refetch} />}
-
-          <div className="col result-actions">
-            {main?.retention && main.retention.risk > 15 && (
-              <button className="btn" onClick={autofix} disabled={busy}><Sparkles size={15} /> Fix the risky moments</button>
-            )}
-            <button className="btn magic" onClick={() => setRedoOpen(true)} disabled={busy}><Wand2 size={15} /> Redo with AI model</button>
-            <button className="btn" onClick={() => setLooks(!looks)} aria-expanded={looks} disabled={busy}><Palette size={15} /> Change the look</button>
-            {looks && (
-              <div className="row wrap">
-                {(themes || []).filter((th) => !th.name.startsWith("auto-")).slice(0, 8).map((th) => (
-                  <button key={th.name} className={`theme-item ${p.theme === th.name ? "sel" : ""}`} style={{ margin: 0 }} onClick={() => changeLook(th.name)}>
-                    <span className="swatches">{[th.color.bg, th.color.accent, th.color.accent2, th.color.ink].map((c, i) => <i key={i} style={{ background: c }} />)}</span>
-                    <span style={{ fontWeight: 600 }}>{th.label || th.name}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-            <Link className="btn" to={`/p/${id}?tab=words`}><PenLine size={15} /> Fix a word</Link>
-            <Link className="btn" to={`/p/${id}`}><SlidersHorizontal size={15} /> Edit everything</Link>
-          </div>
-
-          <div className="card card-pad col" style={{ gap: 10 }} aria-label="Talk to the director">
-            <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-              <strong className="small">Talk to the director</strong>
-              {(director.data?.messages || []).some((m) => m.from === "viewer test") && (
-                <button className="btn magic sm" onClick={autofix} disabled={busy}><Sparkles size={13} /> Auto-fix suggestions</button>
-              )}
-            </div>
+          <details className="result-disclosure" aria-label="Talk to the director">
+            <summary>Talk to the director</summary>
+            <div className="col result-disclosure-body" style={{ gap: 10 }}>
             {(director.data?.messages || []).slice(-4).map((m, i) => (
               m.from === "viewer test" ? <ViewerNotes key={i} text={m.text} /> : <span key={i} className={`small bn ${m.from === "director" ? "" : "muted"}`}><span className="who-says">{m.from === "director" ? "Director: " : "You: "}</span>{m.text}</span>
             ))}
@@ -222,23 +237,21 @@ export default function ResultPage() {
             {director.data?.report && director.data.report.issues.length > 0 && (
               <span className="small muted">The editor still notes: {director.data.report.issues[0].scene}: {director.data.report.issues[0].problem}</span>
             )}
-          </div>
+            {id && <DirectorLogButton pid={id} label="How this was made" />}
+            </div>
+          </details>
 
           {dec.data && (dec.data.retakes.length > 0 || dec.data.tighten.cuts.length > 0 || dec.data.revise) && (
-            <div className="card card-pad col" style={{ gap: 10 }} aria-label="What the editor did">
-              <strong className="small">What the editor did</strong>
+            <details className="result-disclosure" aria-label="What changed in this cut">
+              <summary>What changed in this cut</summary>
+              <div className="col result-disclosure-body" style={{ gap: 10 }}>
               {dec.data.revise && (
                 <div className="col" style={{ gap: 6 }}>
                   <span className="small">
                     {dec.data.revise.kept
-                      ? `Watched it back like a viewer and fixed the slow moments (risk ${dec.data.revise.before} → ${dec.data.revise.after}).`
+                      ? `Watched it back like a viewer and fixed the slow moments.`
                       : `Watched it back and tried a fix for the slow moments, but it was not better, so the first cut stays.`}
                   </span>
-                  {!dec.data.revise.kept && (
-                    <button className="btn magic sm" onClick={autofix} disabled={busy} style={{ alignSelf: "flex-start" }}>
-                      <Sparkles size={13} /> Auto-fix and render improved cut
-                    </button>
-                  )}
                 </div>
               )}
               {dec.data.retakes.length > 0 && (
@@ -259,9 +272,11 @@ export default function ResultPage() {
                   {dec.data.tighten.cuts.slice(0, 4).map((c, i) => <span key={i} className="small muted bn">“{c.text}” · {c.reason}</span>)}
                 </div>
               )}
-            </div>
+              </div>
+            </details>
           )}
 
+          {main && <details className="result-disclosure"><summary>Share this video</summary><div className="col result-disclosure-body" style={{ gap: 14 }}>
           {kit.data?.kit && (
             <div className="card card-pad col" style={{ gap: 10 }}>
               <strong className="small">Ready to post</strong>
@@ -276,7 +291,8 @@ export default function ResultPage() {
               ))}
             </div>
           )}
-          {main && <SocialDispatch projectId={id!} videoFilename={main.name} defaultTitle={kit.data?.kit?.title || p.title} defaultDescription={kit.data?.kit?.description || ""} defaultTags={kit.data?.kit?.hashtags || []} />}
+          <SocialDispatch projectId={id!} videoFilename={main.name} defaultTitle={kit.data?.kit?.title || p.title} defaultDescription={kit.data?.kit?.description || ""} defaultTags={kit.data?.kit?.hashtags || []} />
+          </div></details>}
           <Link className="small muted" to={`/p/${id}/export`}>Export settings (quality, frame rate, music level)…</Link>
         </div>
       </div>
@@ -291,7 +307,7 @@ function ViewerNotes({ text }: { text: string }) {
   const notes = body.split(/;\s+(?=at \d|scene )/).map((n) => n.trim().replace(/\.$/, "")).filter(Boolean);
   return (
     <details className="small muted bn">
-      <summary><span className="who-says">Viewer test</span> found {notes.length} {notes.length === 1 ? "moment" : "moments"} people may skip</summary>
+      <summary><span className="who-says">Quality check</span> found {notes.length} {notes.length === 1 ? "moment" : "moments"} people may skip</summary>
       <ul className="viewer-notes">
         {notes.map((n, i) => {
           const m = /^at (\d+(?:\.\d+)?)-(\d+(?:\.\d+)?) s: (.*)$/s.exec(n) || /^scene \S+ \(at (\d+(?:\.\d+)?) s\): ()(.*)$/s.exec(n);

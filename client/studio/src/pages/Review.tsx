@@ -347,7 +347,7 @@ function ReviewEditor() {
       { id: "play", title: playing ? "Pause" : "Play", group: "Playback", keys: "Space", run: () => player.current?.toggle() },
       { id: "next", title: "Next scene", group: "Playback", keys: "K", run: () => goScene(1) },
       { id: "prev", title: "Previous scene", group: "Playback", keys: "J", run: () => goScene(-1) },
-      { id: "redo_ai", title: "AI: redo video with new AI model…", group: "AI", run: () => setRedoOpen(true) },
+      { id: "redo_ai", title: "Director: direct this video again…", group: "AI", run: () => setRedoOpen(true) },
       { id: "again", title: "AI: direct the whole video again", group: "AI", run: () => post(`/api/projects/${id}/script/generate?kind=${kind}`).then(progress).catch((e: any) => toast(e.message, "err")) },
         { id: "assistant", title: "AI: plan with Codex or Claude (MCP)", group: "AI", run: () => r.askClaude("full", null, "", 1).then((x) => x && toast("Request queued for your assistant", "ok")) },
       { id: "chat", title: "AI: ask a chat assistant", group: "AI", run: () => setChat(true) },
@@ -375,7 +375,7 @@ function ReviewEditor() {
   ), [r.rev, r.plan, r.timing, r.words, r.wordById, r.audio, r.audioRev, r.audioSaving, r.canUndo, r.canRedo, dur, seek, pickScene, selected, selEl, tool, snap, sel, layers, mediaMap, selLayer, soundEvents.data, listening]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   if (r.project.error) return <div className="page-inner"><div className="banner err">Could not open this video: {r.project.error}. <Link to="/">Back to projects</Link></div></div>;
-  if (!p || r.sc.loading) return <div className="page-inner"><div className="row muted"><Spinner /> Loading…</div></div>;
+  if (!p || r.sc.loading) return <div className="page-inner"><div className="row muted"><Spinner /> Opening your video…</div></div>;
   if (!plan)
     return (
       <div className="page-inner">
@@ -388,7 +388,7 @@ function ReviewEditor() {
       <h1 className="sr-only">{p.title}</h1>
       <header className="ed-title">
         <Button size="sm" variant="ghost" onClick={() => window.dispatchEvent(new Event("vt-app-menu"))} aria-label="Open app navigation"><Menu size={16} /></Button>
-        <Tooltip text="All projects"><Link to="/" className="btn ghost icon sm" aria-label="All projects"><ChevronLeft size={18} /></Link></Tooltip>
+        <Tooltip text="Your videos"><Link to="/" className="btn ghost icon sm" aria-label="Your videos"><ChevronLeft size={18} /></Link></Tooltip>
         <input type="text" className="name bn" defaultValue={p.title} key={p.title} aria-label="Title" onBlur={(e) => e.target.value.trim() && e.target.value !== p.title && r.patchProject({ title: e.target.value })} />
         <Popover label="Editor commands" trigger="Edit ▾">
           <MenuItem onClick={r.undo} disabled={!r.canUndo} keys="Ctrl+Z">Undo</MenuItem>
@@ -400,7 +400,7 @@ function ReviewEditor() {
           <MenuItem onClick={() => scene && r.mergeNext(scene.id)} disabled={!scene || idx >= scenes.length - 1}>Merge with next scene</MenuItem>
           <MenuItem onClick={() => setConfirmDel(true)} disabled={!scene || scenes.length < 2}>Delete this scene…</MenuItem>
           <MenuSep />
-          <MenuItem onClick={() => setRedoOpen(true)}>Redo video with AI…</MenuItem>
+          <MenuItem onClick={() => setRedoOpen(true)}>Direct this video again…</MenuItem>
           <MenuItem onClick={() => nav(`/p/${id}/shorts`)}>Make short clips…</MenuItem>
           <MenuItem onClick={() => setSafe(!safe)} checked={safe}>Phone safe area</MenuItem>
           <MenuItem onClick={() => { setLeft(-1); setRight(-1); setTlH(-1); }}>Reset panel sizes</MenuItem>

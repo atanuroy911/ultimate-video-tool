@@ -2,8 +2,9 @@
 from ..schema import Cartoon, CastMember, CartoonCue
 from ..story.motifs import extras_for
 
-POSES = {'walk':'walk','enter':'walk','exit':'walk','run':'walk','point':'point','explain':'point','think':'think',
-         'wave':'wave','greet':'wave','celebrate':'celebrate','jump':'celebrate','cheer':'celebrate','sit':'sit','shrug':'shrug','sad':'sad'}
+POSES = {'idle':'idle','walk':'walk','enter':'walk','exit':'walk','run':'run','point':'point','explain':'point','think':'think',
+         'wave':'wave','greet':'wave','celebrate':'celebrate','jump':'celebrate','cheer':'celebrate','sit':'sit','shrug':'shrug','sad':'sad',
+         'laugh':'laugh','giggle':'laugh','count':'count','confused':'confused','ride':'ride','cycle':'ride'}
 PLACES = {'park':'nature','forest':'nature','mountain':'nature','river':'nature','school':'classroom','room':'home','bedroom':'home',
           'kitchen':'home','city':'street','road':'street','bus_stop':'street','lab':'office','workshop':'office','store':'shop'}
 
@@ -37,9 +38,10 @@ def apply_story_kit(plan, script, tr, beats, style, motifs=True):
         for i,c in enumerate(cast):
             role=c.get('role','')
             look=c.get('style') or {}
-            who = 'boy' if look.get('height') == 'child' else 'teacher' if role in ('teacher','expert') else 'elder' if look.get('height')=='elder' else 'woman' if look.get('hair') in ('long','pony','bun') else 'man'
-            if role in ('robot','doctor','worker','elder','teacher'): who=role
-            members.append(CastMember(who=who,name=(c.get('name') or c['id'])[:14],x=(i+1)/(len(cast)+1)))
+            feminine = look.get('hair') in ('long','pony','bun')
+            who = ('girl' if feminine else 'boy') if look.get('height') == 'child' else ('old_woman' if feminine else 'elder') if look.get('height')=='elder' or role=='elder' else 'teacher' if role in ('teacher','expert') else 'woman' if feminine else 'man'
+            if role in ('robot','doctor','worker','teacher'): who=role
+            members.append(CastMember(who=who,name=(c.get('name') or c['id'])[:14],x=(i+1)/(len(cast)+1),clothes=look.get('shirt') or ''))
         index={c['id']:i for i,c in enumerate(cast)}
         cues=[]
         for a in timeline.get('actions',[]):
@@ -47,7 +49,7 @@ def apply_story_kit(plan, script, tr, beats, style, motifs=True):
             start=float(a.get('start',0));end=max(start+.01,float(a.get('end',start+.2)))
             verb=a.get('do','stand');pose=verb if verb in poses else next((v for k,v in POSES.items() if k in verb),'stand')
             mood=a.get('emotion') or 'neutral';mood=mood if mood in expressions else 'neutral'
-            cues.append(CartoonCue(actor=index[a['who']],start=start,end=end,pose=pose,expression=mood))
+            cues.append(CartoonCue(actor=index[a['who']],start=start,end=end,pose=pose,expression=mood,count=a.get('count')))
         setting=timeline.get('set') or {}
         place=setting.get('kind','plain');place=place if place in envs else PLACES.get(place,'plain')
         time=setting.get('time','day');lighting='night' if time=='night' else 'sunset' if time in ('evening','sunset','golden') else 'day'

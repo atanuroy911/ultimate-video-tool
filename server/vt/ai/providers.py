@@ -128,7 +128,8 @@ class OllamaProvider(Provider):
                 reply = r.json()
             return reply["message"]["content"]
         except (httpx.HTTPError, KeyError, ValueError) as e:
-            raise AIUnavailable(f"The local AI did not answer ({type(e).__name__}: {str(e)[:120]}).") from e
+            from .failures import service_failure
+            raise AIUnavailable(service_failure("The local AI", e, local=True)) from e
 
 
 class OpenAIProvider(Provider):
@@ -172,7 +173,8 @@ class OpenAIProvider(Provider):
             r.raise_for_status()
             return r.json()["choices"][0]["message"]["content"]
         except (httpx.HTTPError, KeyError, IndexError, ValueError) as e:
-            raise AIUnavailable(f"The AI service did not answer ({type(e).__name__}: {str(e)[:120]}).") from e
+            from .failures import service_failure
+            raise AIUnavailable(service_failure("The AI service", e)) from e
 
 
 class AnthropicProvider(Provider):
@@ -209,7 +211,8 @@ class AnthropicProvider(Provider):
                     return json.dumps(blk["input"])
             raise KeyError("no tool_use block")
         except (httpx.HTTPError, KeyError, ValueError) as e:
-            raise AIUnavailable(f"Claude did not answer ({type(e).__name__}: {str(e)[:120]}).") from e
+            from .failures import service_failure
+            raise AIUnavailable(service_failure("Claude", e)) from e
 
 
 # --------------------------------------------------------------------------- Claude through the logged-in Claude Code program
@@ -543,7 +546,7 @@ def complete_json(prompt: str, schema: dict, images: Optional[Sequence[Image]] =
     if cf is not None and cf.exists():
         try:
             data = json.loads(cf.read_text(encoding="utf-8"))
-            talk.record(p.name, p.model(), system=system, prompt=prompt, answer=data, cached=True, images=len(images))
+            talk.record(p.name, p.model(), system=system, prompt=prompt, answer=data, cached=True, images=len(images), image_data=[_image_bytes(i) for i in images])
             return data
         except (OSError, ValueError):
             pass
@@ -553,9 +556,9 @@ def complete_json(prompt: str, schema: dict, images: Optional[Sequence[Image]] =
         try:
             raw = p.complete(system, ask, schema, images, max_tokens, timeout, temperature)
         except Exception as e:
-            talk.record(p.name, p.model(), system=system, prompt=ask, seconds=time.time() - began, error=f"{type(e).__name__}: {e}", images=len(images))
+            talk.record(p.name, p.model(), system=system, prompt=ask, seconds=time.time() - began, error=f"{type(e).__name__}: {e}", images=len(images), image_data=[_image_bytes(i) for i in images])
             raise
-        talk.record(p.name, p.model(), system=system, prompt=ask, answer=raw, seconds=time.time() - began, images=len(images))
+        talk.record(p.name, p.model(), system=system, prompt=ask, answer=raw, seconds=time.time() - began, images=len(images), image_data=[_image_bytes(i) for i in images])
         try:
             data = parse_json(raw)
             if repair is not None:

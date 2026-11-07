@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { fmtTime } from "../api";
 import { Menu, Modal } from "../ui";
 import type { Review } from "./useReview";
+import SceneThumbnail from "./SceneThumbnail";
 
 const TYPE_LABEL: Record<string, string> = {
   title: "title", value_card: "card", big_number: "number", arrow: "arrow", icon_row: "icons", tag: "tag", compare: "compare",
@@ -59,7 +60,7 @@ export default function ScenesPanel({ r, selected, onSelect, seek }: { r: Review
               }
             }}
           >
-            <div className={`scene-thumb ${wide ? "wide" : r.aspect === "1:1" ? "square" : ""}`}>{thumbs[s.id] && <img src={thumbs[s.id]} alt="" loading="lazy" />}</div>
+            <SceneThumbnail src={thumbs[s.id]} className={`scene-thumb ${wide ? "wide" : r.aspect === "1:1" ? "square" : ""}`} label={`Scene ${i + 1} preview`} lazy />
             <div className="scene-meta">
               <div className="row">
                 <strong>{i + 1}</strong>

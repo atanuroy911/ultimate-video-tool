@@ -232,7 +232,11 @@ class Project:
 
 
 def load_theme(name: str) -> Theme:
+    if not isinstance(name, str) or not name.strip() or name in (".", "..") or any(c in name for c in ("/", "\\", ":", "\x00")):
+        raise ValueError("Choose a theme from this server's theme list.")
     p = paths.THEMES / name / "theme.json"
+    if not p.resolve().is_relative_to(paths.THEMES.resolve()):
+        raise ValueError("The theme must stay inside this server's theme library.")
     if not p.exists():
         raise FileNotFoundError(f"theme '{name}' not found")
     return Theme.model_validate(read_json(p))

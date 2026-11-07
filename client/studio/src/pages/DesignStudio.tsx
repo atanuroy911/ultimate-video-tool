@@ -47,9 +47,9 @@ export default function DesignStudio({ draft, onApply, onPatch }: { draft: Theme
   if (!cat) return null;
   const palettes = cat.palettes.filter((p) => mode === "all" || (mode === "dark") === p.dark);
   return (
-    <div className="group design-studio" aria-label="Design Studio">
+    <div className="group design-studio" aria-label="Look">
       <div className="row wrap">
-        <h3 className="grow"><Wand2 size={16} style={{ verticalAlign: -2 }} /> Design Studio</h3>
+        <h3 className="grow"><Wand2 size={16} style={{ verticalAlign: -2 }} /> Look</h3>
         <Seg value={mode} onChange={setMode} label="Palette brightness" options={[{ value: "all", label: "All" }, { value: "light", label: "Light" }, { value: "dark", label: "Dark" }]} />
         <button className="btn" onClick={surprise}><Dices size={14} /> Surprise me</button>
         <button className="btn" disabled={!previous} onClick={() => { if (previous) { onApply(previous); setPrevious(null); } }}><RotateCcw size={14} /> Undo</button>

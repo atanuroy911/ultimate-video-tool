@@ -28,6 +28,7 @@ async function open(answer, viewport = { width: 1280, height: 900 }, scheme = "l
   page.on("pageerror", (e) => errors.push(e.message));
   await page.route("**/api/projects/*/look-at", (route) => (answer === 404 ? route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ detail: "Not found" }) }) : route.fulfill({ json: answer })));
   await page.goto(`${base}/p/${project}/result`, { waitUntil: "networkidle" });
+  await page.locator('.result-quality > summary').click();
   await page.getByTestId("quality").waitFor();
   await page.waitForTimeout(300);
   return { page, ctx, errors };

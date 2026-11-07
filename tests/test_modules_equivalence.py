@@ -37,6 +37,43 @@ def _hashes(root: Path) -> dict[str, str]:
             and ".artifact_versions" not in path.parts}
 
 
+def _first_difference(a, b, path=""):
+    """The first place two JSON values differ, with both values."""
+    if isinstance(a, dict) and isinstance(b, dict):
+        for key in sorted(set(a) | set(b)):
+            if key not in a or key not in b:
+                return f"{path}/{key}: only in {'legacy' if key in a else 'modules'}: {str(a.get(key, b.get(key)))[:120]}"
+            found = _first_difference(a[key], b[key], f"{path}/{key}")
+            if found:
+                return found
+        return ""
+    if isinstance(a, list) and isinstance(b, list) and len(a) == len(b):
+        for i, (x, y) in enumerate(zip(a, b)):
+            found = _first_difference(x, y, f"{path}[{i}]")
+            if found:
+                return found
+        return ""
+    return "" if a == b else f"{path}: legacy {str(a)[:120]!r} != modules {str(b)[:120]!r}"
+
+
+def _explain(legacy: Path, now: Path, before: dict, after: dict) -> str:
+    """Which files differ, and for a JSON file the first differing key with both values."""
+    import json
+
+    lines = []
+    for name in sorted(set(before) | set(after)):
+        if before.get(name) == after.get(name):
+            continue
+        line = name
+        try:
+            if name.endswith(".json") and (legacy / name).exists() and (now / name).exists():
+                line += " -> " + (_first_difference(json.loads((legacy / name).read_text(encoding="utf-8")), json.loads((now / name).read_text(encoding="utf-8"))) or "same values, different bytes")
+        except (OSError, ValueError):
+            pass
+        lines.append(line)
+    return "differing files: " + "; ".join(lines)
+
+
 def _compare(p: Project, tmp_path: Path, *, from_stage: str | None = None) -> None:
     stages = ORDER[:] if p.script_path.exists() else [x for x in ORDER if x != "voice"]
     if from_stage:
@@ -45,11 +82,13 @@ def _compare(p: Project, tmp_path: Path, *, from_stage: str | None = None) -> No
     shutil.copytree(p.dir, starting)
     _legacy_driver(Pipeline(p), stages, force=bool(from_stage))
     before = _hashes(p.dir)
+    legacy = tmp_path / "legacy"
+    shutil.copytree(p.dir, legacy)
     shutil.rmtree(p.dir)
     shutil.copytree(starting, p.dir)
     Pipeline(p).run(from_stage=from_stage)
     after = _hashes(p.dir)
-    assert after == before
+    assert after == before, _explain(legacy, p.dir, before, after)
     stage_times = {key: value["done_at"] for key, value in p.meta().stages.items()}
     Pipeline(p).run(from_stage=from_stage)
     assert _hashes(p.dir) == after
@@ -60,6 +99,7 @@ def test_reference_is_byte_identical(ref, tmp_path, monkeypatch):
     monkeypatch.setattr("vt.project.now_iso", lambda: "2026-10-26T00:00:00+00:00")
     monkeypatch.setattr("vt.pipeline.now_iso", lambda: "2026-10-26T00:00:00+00:00")
     monkeypatch.setattr("vt.context.now_iso", lambda: "2026-10-26T00:00:00+00:00")
+    monkeypatch.setattr("vt.directors.now_iso", lambda: "2026-10-26T00:00:00+00:00")           # the record of who directed carries a time too
     _compare(ref, tmp_path, from_stage="plan")
 
 
@@ -86,5 +126,6 @@ def test_recordings_are_byte_identical(projects_dir, tmp_path, monkeypatch, samp
     monkeypatch.setattr("vt.project.now_iso", lambda: "2026-10-26T00:00:00+00:00")
     monkeypatch.setattr("vt.pipeline.now_iso", lambda: "2026-10-26T00:00:00+00:00")
     monkeypatch.setattr("vt.context.now_iso", lambda: "2026-10-26T00:00:00+00:00")
+    monkeypatch.setattr("vt.directors.now_iso", lambda: "2026-10-26T00:00:00+00:00")           # the record of who directed carries a time too
     p = Project.create(f"equivalence-{language}", source, language=language, theme="paper")
     _compare(p, tmp_path)

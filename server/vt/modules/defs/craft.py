@@ -48,7 +48,7 @@ class CheckOut(BaseModel):
     cost=Cost("fast", ("cpu",), 0.5), effects="writes_artifact", determinism="pure", grounding=("report",),
     fallback=None, fallback_reason="Rule based.",
     examples=(Example(inputs={}, outputs={"report": {"score": 92, "violations": []}}),), toolboxes=("autonomous", "studio", "full"),
-    plain_name="Checking the craft rules", log_line=lambda i, o: f"Craft score {o.report.get('score')} with {len(o.report.get('violations', []))} violation(s).",
+    plain_name="Checking the video quality", log_line=lambda i, o: f"Quality check: {o.report.get('score')}/100; {len(o.report.get('violations', []))} things to look at.",
 )
 def craft_check(ws: Workspace, inputs: EmptyIn) -> CheckOut:
     from ... import craft

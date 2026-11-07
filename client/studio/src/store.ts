@@ -103,7 +103,8 @@ export function startRealtime() {
       if (m.type === "hello") {
         const map: Record<string, JobInfo> = {};
         (m.jobs as JobInfo[]).forEach((j) => (map[j.id] = j));
-        jobsStore.set((p) => ({ ...p, ...map }));
+        jobsStore.set(map); // the server's restart snapshot replaces stale running jobs
+        new Set(Object.values(map).map(j => j.project).filter(Boolean)).forEach(project => emitChanged(project!));
       } else if (m.type === "job") {
         const j = m.job as JobInfo;
         jobsStore.set((p) => ({ ...p, [j.id]: j }));

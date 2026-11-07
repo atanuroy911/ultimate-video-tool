@@ -13,6 +13,7 @@ export function chromePath() {
   const bin = path.join(repo, "..", "server", "renderer", "node_modules", "hyperframes", "bin", "hyperframes.mjs");
   const out = execFileSync(process.execPath, [bin, "browser", "path"], {
     encoding: "utf8",
+    timeout: 30000,
     env: { ...process.env, HYPERFRAMES_NO_TELEMETRY: "1", DO_NOT_TRACK: "1" },
   });
   const lines = out.split("\n").map((l) => l.trim()).filter(Boolean);

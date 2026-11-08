@@ -65,7 +65,7 @@ def hub_start(body: Optional[StartBody] = None) -> dict[str, Any]:
     """Start sharing. Returns the addresses and a pairing code that works once."""
     global _proc
     body = body or StartBody()
-    bad = [e for e in body.engines if e not in ("ollama", "comfy", "voicestudio")]
+    bad = [e for e in body.engines if e not in ("ollama", "comfy")]
     if bad:
         raise HTTPException(422, f"unknown engine(s): {', '.join(bad)}")
     if not _answers(body.port):

@@ -17,6 +17,19 @@ const free = () => new Promise((res) => { const s = net.createServer().listen(0,
 
 // a reel that waits for its plan: a picture server that does not exist (a closed port), no old scenes, the setting "always"
 const dir = path.join(data, "projects", "reference");
+// Other suites use the same project and settings: keep copies and put them back when this suite ends, passed or failed.
+// outside projects/, or the server would list the copy as a second video
+const backup = path.join(data, ".plan-suite-backup"), settingsFile = path.join(data, "settings.json"), settingsBefore = fs.existsSync(settingsFile) ? fs.readFileSync(settingsFile) : null;
+fs.rmSync(backup, { recursive: true, force: true });
+fs.cpSync(dir, backup, { recursive: true });
+process.on("exit", () => {
+  try {
+    fs.rmSync(dir, { recursive: true, force: true });
+    fs.cpSync(backup, dir, { recursive: true });
+    fs.rmSync(backup, { recursive: true, force: true });
+    if (settingsBefore) fs.writeFileSync(settingsFile, settingsBefore);
+  } catch (e) { console.log("could not put the reference project back:", e.message); }
+});
 const meta = JSON.parse(fs.readFileSync(path.join(dir, "project.json"), "utf8"));
 meta.options = { ...meta.options, look: "reel" };
 meta.status = "review";
@@ -187,7 +200,7 @@ console.log("From the editor");
   }
   const { ctx, page } = await open({ width: 1280, height: 900 }, "light");
   await page.goto(`${base}/p/reference`, { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "AI", exact: true }).click();
+  await page.getByRole("button", { name: "AI assistant", exact: true }).click();
   const btn = page.getByTestId("reel-plan");
   await btn.waitFor({ timeout: 15000 });
   await btn.click();

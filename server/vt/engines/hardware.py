@@ -87,5 +87,4 @@ def recommend(hw: dict[str, Any]) -> dict[str, str]:
     gb = g["memory_gb"] if g else 0
     return {"ollama": "local" if (gb >= 8 or hw.get("ram_gb", 0) >= 16) else "remote",
             "comfy": "local" if gb >= 12 else "remote",
-            "voicestudio": "off",
             "vtengine": "off"}

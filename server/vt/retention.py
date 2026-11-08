@@ -35,7 +35,7 @@ TARGETS = {
     "empty_share": 0.80,                  # calibrated on frames judged by eye on 2026-10-23: the owner's "half empty" scene measured 0.88-0.89, the re-flowed version 0.76
     "dead_air_s": 0.7,
     "wps": 4.5,
-    "cps": 17.0,                          # characters a second: the subtitling research ceiling (six-second rule 12 cps; up to ~17 cps readable)
+    "cps": 25.0,                          # characters a second, the same speed as 4.5 words a second at ~5.5 characters a word: captions in step with the voice are read at its pace (17 and 20 flagged ordinary narration, 2026-11-08)
     "motion_low": 0.8,
     "motion_high": 14.0,
     "picture_hold_s": 3.0,
@@ -153,15 +153,31 @@ def dead_air(voice: Optional[Path], min_len: float = 0.7) -> list[tuple[float, f
 
 
 def reading_speed(captions: list[dict]) -> list[tuple[float, float, float]]:
-    """Captions that go by faster than the target words a second: [(start, end, wps)]."""
+    """Captions that go by faster than the target words a second: [(start, end, wps)]. Measured over the captions read one after another
+    (at least READ_WINDOW seconds, no pause between them): a three-word chunk shown exactly while it is said is read at the speed of the
+    speech, not at three words over its own 0.6 s (D8: every normal video was warned about, 2026-11-08)."""
+    caps = sorted(captions or [], key=lambda c: float(c.get("start", 0)))
     out = []
-    for c in captions or []:
+    for i, c in enumerate(caps):
         words = c.get("words") or []
-        dur = max(0.2, float(c.get("end", 0)) - float(c.get("start", 0)))
+        if len(words) < 3:
+            continue
+        start, end, j = float(c.get("start", 0)), float(c.get("end", 0)), i
+        n = len(words)
         chars = sum(len(str(w.get("text", ""))) for w in words) + max(0, len(words) - 1)
-        if len(words) >= 3 and (len(words) / dur > TARGETS["wps"] or chars / dur > TARGETS["cps"]):
-            out.append((float(c["start"]), float(c["end"]), round(len(words) / dur, 1)))
+        while end - start < READ_WINDOW and j + 1 < len(caps) and float(caps[j + 1].get("start", 0)) - float(caps[j].get("end", 0)) < 0.3:
+            j += 1
+            more = caps[j].get("words") or []
+            n += len(more)
+            chars += sum(len(str(w.get("text", ""))) for w in more) + len(more)
+            end = float(caps[j].get("end", 0))
+        dur = max(0.2, end - start)
+        if n / dur > TARGETS["wps"] or chars / dur > TARGETS["cps"]:
+            out.append((start, float(c.get("end", 0)), round(n / dur, 1)))
     return out
+
+
+READ_WINDOW = 2.0                     # seconds of captions read in one go: long enough that the chunking does not decide the measure
 
 
 def scorecard(video: Path, aspect: str, composition: Optional[dict] = None, voice: Optional[Path] = None) -> dict[str, Any]:

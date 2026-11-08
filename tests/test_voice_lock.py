@@ -105,7 +105,7 @@ def test_a_sentence_in_another_voice_is_spoken_again_with_another_seed(monkeypat
 
     monkeypatch.setattr(tts, "synth_sentence", sentence)
     script = "One is here now. Two is here now. Three is here now. Four is here now. Five is here now. Six is here now."
-    out = tts.synthesize(script, tmp_path / "a.wav", engine="voicestudio", voice="kittentts:v", language="en")
+    out = tts.synthesize(script, tmp_path / "a.wav", engine="comfyvoice", voice="me:v", language="en")
     st = out["steadiness"]
     assert st["respoken"] == [3] and st["still_off"] == []
     assert [s for t, s in calls if t.startswith("Four")] == [tts.VOICE_SEED, tts.VOICE_SEED + 100]

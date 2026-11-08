@@ -17,7 +17,7 @@ const check = (n, c, x = "") => { c ? (pass++, console.log("  ok  ", n)) : (fail
 
 await page.goto(`${base}/p/${id}`, { waitUntil: "networkidle" });
 await page.waitForSelector(".scene-card");
-await page.getByRole("tab", { name: /^Words/ }).click();
+await page.getByRole("button", { name: "Captions", exact: true }).click();
 await page.waitForTimeout(1500);
 const phone0 = await page.locator(".phone").boundingBox();
 const wrap = page.locator(".transcript-wrap");
@@ -29,7 +29,7 @@ const metrics = () => page.evaluate(() => {
 check("layout fits the window (no outer scrolling)", (await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 2)));
 check("transcript has its own scroll area", (await metrics()).wrapMax > 200);
 
-await page.getByRole("toolbar", { name: "Playback" }).getByRole("button").click();           // play
+await page.getByRole("toolbar", { name: "Playback" }).getByRole("button", { name: /^(Play|Pause)$/ }).click();           // play
 let maxShift = 0, scenesSeen = new Set();
 for (let i = 0; i < 24; i++) {                   // ~12 s: crosses at least two scene boundaries
   await page.waitForTimeout(500);
@@ -38,7 +38,7 @@ for (let i = 0; i < 24; i++) {                   // ~12 s: crosses at least two 
   scenesSeen.add(await page.locator(".tl-clip.sel").getAttribute("aria-label"));
 }
 const m1 = await metrics();
-await page.getByRole("toolbar", { name: "Playback" }).getByRole("button").click();           // pause
+await page.getByRole("toolbar", { name: "Playback" }).getByRole("button", { name: /^(Play|Pause)$/ }).click();           // pause
 check(`playback crossed scenes (${[...scenesSeen].join(",")})`, scenesSeen.size >= 2);
 check("preview never moved while scenes changed (max shift " + maxShift + "px)", maxShift < 1.5);
 check("page and centre column never scrolled", m1.windowY === 0 && m1.pageTop === 0 && m1.centerTop === 0, JSON.stringify(m1));
@@ -49,8 +49,8 @@ await wrap.hover();
 await page.mouse.wheel(0, -4000);            // a real user scroll, moments after an automatic one
 await page.waitForTimeout(900);
 check("manual scroll shows the Follow playback pill", (await page.getByRole("button", { name: "Follow playback" }).count()) === 1);
-await page.getByRole("toolbar", { name: "Playback" }).getByRole("button").click(); await page.waitForTimeout(2500);
-const m2 = await metrics(); await page.getByRole("toolbar", { name: "Playback" }).getByRole("button").click();
+await page.getByRole("toolbar", { name: "Playback" }).getByRole("button", { name: /^(Play|Pause)$/ }).click(); await page.waitForTimeout(2500);
+const m2 = await metrics(); await page.getByRole("toolbar", { name: "Playback" }).getByRole("button", { name: /^(Play|Pause)$/ }).click();
 check("playing again resumes following (the pill goes away)", (await page.getByRole("button", { name: "Follow playback" }).count()) === 0, JSON.stringify(m2));
 await page.screenshot({ path: out + "/s1-review.png" });
 

@@ -15,7 +15,7 @@ const words = async () => (await api(`/api/projects/${pid}/transcript`)).transcr
 
 console.log("Script tab");
 await page.goto(`${base}/p/${pid}/pro`, { waitUntil: "networkidle" });
-await page.getByRole("tab", { name: "Script" }).click();
+await page.getByRole("button", { name: "Script", exact: true }).click();
 const boxes = page.getByRole("listitem").locator("textarea");
 const n = await boxes.count();
 const beats = (await api(`/api/projects/${pid}/transcript`)).beats.beats;

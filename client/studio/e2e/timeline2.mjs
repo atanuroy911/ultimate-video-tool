@@ -1,4 +1,4 @@
-// Timeline smoothness and layout: dragging a scene's end follows the pointer frame by frame and stays put on drop; chips in Elements and Actions never overlap.
+// Timeline smoothness and layout: a shared scene boundary follows the pointer and keeps its exact saved time.
 // Mutating (moves a scene boundary, then undoes it): run against a scratch server.  VT_PROJECT=<id> node e2e/timeline2.mjs
 import { chromium } from "playwright-core";
 import { base, chromePath } from "./common.mjs";
@@ -37,7 +37,7 @@ await page.waitForTimeout(700);
 
 // ---- drag the end of scene 1 to the right: it follows in many small steps and stays where dropped
 const before = await scenes();
-const grab = page.locator('[aria-label="Move the end of scene 1"]').first();
+const grab = page.getByLabel("Boundary between scenes 1 and 2", { exact: true });
 const gb = await grab.boundingBox();
 const clip = page.locator(".tl-clip").nth(0);
 const w0 = (await clip.boundingBox()).width;
@@ -54,13 +54,16 @@ check("while dragging, scene 1 grows as the pointer moves", widths[widths.length
 const steps = new Set(widths.map((w) => Math.round(w))).size;
 check("the growth is gradual (more than a couple of distinct sizes)", steps >= 3, `${steps} sizes`);
 const wDrop = widths.at(-1);
+const savedEdge = page.waitForResponse(r => r.request().method() === "POST" && new URL(r.url()).pathname.endsWith(`/scenes/${before[0].id}/edge`));
 await page.mouse.up();
 await page.waitForTimeout(80);
 const wAfterUp = (await clip.boundingBox()).width;
-check("on drop the clip settles on its sentence and does not jump back", wAfterUp > w0 + 10 && Math.abs(wAfterUp - wDrop) < 45, `${w0} / ${wDrop} -> ${wAfterUp}`);
-await page.waitForTimeout(2200);
+check("on drop the clip stays at the chosen time", wAfterUp > w0 + 10 && Math.abs(wAfterUp - wDrop) < 45, `${w0} / ${wDrop} -> ${wAfterUp}`);
+const response = await savedEdge;
+const { t } = response.request().postDataJSON();
 const after = await scenes();
-check("the plan really moved the boundary", after[0].beats.length !== before[0].beats.length || after[0].beats.at(-1) !== before[0].beats.at(-1), JSON.stringify(after[0].beats));
+check("the plan saved the exact shared boundary", response.ok() && after[1].start === t, `requested ${t}, saved ${after[1].start}`);
+check("moving a visual boundary preserves the narration beats", JSON.stringify(after.map(s => s.beats)) === JSON.stringify(before.map(s => s.beats)));
 const wFinal = (await clip.boundingBox()).width;
 check("and the final clip matches what was dropped", Math.abs(wFinal - wDrop) < 30, `${wDrop} -> ${wFinal}`);
 await page.mouse.click(5, 5);

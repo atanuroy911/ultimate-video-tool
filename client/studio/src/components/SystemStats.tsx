@@ -120,7 +120,7 @@ export default function SystemPanel() {
 
   if (!s) {
     return (
-      <section className="card card-pad col" style={{ gap: 8 }} aria-label="System" data-testid="system-panel">
+      <section className="card card-pad col" style={{ gap: 8 }} aria-label="Activity" data-testid="system-panel">
         <h2><Cpu size={18} style={{ verticalAlign: -3 }} /> System</h2>
         <p className="small muted" style={{ margin: 0 }} data-testid="system-note">
           {failed ? "This server cannot report how busy it is yet. Update the server to see its processor, memory and graphics-card numbers here." : "Reading this computer's numbers…"}
@@ -133,20 +133,18 @@ export default function SystemPanel() {
   const using = s.summary.gpu_in_use.length ? s.summary.gpu_in_use.join(" and ") : null;
   const usable = s.summary.gpus_video_tool_can_use;
   return (
-    <section className="card card-pad col" style={{ gap: 14 }} aria-label="System" data-testid="system-panel">
+    <section className="card card-pad col" style={{ gap: 14 }} aria-label="Activity" data-testid="system-panel">
       <div className="row wrap" style={{ gap: 8, alignItems: "center" }}>
-        <h2 className="grow"><Cpu size={18} style={{ verticalAlign: -3 }} /> System</h2>
-        <span className="chip">{s.host.name}</span>
+        <h2 className="grow"><Cpu size={18} style={{ verticalAlign: -3 }} /> Activity</h2>
         <span className={`small ${stale ? "" : "muted"}`} style={stale ? { color: "var(--warn)" } : undefined} data-testid="system-age">
-          {pausedHere ? "Paused" : stale ? `No update for ${ago ?? "?"} s` : ago != null ? `Updated ${ago} s ago` : ""}
+          {pausedHere ? "Paused" : stale ? `No update for ${ago ?? "?"} s` : "Live"}
         </span>
         <button className="btn sm" onClick={() => setPausedHere((p) => !p)} aria-pressed={pausedHere} style={{ minHeight: 44, minWidth: 44 }}>
           {pausedHere ? <><Play size={13} aria-hidden /> Resume</> : <><Pause size={13} aria-hidden /> Pause</>}
         </button>
       </div>
       <p className="small" style={{ margin: 0 }} data-testid="system-summary">
-        {s.host.os}. {usable.length ? <>{using ? <>Video Tool is using <strong>{using}</strong>.</> : "Video Tool is not using a graphics card right now."}{(s.summary.busy_with_other_programs || []).length ? <> Other programs are busy on <strong>{(s.summary.busy_with_other_programs || []).join(" and ")}</strong>.</> : ""}</> : "No NVIDIA graphics card is available to Video Tool: work runs on the processor."}
-        {s.gpus.some((g) => !g.usable_by_video_tool) ? ` Kept free for other programs: ${s.gpus.filter((g) => !g.usable_by_video_tool).map((g) => g.name).join(", ")}.` : ""}
+        {s.host.name} · {s.host.os}. {usable.length ? <>{using ? <>Working on <strong>{using}</strong>.</> : "Idle."}{(s.summary.busy_with_other_programs || []).length ? <> Other programs are using <strong>{(s.summary.busy_with_other_programs || []).join(" and ")}</strong>.</> : ""}</> : "Video Tool uses the processor: it may not use any graphics card."}
       </p>
       <Line label="Processor" value={s.cpu.percent} detail={`${s.cpu.model}, ${s.cpu.cores} threads`} note={s.cpu.video_tool_percent != null ? `Video Tool ${pct(s.cpu.video_tool_percent)}` : undefined} />
       <Line label="Memory" value={s.memory.percent} detail={`${s.memory.used_gb} of ${s.memory.total_gb} GB used, ${s.memory.available_gb} GB free`}
@@ -155,12 +153,12 @@ export default function SystemPanel() {
       {s.gpus.map((g) => (
         <div key={g.index} className="col" style={{ gap: 6, paddingTop: 10, borderTop: "1px solid var(--line, rgba(128,128,128,.2))" }} data-gpu={g.index}>
           <div className="row wrap" style={{ gap: 8, alignItems: "center" }}>
-            <h3 className="grow" style={{ margin: 0, fontSize: 15 }}>GPU {g.index}: {g.name}</h3>
-            {s.assignment?.render === g.index && <span className="chip accent">Rendering</span>}
-            {s.assignment?.speech === g.index && <span className="chip accent">Speech recognition</span>}
-            {!g.usable_by_video_tool && <span className="chip">kept free for you</span>}
+            <h3 className="grow" style={{ margin: 0, fontSize: 15, textTransform: "none", letterSpacing: 0 }}>{g.name}</h3>
+            {s.assignment?.render === g.index && <span className="chip accent">Renders videos</span>}
+            {s.assignment?.speech === g.index && <span className="chip accent">Transcribes speech</span>}
+            {!g.usable_by_video_tool && <span className="chip">Not used by Video Tool</span>}
           </div>
-          <Line label="Load" value={g.percent} detail={[g.temperature_c != null ? `${Math.round(g.temperature_c)} °C` : "", g.power_w != null ? `${Math.round(g.power_w)}${g.power_limit_w ? ` of ${Math.round(g.power_limit_w)}` : ""} W` : "", g.clock_mhz != null ? `${Math.round(g.clock_mhz)} MHz` : ""].filter(Boolean).join(" · ") || "graphics card"} />
+          <Line label="In use" value={g.percent} detail={[g.temperature_c != null ? `${Math.round(g.temperature_c)} °C` : "", g.power_w != null ? `${Math.round(g.power_w)}${g.power_limit_w ? ` of ${Math.round(g.power_limit_w)}` : ""} W` : "", g.clock_mhz != null ? `${Math.round(g.clock_mhz)} MHz` : ""].filter(Boolean).join(" · ") || "graphics card"} />
           <Line label="Memory" value={g.memory_total_gb ? (g.memory_used_gb / g.memory_total_gb) * 100 : null} detail={`${g.memory_used_gb} of ${g.memory_total_gb} GB`} />
           {g.programs.length > 0 && (
             <div className="row wrap" style={{ gap: 6, marginLeft: 94 }}>
@@ -171,7 +169,7 @@ export default function SystemPanel() {
       ))}
       {(s.engines.comfy || s.engines.ollama) && (
         <div className="col" style={{ gap: 4, paddingTop: 10, borderTop: "1px solid var(--line, rgba(128,128,128,.2))" }}>
-          <h3 style={{ margin: 0, fontSize: 15 }}>Engines Video Tool talks to</h3>
+          <h3 style={{ margin: 0, fontSize: 15, textTransform: "none", letterSpacing: 0 }}>AI programs</h3>
           {s.engines.comfy && <span className="small">Pictures (ComfyUI): {s.engines.comfy.ok ? <>draws on <strong>{(s.engines.comfy.gpus || []).map((x) => `${x.name}${x.vram_free_gb != null ? ` (${x.vram_free_gb} GB free)` : ""}`).join(", ") || "the processor"}</strong></> : <span style={{ color: "var(--err)" }}>not answering</span>}</span>}
           {s.engines.ollama && <span className="small">Language AI (Ollama): {s.engines.ollama.ok ? ((s.engines.ollama.loaded || []).length ? (s.engines.ollama.loaded || []).map((m) => `${m.model}${m.gb_on_card != null ? ` (${m.gb_on_card} GB on the card)` : ""}`).join(", ") : "nothing loaded right now") : <span style={{ color: "var(--err)" }}>not answering</span>}</span>}
         </div>

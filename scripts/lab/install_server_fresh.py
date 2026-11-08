@@ -17,7 +17,7 @@ from pathlib import Path
 import paramiko
 
 ROOT = "/home/roy/ultimate-video-tool-server"
-pkg = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parents[2] / "dist/fresh-2026-11-03/video-tool-engine-1.0.0.tar.gz"
+pkg = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parents[2] / "dist/fresh-2026-11-07/video-tool-engine-1.0.0.tar.gz"      # built with: python scripts/make_engine_package.py --out dist/fresh-2026-11-07 --full
 INSTALL = r"""#!/bin/bash
 set -euo pipefail
 ROOT=/home/roy/ultimate-video-tool-server
@@ -43,10 +43,11 @@ cat > run-server.sh <<'EOS'
 set -euo pipefail
 ROOT=/home/roy/ultimate-video-tool-server
 export VT_DATA="$ROOT/data" TMPDIR="$ROOT/tmp" PATH="$ROOT/node/bin:/usr/bin:/bin" HYPERFRAMES_NO_TELEMETRY=1 PYTHONIOENCODING=utf-8
-export CUDA_VISIBLE_DEVICES=GPU-a1b5ab18-d194-1ae3-a17f-4561c4f0cd7d   # the RTX 3060 only: the owner's V100 is for their own work
+export CUDA_DEVICE_ORDER=PCI_BUS_ID
+# --gpus 1 below: the RTX 3060 only (card numbers follow the PCI order); the owner's V100 is for their own work
 cd "$ROOT/app"
 exec "$ROOT/venv/bin/python" -m vt.cli server --host 0.0.0.0 --port 8790 --name "Ultimate Video Tool Server" \
-  --comfy existing --comfy-url http://127.0.0.1:8188 --ollama existing --ollama-url http://127.0.0.1:11434 --voicestudio off
+  --comfy existing --comfy-url http://127.0.0.1:8188 --ollama existing --ollama-url http://127.0.0.1:11434 --gpus 1
 EOS
 chmod +x run-server.sh
 mkdir -p "$HOME/.config/systemd/user"

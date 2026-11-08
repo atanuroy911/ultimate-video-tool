@@ -85,3 +85,18 @@ test('a point written before these values existed still means what it meant, and
  const mid=sampleMotion([a,b],1,a);near(mid.stretch_x,2);near(mid.tilt_x,20);near(mid.blur,5);near(mid.skew_x,0);near(mid.x,.5);
  assert.ok(Object.keys(POINT_KEYS).every(k=>k in mid),'a saved point holds every value');
 });
+
+test('taking over an element that layout placed keeps the size layout gave it, and a placed element keeps its own size',async()=>{
+ const {fitOf}=await import('../src/review/gestures.ts');
+ const p=applyGesture(start({}, {fit:.4}),{kind:'move',dx:10,dy:0});near(p.scale,.4);near(p.x,.5+10/1080);
+ const serialized=start({scale:1},{fit:.4}); // the API includes the neutral scale even for an automatic visual
+ near(applyGesture(serialized,{kind:'move',dx:10,dy:0}).scale,.4);
+ near(applyGesture(serialized,{kind:'scale',factor:2}).scale,.8);
+ near(applyGesture(serialized,{kind:'rotate',degrees:10}).scale,.4);
+ assert.equal(applyGesture(start({scale:1.5},{fit:.4}),{kind:'move',dx:10,dy:0}).scale,undefined,'an element with a size of its own is not resized by a move');
+ near(applyGesture(start({}, {fit:.4}),{kind:'scale',factor:2}).scale,.8);near(applyGesture(start({}, {fit:.4}),{kind:'rotate',degrees:10}).scale,.4);
+ assert.equal(applyGesture(start({}),{kind:'move',dx:10,dy:0}).scale,undefined,'nothing measured: nothing invented');
+ near(fitOf({box:[0,0,200,100],natural:[500,250],free:false,quad:null,size:null,frame:[1080,1920]}),.4);
+ assert.equal(fitOf({box:[0,0,200,100],natural:[500,250],free:true,quad:null,size:null,frame:[1080,1920]}),undefined);
+ assert.equal(fitOf({box:[0,0,200,100],natural:null,free:false,quad:null,size:null,frame:[1080,1920]}),undefined);
+});

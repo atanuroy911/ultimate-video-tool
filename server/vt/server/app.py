@@ -964,42 +964,7 @@ def mcp_connect() -> dict:
     }
 
 
-@app.post("/api/mcp/connect-claude-desktop")
-def connect_claude_desktop() -> dict:
-    """Write the Video Tool entry into Claude Desktop's config file (Windows, macOS, Linux locations)."""
-    if sys.platform == "win32":
-        cfg = Path(os.environ.get("APPDATA", "")) / "Claude" / "claude_desktop_config.json"
-    elif sys.platform == "darwin":
-        cfg = Path.home() / "Library" / "Application Support" / "Claude" / "claude_desktop_config.json"
-    else:
-        cfg = Path.home() / ".config" / "Claude" / "claude_desktop_config.json"
-    try:
-        data = json.loads(cfg.read_text(encoding="utf-8")) if cfg.exists() else {}
-    except (OSError, ValueError):
-        raise HTTPException(409, f"Could not read {cfg}. Fix or remove it, then try again.")
-    data.setdefault("mcpServers", {})["video-tool"] = {"command": str(Path(sys.executable)), "args": ["-m", "vt.mcp.server"]}
-    cfg.parent.mkdir(parents=True, exist_ok=True)
-    cfg.write_text(json.dumps(data, indent=2), encoding="utf-8")
-    return {"ok": True, "path": str(cfg), "note": "Restart Claude Desktop to load it."}
-
-
-@app.post("/api/mcp/connect-codex")
-def connect_codex() -> dict:
-    """Register this installation's local MCP server with the installed Codex CLI."""
-    exe = shutil.which("codex") or shutil.which("codex.exe")
-    if not exe:
-        raise HTTPException(409, "Codex CLI was not found. Install Codex or copy the setup command from Settings.")
-    try:
-        current = subprocess.run([exe, "mcp", "get", "video-tool"], capture_output=True, text=True, timeout=15)
-        if current.returncode == 0:
-            return {"ok": True, "note": "Video Tool is already registered with Codex. Restart Codex to load it."}
-        result = subprocess.run([exe, "mcp", "add", "video-tool", "--env", "VT_MCP_CLIENT=codex", "--", str(Path(sys.executable)), "-m", "vt.mcp.server"],
-                                capture_output=True, text=True, timeout=30)
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        raise HTTPException(500, f"Could not start Codex CLI ({type(exc).__name__}).")
-    if result.returncode:
-        raise HTTPException(409, (result.stderr or result.stdout or "Codex rejected the MCP connection")[:300])
-    return {"ok": True, "note": "Video Tool registered with Codex. Restart Codex to load its tools."}
+# Connecting Claude Code, Codex or Claude Desktop is /api/assistants/{id}/connect (vt/assistants.py), the one implementation behind Settings and `vt assistants`.
 
 
 @app.get("/api/assistants")
@@ -1318,7 +1283,7 @@ def start_pipeline(p: Project, from_stage: Optional[str], force: bool, rerender:
         if rerender or (from_stage is None and load_settings().get("autopilot", True)):
             autopilot_finish(p, cb, again=rerender)
         return {"project": p.id}
-    return jobs.submit("pipeline", p.id, f"Process {p.meta().title}", work, when_busy="reuse")
+    return jobs.submit("pipeline", p.id, p.meta().title, work, when_busy="reuse")
 
 
 REVISE_OVER = 35          # retention risk above which the autopilot sends the worst moments back to the director (RT.verdict calls it "Risky")
@@ -1575,7 +1540,10 @@ def patch_project(pid: str, body: MetaPatch) -> dict:
         m.pace = body.pace  # type: ignore[assignment]
         rerun_from = "silence"
     if body.options:
-        new_opts = m.options.model_copy(update=body.options)
+        try:                                                 # validated: an unknown caption look or a wrong type is refused with the reason, never saved
+            new_opts = type(m.options).model_validate({**m.options.model_dump(), **body.options})
+        except ValidationError as e:
+            raise HTTPException(422, {"errors": [f"{'.'.join(str(x) for x in err['loc'])}: {err['msg']}" for err in e.errors()][:6]})
         if (new_opts.remove_fillers != m.options.remove_fillers) and rerun_from is None:
             rerun_from = "cuts"
         if new_opts.asr_model != m.options.asr_model:
@@ -2318,6 +2286,16 @@ def move_boundary(pid: str, sid: str, body: SplitBody) -> dict:
     return {"plan": sf.model_dump(exclude_none=True)}
 
 
+@app.get("/api/projects/{pid}/scenes/undo")
+def can_undo_scenes(pid: str) -> dict:
+    """Whether the plan as it was before its latest save can be brought back (every save, by the person, the director or an assistant
+    over MCP, keeps that one copy). The AI panel offers it, so a change an assistant made can be undone from the app."""
+    f = proj(pid).dir / "scenes.prev.json"
+    if not f.exists():
+        return {"available": False, "at": None}
+    return {"available": True, "at": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(f.stat().st_mtime))}
+
+
 @app.post("/api/projects/{pid}/scenes/undo")
 def undo_scenes(pid: str) -> dict:
     p = proj(pid)
@@ -2930,6 +2908,7 @@ def list_exports(pid: str) -> list[dict]:
             if f.name.startswith('.'):continue
             out.append({"name": f.name, "size": f.stat().st_size, "url": f"/media/{pid}/exports/{f.name}",
                         "srt": f"/media/{pid}/exports/{f.stem}.srt" if f.with_suffix(".srt").exists() else None,
+                        "credits": f.with_suffix(".credits.txt").read_text("utf-8") if f.with_suffix(".credits.txt").exists() else "",
                         "modified": time.strftime("%Y-%m-%d %H:%M", time.localtime(f.stat().st_mtime)), "path": str(f),
                         "retention": _retention_summary(f), "judges": _judges_summary(f),
                         "acceleration": read_json(f.with_suffix('.acceleration.json'),None),

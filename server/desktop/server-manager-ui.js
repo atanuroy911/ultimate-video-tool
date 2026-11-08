@@ -7,17 +7,17 @@ async function refresh(){
   if(refreshing)return;refreshing=true;
   try{current=await api.state();const running=current.running;
     $('computer').textContent=current.computer;
-    $('status').textContent=current.operation|| (running?'Running':'Stopped');$('status').classList.toggle('on',running&&!current.operation);
-    $('description').textContent=running?'Ready to make videos for your connected clients.':'Your clients can reconnect after you start the server.';
-    $('address').textContent=current.addresses?.length?current.addresses.join('\n'):'Start the server to see its address.';
+    $('status').textContent=current.operation? current.operation+'…' : (running?'Running':'Stopped');$('status').classList.toggle('on',running&&!current.operation);if($('dot'))$('dot').classList.toggle('on',running&&!current.operation);
+    $('description').textContent=running?'Ready to make videos.':'Start it to make videos. Connected computers reconnect by themselves.';
+    const lan=(current.addresses||[]).filter(a=>!/\/\/(127\.|localhost|\[::1\])/.test(a)).map(a=>a.replace(/^https?:\/\//,''));$('address').textContent=!running?'Start the server to see its address.':lan.length?lan.join('\n'):'Other computers can\'t reach it yet. Check that this computer is on your network.';
     for(const id of ['workspace','copy','stop','restart'])$(id).disabled=pending||!!current.operation||!running;
     const many=!!(running&&current.gpu&&current.gpu.cards>=2);$('gpu-card').hidden=!many;
-    if(many){$('gpu-text').textContent=current.gpu.needs_choice?'Nobody has chosen which graphics cards Video Tool may use. Until you do, it uses one card only.':'Video Tool may use: '+(current.gpu.allowed.join(', ')||'no card (the processor)')+'.';$('gpu-choose').disabled=pending||!!current.operation;
+    if(many){$('gpu-text').textContent=current.gpu.needs_choice?'Choose which cards Video Tool may use. Until then it uses one.':'Video Tool uses '+(current.gpu.allowed.join(', ')||'no card, only the processor')+'.';$('gpu-choose').disabled=pending||!!current.operation;
       if(current.askGpu&&!asked){asked=true;act('gpu-settings');}}
     $('start').hidden=running;$('stop').hidden=!running;$('restart').hidden=!running;$('start').disabled=pending||!!current.operation;
     $('autostart').checked=current.autostart;$('autostart').disabled=pending;
-    $('tray-note').textContent=current.tray?'Close this window to keep the server in the tray.':'This desktop does not show a tray icon. Keep this window open while using the server.';
-    $('progress').textContent=current.progress?.error?current.progress.step||'':current.operation?current.progress?.step||'Please wait…':'';
+    $('tray-note').textContent=current.tray?'Closing this window keeps the server running in the tray.':'Keep this window open while you use the server.';
+    $('progress').textContent=current.progress?.error?current.progress.step||'':current.operation?current.progress?.step||'':'';
     if(current.error)showError(current.error);
     if(!$('engine-screen').hidden){if(!running)overview();else {const url=current.url+'/manage?embedded=1';if(!$('engine-frame').src.startsWith(url))$('engine-frame').src=url;}}
   }catch(e){showError(e.message);}finally{refreshing=false;}

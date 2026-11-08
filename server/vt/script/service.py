@@ -23,26 +23,26 @@ def set_script_kind(p: Project, kind: str) -> None:
     write_json(p.dir / "script_kind.json", {"kind": kind})
 
 
-def script_task(p: Project, kind: Optional[str] = None, hint: str = "") -> dict[str, Any]:
+def script_task(p: Project, kind: Optional[str] = None, hint: str = "", *, compact: bool = False) -> dict[str, Any]:
     """One call returns everything an assistant with no other context needs to write a valid script."""
     meta = p.meta()
     kind = kind or script_kind(p)
     tr, beats = p.transcript(), p.beats()
     sf = p.scenes()
     system, user = build_prompt(tr, beats, kind=kind, language=meta.language, aspect=meta.aspect, hint=hint,
-                                draft=None, schema=None, with_examples=True)
+                                draft=None, schema=None, with_examples=not compact, compact=compact)
     return {
         "instructions": system, "task": user, "schema": to_json_schema(), "kind": kind,
         "project": {"id": p.id, "title": meta.title, "language": meta.language, "aspect": meta.aspect, "theme": load_theme(meta.theme).name},
         "media_bin": [{"id": m.id, "kind": m.kind, "caption": m.caption, "role": m.role} for m in meta.media],
         "aroll_direction": "If media id 'aroll' is present, use it as scene backdrop media to keep the recorded speaker visible; place overlays around the face.",
-        "has_draft": bool(sf),
-        **_craft_and_style(p, meta.theme),
+        "has_draft": bool(sf), "has_current_script": (p.dir / "video_script.json").is_file(),
+        **_craft_and_style(p, meta.theme, include_draft_report=not compact),
         "submit": "Call submit_script(project, script=<the JSON object>). If it returns errors, fix exactly those and call it again until ok is true.",
     }
 
 
-def _craft_and_style(p: Project, theme: str) -> dict[str, Any]:
+def _craft_and_style(p: Project, theme: str, *, include_draft_report: bool = True) -> dict[str, Any]:
     """What every director gets: the craft rules (vt/craft.py), the chosen film style's bible (vt/styles.py) and what the current plan breaks."""
     from .. import craft, styles
 
@@ -51,7 +51,7 @@ def _craft_and_style(p: Project, theme: str) -> dict[str, Any]:
     st = styles.for_theme(theme)
     if st:
         out["style"] = styles.brief(st["slug"])
-    if p.scenes():
+    if include_draft_report and p.scenes():
         try:
             rep = craft.check(p)
             out["craft_report"] = {"score": rep["score"], "violations": rep["violations"][:12]}

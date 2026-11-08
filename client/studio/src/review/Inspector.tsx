@@ -78,9 +78,9 @@ export default forwardRef<InspectorHandle, {
   useEffect(()=>{if(props.focusAction!=null) setTab("characters");},[props.focusAction]);
   const differs = useMemo(() => JSON.stringify(els) !== JSON.stringify(scene.elements), [els, scene.elements]);
 
-  const commit = (next: El[], immediate = false) => {
+  const commit = (next: El[], immediate = false, fast?: number) => {
     next=next.map(e=>({...e,edited:true}));
-    window.dispatchEvent(new CustomEvent("vt-preview-elements", {detail:{scene:scene.id,elements:next}}));
+    window.dispatchEvent(new CustomEvent("vt-preview-elements", {detail:{scene:scene.id,elements:next,fast}}));      // fast: only this element moved (a hand is dragging it), so the picture need not be built again
     setEls(next);
     dirty.current = true;
     window.clearTimeout(timer.current);
@@ -94,32 +94,54 @@ export default forwardRef<InspectorHandle, {
     };
     pendingSave.current = flush;
     if (immediate) flush();
-    else timer.current = window.setTimeout(flush, 500);
+    else if (fast === undefined) timer.current = window.setTimeout(flush, 500);     // pointer-up saves the draft, even when the hand pauses during a drag
   };
 
   // the handles on the picture (Preview): a hand moves, sizes, turns or pins the selected element; the elements saved here are what the page draws
   const live = useRef({ els, commit, time: props.time, scene, r });
   live.current = { els, commit, time: props.time, scene, r };
   const hand = useRef<null | { index: number; start: Start }>(null);
+  const latestMove = useRef<GestureEvent | null>(null), frameAsked = useRef(0);
   useEffect(() => {
+    const clearMove = () => {
+      if (frameAsked.current) cancelAnimationFrame(frameAsked.current);
+      frameAsked.current = 0;
+      latestMove.current = null;
+    };
     const on = (ev: Event) => {
       const d = (ev as CustomEvent<GestureEvent>).detail, now = live.current;
       if (d.scene !== now.scene.id) return;
       if (d.phase === "start") {
+        clearMove();
         const el = now.els[d.index];
-        hand.current = el ? { index: d.index, start: { el, center: d.center, frame: d.frame, size: d.size, quad: d.quad } } : null;
+        hand.current = el ? { index: d.index, start: { el, center: d.center, frame: d.frame, size: d.size, quad: d.quad, fit: d.fit } } : null;
         return;
       }
       const h = hand.current;
       if (!h || !d.gesture || h.index !== d.index) return;
-      const span = now.r.sc.data?.elements?.[`${now.scene.id}:${d.index}`];
-      const patch = applyGesture(h.start, d.gesture);
-      const el = { ...h.start.el, start: h.start.el.start ?? span?.start ?? now.time?.start ?? 0, end: h.start.el.end ?? span?.end ?? now.time?.end ?? now.r.timing.duration, ...repositionMotion(h.start.el, patch, 0.45) };
-      now.commit(now.els.map((x, j) => (j === d.index ? el : x)), d.phase === "end");
-      if (d.phase === "end") hand.current = null;
+      const apply = (ev: GestureEvent) => {                                         // one change of the element, from where the hand began
+        const cur = live.current, st = hand.current;
+        if (!st || st.index !== ev.index || ev.scene !== cur.scene.id || !ev.gesture) return;
+        const span = cur.r.sc.data?.elements?.[`${cur.scene.id}:${ev.index}`];
+        const patch = applyGesture(st.start, ev.gesture);
+        const el = { ...st.start.el, start: st.start.el.start ?? span?.start ?? cur.time?.start ?? 0, end: st.start.el.end ?? span?.end ?? cur.time?.end ?? cur.r.timing.duration, ...repositionMotion(st.start.el, patch, 0.45) };
+        cur.commit(cur.els.map((x, j) => (j === ev.index ? el : x)), ev.phase === "end", ev.phase === "end" ? undefined : ev.index);
+      };
+      if (d.phase === "end") {                                                       // let go: the last change, saved, and the picture built once more from the saved plan
+        clearMove();
+        apply(d);
+        hand.current = null;
+        return;
+      }
+      latestMove.current = d;                                                        // a hand moves faster than the screen draws: only the latest position of each frame counts
+      if (!frameAsked.current) frameAsked.current = requestAnimationFrame(() => { frameAsked.current = 0; if (latestMove.current) apply(latestMove.current); });
     };
     window.addEventListener("vt-element-gesture", on);
-    return () => window.removeEventListener("vt-element-gesture", on);
+    return () => {
+      window.removeEventListener("vt-element-gesture", on);
+      clearMove();
+      hand.current = null;
+    };
   }, []);
 
   const specs = new Map((cat?.elements ?? []).map((c) => [c.type, c]));
@@ -217,7 +239,7 @@ export default forwardRef<InspectorHandle, {
                     <Seg value={elementTab} onChange={setElementTab} label="Element controls" options={[{value:'content',label:'Content'},{value:'position',label:'Position'},{value:'motion',label:'Motion'},{value:'timing',label:'Timing'}]}/>
                     {elementTab==="motion"&&<MotionEditor value={e} seek={props.seek} start={e.start??r.sc.data?.elements?.[`${scene.id}:${i}`]?.start??props.time?.start??0} end={e.end??r.sc.data?.elements?.[`${scene.id}:${i}`]?.end??props.time?.end??r.timing.duration} onChange={keyframes=>commit(els.map((x,j)=>j===i?{...x,keyframes}:x))}/>}
                     {elementTab==="motion"&&<label className="field"><span>Entrance</span><select value={e.entrance??'auto'} onChange={ev=>commit(els.map((x,j)=>j===i?{...x,entrance:ev.target.value}:x))}><option value="auto">Automatic</option><option value="none">Already in place</option>{cat?.motion?.entrances.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></label>}
-                    {(elementTab==="position"||elementTab==="timing")&&<VisualControls section={elementTab} value={e} start={r.sc.data?.elements?.[`${scene.id}:${i}`]?.start ?? props.time?.start ?? 0} end={r.sc.data?.elements?.[`${scene.id}:${i}`]?.end ?? props.time?.end ?? r.timing.duration} total={r.timing.duration} onChange={v=>commit(els.map((x,j)=>j===i?v:x))}/>}
+                    {(elementTab==="position"||elementTab==="timing")&&<VisualControls section={elementTab} at={{scene:scene.id,index:i}} value={e} start={r.sc.data?.elements?.[`${scene.id}:${i}`]?.start ?? props.time?.start ?? 0} end={r.sc.data?.elements?.[`${scene.id}:${i}`]?.end ?? props.time?.end ?? r.timing.duration} total={r.timing.duration} onChange={v=>commit(els.map((x,j)=>j===i?v:x))}/>}
                     {(elementTab==="content"||elementTab==="timing")&&<SchemaForm section={elementTab} media={r.project.data?.media??[]} spec={spec} value={e} words={wordLite} icons={props.icons} playheadWord={props.playheadWord} onChange={(v) => commit(els.map((x, j) => (j === i ? v : x)))} />}
                     {e.type === "cartoon" && <details className="scene-json" open={!!e.extras?.length}>
                       <summary>Story-engine extras ({e.extras?.length ?? 0}): numbers, icons, a beating heart… at their words</summary>

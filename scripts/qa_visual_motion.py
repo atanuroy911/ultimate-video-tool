@@ -2,7 +2,7 @@
 from pathlib import Path
 import sys, copy, json
 ROOT=Path(__file__).resolve().parents[1]
-sys.path.insert(0,str(ROOT))
+sys.path.insert(0, str(ROOT / "server"))
 from PIL import Image
 from vt.schema import ScenesFile, Transcript, Word, Beats, Beat
 from vt.project import load_theme

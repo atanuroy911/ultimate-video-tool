@@ -15,7 +15,7 @@ def test_ordinary_brackets_and_unknown_tags_stay_as_words():
     assert d.events == [] and "(about 20 dollars)" in d.text and "[see note]" in d.text and "(smile)" in d.text
 
 
-def test_chinese_and_voicestudio_forms_are_understood():
+def test_chinese_and_omnivoice_forms_are_understood():
     assert VD.parse("好的[笑]，我们开始[叹气]。").events == ["laugh", "sigh"]
     assert VD.parse("Ha [laughter] that was good [sigh]").events == ["laugh", "sigh"]
     assert VD.parse("(laughs) and (clear throat) and (coughing)").events == ["laugh", "clears throat", "cough"]
@@ -26,7 +26,7 @@ def test_breeze_takes_a_free_instruction_and_its_own_event_tags():
     assert r.spoken == "I know (laugh) really." and r.instruction == "whispering" and r.dropped == []
 
 
-def test_the_default_voicestudio_engine_follows_only_whisper_and_two_events():
+def test_omnivoice_follows_only_whisper_and_two_events():
     d = VD.parse("{slowly and sadly} Well (sigh) then (cough).")
     r = VD.render(d, "omnivoice")
     assert r.spoken == "Well [sigh] then." and r.instruction == "" and r.rate == 0.9
@@ -50,13 +50,13 @@ def test_synthesize_keeps_notes_out_of_captions_and_timings_and_passes_direction
 
     got = []
 
-    def synth(engine, voice, text, rate, out, instruction=""):
+    def synth(engine, voice, text, rate, out, instruction="", **_):
         got.append((voice, text, round(rate, 2), instruction))
         sf.write(str(out), 0.1 * np.sin(np.linspace(0, 400, 24000)).astype("float32"), 24000)
 
     monkeypatch.setattr(tts, "synth_sentence", synth)
     monkeypatch.setattr(tts, "dialect_for", lambda *a, **k: "breeze")
-    out = tts.synthesize("{softly} Hello there (sigh). Second sentence.", tmp_path / "o.wav", engine="voicestudio", voice="breeze:x",
+    out = tts.synthesize("{softly} Hello there (sigh). Second sentence.", tmp_path / "o.wav", engine="comfyvoice", voice="me:x",
                          notes={1: {"instruction": "with a smile", "before": "laugh"}})
     assert got[0][1] == "Hello there (sigh)." and got[0][3] == "softly"
     assert got[1][1] == "(laugh) Second sentence." and got[1][3] == "with a smile"
@@ -64,7 +64,7 @@ def test_synthesize_keeps_notes_out_of_captions_and_timings_and_passes_direction
     assert [w["text"] for s in out["sentences"] for w in s["words"]] == ["Hello", "there.", "Second", "sentence."]
     assert out["sentences"][0]["direction"]["events"] == ["sigh"] and out["sentences"][1]["direction"]["instruction"] == "with a smile"
     got.clear()
-    tts.synthesize("{softly} Hello (sigh).", tmp_path / "p.wav", engine="voicestudio", voice="breeze:x", direction=False)
+    tts.synthesize("{softly} Hello (sigh).", tmp_path / "p.wav", engine="comfyvoice", voice="me:x", direction=False)
     assert got[0][1] == "Hello." and got[0][3] == ""
 
 

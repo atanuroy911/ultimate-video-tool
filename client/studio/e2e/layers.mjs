@@ -82,6 +82,7 @@ const overlaps = (doc) => doc.tracks.some((t) => { const c = doc.clips.filter((x
 check("two texts can exist and none overlap on a track", d.clips.length === 2 && !overlaps(d), JSON.stringify(d.clips.map((c) => [c.track, c.start, c.dur])));
 
 // ---- fades from the inspector
+await page.getByRole("tab", { name: "Timing", exact: true }).click();
 await page.getByRole("slider", { name: "Fade in" }).fill("0.5");
 await page.getByRole("slider", { name: "Fade in" }).dispatchEvent("pointerup");
 await settle();
@@ -110,9 +111,10 @@ const overlapsNow = d.tracks.some((t) => { const c = d.clips.filter((x) => x.tra
 check("and the copy never overlaps another clip", !overlapsNow);
 
 // ---- a motion from the inspector
-await page.getByRole("combobox", { name: "Motion of the layer" }).selectOption("zoom_in").catch(() => {});
+await page.getByRole("tab", { name: "Position", exact: true }).click();
+await page.getByRole("combobox", { name: "Motion of the layer" }).selectOption("zoom_in");
 await settle();
-check("a motion can be chosen for a picture or text layer", false || (await doc()).clips.some((c) => c.anim === "zoom_in") || (await page.getByRole("combobox", { name: "Motion of the layer" }).count()) === 1);
+check("the chosen motion is saved for the text layer", (await doc()).clips.some((c) => c.anim === "zoom_in"));
 
 // ---- delete with the keyboard
 const nBeforeDelete = (await doc()).clips.length;

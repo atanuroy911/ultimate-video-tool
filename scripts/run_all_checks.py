@@ -97,12 +97,12 @@ class Scratch:
 
 
 def live() -> None:
-    sys.path.insert(0, str(ROOT))
+    sys.path.insert(0, str(ROOT / "server"))
     from vt.comfy import ComfyClient, list_workflows
     from vt.comfy import voice as CV
     from vt.engines import registry
 
-    for eid in ("ollama", "comfy", "voicestudio"):
+    for eid in ("ollama", "comfy"):
         h = registry.health(eid, fresh=True)
         ep = registry.endpoint(eid)
         rows.append({"step": f"live-health-{eid}", "result": "passed" if h.ok else ("SKIPPED" if ep.mode == "off" else "FAILED"), "seconds": round(h.seconds, 1), "log": "",
@@ -145,7 +145,7 @@ def main() -> int:
     ap.add_argument("--no-unit", action="store_true", help="skip the fast tests (they take about 9 minutes)")
     a = ap.parse_args()
     step("docs", [PY, "scripts/check_docs.py"])
-    studio = ROOT / "studio"
+    studio = ROOT / "client" / "studio"
     step("types", [NPX, "tsc", "--noEmit", "-p", "."], cwd=studio)
     step("build", [NPM, "run", "build"], cwd=studio)
     if a.no_unit:

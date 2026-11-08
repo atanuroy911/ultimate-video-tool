@@ -23,6 +23,13 @@ const filters=page.getByRole('group',{name:'Filter by status',exact:true});
 if(width===400){assert(!(await filters.isVisible()));await page.getByRole('button',{name:'Filters',exact:true}).click();assert(await filters.isVisible());await page.getByRole('button',{name:'Filters',exact:true}).click();}
 else assert(await filters.isVisible());
 await page.screenshot({path:path.join(out,width+'-'+theme+'.png'),animations:'disabled'});
+await page.getByRole('button',{name:'Select',exact:true}).first().click();
+const card=page.getByRole('article',{name:'Video 1',exact:true});
+assert.equal(await card.locator('button button').count(),0,'selection and open are separate controls');
+await card.getByRole('button',{name:'Select',exact:true}).click();
+assert(await card.getByRole('button',{name:'Deselect',exact:true}).isVisible());
+assert(await card.getByRole('button',{name:'Open Video 1',exact:true}).isVisible());
+await page.getByRole('button',{name:'Cancel',exact:true}).click();
 assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
 if(width===400){const nav=page.getByRole('navigation',{name:'Main (phone)',exact:true});assert.equal(await nav.locator(':scope > a,:scope > button').count(),5);
  for(const destination of ['shorts','social','server']){await nav.locator('a[href="/'+destination+'"]').click();assert(new URL(page.url()).pathname==='/'+destination);}

@@ -11,7 +11,7 @@ from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "server"))
 sys.path.insert(0, str(ROOT / "tests" / "script_eval"))
 from transcripts import SETS  # noqa: E402
 

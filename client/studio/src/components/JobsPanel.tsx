@@ -109,7 +109,7 @@ function JobCard({ job, now, open, onToggle }: { job: JobInfo; now: number; open
         <span className={`jobcard-icon ${job.status}`} aria-hidden><Icon size={16} className={job.status === "running" ? "spin" : ""} /></span>
         <div className="jobcard-title">
           <strong>{job.label || kindName(job)}</strong>
-          <span className="muted small">{kindName(job)}{job.project ? <> · <Link to={`/p/${job.project}`}>open the video</Link></> : null}</span>
+          <span className="muted small">{kindName(job)}{job.project ? <> · <Link to={`/p/${job.project}`}>Open</Link></> : null}</span>
         </div>
         <span className={`jobcard-state ${job.status}`}>{word}</span>
       </header>
@@ -163,7 +163,7 @@ export default function JobsPanel() {
         <h2 id="jobs-h">Jobs</h2>
         <span className="small muted" role="status">{active.length ? `${running} running${active.length - running ? ` · ${active.length - running} waiting` : ""}` : "Nothing is running"}</span>
       </div>
-      {active.length === 0 && <p className="jobs-idle">The server is free. Start a video and its progress and full log appear here.</p>}
+      {active.length === 0 && <p className="jobs-idle">Nothing is being made right now.</p>}
       <div className="jobs-list">
         {active.map((j) => <JobCard key={j.id} job={j} now={now} open={!!open[j.id]} onToggle={() => toggle(j.id)} />)}
       </div>

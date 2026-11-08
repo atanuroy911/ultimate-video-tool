@@ -24,22 +24,22 @@ Function un.VTChoices
   ${If} ${isUpdated}
     Abort
   ${EndIf}
-  !insertmacro MUI_HEADER_TEXT "What would you like to remove?" "Choose whether to keep your environment for a future installation."
+  !insertmacro MUI_HEADER_TEXT "What should be removed?" "Your videos and settings can stay for next time."
   nsDialogs::Create 1018
   Pop $VTDialog
   ${If} $VTDialog == error
     Abort
   ${EndIf}
-  ${NSD_CreateRadioButton} 0 4u 100% 22u "Remove the app only (recommended)"
+  ${NSD_CreateRadioButton} 0 4u 100% 22u "Remove the app, keep my videos and settings (recommended)"
   Pop $VTKeep
   ${NSD_SetState} $VTKeep ${BST_CHECKED}
-  ${NSD_CreateLabel} 12u 29u 94% 36u "Keep Python, downloaded tools, managed models, projects and settings. Reinstalling can reuse them."
+  ${NSD_CreateLabel} 12u 29u 94% 36u "Reinstalling picks up where you left off, with nothing to download again."
   Pop $0
-  ${NSD_CreateRadioButton} 0 78u 100% 22u "Remove the app and all its environment and data"
+  ${NSD_CreateRadioButton} 0 78u 100% 22u "Remove everything, including my videos"
   Pop $VTAll
-  ${NSD_CreateLabel} 12u 103u 94% 46u "Permanently delete this app's private data folder, including projects and managed models stored there. Custom folders and independently installed ComfyUI/Ollama stay untouched."
+  ${NSD_CreateLabel} 12u 103u 94% 46u "Deletes the app's folder with your videos, settings and downloaded models. Folders you chose yourself, and ComfyUI or Ollama installed separately, are not touched."
   Pop $0
-  ${NSD_CreateLabel} 0 162u 100% 30u "Private data folder: $APPDATA\${VT_DATA_NAME}"
+  ${NSD_CreateLabel} 0 162u 100% 30u "Folder: $APPDATA\${VT_DATA_NAME}"
   Pop $0
   nsDialogs::Show
 FunctionEnd
@@ -48,7 +48,7 @@ Function un.VTChoicesLeave
   StrCpy $VTRemoveAll "0"
   ${NSD_GetState} $VTAll $0
   ${If} $0 == ${BST_CHECKED}
-    MessageBox MB_YESNO|MB_ICONEXCLAMATION|MB_DEFBUTTON2 "Permanently delete the projects, settings, tools and models inside $APPDATA\${VT_DATA_NAME}?$\r$\n$\r$\nThis cannot be undone. Files in custom folders and independent engines will remain." IDYES vt_confirmed
+    MessageBox MB_YESNO|MB_ICONEXCLAMATION|MB_DEFBUTTON2 "Delete your videos, settings and models in $APPDATA\${VT_DATA_NAME}?$\r$\n$\r$\nThis can't be undone." IDYES vt_confirmed
     Abort
     vt_confirmed:
     StrCpy $VTRemoveAll "1"
@@ -72,6 +72,11 @@ FunctionEnd
     ${IfNot} ${isUpdated}
       DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "Ultimate Video Tool Server"
       DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "ultimate-video-tool-server"
+      DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "electron.app.Electron"
+    ${EndIf}
+  !else
+    ${IfNot} ${isUpdated}
+      DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "Ultimate Video Tool Helper"
     ${EndIf}
   !endif
   ${IfNot} ${Silent}
@@ -83,7 +88,7 @@ FunctionEnd
     ${If} $VTDataRoot == "$APPDATA\${VT_DATA_NAME}"
       RMDir /r "$VTDataRoot"
     ${Else}
-      MessageBox MB_OK|MB_ICONEXCLAMATION "The app was removed, but its data folder could not be verified. No environment data was deleted."
+      MessageBox MB_OK|MB_ICONEXCLAMATION "The app was removed. Its folder was left in place because it could not be checked safely."
     ${EndIf}
     ${If} $installMode == "all"
       SetShellVarContext all

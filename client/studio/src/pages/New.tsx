@@ -1,7 +1,7 @@
-import { Check, ChevronLeft, ChevronRight, CornerDownLeft, Mic, Music, Pause, Play, RotateCcw, Scissors, SlidersHorizontal, Sparkles, Square, Subtitles, Upload, UserSquare, Video, Volume2, VolumeX } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, CornerDownLeft, Mic, Music, Pause, Play, RotateCcw, Scissors, Sparkles, Square, Subtitles, Upload, UserSquare, Video, Volume2, VolumeX } from "lucide-react";
 import { useFetch, useMusic, useThemes } from "../hooks";
 import { useT } from "../i18n";
-import { Group, Row, Steps } from "../ds";
+import { Group, Row } from "../ds";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fmtTime, get, post, upload } from "../api";
@@ -261,15 +261,14 @@ export default function NewPage() {
   const [endCard, setEndCard] = useState("");
   const [voiceDirection, setVoiceDirection] = useState<"auto" | "off">("auto");               // the director adds delivery notes and sounds (sigh, laugh) to a spoken script where the voice can follow them
   const [cartoonTemplate, setCartoonTemplate] = useState("ink");
-  const [usecase, setUsecase] = useState("auto");                                       // the kind of video, for the director (Fine tuning); auto decides from what is said
+  const [usecase, setUsecase] = useState("auto");                                       // the kind of video, for the director (the Purpose tile); auto decides from what is said
   const [director, setDirector] = useState("best");
   const usecases = useFetch<{ id: string; label: string; about?: string }[]>("/api/usecases");
   const [planReview, setPlanReview] = useState<"auto" | "always" | "never">("auto");      // reels only: look at the plan before anything is drawn
   const [title, setTitle] = useState("");
   const [language, setLanguage] = useState<"auto" | "bn" | "en">("auto");
 
-  // fine tuning (closed by default)
-  const [fineTuning, setFineTuning] = useState(false);
+  // the finer choices (the options screen)
   const [pace, setPace] = useState<"calm" | "normal" | "fast">(settings.default_pace as any);
   const [removeFillers, setRemoveFillers] = useState(true);
   const [removeRetakes, setRemoveRetakes] = useState(true);
@@ -278,7 +277,8 @@ export default function NewPage() {
   const [scriptPolicy, setScriptPolicy] = useState<"mixed" | "bangla">("mixed");
   const [speakers, setSpeakers] = useState<"auto" | "off">("auto");
   const [glossary, setGlossary] = useState("");
-  const [speechModel, setSpeechModel] = useState("bn-medium");
+  const SPEECH_MODEL_DEFAULT = "bn-medium";
+  const [speechModel, setSpeechModel] = useState(SPEECH_MODEL_DEFAULT);
   const [subtitlesMode, setSubtitlesMode] = useState<"auto" | "any" | "off">("auto");
   const [pictures, setPictures] = useState<File[]>([]);
   const pictureInput = useRef<HTMLInputElement>(null);
@@ -449,7 +449,7 @@ export default function NewPage() {
         step === "ready" ? start() : goNext();
       } else if (e.key === "Escape" && detail) {
         setDetail(null);
-      } else if (e.key === "Escape" && stepIndex > 0 && !fineTuning) {
+      } else if (e.key === "Escape" && stepIndex > 0) {
         goBack();
       } else if (!typing && !e.metaKey && !e.ctrlKey && /^[a-e]$/i.test(e.key)) {
         letterHandlers.current[e.key.toUpperCase().charCodeAt(0) - 65]?.();
@@ -518,6 +518,9 @@ export default function NewPage() {
     removeFillers, setRemoveFillers, removeRetakes, setRemoveRetakes, targetLength, setTargetLength, soundEffects, setSoundEffects, glossary, setGlossary,
     pictures, addPictures: () => pictureInput.current?.click(), removePicture: (i) => setPictures((list) => list.filter((_, j) => j !== i)),
     reviewScript, setReviewScript, endCard, setEndCard, voiceSummary: `${chosenEngine?.label ?? "Automatic"}${voice && voice !== "auto" ? ` · ${chosenEngine?.voices.find((v) => v.id === voice)?.label ?? voice}` : ""}`,
+    usecase, setUsecase, usecases: usecases.data ?? [],
+    speakers, setSpeakers, scriptPolicy, setScriptPolicy, subtitlesMode, setSubtitlesMode,
+    speechModel, setSpeechModel, speechModelDefault: SPEECH_MODEL_DEFAULT, models: models ?? [],
     legacy: (id) => screens[id].body(),
   });
   const screens: Record<StepId, { question: string; hint?: string; body: () => React.ReactNode }> = {
@@ -552,6 +555,14 @@ export default function NewPage() {
               </>
             )}
             {recorder.state === "idle" && !file && <span className="small muted">{t("tf.source.tap")}</span>}
+            {recorder.state === "idle" && !file && recorder.devices.length > 1 && (
+              <label className="small muted row" style={{ gap: 6 }}>Microphone
+                <select value={recorder.deviceId} onChange={(e) => recorder.setDeviceId(e.target.value)} aria-label="Microphone">
+                  <option value="">Default</option>
+                  {recorder.devices.map((d) => <option key={d.deviceId} value={d.deviceId}>{d.label || `Microphone ${d.deviceId.slice(0, 4)}`}</option>)}
+                </select>
+              </label>
+            )}
             {recorder.state === "recorded" && recorder.url && <audio controls src={recorder.url} style={{ width: "min(420px, 100%)" }} />}
             {recorder.warn && <div className="banner warn" style={{ width: "100%" }}>{recorder.warn}</div>}
             {recorder.error && <div className="banner err" style={{ width: "100%" }}>{recorder.error}</div>}
@@ -610,6 +621,16 @@ export default function NewPage() {
                   <button type="button" className="btn sm" onClick={() => fileInput.current?.click()}><Upload size={14} /> {t("tf.source.choose")}</button>
                   <span className="small muted">{t("tf.source.drop")}</span>
                 </div>
+                {!trimmedText && (
+                  <details className="sample-voices">
+                    <summary className="small">No recording yet? Make a video from a free sample voice</summary>
+                    <CatalogList kind="audio" role="speech" action="Make a video" label="Free sample voices"
+                      onPick={async (entry) => {
+                        const job = await post<{ id: string }>(`/api/catalog/${entry.id}/project`, { language: "en", aspect, kind });
+                        nav(`/p/${await waitForProject(job.id)}/progress`);
+                      }} />
+                  </details>
+                )}
               </>
             )
           )}
@@ -779,87 +800,6 @@ export default function NewPage() {
         </>)}
       </div>
 
-      {fineTuning && (
-        <Steps
-          label={t("tf.fine")}
-          onClose={() => setFineTuning(false)}
-          steps={[
-            {
-              title: "Editing the talk",
-              subtitle: "Like an editor: pauses, “um”s, false starts and repeated takes are cut. Everything cut can be put back.",
-              icon: <SlidersHorizontal size={26} />,
-              body: (
-                <Group>
-                  <Row label="Purpose">
-                    <select value={usecase} onChange={(e) => setUsecase(e.target.value)} aria-label="Purpose" data-testid="usecase">
-                      {(usecases.data ?? [{ id: "auto", label: "Auto" }]).map((u) => <option key={u.id} value={u.id}>{u.label}</option>)}
-                    </select>
-                  </Row>
-                  <Row label="Pace"><Seg value={pace} onChange={setPace} label="Pace" options={[{ value: "calm", label: t("tf.captions.calm") }, { value: "normal", label: "Normal" }, { value: "fast", label: "Fast" }]} /></Row>
-                  <Row label="Remove “um” and “uh”"><input type="checkbox" className="ios-switch" checked={removeFillers} onChange={(e) => setRemoveFillers(e.target.checked)} aria-label="Remove fillers" /></Row>
-                  <Row label="Cut retakes and false starts"><input type="checkbox" className="ios-switch" checked={removeRetakes} onChange={(e) => setRemoveRetakes(e.target.checked)} aria-label="Cut retakes" /></Row>
-                  <Row label="Length"><Seg value={targetLength} onChange={setTargetLength} label="Length" options={[{ value: "auto", label: t("tf.captions.auto") }, { value: "60", label: "1 min" }, { value: "90", label: "1.5 min" }, { value: "keep", label: "Keep all" }]} /></Row>
-                  <Row label="Sound effects"><Seg value={soundEffects} onChange={setSoundEffects} label="Sound effects" options={[{ value: "off", label: "Off" }, { value: "subtle", label: "Subtle" }, { value: "normal", label: "Normal" }, { value: "rich", label: "Rich" }]} /></Row>
-                </Group>
-              ),
-            },
-            {
-              title: "Words",
-              subtitle: "How speech is heard and written.",
-              icon: <Mic size={26} />,
-              body: (
-                <>
-                  <Group title="Banglish" note="Detect gives each person in an interview their own look.">
-                    <Row label="English words" stack><Seg value={scriptPolicy} onChange={setScriptPolicy} label="English words in Bangla speech" options={[{ value: "mixed", label: "Keep English letters" }, { value: "bangla", label: "Write in Bangla script" }]} /></Row>
-                    <Row label="Speakers"><Seg value={speakers} onChange={setSpeakers} label="Speakers" options={[{ value: "auto", label: "Detect" }, { value: "off", label: "One" }]} /></Row>
-                  </Group>
-                  <Group title="Recognition" note={models && models.find((m) => m.key === speechModel)?.installed === false ? "This model downloads on first use (1–3 GB)." : "Glossary: one per line, word=replacement."}>
-                    <Row label="Speech model">
-                      <select value={speechModel} onChange={(e) => setSpeechModel(e.target.value)} aria-label="Speech model">
-                        {(models || [{ key: "bn-medium", note: "Bangla fine-tune", installed: false, hf: "" }]).map((m) => <option key={m.key} value={m.key}>{m.key} — {m.note}{m.installed ? " ✓" : ""}</option>)}
-                      </select>
-                    </Row>
-                    <Row label="Glossary" stack><textarea rows={3} value={glossary} onChange={(e) => setGlossary(e.target.value)} placeholder={"yield=ইয়েল্ড\ngross=গ্রস"} aria-label="Glossary" /></Row>
-                  </Group>
-                  {source === "link" && (
-                    <Group title="Words from the link">
-                      <Row label="Subtitles" stack><Seg value={subtitlesMode} onChange={setSubtitlesMode} label="Subtitles" options={[{ value: "auto", label: "Best quality" }, { value: "any", label: "Fast: any captions" }, { value: "off", label: "Listen only" }]} /></Row>
-                    </Group>
-                  )}
-                  <Group title="Recording">
-                    <Row label="Microphone">
-                      <select value={recorder.deviceId} onChange={(e) => recorder.setDeviceId(e.target.value)} aria-label="Microphone">
-                        <option value="">Default</option>
-                        {recorder.devices.map((d) => <option key={d.deviceId} value={d.deviceId}>{d.label || `Microphone ${d.deviceId.slice(0, 4)}`}</option>)}
-                      </select>
-                    </Row>
-                  </Group>
-                </>
-              ),
-            },
-            {
-              title: "Your pictures",
-              subtitle: "Name them with words from what you say and they appear when those words are spoken.",
-              icon: <Upload size={26} />,
-              body: (
-                <Group>
-                  <Row label={pictures.length ? `${pictures.length} added` : "None"}><button type="button" className="btn sm" onClick={() => pictureInput.current?.click()}><Upload size={13} /> Add…</button></Row>
-                  {pictures.map((picture, i) => (
-                    <Row key={i} label={<span className="small">{picture.name}</span>}><button type="button" className="ios-link" onClick={() => setPictures((list) => list.filter((_, j) => j !== i))}>{t("tf.remove")}</button></Row>
-                  ))}
-                  <Row label="No recording yet?" stack>
-                    <CatalogList kind="audio" role="speech" action="Make a video" label="Free sample voices"
-                      onPick={async (entry) => {
-                        const job = await post<{ id: string }>(`/api/catalog/${entry.id}/project`, { language: "en", aspect, kind });
-                        nav(`/p/${await waitForProject(job.id)}/progress`);
-                      }} />
-                  </Row>
-                </Group>
-              ),
-            },
-          ]}
-        />
-      )}
       <audio ref={musicPreview} onEnded={() => setPreviewingTrack(null)} />
       <audio ref={sampleAudio} />
       <input ref={pictureInput} type="file" multiple hidden accept="image/*,video/*,.gif" onChange={(e) => e.target.files && setPictures((list) => [...list, ...Array.from(e.target.files!)])} />

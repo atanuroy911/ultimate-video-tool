@@ -180,11 +180,15 @@ def test_setup_goes_on_after_one_engine_fails(monkeypatch):
     assert any(n == "comfy" for n, _ in seen)
 
 
-def test_start_services_reports_each_one(monkeypatch):
+def test_start_services_reports_each_one(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+
+    from vt.engines import installers
+
     monkeypatch.setattr(hub, "reachable", lambda name, url, timeout=1.5: name == "ollama")
-    out = hub.start_services(["ollama", "voicestudio"], lambda s: None, wait=0)
-    assert out["ollama"] == "running"
-    assert out["voicestudio"] in ("missing", "started, not answering yet")
+    monkeypatch.setattr(installers, "ComfyInstaller", lambda: SimpleNamespace(root=tmp_path))      # no ComfyUI installed here
+    out = hub.start_services(["ollama", "comfy"], lambda s: None, wait=0)
+    assert out == {"ollama": "running", "comfy": "missing"}
 
 
 @pytest.mark.parametrize("target", ["windows", "mac", "linux"])

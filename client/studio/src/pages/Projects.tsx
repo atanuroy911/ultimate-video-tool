@@ -165,12 +165,14 @@ export default function ProjectsPage() {
     const isSelected = selected.has(project.id);
     return (
       <article key={project.id} className={`dash2-card ${isSelected ? "dash2-selected" : ""}`} aria-label={project.title}>
+        <div className="dash2-cover-wrap">
         <button className="dash2-cover" onClick={() => open(project)} aria-label={`Open ${project.title}`} data-shape={project.aspect}>
           {cover ? <img src={cover} alt="" loading="lazy" decoding="async" />
             : project.last_export_url ? <video src={`${project.last_export_url}#t=1`} preload="metadata" muted playsInline aria-hidden />
             : <Film size={28} />}
           {project.duration ? <span className="dash2-length">{fmtTime(project.duration)}</span> : null}
           {job && <span className="dash2-progress"><ProgressBar frac={job.frac} /></span>}
+        </button>
           {/* Select checkbox overlay */}
           {(selecting || isSelected) && (
             <button
@@ -181,7 +183,7 @@ export default function ProjectsPage() {
               {isSelected ? <CheckSquare size={18} /> : <Square size={18} />}
             </button>
           )}
-        </button>
+        </div>
         <div className="dash2-info">
           <div className="col grow" style={{ gap: 2, minWidth: 0 }}>
             <strong className="bn dash2-title" title={project.title}>{project.title}</strong>

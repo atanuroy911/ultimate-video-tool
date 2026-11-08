@@ -60,3 +60,11 @@ Written 2026-11-06 at the owner's request: "list all the breaking stuff and fini
 - **The GPU server is down (2026-11-07 ~09:44): the owner says there is no electricity.** A power cut, not my test run. Server steps (A3, A4, A5, A7, D, F, I) wait until it is back; local work continues.
 - **A 10-minute video is still janky to scrub in the editor** in a GPU-less test (median 100 ms, was 166). The preview composition keeps every scene laid out (`.scene { opacity: 0 }`); hiding off-screen scenes in `vt.js` is the next lever and needs golden comparisons plus a measurement on a real graphics card. E14 stays open. See E14-performance.md.
 - **Old selectors in three browser suites** (`timeline2`, `timeline3`, `layers`): for A7.
+- **Clean slate (2026-11-07 13:06):** no Video Tool is installed on the Windows PC or the GPU server. The server's 20 projects are in `/home/roy/vt-projects-backup/projects`. The A7 browser-suite sweep on the local scratch was stopped before it finished (partial results in the temp folder only). Server steps (D, F, G, I, M9, M10, B9) wait for a fresh install.
+
+## Added 2026-11-07 (late, UI wiring audit)
+**Update 23:30: all three below are fixed** (AI panel Undo the last plan change, frames shown in the frame check, the duplicate connect routes removed). See UI-WIRING-2026-11-07.md.
+- **An AI's plan change over MCP cannot be undone from the app.** The editor's Undo covers the person's own edits. The server keeps a one-step `scenes.prev.json` that the MCP tools write, and `POST /api/projects/{pid}/scenes/undo` exists, but no button calls it. Suggested: "Undo the director's last change" in the AI panel.
+- The frame check (`/qa`) lists problems in words; the frames it looked at (`/qa/frame/{name}`) are never shown.
+- `/api/mcp/connect-claude-desktop` and `/api/mcp/connect-codex` are superseded by `/api/assistants/{id}/connect` and write on the server computer. Candidates for removal (tests in test_api.py use them).
+- **Do not run `client/studio/e2e/new_flow.mjs` against a server on this PC:** its last check makes a real video (pipeline, speech recognition). Run it against the GPU server's scratch (8792). A scratch server on this PC must start with `--gpus none` and `CUDA_VISIBLE_DEVICES=-1`, and check first that the port is free (an older one was found on 8771).

@@ -25,7 +25,7 @@ const SAY: Record<string, string> = {
   tighten: "Cutting it down to the best parts",
   plan: "Directing the scenes",
   compose: "Drawing the scenes",
-  render: "Rendering your video",
+  render: "Exporting your video",
   check: "Watching it back like a viewer",
   publish: "Writing the title and hashtags",
 };

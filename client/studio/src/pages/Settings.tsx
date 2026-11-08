@@ -14,6 +14,9 @@ import DirectorSettings from "./DirectorSettings";
 import { explainCheck } from "./settingsChecks";
 import "../settings-clarity.css";
 
+/** Speech readers by what they are for, not by their model names (bn-medium, large-v3…). */
+const SPEECH: Record<string, string> = { "bn-medium": "Bangla", "large-v3": "Most accurate · all languages", medium: "Balanced · all languages", small: "Fastest · all languages" };
+
 export default function SettingsPage() {
   const [params, setParams] = useSearchParams();
   const keys = ["general", "voice", "directors", "libraries", "help"];
@@ -100,7 +103,9 @@ export default function SettingsPage() {
           <Field label="Look">
             <select value={settings.default_theme} onChange={(e) => save({ default_theme: e.target.value })}>
               <option value="auto">Automatic (a new look that matches each video)</option>
-              {(themes || []).map((t) => <option key={t.name} value={t.name}>{t.label || t.name}</option>)}
+              {(themes || []).filter((t, i, all) => !t.name.startsWith("auto-") && all.findIndex((x) => !x.name.startsWith("auto-") && (x.label || x.name) === (t.label || t.name)) === i)
+                .map((t) => <option key={t.name} value={t.name}>{t.label || t.name}</option>)}
+              {settings.default_theme && settings.default_theme.startsWith("auto-") && <option value={settings.default_theme}>The look of one of your videos</option>}
             </select>
           </Field>
           <div className="col" style={{ gap: 5 }}>
@@ -133,19 +138,19 @@ export default function SettingsPage() {
 
       <section id="speech" className="card card-pad col" style={{ gap: 12 }}>
         <h2>Speech recognition</h2>
-        <p className="muted" style={{ margin: 0 }}>A bigger speech reader is usually more accurate but takes more space. Download one once; the app uses it automatically.</p>
+        <p className="muted" style={{ margin: 0 }}>How recordings are turned into words. A bigger one is more accurate. Download one once; it is used automatically.</p>
         <table className="table">
-          <thead><tr><th>Model</th><th>About</th><th /></tr></thead>
+          <thead><tr><th>Speech reader</th><th>Size</th><th /></tr></thead>
           <tbody>
             {(models.data || []).map((m) => {
               const job = pulls.find((j) => j.label.endsWith(m.key) && (j.status === "running" || j.status === "queued"));
               return (
                 <tr key={m.key}>
-                  <td><strong>{m.key}</strong></td>
-                  <td className="muted">{m.note}</td>
+                  <td><strong>{SPEECH[m.key] || m.key}</strong></td>
+                  <td className="muted">{(/~?\s*([\d.]+\s*[GM]B)/.exec(m.note || "") || [])[1] || ""}</td>
                   <td style={{ width: 200 }}>
-                    {m.installed ? <span className="chip ok"><Check size={12} /> installed</span> : job ? (
-                      <div className="col" style={{ gap: 4 }}><ProgressBar frac={job.frac} /><span className="small muted">{job.msg || "downloading…"}</span></div>
+                    {m.installed ? <span className="chip ok"><Check size={12} /> Installed</span> : job ? (
+                      <div className="col" style={{ gap: 4 }}><ProgressBar frac={job.frac} /><span className="small muted">{job.msg || "Downloading…"}</span></div>
                     ) : (
                       <button className="btn sm" onClick={() => post(`/api/models/${m.key}/pull`).then(() => toast("Download started. It can take several minutes."))}><Download size={13} /> Download</button>
                     )}
@@ -155,13 +160,13 @@ export default function SettingsPage() {
             })}
           </tbody>
         </table>
-        <span className="small muted">Models download once into the app folder. Without a graphics card, transcription runs on the CPU and is slower.</span>
+        <span className="small muted">Saved on the server. Without a graphics card, reading speech takes longer.</span>
       </section>
 
       <div id="ai" className="col" style={{ gap: 22 }}>
       <DirectorSettings settings={settings} directors={directors.data?.directors} loading={directors.loading} onSave={save} />
       <HelperCard />
-      <span className="small muted">Claude today: {directors.data?.claude_usage_today.calls || 0} calls · {Math.round(directors.data?.claude_usage_today.seconds || 0)} seconds.</span>
+      <span className="small muted">Claude today: {directors.data?.claude_usage_today.calls || 0} requests, {Math.max(1, Math.round((directors.data?.claude_usage_today.seconds || 0) / 60))} min of work.</span>
       <AIAssistants />
       </div>
       <div id="stock"><StockKeys /></div>
@@ -173,7 +178,7 @@ export default function SettingsPage() {
           <h2 className="grow">Is everything working?</h2>
           <button className="btn sm" onClick={() => doctor.refetch()}><RefreshCw size={13} /> Re-check</button>
         </div>
-        {doctor.loading && <div className="row muted"><Spinner /> Checking…</div>}
+        {doctor.loading && <div className="row muted"><Spinner /> Checking the server's tools and programs. This takes a few seconds.</div>}
         <ul className="settings-checks">{(doctor.data || []).map((d) => {
           const plain = explainCheck(d);
           return <li key={d.name}>

@@ -35,7 +35,7 @@ class ExportOut(BaseModel):
     grounding=(), fallback=None, fallback_reason="The renderer already selects hardware or software encoding as configured.",
     examples=(Example(inputs={"aspect": "9:16", "quality": "fast", "gpu": False},
                       outputs={"video": "exports/video.mp4", "srt": "exports/video.srt", "seconds": 1.0, "duration": 1.0}),),
-    toolboxes=("studio", "full"), plain_name="Rendering the finished video",
+    toolboxes=("studio", "full"), plain_name="Exporting the finished video",
     log_line=lambda i, o: f"Rendered {o.duration:.1f} seconds of finished video.", native_outputs=True,
     version_outputs=False,
 )
@@ -84,7 +84,7 @@ class EmptyCreditsIn(BaseModel):
 
 
 class PublishCreditsOut(BaseModel):
-    text: str = Field(description="Plain-text credits for non-upload media used by the project.")
+    text: str = Field(description="Plain-text credits: stock and catalogue media, a music track whose licence asks for a credit, and a link's source.")
 
 
 @module(
@@ -98,10 +98,10 @@ class PublishCreditsOut(BaseModel):
     native_outputs=True,
 )
 def publish_credits(ws: Workspace, inputs: "EmptyCreditsIn") -> PublishCreditsOut:
-    from ...director.stock import credits_text
+    from ... import credits as CR
     from ...project import Project
 
-    text = credits_text(Project(ws.root.name, ws.root.parent))
+    text = CR.text(Project(ws.root.name, ws.root.parent))
     path = ws.path_for("publish.credits")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
@@ -158,7 +158,7 @@ class SilentOut(BaseModel):
     cost=Cost("heavy", ("gpu0", "cpu"), 90.0), effects="writes_artifact", determinism="external", grounding=(),
     fallback=None, fallback_reason="The existing renderer retries CPU automatically when GPU rendering fails.",
     examples=(Example(inputs={"aspect": "9:16", "quality": "fast", "gpu": False}, outputs={"video": "exports/module-silent.mp4"}),),
-    toolboxes=("studio", "full"), plain_name="Rendering the silent video",
+    toolboxes=("studio", "full"), plain_name="Exporting the silent video",
     log_line=lambda i, o: "Rendered the silent video.", native_outputs=True, version_outputs=False,
 )
 def silent(ws: Workspace, inputs: SilentIn) -> SilentOut:

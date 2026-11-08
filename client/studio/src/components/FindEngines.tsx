@@ -56,14 +56,14 @@ export default function FindEngines({ onUsed }: { onUsed: () => void }) {
   return (
     <div className="col" style={{ gap: 10 }} data-testid="find-engines">
       <div className="row wrap" style={{ gap: 8 }}>
-        <strong className="grow">Picture makers found</strong>
-        <input type="text" value={host} onChange={(e) => setHost(e.target.value)} placeholder="The server computer (or type an address)" aria-label="Computer to look on"
+        <strong className="grow">Find ComfyUI</strong>
+        <input type="text" value={host} onChange={(e) => setHost(e.target.value)} placeholder="This server, or another computer's address" aria-label="Computer to search"
           spellCheck={false} style={{ minWidth: 220 }} onKeyDown={(e) => { if (e.key === "Enter") scan(); }} />
-        <label className="small row" style={{ gap: 4 }}><input type="checkbox" checked={deep} onChange={(e) => setDeep(e.target.checked)} /> every port</label>
-        <button className="btn sm" onClick={scan} disabled={busy} data-testid="find">{busy ? <Spinner /> : <><Search size={14} /> Look</>}</button>
+        <label className="small row" style={{ gap: 4 }}><input type="checkbox" checked={deep} onChange={(e) => setDeep(e.target.checked)} /> All ports</label>
+        <button className="btn sm" onClick={scan} disabled={busy} data-testid="find">{busy ? <Spinner /> : <><Search size={14} /> Search</>}</button>
       </div>
       {found && !comfy.length && !busy && (
-        <p className="small muted" style={{ margin: 0 }} data-testid="none-found">No ComfyUI answers on {found.host}{deep ? "" : " on the usual ports (tick every port to look further)"}. Run setup to install Video Tool's own, in its own folder and port.</p>
+        <p className="small muted" style={{ margin: 0 }} data-testid="none-found">No ComfyUI found on {found.host}{deep ? "" : ". Try All ports"}. Or install one with Set up… under AI programs.</p>
       )}
       {comfy.map((i) => (
         <div key={i.url} className="engine-card" data-instance={i.url}>

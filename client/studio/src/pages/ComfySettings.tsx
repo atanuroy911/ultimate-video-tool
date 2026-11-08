@@ -33,16 +33,16 @@ export default function ComfySettings() {
   const data = status.data;
   const gpu = data?.devices?.[0];
   return (
-    <section className="card card-pad col" style={{ gap: 12 }} aria-label="Moving pictures">
+    <section className="card card-pad col" style={{ gap: 12 }} aria-label="ComfyUI settings">
       <div className="row wrap">
-        <h2 className="grow"><Clapperboard size={18} style={{ verticalAlign: -3 }} /> Make moving pictures</h2>
+        <h2 className="grow"><Clapperboard size={18} style={{ verticalAlign: -3 }} /> ComfyUI settings</h2>
         {status.loading && !data ? <Spinner /> : <span className={`chip ${data?.ok ? "ok" : "warn"}`}>{data?.ok ? <><Check size={12} /> Connected{data.version ? ` · ${data.version}` : ""}</> : "Not reachable"}</span>}
       </div>
       <p className="muted" style={{ margin: 0 }}>
-        Turns a still picture into a short moving clip using a graphics-card computer. Only that picture and the words describing it are sent to the computer below.
+        ComfyUI draws pictures and turns them into short clips. Only the picture and its description are sent to it.
       </p>
       <div className="row wrap" style={{ gap: 12, alignItems: "flex-end" }}>
-        <Field label="Picture-making computer" hint="The address of the computer with the graphics card">
+        <Field label="Address" hint="Where ComfyUI is running">
           <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} onBlur={save} onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()} spellCheck={false} style={{ width: "100%", minWidth: 0 }} aria-label="ComfyUI address" />
         </Field>
         <button className="btn" disabled={saving || status.loading} onClick={() => status.refetch()}>{saving || status.loading ? <Spinner /> : <RefreshCw size={14} />} Check connection</button>

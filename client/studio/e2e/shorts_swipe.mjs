@@ -13,7 +13,7 @@ await page.route("**/api/**", async route => {
   const path = new URL(route.request().url()).pathname;
   const body = path === "/api/projects" ? [project]
     : path === "/api/projects/qa-video/shorts" ? { highlights, preview_url: "/media/qa-video/input.mp4" }
-    : path === "/api/health" ? { api_version: 6 }
+    : path === "/api/health" ? { ok: true, api_version: 8 }
     : path === "/api/settings" ? {}
     : path === "/api/ai/status" ? { provider: "off", available: false, model: "" }
     : {};
@@ -21,17 +21,18 @@ await page.route("**/api/**", async route => {
 });
 try {
   await page.goto(`${base}/p/qa-video/shorts`);
-  try { await page.getByText("Review pick 1 of 2").waitFor({ timeout: 5000 }); }
+  try { await page.getByText(/^Moment 1 of 2/).waitFor({ timeout: 5000 }); }
   catch (error) { console.error((await page.locator("body").innerText()).slice(0, 2500)); throw error; }
   if (!(await page.locator("video[src='/media/qa-video/input.mp4']").count())) throw new Error("Source video preview missing");
-  await page.getByRole("button", { name: "Next Short" }).click();
-  await page.getByText("Review pick 2 of 2").waitFor();
-  await page.getByRole("button", { name: "Remove from batch" }).click();
-  if (!(await page.getByRole("button", { name: "Batch Export 1 Videos" }).count())) throw new Error("Batch selection did not change");
-  await page.getByRole("button", { name: "Previous Short" }).click();
-  await page.getByText("Review pick 1 of 2").waitFor();
-  if (!(await page.getByRole("button", { name: "Upload video & find Shorts" }).count())) throw new Error("Direct upload missing");
-  console.log("Shorts upload, video preview, next/previous, and batch selection controls passed");
+  await page.getByRole("button", { name: "Next moment" }).click();
+  await page.getByText(/^Moment 2 of 2/).waitFor();
+  await page.getByRole("checkbox", { name: "Keep Second moment" }).uncheck();
+  await page.getByRole("heading", { name: "1 moment selected" }).waitFor({ timeout: 3000 }).catch(() => { throw new Error("Batch selection did not change"); });
+  await page.getByRole("button", { name: "Previous moment" }).click();
+  await page.getByText(/^Moment 1 of 2/).waitFor();
+  await page.getByRole("button", { name: "Change video" }).click();
+  if (!(await page.getByRole("button", { name: "Upload", exact: true }).count())) throw new Error("Direct upload missing");
+  console.log("Shorts upload, video preview, next/previous moment and batch selection controls passed");
 } finally {
   await browser.close();
 }

@@ -72,7 +72,7 @@ console.log("The overview at /");
   const v = page.getByTestId("gpu-switch-0"), r = page.getByTestId("gpu-switch-1");
   check("each card has a named switch: the V100 off, the 3060 on", (await v.getAttribute("role")) === "switch" && /Video Tool may use this card: Tesla V100/.test((await v.getAttribute("aria-label")) || "") && (await v.getAttribute("aria-checked")) === "false" && (await r.getAttribute("aria-checked")) === "true");
   check("what is using each card is said in words", /python3 is using 9\.7 GB\. Ollama is using 1\.17 GB\./.test(await page.getByTestId("gpu-card-0").innerText()) && /Nothing else is using it\./.test(await page.getByTestId("gpu-card-1").innerText()));
-  check("nobody has answered: it says so and which one card is used meanwhile", /Nobody has chosen yet\. Until you do, Video Tool uses one card only: NVIDIA GeForce RTX 3060\./.test(await page.getByTestId("gpu-needs-choice").innerText()));
+  check("nobody has answered: it says so and which one card is used meanwhile", /Choose which cards Video Tool may use\. Until then it uses only NVIDIA GeForce RTX 3060\./.test(await page.getByTestId("gpu-needs-choice").innerText()));
   await page.getByTestId("gpu-keep").click();
   await page.waitForFunction(() => !document.querySelector("[data-testid=gpu-needs-choice]"));
   check("'Keep this' saves the cards that are on as the answer and the note goes", JSON.stringify(seen.puts.at(-1)) === JSON.stringify({ allowed: ["GPU-3060"] }), JSON.stringify(seen.puts));
@@ -115,8 +115,8 @@ console.log("The overview at /");
 {
   const { ctx, page } = await open(1280, 900, OLD);
   await page.goto(`${base}/`, { waitUntil: "load" });
-  await page.locator("[data-gpu-choice]").getByText(/cannot choose graphics cards yet/).waitFor();
-  check("a server older than this page says it must be updated, and the page stays up", /Update the server/.test(await page.locator("[data-gpu-choice]").innerText()) && /Processing server is running/.test(await page.locator("body").innerText()));
+  await page.locator("[data-gpu-choice]").getByText(/could not be read/).waitFor();
+  check("a server older than this page says it must be updated, and the page stays up", /could not be read/.test(await page.locator("[data-gpu-choice]").innerText()) && /Ultimate Video Tool Server/.test(await page.locator("body").innerText()));
   await ctx.close();
 }
 
@@ -127,7 +127,7 @@ console.log("Server settings at /manage");
   await page.getByTestId("gpu-cards").waitFor();
   check("when nobody has answered, Server settings opens on the Graphics cards tab", (await page.locator('[data-tab="cards"]').getAttribute("aria-selected")) === "true" && await page.locator("#cards").isVisible() && await page.locator("#engines").isHidden());
   await page.locator('[data-tab="install"]').click();
-  check("the Install tab no longer asks for a graphics card for a new install, and says where the card is chosen", (await page.locator("#install select#gpu").count()) === 0 && !/Graphics card\s*$/m.test(await page.locator("#install label").allInnerTexts().then((x) => x.join("\n"))) && /see Graphics cards/.test(await page.locator("#install").innerText()));
+  check("the Install tab no longer asks for a graphics card for a new install, and says where the card is chosen", (await page.locator("#install select#gpu").count()) === 0 && !/Graphics card\s*$/m.test(await page.locator("#install label").allInnerTexts().then((x) => x.join("\n"))) && /chosen under Graphics cards/.test(await page.locator("#install").innerText()));
   await page.locator('[data-tab="engines"]').click();
   check("the other tabs still work", !(await page.locator("#engines").evaluate((el) => el.hidden)) && (await page.locator("#cards").evaluate((el) => el.hidden)));
   await page.screenshot({ path: path.join(out, "manage-wide.png") });
@@ -136,8 +136,8 @@ console.log("Server settings at /manage");
 {
   const { ctx, page } = await open(1280, 900, ANSWERED);
   await page.goto(`${base}/manage`, { waitUntil: "load" });
-  await page.waitForFunction(() => /Processing computer: GPU-SERVER/.test(document.querySelector("#computer")?.textContent || ""));
-  check("once answered it opens on Engines as before", (await page.locator('[data-tab="engines"]').getAttribute("aria-selected")) === "true" && !(await page.locator("#engines").evaluate((el) => el.hidden)));
+  await page.waitForFunction(() => /^GPU-SERVER$/.test(document.querySelector("#computer")?.textContent || ""));
+  check("once answered it opens on Programs as before", (await page.locator('[data-tab="engines"]').getAttribute("aria-selected")) === "true" && !(await page.locator("#engines").evaluate((el) => el.hidden)));
   await ctx.close();
 }
 {

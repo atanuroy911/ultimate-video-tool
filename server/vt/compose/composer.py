@@ -409,7 +409,10 @@ def paginate(scenes: list[dict], aspect: str) -> list[dict]:
     for sc in scenes:
         for i, e in enumerate(sc.get("elements", [])):
             e.setdefault("_i", i)                       # the element's place in the plan: the editor picks by (scene, index) even after paging
-        if sc.get("edited") or any(e.get("free") for e in sc.get("elements", [])):
+        if sc.get("stick") and len(sc.get("elements", [])) > 1:
+            out += _one_at_a_time(sc, cap)
+            continue
+        if any(e.get("_placed") for e in sc.get("elements", [])):     # a hand-placed picture keeps the scene's one layout; a re-timed one still gets its own shot
             out.append(sc)
             continue
         els = sorted(sc.get("elements", []), key=lambda e: e.get("at", sc["start"]))
@@ -461,7 +464,44 @@ def paginate(scenes: list[dict], aspect: str) -> list[dict]:
     return out
 
 
-HOLD_MIN, HOLD_MAX = 1.5, 3.0                      # pacing.dwell: the main thing for 1.5 to 3 s, then the picture behind it again
+def _one_at_a_time(sc: dict, cap: int) -> list[dict]:
+    """A cartoon shows one picture at a time over its drawing: the next picture takes over, the last one leaves (owner, 2026-11-08:
+    pictures piled up, a clock drawn over a shop sign). A picture shares the frame only when it arrives with another (a sticker and
+    its label), when it is part of a build-up (a list, a row of coins), or when the director or the person kept the earlier one on
+    screen past this one's arrival (an until_word, an end time): then they were meant to be seen together. A placed picture
+    (x, y, scale) is paged like any other, so moving one never changes when the others show."""
+    els = sorted(sc["elements"], key=lambda e: e.get("at", sc["start"]))
+    groups: list[list[dict]] = []
+    for e in els:
+        if groups:
+            g = groups[-1]
+            arrives_with = e["at"] - g[-1]["at"] <= TOGETHER
+            build_up = e.get("type") not in PAGEABLE and g[-1].get("type") not in PAGEABLE
+            held = any(x.get("_held") and x.get("until") is not None and x["until"] - e["at"] > 0.3 for x in g)
+            if len(g) < cap and (arrives_with or build_up or held):
+                g.append(e)
+                continue
+        groups.append([e])
+    if len(groups) == 1:
+        return [sc]
+    pages = []
+    for i, g in enumerate(groups):
+        t0 = sc["start"] if i == 0 else g[0]["at"]
+        t1 = groups[i + 1][0]["at"] if i + 1 < len(groups) else sc["end"]
+        page = {**sc, "id": sc["id"] if i == 0 else f"{sc['id']}p{i + 1}", "src": sc.get("src", sc["id"]), "start": round(t0, 3), "end": round(t1, 3), "elements": g}
+        for e in g:
+            if e.get("free") and not e.get("_held") and e.get("until", t1) > t1:
+                e["until"] = round(t1, 3)               # a placed picture is drawn on its own layer: it leaves with its shot, not with the scene
+        if i:
+            page["transition_in"] = "cut"               # the same drawing continues: only the picture changes
+            page["cont"] = True
+        if sc.get("sfx"):
+            page["sfx"] = [c for c in sc["sfx"] if t0 <= c["t"] < t1]
+        pages.append(page)
+    return pages
+
+
+HOLD_MIN, HOLD_MAX = 1.5, 3.0                    # pacing.dwell: the main thing for 1.5 to 3 s, then the picture behind it again
 # full-frame text cards: in a video with pictures they say their line and give the frame back to a picture
 CARD_TYPES = {"title", "big_number", "value_card", "quote", "question", "cta", "definition", "keyword", "tag", "stat_row", "equation", "price_tag"}
 
@@ -520,8 +560,12 @@ def resolve_composition(sf: ScenesFile, tr: Transcript, beats: Beats, theme: The
                 d.pop("until", None)
             if el.keyframes or el.start is not None or el.end is not None or el.x is not None or el.y is not None or el.scale != 1 or el.rotation != 0 or el.opacity != 1 or has_transform(el.transform):
                 d["free"] = True
+                if el.keyframes or el.x is not None or el.y is not None or el.scale != 1 or el.rotation != 0 or el.opacity != 1 or has_transform(el.transform):
+                    d["_placed"] = True                    # placed by hand, not only re-timed: the scene keeps one layout for every shape
                 d["at"] = round(el.start if el.start is not None else at, 3)
                 d["until"] = round(el.end if el.end is not None else max(d["at"] + .1, end), 3)
+            if el.end is not None or (uw in words_by_id and "until" in d):
+                d["_held"] = True                          # someone chose when it leaves (an end time, an until_word): a cartoon keeps it with the next picture
             els.append(d)
             _nested_assets(d, used_icons, used_stickers)
             if d["type"] == "icon":
@@ -543,9 +587,8 @@ def resolve_composition(sf: ScenesFile, tr: Transcript, beats: Beats, theme: The
                     used_stickers.add(key)
                 else:
                     d.pop("emoji")
-        automatic = [e for e in els if not e.get("free")]
-        if automatic:                                   # generated timing only; never override an editor's choice
-            first = min(automatic, key=lambda x: x["at"])
+        first = min(els, key=lambda x: x["at"]) if els else None
+        if first is not None and not first.get("free"):  # generated timing only: when the person timed the scene's first picture, nothing else is pulled forward in its place
             if i == 0:
                 first["at"] = round(start, 3)            # the opening picture is on screen from the first frame (thumbnail, first impression)
             elif first["at"] - start > 0.6:

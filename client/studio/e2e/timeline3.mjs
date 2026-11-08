@@ -17,12 +17,16 @@ await page.goto(`${base}/p/${pid}/pro`, { waitUntil: "networkidle" });
 await page.waitForSelector(".tl-clip");
 await page.waitForTimeout(600);
 
-// ---- scene end: the clip's right edge is within 2 px of the pointer on every frame
+// ---- free drag: the clip's right edge tracks pointer distance without snapping
+const snap = page.getByRole("button", { name: "Snapping", exact: true });
+if (await snap.getAttribute("aria-pressed") === "true") await snap.click();
 const sceneRight = async () => { const b = await page.locator(".tl-clip").nth(0).boundingBox(); return b.x + b.width; };
-const grab = page.locator('[aria-label="Move the end of scene 1"]').first();
+const grab = page.getByLabel("Boundary between scenes 1 and 2", { exact: true });
 const gb = await grab.boundingBox();
 const y = gb.y + gb.height / 2;
-let px = gb.x + gb.width - 3;
+const startX = gb.x + gb.width / 2;
+const beforePlan = (await api(`/api/projects/${pid}/scenes`)).plan.scenes;
+let px = startX;
 await page.mouse.move(px, y);
 await page.mouse.down();
 let worst = 0;
@@ -31,26 +35,29 @@ for (let i = 1; i <= 20; i++) {
   px += 6;
   await page.mouse.move(px, y);
   await page.waitForTimeout(30);
-  worst = Math.max(worst, Math.abs((await sceneRight()) - px));
+  worst = Math.max(worst, Math.abs((await sceneRight()) - startR - (px - startX)));
 }
 check("scene end stays under the pointer on every frame", worst <= 2.5, `worst offset ${worst.toFixed(1)} px`);
-check("a marker shows the sentence it will settle on", (await page.locator(".tl-snap.land").count()) === 1);
+check("a marker shows the exact time it will settle on", (await page.locator(".tl-snap.land").count()) === 1 && /Scene change at \d/.test(await page.locator(".tl-hint").innerText()));
 await page.keyboard.press("Escape");
 await page.mouse.up();
 await page.waitForTimeout(400);
 check("Escape cancels: the scene is back where it was", Math.abs((await sceneRight()) - startR) < 2, `${startR} -> ${await sceneRight()}`);
 const plan = (await api(`/api/projects/${pid}/scenes`)).plan.scenes;
-check("and nothing was changed in the plan", plan.length >= 2);
+check("and nothing was changed in the plan", JSON.stringify(plan) === JSON.stringify(beforePlan));
 
-// ---- scene start handle of scene 2 moves the same edge
-check("scene 2 has a start handle", (await page.locator('[aria-label="Move the start of scene 2"]').count()) === 1);
+// ---- a single handle moves both sides of the shared boundary
+check("scenes 1 and 2 have one shared boundary handle", (await grab.count()) === 1);
 
 // ---- voice clip: right edge shrinks with the pointer, a label shows the length, outward with nothing to restore gives a hint
 const vclip = page.locator(".tl-aclip").first();
-const vb = await vclip.boundingBox();
+const cutsBefore = (await api(`/api/projects/${pid}/audio`)).cuts;
 const trimR = vclip.locator(".trim.r");
+await trimR.scrollIntoViewIfNeeded();
+const vb = await vclip.boundingBox();
 const tb = await trimR.boundingBox();
-let tx = tb.x + 6, ty = tb.y + tb.height / 2;
+const voiceStartX = tb.x + tb.width / 2;
+let tx = voiceStartX, ty = tb.y + tb.height / 2;
 await page.mouse.move(tx, ty);
 await page.mouse.down();
 let vworst = 0;
@@ -59,7 +66,7 @@ for (let i = 1; i <= 16; i++) {
   await page.mouse.move(tx, ty);
   await page.waitForTimeout(30);
   const nb = await vclip.boundingBox();
-  vworst = Math.max(vworst, Math.abs(nb.x + nb.width - tx - 6));
+  vworst = Math.max(vworst, Math.abs(nb.x + nb.width - (vb.x + vb.width) - (tx - voiceStartX)));
 }
 check("the voice clip's end follows the pointer while trimming", vworst <= 14, `worst ${vworst.toFixed(1)} px`);
 const nb = await vclip.boundingBox();
@@ -70,10 +77,11 @@ await page.mouse.up();
 await page.waitForTimeout(300);
 const nb2 = await vclip.boundingBox();
 check("Escape puts the voice clip back", Math.abs(nb2.width - vb.width) < 2, `${vb.width} -> ${nb2.width}`);
-check("and no cut was made", (await api(`/api/projects/${pid}/audio`)).cuts.length === (await api(`/api/projects/${pid}/audio`)).cuts.length);
+check("and no cut was made", JSON.stringify((await api(`/api/projects/${pid}/audio`)).cuts) === JSON.stringify(cutsBefore));
 
+await trimR.scrollIntoViewIfNeeded();
 const tb2 = await trimR.boundingBox();
-let ox = tb2.x + 6, oy = tb2.y + tb2.height / 2;
+let ox = tb2.x + tb2.width / 2, oy = tb2.y + tb2.height / 2;
 await page.mouse.move(ox, oy);
 await page.mouse.down();
 for (let i = 1; i <= 6; i++) { ox += 10; await page.mouse.move(ox, oy); await page.waitForTimeout(30); }
@@ -83,8 +91,9 @@ await page.mouse.up();
 // ---- a real trim, with the pointer leaving the window: the drag still ends cleanly
 const outLen = async () => (await api(`/api/projects/${pid}/audio`)).keep.at(-1).o1;
 const before = await outLen();
+await trimR.scrollIntoViewIfNeeded();
 const tb3 = await trimR.boundingBox();
-let lx = tb3.x + 6, ly = tb3.y + tb3.height / 2;
+let lx = tb3.x + tb3.width / 2, ly = tb3.y + tb3.height / 2;
 await page.mouse.move(lx, ly);
 await page.mouse.down();
 for (let i = 1; i <= 12; i++) { lx -= 12; await page.mouse.move(lx, ly); await page.waitForTimeout(25); }

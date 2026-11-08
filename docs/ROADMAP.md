@@ -251,7 +251,7 @@ When a task finishes: change its row to done (or delete it and add a line under 
 ---
 
 ## Phase 11: Engines, voices and the setup
-**Status:** PARTLY DONE (2026-10-28) · **Needs:** Phase 1 · **Size:** L · **Design:** [engines and setup](plans/PLAN-ENGINES-AND-SETUP.MD), [VoiceStudio](plans/PLAN-VOICESTUDIO.MD), [voice direction](plans/PLAN-VOICE-DIRECTION.MD), [best models](research/BEST-MODELS.md)
+**Status:** PARTLY DONE (2026-10-28) · **Needs:** Phase 1 · **Size:** L · **Design:** [engines and setup](plans/PLAN-ENGINES-AND-SETUP.MD), [VoiceStudio](history/PLAN-VOICESTUDIO.MD), [voice direction](plans/PLAN-VOICE-DIRECTION.MD), [best models](research/BEST-MODELS.md)
 
 The owner's vision: a **standalone** app whose setup downloads what it needs and also asks "do you run these elsewhere?"; engines (Ollama, ComfyUI, VoiceStudio, others) are local or remote and interchangeable; our own models can be packaged as a server; **the pipeline depends on ComfyUI and Ollama only**; the best model for each job; voice **direction** and **vocal events** available to the director.
 
@@ -260,7 +260,7 @@ The owner's vision: a **standalone** app whose setup downloads what it needs and
 | E0 | Engine registry: spec, endpoint (mode, url, key, workers), health, settings migration from `ollama_url` and `comfy_url`, `/api/engines` | **DONE** | `server/vt/engines/`, `server/vt/server/engines_routes.py`, `tests/test_voicestudio.py` |
 | E1 | Settings, Engines page in the Studio (cards, a Step 1-2-3 sheet, test in words, workers); the top-bar chip | **DONE** (the chip is not) | `client/studio/src/pages/Engines.tsx`, `client/studio/e2e/engines.mjs` |
 | E2 | VoiceStudio as an engine: client, the `voicestudio` voice, speech and model install | **DONE** (speech proven with KittenTTS; the default model is accepted and installed) | `server/vt/voicestudio/`, `server/vt/tts.py::_synth_voicestudio`, [evidence](evidence/2026-10-28/voicestudio-install.md) |
-| E3 | Models and recovery: manifests, `scripts/voicestudio_models.py`, runbooks | PARTLY DONE (VoiceStudio and ComfyUI voice nodes; `vt models move` not built) | [ops/voicestudio-server.md](ops/voicestudio-server.md), [ops/comfyui-voice-nodes.md](ops/comfyui-voice-nodes.md) |
+| E3 | Models and recovery: manifests, `scripts/voicestudio_models.py`, runbooks | PARTLY DONE (VoiceStudio and ComfyUI voice nodes; `vt models move` not built) | [ops/voicestudio-server.md](history/voicestudio-server.md), [ops/comfyui-voice-nodes.md](ops/comfyui-voice-nodes.md) |
 | E4 | The setup wizard (7 steps, resumable, English and Bangla) | PLANNED | plan section 3.2 |
 | E5 | Local installers (Ollama, ComfyUI managed, VoiceStudio, Whisper) | PLANNED | plan section 3.3 |
 | E6 | Engine Server: `vt serve-engine`, pairing, "Engine only" package | PLANNED | plan section 3.4 |
@@ -269,7 +269,7 @@ The owner's vision: a **standalone** app whose setup downloads what it needs and
 | VC-1 | **Voices through ComfyUI**: workflow kind `audio`, `server/vt/comfy/voice.py`, `server/vt/comfy/voicing.py`, the `comfyvoice` engine, workers, Breeze workflows | **DONE in the app, tested against a fake server** | `tests/test_comfy_voice.py` |
 | VC-2 | **Install the node packs on the GPU server and run one real sentence per workflow**; write the OmniVoice workflows from the real node ids; set `status: verified` | **DONE 2026-10-28** (all five workflows verified; a reel voiced by Breeze) | [evidence](evidence/2026-10-28/voices-comfyui.md) |
 | VD-1 to VD-6 | Voice direction and events: parsing, per-engine dialects, the director's suggestions, option `voice_direction` | parsing, dialects, suggestions, option **DONE**; VD-1 timing of events, VD-2 editor, VD-3 New flow (**the *Delivery* switch is in the voice screen since 2026-10-28**: directed or plain; the per-sound controls are not), VD-4 voice cast, VD-5 listening test, VD-6 Chinese **PLANNED** | [plan section 5](plans/PLAN-VOICE-DIRECTION.MD), `tests/test_voice_direction.py` |
-| V3 | Native Voices page and Settings -> Voice; "Open the full VoiceStudio" frame | PLANNED | [PLAN-VOICESTUDIO.MD](plans/PLAN-VOICESTUDIO.MD) section 3 |
+| V3 | Native Voices page and Settings -> Voice; "Open the full VoiceStudio" frame | PLANNED | [PLAN-VOICESTUDIO.MD](history/PLAN-VOICESTUDIO.MD) section 3 |
 | V5 | Dubbing and long-form (audiobook) | PLANNED | same |
 | B-1 | The best model for each job, written down and revisited when a better one appears | **DONE (first pass)** | [research/BEST-MODELS.md](research/BEST-MODELS.md) |
 

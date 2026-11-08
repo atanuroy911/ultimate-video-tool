@@ -2,15 +2,16 @@
 // collect page errors, and save frames in the middle of transitions and entrances. Usage: node e2e/motion.mjs <composition index.html> [out dir]
 import { chromium } from "playwright-core";
 import { pathToFileURL } from "node:url";
-import { chromePath } from "./common.mjs";
+import { base, chromePath } from "./common.mjs";
 
-const [, , src, out] = process.argv;
+// with no path, the scratch server's project composition (VT_PROJECT, default reference) is used
+const [, , src = `${base}/media/${process.env.VT_PROJECT || "reference"}/composition/9x16/index.html`, out] = process.argv;
 const b = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 const p = await b.newPage({ viewport: { width: 540, height: 960 } });
 const errors = [];
 p.on("pageerror", (e) => errors.push(e.message));
 p.on("console", (m) => m.type() === "error" && errors.push(m.text()));
-await p.goto(pathToFileURL(src).href);
+await p.goto(/^https?:/.test(src) ? src : pathToFileURL(src).href);
 await p.waitForTimeout(2500);
 const info = await p.evaluate(() => {
   const D = window.__VT__;

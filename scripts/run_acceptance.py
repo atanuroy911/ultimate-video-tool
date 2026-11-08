@@ -18,7 +18,7 @@ from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "server"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from run_all_checks import SCRATCH_PORT, Scratch                     # noqa: E402

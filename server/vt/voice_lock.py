@@ -21,7 +21,6 @@ The thresholds below are relative (an outlier among this script's own sentences)
 from __future__ import annotations
 
 import hashlib
-import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
@@ -47,15 +46,13 @@ class Anchor:
 
 
 def locks(engine: str, voice: str) -> bool:
-    """Does this voice need a reference? Only voices the model invents on every request: a designed ComfyUI voice, VoiceStudio's own default voice."""
-    if engine == "comfyvoice":
-        return voice.partition(":")[0] not in ("me",)
-    return engine == "voicestudio" and voice in ("auto", "")
+    """Does this voice need a reference? Only voices the model invents on every request: a designed ComfyUI voice."""
+    return engine == "comfyvoice" and voice.partition(":")[0] not in ("me",)
 
 
 def reseeds(engine: str) -> bool:
     """Engines whose take changes with the seed, so a drifted sentence can be asked for again."""
-    return engine in ("comfyvoice", "voicestudio")
+    return engine == "comfyvoice"
 
 
 def anchor_text(sentences: list[str]) -> str:
@@ -87,16 +84,6 @@ def make_anchor(engine: str, voice: str, text: str, language: str, speak: Callab
         speak(tmp)
         tmp.replace(path)
     return Anchor(path=path, text=text, key=key)
-
-
-def profile_for(anchor: Anchor, cache_dir: Path, clone: Callable[[Anchor], str]) -> str:
-    """A voice-server profile made from the reference, once (`clone(anchor)` returns its id). Kept in a small index next to the references."""
-    index = cache_dir / "anchor_profiles.json"
-    known: dict = json.loads(index.read_text("utf-8")) if index.exists() else {}
-    if anchor.key not in known:
-        known[anchor.key] = clone(anchor)
-        index.write_text(json.dumps(known, indent=1), "utf-8")
-    return known[anchor.key]
 
 
 # ------------------------------------------------------------------------------------------------------------------------------ level

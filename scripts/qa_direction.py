@@ -5,7 +5,7 @@ import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "server"))
 import numpy as np
 import soundfile as sf
 from PIL import Image

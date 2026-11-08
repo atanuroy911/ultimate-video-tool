@@ -24,6 +24,7 @@ import ScriptPanel from "../review/ScriptPanel";
 import DirectionPanel from "../review/DirectionPanel";
 import Timeline, { type Sel, type Tool } from "../review/Timeline";
 import { timeStore } from "../review/timeStore";
+import CaptionLook from "../review/CaptionLook";
 import TranscriptPanel from "../review/TranscriptPanel";
 import VideoInspector from "../review/VideoInspector";
 import { useReview } from "../review/useReview";
@@ -458,6 +459,7 @@ function ReviewEditor() {
               {tab === "direction" && (scene?<DirectionPanel key={scene.id} r={r} sid={scene.id} onElement={index=>{setSelectedWord(null);setSel(null);setSelLayer(null);setVideoSel(false);setSelEl({scene:scene.id,index});setShowInspector(true);if(compact)setShowBrowser(false);}}/>:<p className="small muted" style={{padding:16}}>Select a scene in the timeline.</p>)}
               {tab === "script" && <><HookCard pid={id} onApplied={progress} /><ScriptPanel r={r} time={time} playing={playing} seek={seek} /></>}
               {tab === "sound" && <div style={{padding:16}}><SoundPanel r={r} /></div>}
+              {tab === "words" && <CaptionLook r={r} />}
               {tab === "words" && <TranscriptPanel r={r} time={time} playing={playing} seek={seek} selected={selected} onSelectScene={pickScene} editingId={editingId} setEditingId={setEditingId} />}
               {tab === "media" && (
                 <div className="col" style={{ padding: 14 }}>

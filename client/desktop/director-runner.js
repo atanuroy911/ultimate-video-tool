@@ -94,6 +94,7 @@ function run({ prompt, mcp, server, token, directorToken, signal, model }, onLog
       if (line[0] !== "{") return;
       let m;
       try { m = JSON.parse(line); } catch { return; }
+      if (deps.onEvent) deps.onEvent(m);                                  // the whole event, for the playground (playground.js)
       if (m.type === "result") result = m;
       else if (m.type === "system" && m.subtype === "init") { used = String(m.model || ""); builtin = (m.tools || []).filter((x) => !String(x).startsWith("mcp__")); }
       else if (m.type === "assistant") for (const b of m.message.content || []) { if (b.type === "tool_use") names[b.id] = b.name; }

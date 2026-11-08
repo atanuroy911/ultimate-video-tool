@@ -38,14 +38,14 @@ await page.keyboard.press("Enter");
 await page.waitForTimeout(500);
 const tile = page.locator(".opt-tile").first();
 await tile.waitFor();
-check("then the 14 choices can each be reached by Tab", await (async () => { const seen = new Set(); for (let i = 0; i < 60 && seen.size < 14; i++) { await page.keyboard.press("Tab"); if (await page.evaluate(() => document.activeElement?.classList.contains("opt-tile"))) seen.add(await label()); } return seen.size === 14; })());
+check("then the 15 choices can each be reached by Tab", await (async () => { const seen = new Set(); for (let i = 0; i < 60 && seen.size < 15; i++) { await page.keyboard.press("Tab"); if (await page.evaluate(() => document.activeElement?.classList.contains("opt-tile"))) seen.add(await label()); } return seen.size === 15; })());
 await page.locator(".opt-tile").first().focus();
 await page.keyboard.press("Enter");
 await page.waitForTimeout(500);
 check("Enter opens a choice", (await page.getByRole("button", { name: /Back to your choices/ }).count()) >= 1);
 await page.keyboard.press("Escape");
 await page.waitForTimeout(400);
-check("Escape comes back to the choices", (await page.locator(".opt-tile").count()) === 14);
+check("Escape comes back to the choices", (await page.locator(".opt-tile").count()) === 15);
 check("Make my video can be reached by Tab", await tabTo(/Make my video/, 60));
 
 console.log("Settings by keyboard");

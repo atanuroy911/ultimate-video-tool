@@ -68,6 +68,12 @@ def edit_element(sf, sid, index, patch, resolved):
     if not 0 <= index < len(sc.elements):
         raise OpError("This visual no longer exists")
     els = [e.model_dump() for e in sc.elements]
+    # Every other picture of the scene keeps the times it shows now: without this, the composer re-pages the scene around the edited one and the
+    # neighbours move (a sticker ends later, the next picture is pulled to the scene start) although the person never touched them.
+    for j, e in enumerate(els):
+        t = resolved.get(f"{sid}:{j}")
+        if j != index and t and e.get("start") is None and e.get("end") is None:
+            e["start"], e["end"] = round(t["start"], 3), round(t["end"], 3)
     if patch.get("delete"):
         els.pop(index)
     elif "split" in patch:

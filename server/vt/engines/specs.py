@@ -75,33 +75,6 @@ def _check_comfy_one(ep: Endpoint) -> Health:
     return Health(ok=True, version=version, gpu=_gpu_name(dev.get("name", "")), models=models, capabilities=sorted(set(caps)))
 
 
-def check_voicestudio(ep: Endpoint) -> Health:
-    r = _get(ep, "/health")
-    if r.status_code != 200:
-        return Health(ok=False, why_not="VoiceStudio is still starting" if r.status_code == 503 else f"HTTP {r.status_code}")
-    if not ep.key:
-        return Health(ok=True, note="reachable; add the API key to use it", capabilities=[])
-    t = _get(ep, "/engines/tts", key=True)
-    if t.status_code in (401, 403):
-        return Health(ok=False, why_not="the API key was refused")
-    d = t.json()
-    active = d.get("active", "")
-    backends = d.get("backends", [])
-    gpu = next((b.get("execution_evidence", {}).get("gpu_name") for b in backends if b.get("id") == active), "") or ""
-    models = _get(ep, "/models", key=True).json().get("models", [])
-    mine = [{"id": m["repo_id"], "role": m["role"], "size_gb": m.get("size_gb"), "installed": bool(m.get("installed")),
-             "licence": (m.get("license_info") or {}).get("license_category", ""), "accepted": (m.get("license_acceptance") or {}).get("accepted")} for m in models]
-    ready = [b["id"] for b in backends if b.get("available")]
-    caps = ["voice.speak", "voice.list"]
-    if any(b.get("supports_cloning") and b.get("available") for b in backends):
-        caps.append("voice.clone")
-    if any(b.get("supports_voice_design") and b.get("available") for b in backends):
-        caps.append("voice.design")
-    need = [m for m in mine if m["id"] == "k2-fsa/OmniVoice" and not m["accepted"]]
-    note = "The default voice model has a non-commercial licence that has not been accepted yet; accept it in VoiceStudio's Model Catalogue, or use another voice engine."
-    return Health(ok=True, gpu=gpu, models=mine, capabilities=caps, note=note if need else "engines ready: " + ", ".join(ready))
-
-
 def check_vtengine(ep: Endpoint) -> Health:
     from . import vtengine
 
@@ -113,8 +86,6 @@ SPECS: dict[str, EngineSpec] = {s.id: s for s in (
                ("llm.chat",), default_url="http://127.0.0.1:11434", check=check_ollama, local_install="Download Ollama and a small model"),
     EngineSpec("comfy", "image", "Pictures and clips (ComfyUI)", "Draws a picture for each sentence and makes short silent clips.",
                ("image.generate", "video.generate"), default_url="http://127.0.0.1:8188", check=check_comfy, local_install=""),
-    EngineSpec("voicestudio", "voice", "Voices (VoiceStudio)", "Speaks the script in any voice, clones a voice from a short recording, designs a voice from a description.",
-               ("voice.speak", "voice.list", "voice.clone", "voice.design"), default_url="http://127.0.0.1:3900", needs_key=True, check=check_voicestudio, local_install=""),
     EngineSpec("vtengine", "custom", "Another Video Tool computer", "Uses the voices and speech recognition of another computer that runs Video Tool's engine server (vt serve-engine).",
                ("voice.speak", "asr.transcribe"), default_url="", needs_key=True, check=check_vtengine, local_install=""),
 )}

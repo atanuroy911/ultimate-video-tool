@@ -27,19 +27,19 @@ export default function StockKeys() {
       <div className="row wrap">
         <h2 className="grow"><Images size={18} style={{ verticalAlign: -3 }} /> Find free pictures and clips</h2>
         <span className={`chip ${st.data && Object.values(st.data).some(Boolean) ? "ok" : ""}`}>
-          {st.data && Object.values(st.data).some(Boolean) ? <><Check size={12} /> On</> : "Off"}
+          {st.data && Object.values(st.data).some(Boolean) ? <><Check size={12} /> On</> : "Not set up"}
         </span>
       </div>
       <p className="muted" style={{ margin: 0 }}>
-        Search free pictures and clips from Pexels and Pixabay inside the media bin. You use your own free keys (get one at pexels.com/api or pixabay.com/api/docs), they stay on this
-        computer and are only sent to their own site. Pexels: free to use, no credit needed. Pixabay: free to use, files may not be redistributed on their own. Credits are saved next to every export.
+        Search Pexels and Pixabay from the media bin. Each needs a free key from its own site (pexels.com/api, pixabay.com/api/docs).
+        Keys are kept on your server and sent only to that site. Credits are added to every export.
       </p>
       <div className="row wrap" style={{ gap: 12, alignItems: "flex-end" }}>
         <Field label={`Pexels key${st.data?.pexels ? " (saved)" : ""}`}>
-          <input type="password" value={pexels} onChange={(e) => setPexels(e.target.value)} onBlur={() => pexels && save({ pexels_key: pexels.trim() }).then(() => setPexels(""))} placeholder={st.data?.pexels ? "••••••••" : "paste key"} autoComplete="off" style={{ minWidth: 240 }} />
+          <input type="password" value={pexels} onChange={(e) => setPexels(e.target.value)} onBlur={() => pexels && save({ pexels_key: pexels.trim() }).then(() => setPexels(""))} placeholder={st.data?.pexels ? "••••••••" : "Paste key"} autoComplete="off" style={{ minWidth: 240 }} />
         </Field>
         <Field label={`Pixabay key${st.data?.pixabay ? " (saved)" : ""}`}>
-          <input type="password" value={pixabay} onChange={(e) => setPixabay(e.target.value)} onBlur={() => pixabay && save({ pixabay_key: pixabay.trim() }).then(() => setPixabay(""))} placeholder={st.data?.pixabay ? "••••••••" : "paste key"} autoComplete="off" style={{ minWidth: 240 }} />
+          <input type="password" value={pixabay} onChange={(e) => setPixabay(e.target.value)} onBlur={() => pixabay && save({ pixabay_key: pixabay.trim() }).then(() => setPixabay(""))} placeholder={st.data?.pixabay ? "••••••••" : "Paste key"} autoComplete="off" style={{ minWidth: 240 }} />
         </Field>
         {st.data?.pexels && <button className="btn sm ghost" onClick={() => save({ pexels_key: "" })}>Remove Pexels key</button>}
         {st.data?.pixabay && <button className="btn sm ghost" onClick={() => save({ pixabay_key: "" })}>Remove Pixabay key</button>}

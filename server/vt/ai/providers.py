@@ -407,7 +407,10 @@ class ClientProvider(Provider):
 
     def complete(self, system, prompt, schema, images, max_tokens, timeout, temperature):
         from .. import directors
+        from ..mcp import scope
 
+        if scope.current_project() is not None:                             # inside a director's own task (its tool call): the helper is busy with this very task, so asking it again would only wait until the task times out
+            raise AIUnavailable(f"{self.label} is directing this video right now and cannot be asked to do another step inside its own task. Do this step yourself and submit it.")
         r = directors.broker.ask(self.device, self.assistant, system=system, prompt=prompt, schema=schema, images=[_image_bytes(i) for i in images], model=self.model(), timeout=timeout)
         if r.get("ok"):
             return str(r.get("text") or "")

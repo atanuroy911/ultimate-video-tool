@@ -27,7 +27,7 @@ Then, in the app: **Settings, Engines, ComfyUI, add the worker** `http://192.168
 
 ## Licences
 * Breeze TTS 2 **weights, derivatives and self-hosted outputs are under the BreezeBlue Research and Non-Commercial License; commercial use needs written authorisation from RESONIA, INC.** The node pack's code is Apache-2.0.
-* OmniVoice code is Apache-2.0; its weights and tokenizer carry further terms (see [ops/voicestudio-server.md](voicestudio-server.md)).
+* OmniVoice code is Apache-2.0; its weights and tokenizer carry further terms (see [ops/voicestudio-server.md](../history/voicestudio-server.md)).
 
 ## Rollback
 `sudo systemctl disable --now comfyui-audio`; delete the two folders in `custom_nodes/`; `pip install -r /mnt/bigdata/video-tool/backups/comfy-venv-freeze-before-voice-*.txt --no-deps` if anything in the environment must be put back; `sudo systemctl restart comfyui`.

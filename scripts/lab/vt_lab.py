@@ -7,6 +7,7 @@
     GPU_PASS=... python scripts/lab/vt_lab.py frames <project> <name> <t1,t2,...>   # the deployed code's frames, side by side: dist/lab/<name>.png
     GPU_PASS=... python scripts/lab/vt_lab.py facts <project> <t1,t2,...>           # what covers what, measured
     python scripts/lab/vt_lab.py report <project>                        # who directed, every AI conversation, the frame review
+    GPU_PASS=... python scripts/lab/vt_lab.py judge <project> [--file name.mp4]    # read-only D1 checks on an existing export
     GPU_PASS=... python scripts/lab/vt_lab.py tests [pytest args]        # the whole repository on the server in /home/roy/vt-tests/repo; results also in /home/roy/vt-tests/last.txt
     GPU_PASS=... python scripts/lab/vt_lab.py scratch start [--fresh]|stop   # a second server on port 8792 for browser tests (own code copy and data); the key goes to dist/lab/scratch-key.txt
 
@@ -20,6 +21,7 @@ import argparse
 import io
 import json
 import os
+import shlex
 import shutil
 import socket
 import subprocess
@@ -260,6 +262,32 @@ def report(x) -> None:
     report_for(api(), x.project)
 
 
+def judge(x) -> None:
+    args = [x.project, "--data", str(x.data.resolve()) if x.data else f"{ROOT}/data"]
+    if x.file:
+        args += ["--file", x.file]
+    if x.data:
+        # paths.ensure_data() is normally called on import. Keep that away
+        # from the data being judged and pass the read-only store separately.
+        env = {**os.environ, "VT_DATA": str(REPO / "server"), "PYTHONIOENCODING": "utf-8"}
+        result = subprocess.run([sys.executable, "-m", "vt.lab_judge", *args], cwd=REPO / "server", env=env)
+        raise SystemExit(result.returncode)
+
+    cmd = (f"cd {shlex.quote(ROOT + '/app')} && "
+           f"VT_DATA={shlex.quote(ROOT + '/app')} PYTHONIOENCODING=utf-8 "
+           + shlex.join([f"{ROOT}/venv/bin/python", "-m", "vt.lab_judge", *args]))
+    with ssh() as connection:
+        # Merge the streams so a large browser diagnostic cannot block its
+        # pipe while stdout waits. Preserve the remote judge's exit code.
+        channel = connection.get_transport().open_session(timeout=20)
+        channel.set_combine_stderr(True)
+        channel.settimeout(900)
+        channel.exec_command(cmd)
+        for line in channel.makefile("rb"):
+            print(line.decode("utf-8", "replace"), end="", flush=True)
+        raise SystemExit(channel.recv_exit_status())
+
+
 def pack_repo() -> bytes:
     """The working tree as a .tgz: git's own list (untracked files count, ignored ones do not), plus the recordings git keeps out."""
     names = subprocess.run(["git", "ls-files", "-co", "--exclude-standard", "-z"], cwd=REPO, capture_output=True).stdout.decode("utf-8", "replace").split("\0")
@@ -303,7 +331,7 @@ SCRATCH_PORT = 8792
 
 def scratch(x) -> None:
     """A second Video Tool server for browser tests: its own code copy, data folder and port, on the RTX 3060. It is told about ComfyUI on 8188 (used as it is, never changed) and
-    nothing else: Ollama and VoiceStudio are off, so nothing here can start or change the owner's engines."""
+    nothing else: Ollama is off, so nothing here can start or change the owner's engines."""
     c = ssh()
     pidfile = f"{TESTS}/scratch.pid"
     ours = f"P=$(cat {pidfile} 2>/dev/null); [ -n \"$P\" ] && grep -qa Scratch /proc/$P/cmdline 2>/dev/null && grep -qa {SCRATCH_PORT} /proc/$P/cmdline"
@@ -324,7 +352,7 @@ def scratch(x) -> None:
     print(sh(c, f"""set -e; cd {TESTS}; rm -rf scratch-repo; mkdir -p scratch-repo; {fresh}mkdir -p {SCRATCH}; tar -xzf scratch-code.tgz -C scratch-repo 2>/dev/null; rm scratch-code.tgz
 {link_repo(SCRATCH_REPO)}
 cd {SCRATCH_REPO}; env {env} {py} samples/build_reference.py reference
-cd {SCRATCH_REPO}/server; setsid nohup bash -c 'echo $$ > {pidfile}; exec env {env} {py} -m vt.cli server --host 0.0.0.0 --port {SCRATCH_PORT} --name Scratch --comfy existing --comfy-url http://127.0.0.1:8188 --ollama off --voicestudio off' > {TESTS}/scratch.log 2>&1 < /dev/null &
+cd {SCRATCH_REPO}/server; setsid nohup bash -c 'echo $$ > {pidfile}; exec env {env} {py} -m vt.cli server --host 0.0.0.0 --port {SCRATCH_PORT} --name Scratch --comfy existing --comfy-url http://127.0.0.1:8188 --ollama off' > {TESTS}/scratch.log 2>&1 < /dev/null &
 sleep 1; echo started""").strip())
     for _ in range(45):
         time.sleep(2)
@@ -378,6 +406,11 @@ if __name__ == "__main__":
     p = sub.add_parser("report")
     p.add_argument("project")
     p.set_defaults(fn=report)
+    p = sub.add_parser("judge", help="Check an existing video and its composition")
+    p.add_argument("project")
+    p.add_argument("--file", help="Export filename. Defaults to the newest finished MP4")
+    p.add_argument("--data", type=Path, help="Read a local data folder instead of connecting to the lab server")
+    p.set_defaults(fn=judge)
     p = sub.add_parser("tests")
     p.add_argument("args", nargs=argparse.REMAINDER)
     p.set_defaults(fn=tests)

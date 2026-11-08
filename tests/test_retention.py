@@ -88,3 +88,14 @@ def test_the_api_scores_an_export_and_lists_the_summary(ref, tmp_path):
     listed = c.get("/api/projects/reference/exports").json()[0]
     assert listed["retention"]["risk"] == card["risk"] and listed["retention"]["worst"] == card["worst"]
     assert c.post("/api/projects/reference/retention?name=nope.mp4").status_code == 409
+
+
+def test_short_chunks_said_at_normal_speed_are_not_too_fast():
+    # the owner's cartoon (2026-11-08): "past the shop" for the 0.62 s it is said, then the next chunk at once; Kokoro speaks ~3.5 words a second
+    caps = [{"start": 5.86, "end": 6.48, "words": [{"text": t} for t in ("past", "the", "shop")]},
+            {"start": 6.48, "end": 6.86, "words": [{"text": t} for t in ("and", "looked")]},
+            {"start": 6.86, "end": 8.12, "words": [{"text": t} for t in ("through", "the", "window.")]}]
+    assert R.reading_speed(caps) == []
+    rushed = [{"start": 0, "end": 0.6, "words": [{"text": "word"}] * 3}, {"start": 0.6, "end": 1.2, "words": [{"text": "word"}] * 3},
+              {"start": 1.2, "end": 2.0, "words": [{"text": "word"}] * 4}]
+    assert R.reading_speed(rushed)                                     # ten words in two seconds is too fast, however it is chunked

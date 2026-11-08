@@ -2,7 +2,7 @@
 import pytest
 
 from vt import paths
-from vt.engines import placement, store
+from vt.engines import placement, setup, store
 from vt.engines.model import Endpoint
 from vt.util import read_json
 
@@ -60,17 +60,52 @@ def test_nothing_installed_means_off_with_a_way_forward(machine):
 
 
 def test_an_address_given_is_used_and_a_saved_key_survives(machine):
-    store.save("voicestudio", Endpoint(mode="remote", url="http://old:3900", key="secret"))
-    p = placement.place({"voicestudio": "existing"}, {"voicestudio": "http://192.168.1.5:3900"}, say=lambda *_: None)["voicestudio"]
-    assert p.url == "http://192.168.1.5:3900" and "does not answer" in p.note
-    ep = store.load("voicestudio")
-    assert ep.url == "http://192.168.1.5:3900" and ep.key == "secret"
+    store.save("ollama", Endpoint(mode="remote", url="http://old:11434", key="secret"))
+    p = placement.place({"ollama": "existing"}, {"ollama": "http://192.168.1.5:11434"}, say=lambda *_: None)["ollama"]
+    assert p.url == "http://192.168.1.5:11434" and "does not answer" in p.note
+    ep = store.load("ollama")
+    assert ep.url == "http://192.168.1.5:11434" and ep.key == "secret"
 
 
-def test_voicestudio_has_no_copy_of_its_own(machine):
-    assert placement.decide("voicestudio", "own").source == "off"
+def test_an_unknown_choice_is_refused(machine):
     with pytest.raises(ValueError):
         placement.decide("ollama", "sometimes")
+
+
+def test_fresh_launcher_with_explicit_engine_flags_skips_setup(machine, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from vt.server.app import app
+
+    urls = {"ollama": "http://127.0.0.1:11434", "comfy": "http://127.0.0.1:8188"}
+    machine["up"].update(urls.values())
+    monkeypatch.setattr(setup.hardware, "detect", lambda: {"best_gpu": None, "gpus": [], "ram_gb": 8})
+    placement.place({"ollama": "existing", "comfy": "existing"}, urls, say=lambda *_: None)
+
+    client = TestClient(app, client=("127.0.0.1", 50000))
+    try:
+        response = client.get("/api/setup")
+    finally:
+        client.close()
+    assert response.status_code == 200 and response.json()["done"] is True
+    assert {row["id"]: row["mode"] for row in response.json()["engines"]} == {
+        "ollama": "remote", "comfy": "remote"}
+    assert machine["started"] == []
+
+
+@pytest.mark.parametrize("reachable", [False, True])
+def test_default_auto_launch_keeps_setup_open_until_choices_are_explicit(machine, reachable):
+    if reachable:
+        machine["up"].update(f"http://127.0.0.1:{port}" for port in (11434, 8188, 3900))
+    choices = dict.fromkeys(placement.ENGINES, "auto")
+    placement.place(choices, say=lambda *_: None)
+    assert all(store.load(engine).mode == ("remote" if reachable else "off") for engine in choices)
+    assert setup.state()["done"] is False
+
+    placement.place(dict.fromkeys(placement.ENGINES, "off"), say=lambda *_: None)
+    assert setup.state()["done"] is True, "turning engines off explicitly is a valid completed setup"
+    placement.place(choices, say=lambda *_: None)
+    assert setup.state()["done"] is True, "automatic startup retains the owner's earlier setup decisions"
 
 
 def test_the_engines_page_uses_the_same_placement(machine):

@@ -1,4 +1,4 @@
-// E8: the New page's choices. All 14 stay visible, no value is cut off with "…", at a wide window and a phone. Screenshots in e2e/out/new-tiles. Scratch server only.
+// E8: the New page's choices. All of them stay visible (15 for a typed script since Purpose moved out of the old Fine tuning panel; a recording or link also has Listening), no value is cut off with "…", at a wide window and a phone. Screenshots in e2e/out/new-tiles. Scratch server only.
 import { chromium } from "playwright-core";
 import fs from "node:fs";
 import { base, chromePath, walkToReady } from "./common.mjs";
@@ -14,7 +14,7 @@ for (const [width, height] of [[1440, 1000], [400, 900]]) {
     await page.locator("textarea[aria-label='Link or script']").waitFor();
     await walkToReady(page, "Hello. This is a short test about saving money.");
     const tiles = page.locator(".opt-tile");
-    check(`${width} ${scheme}: all 14 choices are visible`, (await tiles.count()) === 14 && (await tiles.evaluateAll((all) => all.every((t) => t.getBoundingClientRect().width > 0))));
+    check(`${width} ${scheme}: all 15 choices are visible`, (await tiles.count()) === 15 && (await tiles.evaluateAll((all) => all.every((t) => t.getBoundingClientRect().width > 0))));
     const cut = await page.locator(".opt-tile-value").evaluateAll((all) => all.filter((v) => v.scrollWidth > v.clientWidth + 1 || getComputedStyle(v).textOverflow === "ellipsis").map((v) => v.textContent));
     check(`${width} ${scheme}: no value is cut off`, cut.length === 0, cut.join(" | "));
     const sideways = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);

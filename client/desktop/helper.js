@@ -321,7 +321,13 @@ class Helper {
     const t = job.task;
     if (job.type === "direct") {
       const onLog = (message) => this.send(job.link, { type: "director_log", request: job.request, project: job.project, message });
-      return runner.run({ prompt: t.prompt, server: job.link.server, token: t.director_token ? "" : job.link.token, directorToken: t.director_token || "", model: t.model, signal: job.controller.signal }, onLog);
+      const names = {};                                                                  // what the director does, one short line each, so a stalled run explains itself (helper.log)
+      const onEvent = (m) => {
+        if (m.type === "assistant") for (const b of m.message.content || []) { if (b.type === "tool_use") { names[b.id] = b.name; this.log(`${job.request}: calls ${String(b.name).replace("mcp__video-tool__", "")} (${JSON.stringify(b.input).length} chars)`); } }
+        else if (m.type === "user" && Array.isArray(m.message.content)) for (const b of m.message.content) { if (b.type === "tool_result") this.log(`${job.request}: ${String(names[b.tool_use_id] || "tool").replace("mcp__video-tool__", "")} answered${b.is_error ? " (an error)" : ""}`); }
+        else if (m.type === "result") this.log(`${job.request}: finished ${m.subtype}${m.is_error ? " (an error)" : ""} after ${m.num_turns} turns`);
+      };
+      return runner.run({ prompt: t.prompt, server: job.link.server, token: t.director_token ? "" : job.link.token, directorToken: t.director_token || "", model: t.model, signal: job.controller.signal }, onLog, { onEvent });
     }
     return runner.ask({ system: String(t.system || ""), prompt: t.prompt, schema: t.schema, images: t.images || [], model: t.model, timeout: Number(t.timeout) || 300, signal: job.controller.signal });
   }

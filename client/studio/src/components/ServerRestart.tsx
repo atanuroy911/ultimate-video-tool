@@ -14,15 +14,17 @@ export default function ServerRestart() {
  if(!state)return null;
  const restart=async()=>{
   setSending(true);
-  try{await post("/api/system/restart");setState(s=>s?{...s,restarting:true}:s);toast("Restart requested. The app will reconnect when the server returns.");}
+  try{await post("/api/system/restart");setState(s=>s?{...s,restarting:true}:s);toast("Restarting. The app reconnects by itself.");}
   catch(e:any){toast(e.message,"err");}
   finally{setSending(false);}
  };
- return <section className="card card-pad col" aria-label="Restart server" data-testid="server-restart">
-  <strong>Restart the server</strong>
-  <p className="small muted">{state.note}</p>
-  {state.error&&<p role="alert">{state.error}</p>}
-  {state.busy&&<p className="small muted">Wait for running and queued jobs to finish.</p>}
-  {state.available&&<button className="btn" onClick={restart} disabled={sending||state.busy||state.restarting}>{state.restarting?"Restarting…":"Restart server"}</button>}
+ if(!state.available)return null;                          // restarting is done in the server app on that computer: nothing to offer here
+ return <section className="card card-pad row" aria-label="Restart server" data-testid="server-restart" style={{gap:16,alignItems:"center",flexWrap:"wrap"}}>
+  <span className="col grow" style={{gap:2,minWidth:220}}>
+   <strong>Restart server</strong>
+   <span className="small muted">{state.busy?"Available when no videos are being made.":state.note}</span>
+   {state.error&&<span className="small" role="alert" style={{color:"var(--err)"}}>{state.error}</span>}
+  </span>
+  <button className="btn" onClick={restart} disabled={sending||state.busy||state.restarting}>{state.restarting?"Restarting…":"Restart"}</button>
  </section>;
 }

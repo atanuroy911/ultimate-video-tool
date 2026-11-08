@@ -21,7 +21,7 @@ import numpy as np
 import soundfile as sf
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "server"))
 from vt.sfxlib import AUTO_ROLES, DISABLED_ROLES, ROLES, classify, flag  # noqa: E402
 
 AUDIO_EXT = {".wav", ".mp3", ".flac", ".ogg", ".m4a", ".aac", ".opus"}
@@ -115,7 +115,7 @@ def slug(s: str) -> str:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--src", default=str(ROOT / "SFX"))
-    ap.add_argument("--out", default=str(ROOT / "assets" / "sfx"))
+    ap.add_argument("--out", default=str(ROOT / "server" / "assets" / "sfx"))
     ap.add_argument("--per-role", type=int, default=32)
     args = ap.parse_args()
     src, out = Path(args.src), Path(args.out)

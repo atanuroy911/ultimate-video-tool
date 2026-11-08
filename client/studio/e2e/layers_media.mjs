@@ -45,15 +45,19 @@ await page.getByRole("button", { name: "Add a picture, video or sound" }).click(
 await page.locator('input[type=file][accept*="image"]').setInputFiles(path.join(tmp, "blue.png"));
 await settle(2500);
 check("the picture is in the media bin", (await api(`/api/projects/${pid}/media`)).some((m) => m.id === "blue"));
+const mediaClipsBefore = await page.locator(".tl-lclip.media").count();
+await page.getByRole("button", { name: "Select blue", exact: true }).click();          // a picture is selected first, then put on the timeline
 await page.getByRole("button", { name: "Put blue on the timeline" }).click();
 await settle();
 let d = await doc();
 const pic = d.clips.find((c) => c.media === "blue");
 check("Add to timeline puts the picture on a picture track", !!pic && d.tracks.find((t) => t.id === pic.track)?.kind === "visual", JSON.stringify(d));
-check("and shows it in the timeline", (await page.locator(".tl-lclip.media").count()) === 1);
-check("the inspector offers place and opacity", await page.getByRole("slider", { name: "Opacity" }).isVisible());
+check("and shows it in the timeline", (await page.locator(".tl-lclip.media").count()) === mediaClipsBefore + 1);   // one more clip (earlier runs may have left theirs)
+await page.getByRole("tab", { name: "Position", exact: true }).click();
+check("the inspector offers place and opacity", await page.getByRole("slider", { name: "Opacity" }).first().isVisible());
 
 await page.getByRole("button", { name: "Add a picture, video or sound" }).click();
+await page.getByRole("button", { name: "Audio", exact: true }).click();                 // sounds have their own tab in the media bin
 await page.locator('input[type=file][accept*="audio"]').setInputFiles(path.join(tmp, "tone.wav"));
 await settle(3000);
 check("the sound is in the bin", (await api(`/api/projects/${pid}/sounds`)).some((m) => m.id === "tone"));

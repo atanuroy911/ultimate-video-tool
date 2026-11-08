@@ -1,4 +1,4 @@
-"""The engines block of settings.json: {"engines": {"voicestudio": {"mode": "remote", "url": "...", "key": "..."}}}.
+"""The engines block of settings.json: {"engines": {"comfy": {"mode": "remote", "url": "...", "key": "..."}}}.
 
 The old flat settings (`ollama_url`, `comfy_url`) are read as a fallback so nothing that already works stops working; saving writes the new block and keeps the
 old keys in step for the code that still reads them.
@@ -30,11 +30,22 @@ def load(engine_id: str, default_url: str = "") -> Endpoint:
     return Endpoint(mode="off", url=default_url)
 
 
-def save(engine_id: str, endpoint: Endpoint) -> Endpoint:
+def configured(engine_id: str) -> bool:
+    """Whether the person chose this engine's mode or address, including an explicit Off."""
+    s = _settings()
+    raw = (s.get("engines") or {}).get(engine_id)
+    if raw:
+        return not raw.get("automatic_selection", False)
+    return bool(s.get(LEGACY.get(engine_id, "")))
+
+
+def save(engine_id: str, endpoint: Endpoint, *, provisional: bool = False) -> Endpoint:
     s = _settings()
     block = dict(s.get("engines") or {})
     block[engine_id] = {"mode": endpoint.mode, "url": endpoint.url.strip().rstrip("/"), "key": endpoint.key, "gpu": endpoint.gpu, "data_dir": endpoint.data_dir,
                        "workers": [u.strip().rstrip("/") for u in endpoint.workers if u.strip()]}
+    if provisional:
+        block[engine_id]["automatic_selection"] = True
     s["engines"] = block
     if engine_id in LEGACY and endpoint.mode == "remote":
         s[LEGACY[engine_id]] = endpoint.url.strip().rstrip("/")

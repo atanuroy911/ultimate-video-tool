@@ -19,6 +19,8 @@ console.log("First open");
   check("a server not set up yet says so, in words, with a way to set it up", /Set up server/.test(await text(page)) && /engines you need/.test(await text(page)));
   await page.getByRole("button", { name: "Later" }).click();
   check("Later puts the banner away", !/Set up server/.test(await text(page)));
+  await page.reload({ waitUntil: "load" }); await page.waitForTimeout(2500);
+  check("and it stays away after the app is opened again", !/Set up server/.test(await text(page)));
   await page.screenshot({ path: "e2e/out/connection/first-open.png" });
   await page.close();
 }

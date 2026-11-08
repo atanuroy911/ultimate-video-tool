@@ -4,17 +4,18 @@ import { Link } from "react-router-dom";
 import { get, post } from "../api";
 import { Button, Panel, Sheet } from "../ds";
 import { useFetch } from "../hooks";
-import { toast } from "../store";
+import { toast, useChanged } from "../store";
 import { Spinner } from "../ui";
 import type { Scene } from "../types";
 import type { Review } from "./useReview";
 import RedoModal from "../components/RedoModal";
+import PlanSheet from "../plan/PlanSheet";
 
 interface QA {
   at?: string;
   model: string;
   bad: string[];
-  scenes: { id: string; ok: boolean; problems: string[]; fix_hint: string; source: string }[];
+  scenes: { id: string; ok: boolean; problems: string[]; fix_hint: string; source: string; frame?: string }[];
 }
 
 /** The AI slide-over: what directed this video, one-click improvements, a self-check of the rendered frames, and the way back (undo). */
@@ -36,10 +37,38 @@ export default function AIPanel({ r, id, scene, kind, onClose, onChat, onTools, 
   const [hint, setHint] = useState("");
   const [busy, setBusy] = useState<string>("");
   const [redoOpen, setRedoOpen] = useState(false);
+  const [planOpen, setPlanOpen] = useState(false);
+  const isReel = (r.project.data as any)?.options?.look === "reel";
+  /* a picture video: change its look, pictures or pace as a plan first, then it is made again (the same plan as before it was made) */
+  const openPlan = async () => {
+    try {
+      const cur = await get<{ plan: { state: string } | null }>(`/api/projects/${id}/plan`);
+      if (!cur.plan || cur.plan.state !== "draft") await post(`/api/projects/${id}/plan/make`);
+      setPlanOpen(true);
+    } catch (e: any) {
+      toast(e.message, "err");
+    }
+  };
   const planner = r.plan?.planner;
   const chosenDirector = r.project.data?.director;
   const how = chosenDirector?.who ? (chosenDirector.who === "local" ? "Local AI" : chosenDirector.who === "claude-server" ? "Claude on the server" : chosenDirector.who.startsWith("claude@") ? "Claude on this PC" : chosenDirector.who === "rules" ? "Built-in rules" : chosenDirector.who) : planner === "claude" ? "Claude (through MCP or API)" : planner === "assistant" ? "Codex or connected assistant" : planner === "llm" ? `The AI (${ai.data?.model || "local model"})` : planner === "manual" ? "You (edited by hand)" : "The built-in rules";
 
+  /* the server keeps the plan as it was before each save (POST /api/projects/{id}/scenes/undo; a second press puts the change back) */
+  const planBackup = useFetch<{ available: boolean; at: string | null }>(`/api/projects/${id}/scenes/undo`);
+  useChanged(id, () => planBackup.refetch());
+  const undoPlan = async () => {
+    setBusy("undo-plan");
+    try {
+      await post(`/api/projects/${id}/scenes/undo`);
+      r.reloadAll();
+      planBackup.refetch();
+      toast("The plan is back as it was. Press again to put the change back.", "ok");
+    } catch (e: any) {
+      toast(e.message, "err");
+    } finally {
+      setBusy("");
+    }
+  };
   const job = async (what: string, url: string, after?: () => void) => {
     setBusy(what);
     try {
@@ -71,10 +100,17 @@ export default function AIPanel({ r, id, scene, kind, onClose, onChat, onTools, 
 
       <Panel title="Make it better">
         <Button variant="primary" onClick={() => setRedoOpen(true)}><Wand2 size={15} /> Direct this video again…</Button>
+        {isReel && <Button data-testid="reel-plan" onClick={openPlan}><Sparkles size={15} /> Change the look, pictures or pace</Button>}
         <span className="small muted">Choose a director (Local AI, Claude, Codex) to completely re-plan the scenes, visuals and story graphics.</span>
-        <Button onClick={() => r.askClaude("full", null, "", 1).then((x) => x && toast("Request queued for your assistant", "ok"))}><Sparkles size={15} /> Plan with Codex or Claude (MCP)</Button>
+        <Button onClick={() => r.askClaude("full", null, "", 1).then((x) => x && toast("Request queued for your assistant", "ok"))}><Sparkles size={15} /> Ask Claude or Codex to plan it</Button>
         <Button onClick={() => { onClose(); onChat(); }}><MessageSquare size={15} /> Ask a chat assistant</Button>
-        <Button onClick={r.undo} disabled={!r.canUndo}>Undo the last change</Button>
+        <Button onClick={r.undo} disabled={!r.canUndo}>Undo my last edit</Button>
+        {planBackup.data?.available && (
+          <>
+            <Button onClick={undoPlan} disabled={!!busy} data-testid="undo-plan">{busy === "undo-plan" ? <Spinner /> : null} Undo the last plan change</Button>
+            <span className="small muted">Brings back the plan as it was before its latest change{planBackup.data.at ? ` (${planBackup.data.at.slice(11, 16)})` : ""}, also one made by a director or an assistant. Press it again to put the change back.</span>
+          </>
+        )}
       </Panel>
 
       <Panel title="Redo this scene" defaultOpen={!!scene}>
@@ -115,14 +151,16 @@ export default function AIPanel({ r, id, scene, kind, onClose, onChat, onTools, 
           <div className="col" style={{ gap: 4 }} aria-label="Frame check results">
             <span className="small muted">{qa.data.bad.length === 0 ? "No problems found." : `${qa.data.bad.length} of ${qa.data.scenes.length} scenes need a look`}{qa.data.model ? ` · ${qa.data.model}` : ""}</span>
             {qa.data.scenes.filter((s) => !s.ok).map((s) => (
-              <button key={s.id} className="banner warn small" style={{ textAlign: "left" }} onClick={() => { r.reloadAll(); onClose(); window.dispatchEvent(new CustomEvent("vt-select-scene", { detail: s.id })); }}>
-                <strong>Scene {(r.plan?.scenes.findIndex((x) => x.id === s.id) ?? 0) + 1}</strong>: {s.problems.join(", ").replace(/_/g, " ")}{s.fix_hint ? ` · ${s.fix_hint}` : ""}
+              <button key={s.id} className="banner warn small qa-bad" style={{ textAlign: "left" }} onClick={() => { r.reloadAll(); onClose(); window.dispatchEvent(new CustomEvent("vt-select-scene", { detail: s.id })); }}>
+                {s.frame && <img className="qa-frame" src={`/api/projects/${id}/qa/frame/${encodeURIComponent(s.frame)}?v=${encodeURIComponent(qa.data!.at || "")}`} alt={`The frame checked in scene ${(r.plan?.scenes.findIndex((x) => x.id === s.id) ?? 0) + 1}`} loading="lazy" />}
+                <span><strong>Scene {(r.plan?.scenes.findIndex((x) => x.id === s.id) ?? 0) + 1}</strong>: {s.problems.join(", ").replace(/_/g, " ")}{s.fix_hint ? ` · ${s.fix_hint}` : ""}</span>
               </button>
             ))}
           </div>
         )}
       </Panel>
       <RedoModal id={id} open={redoOpen} onClose={() => setRedoOpen(false)} />
+      {planOpen && <PlanSheet pid={id} onClose={() => setPlanOpen(false)} onStarted={() => { setPlanOpen(false); goProgress(); }} />}
     </Sheet>
   );
 }

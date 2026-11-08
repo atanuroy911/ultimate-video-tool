@@ -98,6 +98,11 @@ RULES: list[dict[str, Any]] = [
     {"area": "pacing", "id": "pacing.one_at_a_time", "measured": True, "source": "i-hate-editing rules/motion.md",
      "rule": "Never reveal two independent things at the same moment: one thing, a short pause (at least 0.35 s), then the next.",
      "why": "The eye cannot track both, so it tracks neither."},
+    {"area": "pacing", "id": "pacing.cartoon_one_picture", "measured": False, "source": "owner, 2026-11-08",
+     "rule": "In a cartoon (stick figures over a drawn place) one picture is on screen at a time: the next picture takes over and the last one "
+             "leaves (the composer cuts to a new shot for each). A picture shares the frame only with what arrives with it (a sticker and its "
+             "label) or when you give the earlier one an `until_word` past the next one's arrival because the two must be compared.",
+     "why": "Pictures that piled up over the drawing hid the story: a clock was drawn over a shop sign (owner, 2026-11-08)."},
     {"area": "pacing", "id": "pacing.dwell", "measured": True, "source": "i-hate-editing rules/motion.md",
      "rule": "Everything placed on screen stays at least 1.5 s and at most 3 s as the main thing, except the final card. Text and cards over a "
              "picture leave after their sentence and a full-frame card in a video with pictures hands the frame back to a picture (the composer "
@@ -220,6 +225,24 @@ def _shown(sf, words: dict) -> list[dict]:
             texts = _strings(d)
             out.append({"t": w.start, "scene": sc.id, "type": d.get("type", ""), "texts": texts, "numbers": _numbers_in(texts)})
     return sorted(out, key=lambda x: x["t"])
+
+
+def _figures(sf, words: dict, beats) -> tuple[list[tuple[float, float, set[str]]], list[float]]:
+    """A cartoon's figures are on screen too: [(start, end, names of the cast)] per stick scene, and the moments their actions start
+    (a walk, a point, a look is something new on screen). Without them a cartoon was told its heroine was never shown (2026-11-08)."""
+    from .visuals import terms as T
+
+    by_beat = {b.id: b.word_ids for b in beats.beats}
+    spans, acts = [], []
+    for sc in sf.scenes:
+        st = sc.stick if isinstance(sc.stick, dict) else (sc.stick.model_dump() if sc.stick is not None else None)
+        if not st:
+            continue
+        ws = [words[w].start for b in sc.beats for w in by_beat.get(b, []) if w in words]
+        if ws:
+            spans.append((min(ws), max(ws), {T.norm(c.get("name") or c.get("id") or "") for c in st.get("cast") or []}))
+        acts += [words[a["at_word"]].start for a in st.get("actions") or [] if a.get("at_word") in words]
+    return spans, acts
 
 
 def _spoken_numbers(tr, beats, language: str) -> list[dict]:
@@ -365,6 +388,7 @@ def check(project) -> dict[str, Any]:
     words = {w.id: w for w in tr.kept()}
     kept = tr.kept()
     shown = _shown(sf, words)
+    figures, acted = _figures(sf, words, beats)
     v: list[dict] = []
     passed: list[str] = []
 
@@ -375,6 +399,9 @@ def check(project) -> dict[str, Any]:
     end = kept[-1].end if kept else 0.0
     # hook.frame0 ---------------------------------------------------------------------------------------------------------------------
     first = shown[0]["t"] - start if shown else 99.0
+    s0 = sf.scenes[0]
+    if s0.stick or s0.backdrop is not None or any(e.start is None for e in s0.elements):
+        first = 0.0          # the composer shows the opening picture from the first frame (vt/compose/composer.py), and a drawn place or a picture behind is already there
     if first > 0.6:
         bad("hook.frame0", 0.0, first, f"Nothing is on screen until {first:.1f} s.", "Anchor the first picture on the first spoken word.", "critical")
     else:
@@ -416,13 +443,15 @@ def check(project) -> dict[str, Any]:
         if t0 is None:
             continue
         key = T.norm(e.name)
+        if any(a - 1.5 <= t0 <= b + 1.5 and key in names for a, b, names in figures):
+            continue                                   # a cartoon figure of that name is on screen
         if not any(abs(s["t"] - t0) <= 1.5 and any(key in T.norm(t) for t in s["texts"]) for s in shown):
             bad("sync.names_shown", t0, t0 + 1.5, f"'{e.name}' is named at {t0:.1f} s but nothing on screen names it.",
                 "Show its logo, picture or name on that word.")
     if not any(x["rule"] == "sync.names_shown" for x in v):
         passed.append("sync.names_shown")
     # pacing.change ---------------------------------------------------------------------------------------------------------------------
-    times = sorted({start} | {s["t"] for s in shown} | {end})
+    times = sorted({start} | {s["t"] for s in shown} | set(acted) | {end})
     for a, b in zip(times, times[1:]):
         if b - a > 3.0:
             bad("pacing.change", a, b, f"Nothing new for {b - a:.1f} s.", "Add the next picture, a number or the key word in type inside this stretch.")

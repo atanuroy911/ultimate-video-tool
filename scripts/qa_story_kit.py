@@ -2,7 +2,7 @@
 from pathlib import Path
 import sys
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "server"))
 from PIL import Image, ImageDraw
 from vt.compose.composer import resolve_composition, write_composition
 from vt.project import load_theme

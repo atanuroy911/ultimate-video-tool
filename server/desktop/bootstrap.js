@@ -131,7 +131,7 @@ function sourceHash(L){
 }
 
 function copyProgram(L, say) {
-  say({ step: "Installing program files", progress: 0.02 });
+  say({ step: "Setting up for the first time. This takes a few minutes.", progress: 0.02 });
   const skip = (src) => {
     const b = path.basename(src);
     return !(b === "__pycache__" || b === "node_modules" || b.endsWith(".pyc") || b === ".venv");
@@ -159,7 +159,7 @@ async function bootstrap(L, say, opts = {}) {
 
   // ---- uv
   if (!fs.existsSync(L.uv)) {
-    log("Downloading the Python installer (uv)", 0.06);
+    log("Downloading tools (step 1 of 5)", 0.06);
     const tmp = path.join(L.tools, "dl", UV_ASSET);
     await download(`https://github.com/astral-sh/uv/releases/latest/download/${UV_ASSET}`, tmp, (f) => say({ progress: 0.06 + f * 0.04 }));
     const x = path.join(L.tools, "uv-x");
@@ -177,7 +177,7 @@ async function bootstrap(L, say, opts = {}) {
 
   // ---- Python 3.11 + packages
   if (!fs.existsSync(L.python)) {
-    log("Installing Python 3.11", 0.12);
+    log("Installing tools (step 2 of 5)", 0.12);
     let interpreter = installedPython(env.UV_PYTHON_INSTALL_DIR);
     if (!interpreter) {
       try {
@@ -197,13 +197,13 @@ async function bootstrap(L, say, opts = {}) {
     const r = spawnSync(L.python, [path.join(L.runtime, "vt", "gpu_detect.py")], {encoding:"utf8",windowsHide:true,timeout:60000});
     if (r.status === 0 && /^(cu128|cu124|cu118|cpu)\s*$/.test(r.stdout)) flavour = r.stdout.trim();
   }
-  log("Preparing video and voice tools", 0.3);
+  log("Installing video and voice tools (step 3 of 5)", 0.3);
   await sh(L.uv, ["sync", "--frozen", "--no-dev", "--extra", flavour, "--python", L.python],
     {env:{...env,UV_PROJECT_ENVIRONMENT:L.venv},cwd:L.runtime},line);
 
   // ---- Node + video renderer
   if (!nodeBinDir(L)) {
-    log("Downloading Node.js (video renderer)", 0.62);
+    log("Downloading the video renderer (step 4 of 5)", 0.62);
     const tmp = path.join(L.tools, "dl", NODE_ASSET);
     await download(`https://nodejs.org/dist/v${NODE_VERSION}/${NODE_ASSET}`, tmp, (f) => say({ progress: 0.62 + f * 0.06 }));
     fs.rmSync(L.nodeDir, { recursive: true, force: true });
@@ -215,7 +215,7 @@ async function bootstrap(L, say, opts = {}) {
   const rdir = path.join(L.runtime, "renderer");
   const node = WIN ? path.join(nb, "node.exe") : path.join(nb, "node");
   if (!fs.existsSync(path.join(rdir, "node_modules", "hyperframes"))) {
-    log("Installing the video renderer (downloads a browser engine)", 0.7);
+    log("Installing the video renderer (step 5 of 5)", 0.7);
     // run npm through node itself: no .cmd shim, no shell, same on every platform
     const cli = [path.join(nb, "node_modules", "npm", "bin", "npm-cli.js"), path.join(nb, "..", "lib", "node_modules", "npm", "bin", "npm-cli.js")].find((f) => fs.existsSync(f));
     if (!cli) throw new Error("npm was not found in the downloaded Node.js");

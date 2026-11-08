@@ -2,8 +2,59 @@
 from __future__ import annotations
 
 import threading
+from datetime import datetime, timedelta, timezone
 
 from vt import directors
+from vt.util import read_json, write_json
+
+
+def _history_row(device, name, days_ago, assistant="claude"):
+    return {"device": device, "name": name, "assistant": assistant,
+            "last_seen": (datetime.now(timezone.utc) - timedelta(days=days_ago)).isoformat()}
+
+
+def test_offline_directors_expire_without_waiting_for_a_new_connection(monkeypatch):
+    monkeypatch.setattr(directors, "broker", directors.DirectorBroker())
+    seen = {"claude:old": _history_row("old", "Retired laptop", 61),
+            "claude:away": _history_row("away", "Travel laptop", 59)}
+    path = directors._seen_path()
+    write_json(path, seen)
+
+    rows = {row["id"]: row for row in directors.listing()["directors"]}
+    assert "claude@old" not in rows
+    assert not rows["claude@away"]["available"]
+    assert read_json(path) == seen, "reading the list must not rewrite history"
+
+    directors.broker.connect("new", "New laptop", logged_in=True)
+    assert "claude:old" not in read_json(path), "a later connection prunes expired history"
+
+
+def test_recent_offline_aliases_keep_the_latest_registration_per_assistant(monkeypatch):
+    monkeypatch.setattr(directors, "broker", directors.DirectorBroker())
+    seen = {"claude:older": _history_row("older", "Laptop", 6),
+            "claude:newer": _history_row("newer", " laptop ", 3),
+            "codex:other": _history_row("other", "Laptop", 4, "codex")}
+    path = directors._seen_path()
+    write_json(path, seen)
+
+    rows = directors.listing()["directors"]
+    assert {row["id"] for row in rows if "last_seen" in row} == {"claude@newer", "codex@other"}
+    assert read_json(path) == seen
+
+
+def test_live_directors_keep_their_own_ids_while_hiding_old_offline_aliases(monkeypatch):
+    broker = directors.DirectorBroker()
+    monkeypatch.setattr(directors, "broker", broker)
+    broker.connect("current", "Laptop", logged_in=True)
+    broker.connect("also-live", "Laptop", logged_in=True)
+    seen = read_json(directors._seen_path())
+    seen["claude:old"] = _history_row("old", "Laptop", 1)
+    seen["claude:current"] = _history_row("current", "Laptop", 61)
+    write_json(directors._seen_path(), seen)
+
+    rows = directors.listing()["directors"]
+    assert {row["id"] for row in rows if row["kind"] == "claude-client"} == {"claude@current", "claude@also-live"}
+    assert directors.candidates("claude@old") == ["claude@old", "local"], "a saved director choice never silently becomes a different ID"
 
 
 def test_connected_client_is_in_registry_and_can_finish_a_targeted_request(monkeypatch):
@@ -63,7 +114,9 @@ def test_client_prompts_name_real_mcp_tools():
     reel = directors.client_prompt("demo")
     scenes = directors.client_scene_prompt("demo")
     assert "get_reel_plan" in reel and "check_reel_plan" in reel and "module_call_tool" in reel
-    assert "craft_check" not in scenes and "module_call_tool" in scenes and "craft.check" in scenes
+    assert "call module_call with module_id craft.check" in scenes
+    assert scenes.index("get_script_task") < scenes.index("submit_script") < scenes.index("preview_frames")
+    assert "Look once" in scenes and "one revision" in scenes
 
 
 def test_reel_plan_mcp_tools_return_prompts_and_actionable_checks(ref):

@@ -69,21 +69,21 @@ export default function LocalAI() {
   if (!st) return null;
   const ready = st.reachable && st.model_ready;
   return (
-    <section className="card card-pad col" style={{ gap: 12 }} aria-label="AI helper on a computer">
+    <section className="card card-pad col" style={{ gap: 12 }} aria-label="Language AI settings">
       <div className="row wrap">
-        <h2 className="grow"><Cpu size={18} style={{ verticalAlign: -3 }} /> AI helper on a computer</h2>
+        <h2 className="grow"><Cpu size={18} style={{ verticalAlign: -3 }} /> Language AI settings</h2>
         <span className={`chip ${st.llm_mode === "off" ? "" : ready ? "ok" : "warn"}`}>
           {st.llm_mode === "off" ? "Off" : ready ? <><Check size={12} /> Ready · {st.model}</> : st.reachable ? `Model ${st.model} not downloaded` : "Not running"}
         </span>
       </div>
       <p className="muted" style={{ margin: 0 }}>
-        This free helper picks pictures and designs scenes. It can run here or on another computer with a graphics card. Your transcript is only sent to the computer below.
+        Ollama plans scenes and picks pictures. It can run on this server or on another computer with a graphics card. Only your script is sent to it.
       </p>
       <Seg value={st.llm_mode} onChange={(v) => save({ llm_mode: v })} label="Local AI" options={[{ value: "auto", label: "On (automatic)" }, { value: "off", label: "Off (rules only)" }]} />
       {st.llm_mode === "auto" && (
         <>
           <div className="row wrap" style={{ gap: 12, alignItems: "flex-start" }}>
-            <Field label="Computer address" hint="Where the free AI helper is running">
+            <Field label="Address" hint="Where Ollama is running">
               <input type="text" value={url} onChange={(e) => setUrl(e.target.value)} onBlur={() => url !== st.ollama_url && save({ ollama_url: url.trim() })} spellCheck={false} style={{ minWidth: 280 }} />
             </Field>
             <Field label="AI version">

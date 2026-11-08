@@ -41,13 +41,31 @@ server = MCPServer(
 
 _BG: dict[str, dict] = {}  # background jobs started from here: id -> status
 
+# These modules do the directing work themselves and may ask the active helper
+# to answer. During its own task the helper must submit the work directly.
+_DIRECTOR_TASK_GUIDANCE = {
+    "direct.plan_script": "Read get_script_task and write the script yourself, then call submit_script.",
+    "direct.plan_scenes": "Read get_script_task and submit_script, or update_scene for a specific scene.",
+    "direct.revise_script": "Use the measured findings to revise your script or update the affected scenes directly.",
+    "direct.talk": "Apply the direction yourself with update_scene or submit_script.",
+    "pipeline.context": "Read the project's timed transcript and work from that source.",
+    "pipeline.plan": "Submit the plan yourself using the project's script, story or reel tools.",
+    "plan.make": "Read get_reel_plan and apply plan.edit operations, then call plan.approve.",
+    "plan.start": "Approve the finished reel plan. The server makes the video after you finish.",
+    "judge.picture": "Choose an existing visual yourself using the spoken words and the library choices.",
+    "judge.vision_qa": "Use preview_frames and frame_facts to inspect the cut yourself.",
+    "judge.watch_and_revise": "Inspect the cut once with preview_frames and frame_facts, then apply one revision.",
+    "gen.vision_check": "Inspect the supplied visual yourself in the project's preview.",
+}
+
 
 def tool(fn):
     """Register a tool and record a heartbeat for the assistant using it."""
 
     @functools.wraps(fn)
     def wrapper(*a, **kw):
-        project_scope.check_tool(fn.__name__, dict(inspect.signature(fn).bind(*a, **kw).arguments))
+        arguments = dict(inspect.signature(fn).bind(*a, **kw).arguments)
+        project_scope.check_tool(fn.__name__, arguments)
         try:
             client = os.environ.get("VT_MCP_CLIENT", "assistant").strip().lower() or "assistant"
             seen = {"at": now_iso(), "tool": fn.__name__, "client": client}
@@ -58,7 +76,7 @@ def tool(fn):
             write_json(clients_path, clients)
         except Exception:
             pass
-        project = kw.get("project") or (a[0] if a and isinstance(a[0], str) and "project" in fn.__code__.co_varnames[:1] else "")
+        project = arguments.get("project") or arguments.get("project_id")
         if not project:
             return fn(*a, **kw)
         from ..ai import talk
@@ -69,7 +87,7 @@ def tool(fn):
         # Validate before even logging a failed call: an invalid id must not
         # create ai_talk.jsonl in an existing directory outside the project store.
         folder, began = _proj(str(project)).dir, time.time()
-        asked = {"tool": fn.__name__, "arguments": {**dict(zip(fn.__code__.co_varnames, a)), **kw}}
+        asked = {"tool": fn.__name__.removesuffix("_tool"), "arguments": arguments}
         try:
             out = fn(*a, **kw)
         except Exception as e:
@@ -103,7 +121,14 @@ def module_catalog_tool() -> list[dict]:
     from ..modules.registry import list_modules
 
     load()
-    return [{"id": spec.id, "summary": spec.summary, "cost": spec.cost.kind} for spec in list_modules()]
+    scoped = project_scope.current_project() is not None
+    rows = []
+    for spec in list_modules():
+        row = {"id": spec.id, "summary": spec.summary, "cost": spec.cost.kind}
+        if scoped and spec.id in _DIRECTOR_TASK_GUIDANCE:
+            row["during_director_task"] = _DIRECTOR_TASK_GUIDANCE[spec.id]
+        rows.append(row)
+    return rows
 
 
 @tool
@@ -117,19 +142,27 @@ def module_describe_tool(module_id: str) -> dict:
         spec = get_module(module_id)
     except KeyError:
         return {"error": f"unknown module: {module_id}"}
-    return {"id": spec.id, "summary": spec.summary, "when_to_use": spec.when_to_use,
+    details = {"id": spec.id, "summary": spec.summary, "when_to_use": spec.when_to_use,
             "when_not_to_use": spec.when_not_to_use, "inputs": spec.inputs.model_json_schema(),
             "outputs": spec.outputs.model_json_schema(), "requires": spec.requires,
             "produces": spec.produces, "examples": [example.__dict__ for example in spec.examples]}
+    if project_scope.current_project() is not None and spec.id in _DIRECTOR_TASK_GUIDANCE:
+        details["during_director_task"] = _DIRECTOR_TASK_GUIDANCE[spec.id]
+    return details
 
 
 @tool
 def module_call_tool(project_id: str, module_id: str, inputs: dict | None = None,
                      why: str = "", force: bool = False) -> dict:
     """Call a director module on a project, with validated inputs and a recorded reason."""
+    from ..modules.envelope import CallResult
     from ..modules.executor import Executor
 
     project = _proj(project_id)
+    guidance = _DIRECTOR_TASK_GUIDANCE.get(module_id)
+    if guidance and project_scope.current_project() is not None:
+        return CallResult(ok=False, status="refused", summary="This module delegates work from your current directing task.",
+                          fix=guidance).model_dump(mode="json")
     try:
         return Executor(project.dir).call(module_id, inputs or {},
                                           caller=os.environ.get("VT_MCP_CLIENT", "assistant"),
@@ -591,8 +624,8 @@ def render(project: str, aspect: Optional[str] = None, quality: str = "looks") -
 # ------------------------------------------------------------------ Video Script (any assistant: Claude, ChatGPT, ...)
 @tool
 def get_script_task(project: str, kind: str = "", hint: str = "") -> dict:
-    """Everything needed to direct a whole video in ONE call: instructions, the timed transcript, the catalogue, 3 worked examples and the JSON
-    schema. kind: stick | emoji | explainer | infographic | cartoon | mixed (empty = the project's kind). Then call submit_script."""
+    """Read once for the timed transcript, catalogue and schema, then call submit_script. Scoped tasks use the concise brief.
+    kind: stick | emoji | explainer | infographic | cartoon | mixed (empty = the project's kind)."""
     from ..script import service
 
     p = _proj(project)
@@ -600,7 +633,7 @@ def get_script_task(project: str, kind: str = "", hint: str = "") -> dict:
         raise ValueError("kind must be stick, explainer, infographic, cartoon or mixed")
     if kind:
         service.set_script_kind(p, kind)
-    return service.script_task(p, kind or None, hint)
+    return service.script_task(p, kind or None, hint, compact=project_scope.current_project() is not None)
 
 
 @tool
@@ -652,6 +685,8 @@ def get_current_script(project: str) -> dict:
     p = _proj(project)
     script = current_script(p)
     if script is None:
+        if project_scope.current_project() is not None:
+            return {"script": None, "next": "No script has been submitted. Use get_script_task, then submit_script."}
         raise ValueError("no Video Script yet; call get_script_task, then submit_script")
     return {**script, "edits_since_this_script": edits_since_script(p)}
 

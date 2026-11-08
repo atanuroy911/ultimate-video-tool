@@ -93,7 +93,10 @@ TRANSITIONS = ["circle-match-iris", "wipe-transitions", "white-flash-logo-simpli
                "gradient-transition", "bottom-push-stack-wipe", "tear-streak-transitions", "line-carry-transition", "shot-transitions", "transition-travel",
                "transition-hidden-cut", "print-texture-transitions", "card-flock-tumble", "beat-cut-moves"]
 PUNCHY = ["transition-travel", "shot-transitions", "circle-match-iris", "white-flash-logo-simplify-cut", "beat-cut-moves"]
-OPENINGS = ["orbit-ring-title-open", "spotlight-hero-card", "brand-ink-open", "crane-rise-reveal", "fracture"]
+# the first frame is the thumbnail feeds show and the first thing a scroller sees: an automatic opening leaves it whole. `fracture` covered it
+# with bars of the ink colour for 0.2 s (a "black flash", 2026-11-08); these stay for a director or a person who asks for one by name.
+OPENINGS = ["orbit-ring-title-open", "crash-zoom-punch", "depth-layer-moves"]
+COVERING_OPENINGS = ["spotlight-hero-card", "brand-ink-open", "crane-rise-reveal", "fracture"]
 OUTROS = ["grain-dissolve", "ui-strip-away-outro", "logo-shrink-wordmark-lockup"]       # neon-triple-marquee is realised but not chosen: its text band collides with labels
 CAMERA = ["crash-zoom-punch", "depth-layer-moves", "steep-tilt-glide", "tension-camera-moves"]
 RHYTHM = ["speed-ramp-freeze", "rhythm-interrupt-moves"]

@@ -5,10 +5,10 @@ Two things a director (a person writing a script, or the AI) can ask for, per se
 * **Direction**: a free-text instruction for the delivery ("slowly, with a restrained, serious tone"; "whispering"; "out of breath"). In a script it is written
   at the start of a sentence in curly braces: `{slowly, serious} Never put your name on the account.`
 * **Vocal events**: sounds that are not words: `(laugh)`, `(sigh)`, `(cough)`, `(clears throat)` and `(breath)`, anywhere in a sentence. The Chinese forms
-  `[笑] [咳嗽] [清嗓子] [叹气]` and VoiceStudio's `[laughter]` / `[sigh]` are understood too.
+  `[笑] [咳嗽] [清嗓子] [叹气]` and OmniVoice's `[laughter]` / `[sigh]` are understood too.
 
-Our vocabulary is the same for every engine. Each engine speaks its own dialect (Breeze TTS 2 wants `(laugh)` and a free instruction, VoiceStudio's default engine wants
-`[laughter]` and accepts only `whisper` as a style, CosyVoice 3 wants `[laughter]` and `[breath]`, Edge and Kokoro understand neither). `render()` turns one parsed sentence
+Our vocabulary is the same for every engine. Each engine speaks its own dialect (Breeze TTS 2 wants `(laugh)` and a free instruction, OmniVoice wants
+`[laughter]` and accepts only `whisper` as a style, Edge and Kokoro understand neither). `render()` turns one parsed sentence
 into what a given dialect can use and says what it had to drop, so a person is never told an engine did something it could not.
 
 The captions and word timings are built from `Direction.text`: the words only, never the notes and the sound tags.
@@ -33,18 +33,12 @@ _NOTE = re.compile(r"^\s*\{([^{}]{2,200})\}\s*")
 _PAREN = re.compile(r"\(\s*([A-Za-z][A-Za-z ]{2,18}?)\s*\)")
 _BRACKET = re.compile(r"\[\s*([A-Za-z一-鿿][A-Za-z 一-鿿]{0,18}?)\s*\]")
 
-# Each dialect: how events are written, and what an instruction may be. instruction: "free" | "whisper" | "prefix" | "emotion" | "none"
+# Each dialect: how events are written, and what an instruction may be. instruction: "free" | "whisper" | "none"
 DIALECTS: dict[str, dict] = {
     "breeze": {"events": {"laugh": "(laugh)", "sigh": "(sigh)", "cough": "(cough)", "clears throat": "(clears throat)"}, "instruction": "free", "label": "Breeze TTS 2"},
-    "omnivoice": {"events": {"laugh": "[laughter]", "sigh": "[sigh]"}, "instruction": "whisper", "label": "VoiceStudio default (OmniVoice)"},
-    "cosyvoice": {"events": {"laugh": "[laughter]", "breath": "[breath]"}, "instruction": "free", "label": "CosyVoice 3"},
-    "voxcpm2": {"events": {}, "instruction": "prefix", "label": "VoxCPM2"},
-    "indextts2": {"events": {}, "instruction": "emotion", "label": "IndexTTS2"},
-    "none": {"events": {}, "instruction": "none", "label": "a voice without direction (Edge, Kokoro, KittenTTS, MMS)"},
+    "omnivoice": {"events": {"laugh": "[laughter]", "sigh": "[sigh]"}, "instruction": "whisper", "label": "OmniVoice"},
+    "none": {"events": {}, "instruction": "none", "label": "a voice without direction (Edge, Kokoro, MMS)"},
 }
-# VoiceStudio engine ids -> dialect
-DIALECT_OF = {"omnivoice": "omnivoice", "omnivoice-subprocess": "omnivoice", "omnivoice-gguf": "omnivoice", "cosyvoice": "cosyvoice", "cosyvoice-gguf": "cosyvoice",
-              "voxcpm2": "voxcpm2", "indextts2": "indextts2", "breeze": "breeze"}
 
 
 @dataclass
@@ -128,7 +122,7 @@ def render(d: Direction, dialect: str = "none", *, direction_on: bool = True, te
     instruction, rate = "", 1.0
     if d.instruction and direction_on:
         mode = spec["instruction"]
-        if mode in ("free", "prefix", "emotion"):
+        if mode == "free":
             instruction = d.instruction
         elif mode == "whisper":
             if re.search(r"\bwhisper", d.instruction, re.I):

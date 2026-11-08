@@ -17,7 +17,7 @@ import numpy as np
 import soundfile as sf
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "server"))
 from vt import clone_onnx as C  # noqa: E402
 from vt import voices as V  # noqa: E402
 from vt.util import find_tool  # noqa: E402

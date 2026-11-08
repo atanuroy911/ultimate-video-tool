@@ -28,6 +28,19 @@ const JOBS: JobKey[] = ["render", "speech", "ai", "pictures"];
 const understood = (x: any): x is Gpus => !!x && Array.isArray(x.cards) && typeof x.needs_choice === "boolean" && !!x.saved && !!x.jobs && x.cards.every((c: any) => Array.isArray(c.using));
 const fill = (s: string, v: Record<string, string | number>) => Object.entries(v).reduce((a, [k, x]) => a.split(`{${k}}`).join(String(x)), s);
 
+/** A card's name; its number only when two cards share a name (two "RTX 3060"s), the way a person tells them apart. */
+function cardName(c: { index: number; name: string }, all: { name: string }[]): string {
+  return all.filter((x) => x.name === c.name).length > 1 ? `${c.name} (${c.index + 1})` : c.name;
+}
+
+/** What the launcher limited this server to, in words: "-1" (or nothing) means no card at all; numbers or ids become card names. */
+function pinnedNote(d: { pinned_by_launcher: string | null; cards: { index: number; name: string; uuid: string }[] }, t: (k: string) => string): string {
+  const ids = String(d.pinned_by_launcher || "").split(",").map((x) => x.trim()).filter((x) => x && x !== "-1");
+  if (!ids.length) return t("gpu.pinned.none");
+  const names = ids.map((x) => d.cards.find((c) => String(c.index) === x || c.uuid === x)?.name || x);
+  return t("gpu.pinned").replace("{cards}", names.join(", "));
+}
+
 export default function GpuChoice({ mode = "page", onAnswered, onSkip }: { mode?: "page" | "setup"; onAnswered?: () => void; onSkip?: () => void }) {
   const t = useT();
   const [d, setD] = useState<Gpus | null>(null);
@@ -94,12 +107,12 @@ export default function GpuChoice({ mode = "page", onAnswered, onSkip }: { mode?
   const usingText = (c: Card) => (c.using.length
     ? c.using.map((p) => (p.ours ? (p.gb ? fill(t("gpu.card.ours"), { gb: p.gb }) : t("gpu.card.ours_nogb")) : p.gb ? fill(t("gpu.card.program"), { name: p.label, gb: p.gb }) : fill(t("gpu.card.program_nogb"), { name: p.label }))).join(" ")
     : t("gpu.card.idle"));
-  const cardOption = (c: Card) => <option key={c.uuid} value={c.uuid}>{`GPU ${c.index}: ${c.name} (${fill(t("gpu.card.mem"), { free: c.free_gb, total: c.total_gb })})`}</option>;
+  const cardOption = (c: Card) => <option key={c.uuid} value={c.uuid}>{`${cardName(c, d.cards)} (${fill(t("gpu.card.mem"), { free: c.free_gb, total: c.total_gb })})`}</option>;
   const row = (id: "primary" | JobKey, hint: string, value: string, first: { value: string; label: string }, job?: Job) => (       // a plain function, not a component: the list stays put while the page refreshes
     <div key={id} className="row wrap" style={{ gap: 10, alignItems: "center", padding: "8px 0" }}>
       <label htmlFor={`gpu-${id}`} className="col" style={{ gap: 2, flex: "1 1 220px", minWidth: 0 }}>
         <strong>{t("gpu.job." + id)}</strong>
-        <span className="small muted">{hint}{job?.name ? ` ${fill(t("gpu.job.uses"), { card: `GPU ${job.index} (${job.name})` })}` : ""}</span>
+        <span className="small muted">{hint}{job?.name ? ` ${fill(t("gpu.job.uses"), { card: job.name || "" })}` : ""}</span>
       </label>
       <select id={`gpu-${id}`} value={value} onChange={(e) => choose(id, e.target.value)} disabled={saving} style={{ flex: "1 1 260px", minHeight: 44 }}>
         <option value={first.value}>{first.label}</option>
@@ -121,14 +134,14 @@ export default function GpuChoice({ mode = "page", onAnswered, onSkip }: { mode?
       )}
       {!d.needs_choice && on.length === 0 && <p className="notice warn" role="note" style={{ margin: 0 }} data-testid="gpu-none-on">{t("gpu.none_warn")}</p>}
       {d.restart_needed && <p className="notice" role="note" style={{ margin: 0 }} data-testid="gpu-restart">{t("gpu.restart")}</p>}
-      {d.pinned_by_launcher && <p className="small muted" style={{ margin: 0 }}>{fill(t("gpu.pinned"), { cards: d.pinned_by_launcher })}</p>}
+      {d.pinned_by_launcher != null && <p className="small muted" style={{ margin: 0 }}>{pinnedNote(d, t)}</p>}
 
       <h3 className="helper-heading" id="gpu-cards-title">{t("gpu.cards.title")}</h3>
       <ul className="helper-list" data-testid="gpu-cards" aria-labelledby="gpu-cards-title">
         {d.cards.map((c) => (
           <li key={c.uuid} className="gpu-row" data-testid={`gpu-card-${c.index}`} data-allowed={c.allowed}>
             <span className="col grow" style={{ gap: 2, minWidth: 0 }}>
-              <span id={`gpu-name-${c.index}`} style={{ fontWeight: 600 }}>GPU {c.index}: {c.name}</span>
+              <span id={`gpu-name-${c.index}`} style={{ fontWeight: 600 }}>{cardName(c, d.cards)}</span>
               <span className="small muted">{fill(t("gpu.card.mem"), { free: c.free_gb, total: c.total_gb })}</span>
               <span className="small muted" data-testid={`gpu-using-${c.index}`}>{usingText(c)}</span>
             </span>

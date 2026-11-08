@@ -21,7 +21,7 @@ async function applyCli(argv){const o=cliOptions(argv);if(!o.server)return false
 app.on('second-instance',(_event,argv)=>{if(cliOptions(argv||[]).server){applyCli(argv).catch(e=>{log(e.message);dialog.showErrorBox('Could not connect',e.message);});return;}const window=win||chooser;if(window){window.show();window.focus();}});
 function chooseServer(){
   if(chooser&&!chooser.isDestroyed()){chooser.show();chooser.focus();return;}
-  chooser=new BrowserWindow({width:580,height:700,resizable:true,minWidth:500,minHeight:580,title:'Choose a processing server',icon:appIcon(),webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,sandbox:true}});
+  chooser=new BrowserWindow({width:580,height:700,resizable:true,minWidth:500,minHeight:580,title:'Choose a server',icon:appIcon(),webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,sandbox:true}});
   chooser.setMenu(null);chooser.loadFile(path.join(__dirname,'connect.html'));chooser.on('closed',()=>{chooser=null;if(!win&&!changing)app.quit();});
 }
 function appIcon(){const f=app.isPackaged?path.join(process.resourcesPath,'icon.png'):path.join(__dirname,'build','icon.png');return require('fs').existsSync(f)?f:undefined;}
@@ -33,18 +33,22 @@ async function attach(){
 }
 // ---- start with the computer: the entry runs this app with --helper, which starts the helper and leaves
 const launcher=process.env.APPIMAGE||app.getPath('exe'),entry=path.join(os.homedir(),'.config','autostart','video-tool-helper.desktop');
-function autostartOn(){return process.platform==='linux'?fs.existsSync(entry):app.getLoginItemSettings({path:launcher,args:['--helper']}).openAtLogin;}
+function runEntry(name){try{return require('child_process').execFileSync('reg',['query','HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run','/v',name],{encoding:'utf8',windowsHide:true,stdio:['ignore','pipe','ignore']});}catch{return '';}}
+// Windows: read the Run entry itself. Electron's own check compares a quoted path and reported an existing entry as off (2026-11-08).
+function autostartOn(){if(process.platform==='linux')return fs.existsSync(entry);if(process.platform==='win32')return runEntry('Ultimate Video Tool Helper').toLowerCase().includes(launcher.toLowerCase());return app.getLoginItemSettings({name:'Ultimate Video Tool Helper',path:launcher,args:['--helper']}).openAtLogin;}
 function setAutostart(on){
   if(process.platform==='linux'){
     if(on){fs.mkdirSync(path.dirname(entry),{recursive:true});fs.writeFileSync(entry,`[Desktop Entry]\nType=Application\nName=Video Tool helper\nExec="${launcher.replace(/[%"`$\\]/g,c=>'\\'+c)}" --helper\nTerminal=false\nX-GNOME-Autostart-enabled=true\n`);}
     else fs.rmSync(entry,{force:true});
     return;
   }
-  app.setLoginItemSettings({openAtLogin:on,path:launcher,args:['--helper']});
+  app.setLoginItemSettings({openAtLogin:on,name:'Ultimate Video Tool Helper',path:launcher,args:['--helper']});
+  const off=path.join(home,'login-item-off');          // the person's choice, kept apart from the entry: a reinstall elsewhere must not lose it
+  if(on)fs.rmSync(off,{force:true});else fs.writeFileSync(off,'The person turned off starting the helper with the computer.');
 }
 async function helperState(){const have=await helper.status(home);return {running:!!have,...(have?have.info:{}),autostart:autostartOn(),installed:app.isPackaged};}
 async function connect(address){
-  const found=await discover.probe(address);if(!found)throw new Error('The processing server is not answering. Start it or choose another server.');
+  const found=await discover.probe(address);if(!found)throw new Error('No server answers at that address. Check the address, and that the server is running.');
   const target=serverURL(found.url);
   const dist=app.isPackaged?path.join(process.resourcesPath,'studio'):path.resolve(__dirname,'../studio/dist');
   if(!fs.existsSync(path.join(dist,'index.html')))throw new Error('Build the client UI first: npm --prefix client/studio run build.');
@@ -65,14 +69,14 @@ async function connect(address){
     await attach();buildMenu();log('Client UI is local; processing server: '+target);
   }finally{changing=false;}
 }
-function buildMenu(){Menu.setApplicationMenu(Menu.buildFromTemplate([{label:'File',submenu:[{label:'New video',accelerator:'CmdOrCtrl+N',click:()=>win?.loadURL(transport.origin+'/new')},{label:'Change processing server…',click:chooseServer},{type:'separator'},{role:'quit'}]},{role:'editMenu'},{label:'View',submenu:[{role:'reload'},{role:'forceReload'},{role:'togglefullscreen'},{role:'toggleDevTools'}]},{label:'Help',submenu:[{label:'Open client log',click:()=>shell.openPath(path.join(home,'desktop.log'))},{label:'Open helper log',click:()=>shell.openPath(path.join(home,'helper.log'))}]}]));}
+function buildMenu(){Menu.setApplicationMenu(Menu.buildFromTemplate([{label:'File',submenu:[{label:'New video',accelerator:'CmdOrCtrl+N',click:()=>win?.loadURL(transport.origin+'/new')},{label:'Switch Server…',click:chooseServer},{type:'separator'},{role:'quit'}]},{role:'editMenu'},{label:'View',submenu:app.isPackaged?[{role:'reload'},{type:'separator'},{role:'togglefullscreen'}]:[{role:'reload'},{role:'forceReload'},{role:'togglefullscreen'},{role:'toggleDevTools'}]},{label:'Help',submenu:[{label:'Show App Log',click:()=>shell.openPath(path.join(home,'desktop.log'))},{label:'Show Helper Log',click:()=>shell.openPath(path.join(home,'helper.log'))}]}]));}
 // only the app's own window may use these
 const fromApp=event=>!!win&&!win.isDestroyed()&&event.sender===win.webContents;
 const onlyApp=handler=>async(event,...args)=>{if(!fromApp(event))throw new Error('Only the app window can use the helper.');return handler(...args);};
 const stopped=async()=>{for(let i=0;i<25&&await helper.status(home);i++)await new Promise(r=>setTimeout(r,120));};
 ipcMain.handle('find-servers',()=>discover.find(2000));
 ipcMain.handle('connect',async(_event,address)=>{try{await connect(address);return {ok:true};}catch(e){return {error:e.message};}});
-ipcMain.on('use-this-computer',async()=>{for(const port of [8790,8765,8791,8792]){const found=await discover.probe(`http://127.0.0.1:${port}`,1000);if(found){await connect(found.url);return;}}dialog.showMessageBox(chooser,{type:'info',title:'Install the processing server separately',message:'No local processing server is running.',detail:'Install or start Ultimate Video Tool Server on this PC, then choose This computer again. The client does not bundle a server or model environment.',buttons:['OK']});});
+ipcMain.on('use-this-computer',async()=>{for(const port of [8790,8765,8791,8792]){const found=await discover.probe(`http://127.0.0.1:${port}`,1000);if(found){await connect(found.url);return;}}dialog.showMessageBox(chooser,{type:'info',title:'No server on this computer',message:'Ultimate Video Tool Server isn\'t running on this computer.',detail:'Open it (or install it) on this computer, then choose This computer again. Or choose a server on your network.',buttons:['OK']});});
 ipcMain.handle('choose-processing-server',()=>chooseServer());
 ipcMain.handle('assistants-status',()=>assistants.status());
 ipcMain.handle('assistants-connect',(event,id,remote)=>{if(!win||event.sender!==win.webContents||!remote||!String(remote.url||'').startsWith(selected+'/'))throw new Error('That is not the selected processing server.');return assistants.connect(id,remote,{command:process.execPath,args:[path.join(__dirname,'mcp-bridge.js').replace('app.asar'+path.sep,'app.asar.unpacked'+path.sep)]});});
@@ -85,6 +89,8 @@ ipcMain.handle('helper-autostart',onlyApp(async on=>{setAutostart(!!on);return h
 app.whenReady().then(async()=>{
   buildMenu();
   const decided=path.join(home,'login-item-decided');      // an installed app starts its helper with the computer unless the person turns that off (Settings)
+  // installed again in another folder (C: to E:, 2026-11-08): the entry still started the old, removed program. Point it at this one.
+  if(app.isPackaged&&fs.existsSync(decided)&&!fs.existsSync(path.join(home,'login-item-off'))&&!autostartOn()){try{setAutostart(true);log('The helper start-with-computer entry now points at this copy of the app.');}catch(e){log('Could not update the start-with-computer entry: '+e.message);}}
   if(app.isPackaged&&!fs.existsSync(decided)){try{setAutostart(true);fs.writeFileSync(decided,'The helper starts with the computer by default; the person can turn it off in Settings.');log('The helper will start with this computer.');}catch(e){log('Could not set the helper to start with the computer: '+e.message);}}
   try{if(await applyCli(process.argv))return;}catch(e){log(e.message);dialog.showErrorBox('Could not connect',e.message);}
   let saved='';try{saved=JSON.parse(fs.readFileSync(connectionFile,'utf8')).server;}catch{}

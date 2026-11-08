@@ -264,10 +264,10 @@ export default function AIAssistants() {
   return (
     <>
       <details className="card card-pad ai-server-details" data-testid="server-details">
-        <summary>Server details</summary>
+        <summary>Language AI on the server</summary>
       <section className="col" style={{ gap: 16 }} aria-label="Server AI connection">
         <div className="row">
-          <h3 className="grow">Server AI connection</h3>
+          <h3 className="grow">Connection</h3>
           {st.data && (
             <span className={`chip ${st.data.available ? "ok" : "warn"}`}>
               {st.data.available ? <Check size={12} /> : null} {st.data.provider}{st.data.model ? ` · ${st.data.model}` : ""}{st.data.available ? "" : " · not available"}
@@ -303,9 +303,9 @@ export default function AIAssistants() {
                   ) : (
                     <span className="small muted">No models found. Make sure the Local AI (Ollama) is running and has at least one model.</span>
                   )}
-                  <Field label="Computer address" hint="Where the free AI helper is running">
+                  <Field label="Address" hint="Where Ollama is running">
                     <input
-                      aria-label="Computer address"
+                      aria-label="Ollama address"
                       type="text"
                       defaultValue={llmStatus?.ollama_url ?? "http://localhost:11434"}
                       placeholder="http://localhost:11434"
@@ -379,7 +379,7 @@ export default function AIAssistants() {
           <button className="btn sm" onClick={runTest} disabled={busy}>{busy ? <Spinner /> : <Plug size={13} />} Test AI connection</button>
           {test && <span className="small muted" role="status">{test}</span>}
         </div>
-        <span className="small muted">Keys are saved on the processing server and are never shown again.</span>
+        <span className="small muted">Keys are kept on the server and never shown again.</span>
       </section>
       </details>
 
@@ -389,7 +389,7 @@ export default function AIAssistants() {
           <button className="btn sm" onClick={() => con.refetch()}><RefreshCw size={13} /> Refresh</button>
         </div>
         <p className="muted" style={{ margin: 0 }}>
-          Claude and Codex can make and edit videos for you, with your own subscription and no API key in this app. One click connects them.
+          Claude and Codex can make and edit videos with your own subscription. One click connects them.
         </p>
         <OneClickAssistants />
         {!onServerItself && !desktop && <NetworkAssistant />}
@@ -397,7 +397,7 @@ export default function AIAssistants() {
         {onServerItself && con.data && (
           <>
             <details>
-              <summary style={{ cursor: "pointer", fontWeight: 600 }}>Set up by hand</summary>
+              <summary style={{ cursor: "pointer", fontWeight: 600 }}>Set up Claude Code or Codex by hand</summary>
               <div className="col" style={{ gap: 10, marginTop: 10 }}>
                 <Snippet label="Claude Code (terminal or VS Code): run once" text={con.data.claude_code} />
                 <Snippet label="Codex (terminal or IDE): run once" text={con.data.codex} />
@@ -410,7 +410,7 @@ export default function AIAssistants() {
             <Snippet label="Gemini CLI (~/.gemini/settings.json)" text={j(con.data.gemini_cli)} />
             </details>
             <details>
-              <summary style={{ cursor: "pointer", fontWeight: 600 }}>ChatGPT and other remote assistants (HTTP + token)</summary>
+              <summary style={{ cursor: "pointer", fontWeight: 600 }}>ChatGPT and other online assistants</summary>
               <div className="col" style={{ gap: 10, marginTop: 10 }}>
                 <p className="small muted" style={{ margin: 0 }}>{con.data.chatgpt}</p>
                 <Snippet label="1. Start the HTTP server" text={con.data.http_command} />
@@ -427,7 +427,7 @@ export default function AIAssistants() {
               </div>
             </details>
             <p className="small muted" style={{ margin: 0 }}>
-              No MCP? Open a video, choose <strong>Ask any chat assistant</strong> in Review, paste the message into the chat and paste its JSON answer back.
+              Another chat assistant? In a video, choose <strong>Ask any chat assistant</strong>, paste the message into it, and paste its answer back.
             </p>
           </>
         )}

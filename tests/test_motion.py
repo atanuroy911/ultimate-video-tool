@@ -21,7 +21,7 @@ def test_every_one_of_the_124_cards_is_mapped_to_a_recipe_that_exists():
     assert len(names) == 124 and names <= set(MO.CARDS), sorted(names - set(MO.CARDS))
     missing = [(k, r, f) for k, (r, f) in MO.CARDS.items() if f not in reg[r]]
     assert not missing, missing
-    used = set().union(*MO.POOLS.values(), MO.TRANSITIONS, MO.OPENINGS, MO.OUTROS, MO.CAMERA, MO.RHYTHM)
+    used = set().union(*MO.POOLS.values(), MO.TRANSITIONS, MO.OPENINGS, MO.COVERING_OPENINGS, MO.OUTROS, MO.CAMERA, MO.RHYTHM)
     assert used <= reg["text"] | reg["trans"] | reg["scene"]
 
 
@@ -45,3 +45,12 @@ def test_choices_fit_the_content_vary_and_are_stable():
     assert s[0]["moves"][0] in MO.OPENINGS and s[-1]["moves"][0] in MO.OUTROS
     assert MO.apply(_comp(), "auto", seed="p1") == d                                    # deterministic
     assert "fx" not in json.dumps(MO.apply(_comp(), "off", seed="p1"))
+
+
+def test_an_automatic_opening_leaves_the_first_frame_whole():
+    # the owner's cartoon (2026-11-08): `fracture` hid the first 0.2 s behind bars of the ink colour
+    for seed in ("a", "b", "c", "vt", "maya", "x1", "x2", "x3"):
+        s = MO.apply({"scenes": [{"id": "s1", "start": 0, "end": 3, "elements": []}, {"id": "s2", "start": 3, "end": 6, "elements": []}]}, seed=seed)["scenes"]
+        assert s[0]["moves"][0] in MO.OPENINGS and s[0]["moves"][0] not in MO.COVERING_OPENINGS
+    asked = MO.apply({"scenes": [{"id": "s1", "start": 0, "end": 3, "camera_move": "fracture", "elements": []}]})["scenes"]
+    assert asked[0]["moves"] == ["fracture"]                         # asked for by name: kept

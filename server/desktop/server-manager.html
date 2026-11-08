@@ -1,12 +1,59 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-src http://127.0.0.1:* http://localhost:* http://[::1]:*"><title>Ultimate Video Tool Server</title>
 <style>
-:root{font:15px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#172239;background:#f4f5f8;color-scheme:light}*{box-sizing:border-box}body{margin:0;padding:30px;line-height:1.5}main{max-width:750px;margin:auto}header{display:flex;gap:14px;align-items:center;margin-bottom:24px}header img{width:54px;height:54px}h1{font-size:25px;letter-spacing:-.7px;margin:0}h2{font-size:18px;margin:0 0 7px}p{margin:6px 0;color:#606b80}small,.small{font-size:13px;color:#606b80}.card{padding:24px;background:#fff;border:1px solid #e2e6ed;border-radius:18px;margin-bottom:16px;box-shadow:0 3px 12px #25375705}.row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.badge{background:#e8edf5;border-radius:30px;padding:6px 13px;font-weight:650;font-size:13px}.badge.on{background:#e3f6eb;color:#127347}.buttons{display:flex;gap:9px;flex-wrap:wrap;margin-top:18px}button{font:inherit;font-weight:600;border:1px solid #d9dfeb;border-radius:10px;padding:10px 16px;background:white;color:#253651;cursor:pointer}button:hover{background:#eef3fb}button:focus-visible{outline:3px solid #80aaff;outline-offset:2px}button:disabled{opacity:.5;cursor:default}.primary{background:#2563eb;color:#fff;border-color:#2563eb}.primary:hover{background:#1d4ed8}.subtle{background:transparent;font-size:13px;padding:7px 10px}.address{font:15px ui-monospace,Consolas,monospace;background:#f4f6fa;border-radius:9px;padding:12px;overflow-wrap:anywhere;user-select:all}.pairing{border-top:1px solid #e4e8ef;margin-top:18px;padding-top:18px}.code{font:700 30px ui-monospace,Consolas,monospace;letter-spacing:3px;user-select:all;margin:14px 0;color:#1d4ed8}.notice{padding:12px;border-radius:10px;background:#fff1e8;color:#8c430e;margin:12px 0;overflow-wrap:anywhere}.footer{display:flex;gap:8px;flex-wrap:wrap;color:#606b80;margin:14px 0}label{display:flex;gap:10px;align-items:center}input[type=checkbox]{accent-color:#2563eb;width:18px;height:18px}hr{border:0;border-top:1px solid #e4e8ef;margin:20px 0}[hidden]{display:none!important}@media(max-width:600px){body{padding:18px}.card{padding:18px}h1{font-size:21px}button{padding:10px 12px}}
+:root{color-scheme:light dark;--bg:#f5f5f7;--card:#fff;--text:#1d1d1f;--muted:#6e6e73;--line:rgba(0,0,0,.08);--fill:rgba(118,118,128,.12);--accent:#0a66ff;--accent-text:#fff;--ok:#1f9d55;--ok-bg:rgba(52,199,89,.14);--warn:#b35c00;--warn-bg:rgba(255,149,0,.14);--err:#d70015}
+@media (prefers-color-scheme:dark){:root{--bg:#1c1c1e;--card:#2c2c2e;--text:#f5f5f7;--muted:#98989d;--line:rgba(255,255,255,.1);--fill:rgba(118,118,128,.24);--accent:#3b8cff;--ok:#32d74b;--ok-bg:rgba(50,215,75,.16);--warn:#ffb340;--warn-bg:rgba(255,159,10,.16);--err:#ff453a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+main{max-width:620px;margin:0 auto;padding:28px 20px 24px}
+header{display:flex;gap:14px;align-items:center;margin-bottom:22px}header img{width:48px;height:48px}
+h1{font-size:20px;font-weight:650;letter-spacing:-.01em;margin:0}h2{font-size:13px;font-weight:600;color:var(--muted);margin:22px 4px 8px;text-transform:none}
+p{margin:0}.muted,small,.small{color:var(--muted)}.small{font-size:12.5px}
+.group{background:var(--card);border-radius:12px;box-shadow:0 0 0 .5px var(--line),0 1px 2px rgba(0,0,0,.04);overflow:hidden}
+.item{display:flex;align-items:center;gap:12px;padding:12px 16px;min-height:48px}.item+.item{border-top:.5px solid var(--line)}
+.item .grow{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.status{display:flex;align-items:center;gap:10px;padding:16px}.dot{width:10px;height:10px;border-radius:50%;background:var(--muted);flex:none}.dot.on{background:var(--ok);box-shadow:0 0 0 4px var(--ok-bg)}
+.status strong{font-size:16px;font-weight:600}
+button{font:inherit;font-weight:500;border:0;border-radius:8px;padding:7px 14px;min-height:32px;background:var(--fill);color:var(--text);cursor:pointer}
+button:hover{filter:brightness(.97)}button:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 45%,transparent);outline-offset:2px}button:disabled{opacity:.45;cursor:default}
+.primary{background:var(--accent);color:var(--accent-text)}.plain{background:none;color:var(--accent);padding:6px 4px}
+.chevron{background:none;color:var(--muted);padding:0;min-height:0;font-size:18px}
+.buttons{display:flex;gap:8px;flex-wrap:wrap}
+.address{font:13px ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere;user-select:all;white-space:pre-line}
+.notice{margin:10px 16px 14px;padding:10px 12px;border-radius:8px;background:var(--warn-bg);color:var(--warn);overflow-wrap:anywhere}
+.switch{position:relative;width:42px;height:26px;flex:none}.switch input{appearance:none;-webkit-appearance:none;margin:0;width:42px;height:26px;border-radius:13px;background:var(--fill);cursor:pointer;transition:background .2s}
+.switch input::after{content:"";position:absolute;top:2px;left:2px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .2s}
+.switch input:checked{background:var(--ok)}.switch input:checked::after{transform:translateX(16px)}.switch input:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 45%,transparent);outline-offset:2px}
+.footer{display:flex;gap:4px;justify-content:center;margin-top:18px}
+.sub{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column}.bar{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:.5px solid var(--line);background:var(--card)}.bar strong{flex:1;text-align:center;margin-right:70px}
+#progress:empty{display:none}
+[hidden]{display:none!important}
+@media (prefers-reduced-motion:reduce){.switch input,.switch input::after{transition:none}}
 </style></head><body><main id="overview">
-<header><img src="server-icon.png" alt=""><div><h1>Ultimate Video Tool Server</h1><p id="computer">Your processing computer</p></div></header>
-<section class="card"><div class="row"><h2>Your server</h2><span id="status" class="badge" role="status">Checking…</span></div><p id="description">Checking the local processing server.</p><div id="progress" class="small" role="status"></div><div class="buttons"><button id="workspace" class="primary">Engine settings</button><button id="start">Start server</button><button id="restart">Restart</button><button id="stop">Stop server</button></div><div id="error" class="notice" role="alert" hidden></div></section>
-<section class="card"><h2>Connect a client</h2><p>On your other PC, open Ultimate Video Tool and choose this server, or type its address. Nothing else is needed: any computer on your network can connect.</p><div id="address" class="address">Start the server to see its address.</div><div class="buttons"><button id="copy" class="primary">Copy address</button></div></section>
-<section class="card" id="gpu-card" hidden><h2>Graphics cards</h2><p id="gpu-text"></p><div class="buttons"><button id="gpu-choose" class="primary">Choose graphics cards</button></div></section>
-<section class="card"><h2>Programs and models</h2><p>ComfyUI makes pictures, clips and voices. Ollama provides language AI. Set up their connections and model folders in server settings.</p><p class="small">Starting or stopping this server leaves existing ComfyUI and Ollama services running.</p><hr><label><input id="autostart" type="checkbox">Start when I sign in</label><p id="tray-note" class="small">Close this window to keep the server in the tray.</p></section>
-<div class="footer"><button class="subtle" id="log">View log</button><button class="subtle" id="refresh">Refresh status</button><button class="subtle" id="quit">Quit server</button></div>
-</main><section id="engine-screen" hidden style="position:fixed;inset:0;background:#f4f5f8;display:flex;flex-direction:column"><div style="padding:14px 20px;display:flex;align-items:center;gap:16px;border-bottom:1px solid #dde3ed"><button id="engine-back">← Server overview</button><strong>Engine settings</strong></div><iframe id="engine-frame" title="Engine settings" style="width:100%;flex:1;border:0;background:#f4f5f8" sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-downloads"></iframe></section><section id="log-screen" hidden style="position:fixed;inset:0;background:#f4f5f8;padding:20px;overflow:auto"><div class="row"><button id="log-back">← Server overview</button><strong>Server log</strong><button id="log-refresh">Refresh</button></div><pre id="log-content" style="white-space:pre-wrap;overflow-wrap:anywhere;font:13px ui-monospace,monospace;background:white;border-radius:12px;padding:18px;margin-top:18px"></pre></section><script src="server-manager-ui.js"></script></body></html>
+<header><img src="server-icon.png" alt=""><div><h1>Ultimate Video Tool Server</h1><p id="computer" class="muted">This computer</p></div></header>
+
+<div class="group">
+  <div class="status"><span id="dot" class="dot" aria-hidden="true"></span><div class="grow" style="flex:1;display:flex;flex-direction:column;gap:2px"><strong id="status" role="status">Checking…</strong><span id="description" class="small">Checking the server.</span><span id="progress" class="small" role="status"></span></div>
+    <div class="buttons"><button id="start" class="primary">Start</button><button id="restart">Restart</button><button id="stop">Stop</button></div></div>
+  <div id="error" class="notice" role="alert" hidden></div>
+</div>
+
+<h2>Use it from another computer</h2>
+<div class="group">
+  <div class="item"><div class="grow"><span>Open Ultimate Video Tool on your other computer. It finds this server by itself, or type:</span><span id="address" class="address">Start the server to see its address.</span></div><button id="copy">Copy</button></div>
+</div>
+
+<section id="gpu-card" hidden><h2>Graphics cards</h2>
+<div class="group"><div class="item"><div class="grow"><span id="gpu-text"></span></div><button id="gpu-choose">Choose…</button></div></div></section>
+
+<h2>Settings</h2>
+<div class="group">
+  <div class="item"><div class="grow"><span>AI programs and models</span><span class="small">ComfyUI and Ollama: where they run and which models they use.</span></div><button id="workspace" class="chevron" aria-label="Open AI programs and models">›</button></div>
+  <div class="item"><div class="grow"><label for="autostart">Start when I sign in</label><span id="tray-note" class="small">Closing this window keeps the server running in the tray.</span></div><span class="switch"><input id="autostart" type="checkbox" role="switch"></span></div>
+</div>
+
+<div class="footer"><button class="plain" id="log">View log</button><button class="plain" id="refresh" hidden>Refresh</button><button class="plain" id="quit">Quit server</button></div>
+</main>
+<section id="engine-screen" class="sub" hidden><div class="bar"><button id="engine-back" class="plain">‹ Back</button><strong>AI programs and models</strong></div><iframe id="engine-frame" title="AI programs and models" style="width:100%;flex:1;border:0;background:var(--bg)" sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-downloads"></iframe></section>
+<section id="log-screen" class="sub" hidden><div class="bar"><button id="log-back" class="plain">‹ Back</button><strong>Server log</strong><button id="log-refresh" class="plain" style="margin-left:-70px">Refresh</button></div><pre id="log-content" style="flex:1;overflow:auto;margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;padding:16px 18px"></pre></section>
+<script src="server-manager-ui.js"></script></body></html>

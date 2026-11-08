@@ -1,0 +1,10 @@
+[mcp_servers.video-tool]
+command = ".venv/Scripts/python.exe"
+args = [
+    "-m",
+    "vt.mcp.server",
+]
+
+[mcp_servers.video-tool.env]
+PYTHONIOENCODING = "utf-8"
+PYTHONPATH = "C:/Users/Roy/Desktop/ultimate-video-tool/server"

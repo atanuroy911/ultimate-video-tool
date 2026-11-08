@@ -1,6 +1,6 @@
-"""The voice modules (docs/plans/PLAN-VOICESTUDIO.MD V2): list voices, speak one sentence or a whole script, describe or design a voice, clone one from a short recording.
+"""The voice modules: list voices, speak one sentence or a whole script, describe or design a voice, clone one from a short recording.
 
-They sit on `vt/tts.py` (one call for every engine: Edge, Kokoro, MMS, a cloned voice, VoiceStudio, a voice in ComfyUI, another computer's engine), so a director gets all of them through the same
+They sit on `vt/tts.py` (one call for every engine: Edge, Kokoro, MMS, a cloned voice, a voice in ComfyUI, another computer's engine), so a director gets all of them through the same
 four verbs. An engine that is not reachable fails with a sentence; nothing here silently switches voice, because a changed voice is something the person must be told.
 """
 from __future__ import annotations
@@ -171,7 +171,7 @@ class DesignOut(BaseModel):
     id="voice.design", version=1, summary="Make a voice from a description and speak a short sample so the person can hear it.",
     when_to_use="The person describes a voice instead of picking one.", when_not_to_use="When a listed voice already fits.",
     inputs=DesignIn, outputs=DesignOut, requires=(), produces=("audio.sentence",), cost=Cost("slow", ("gpu",), 10.0), effects="writes_artifact", determinism="seeded", grounding=(),
-    fallback=None, fallback_reason="Voice design needs OmniVoice in ComfyUI or VoiceStudio; without one it says so.",
+    fallback=None, fallback_reason="Voice design needs a voice model in ComfyUI (Breeze or OmniVoice); without one it says so.",
     examples=(Example(inputs={"description": "a warm older man"}, outputs={"voice": "comfyvoice:design:a warm older man", "audio": "speech/sentence.wav", "seconds": 2.0, "instruction": "male, elderly"}),),
     toolboxes=("autonomous", "studio", "full"), plain_name="Designing a voice", native_outputs=True,
     log_line=lambda i, o: f"Designed a voice from “{i.description[:40]}” and made a {o.seconds:.1f} s sample.",

@@ -13,7 +13,6 @@ from __future__ import annotations
 import json
 import os
 import secrets
-import shutil
 import subprocess
 import sys
 import time
@@ -27,7 +26,7 @@ from ..util import CREATE_NO_WINDOW, read_json, write_json
 
 IDENTITY = "engine-hub.json"
 # where each service listens ON THIS COMPUTER: never exposed except through the gateway and its key
-LOCAL_URLS = {"ollama": "http://127.0.0.1:11434", "comfy": "http://127.0.0.1:8188", "voicestudio": "http://127.0.0.1:3900"}
+LOCAL_URLS = {"ollama": "http://127.0.0.1:11434", "comfy": "http://127.0.0.1:8188"}
 DEFAULT_ENGINES = ("ollama", "comfy")
 
 
@@ -69,7 +68,7 @@ def service_urls(only: Optional[list[str]] = None) -> dict[str, str]:
 
 
 def reachable(name: str, url: str, timeout: float = 1.5) -> bool:
-    probe = {"ollama": "/api/version", "comfy": "/system_stats", "voicestudio": "/health"}.get(name, "/")
+    probe = {"ollama": "/api/version", "comfy": "/system_stats"}.get(name, "/")
     try:
         return httpx.get(url + probe, timeout=timeout).status_code == 200
     except Exception:                                                                   # noqa: BLE001
@@ -130,8 +129,6 @@ def start_services(engines: list[str], say: Callable[[str], None] = print, wait:
                     continue
                 inst.start()
                 status[e] = "started"
-            elif e == "voicestudio":
-                status[e] = _start_docker("voicestudio")
             else:
                 status[e] = "missing"
         except Exception as ex:                                                          # noqa: BLE001
@@ -146,13 +143,6 @@ def start_services(engines: list[str], say: Callable[[str], None] = print, wait:
     for e in pending:
         status[e] = "started, not answering yet"
     return status
-
-
-def _start_docker(name: str) -> str:
-    if not shutil.which("docker"):
-        return "missing"
-    r = subprocess.run(["docker", "start", name], capture_output=True, text=True, creationflags=CREATE_NO_WINDOW, stdin=subprocess.DEVNULL)
-    return "started" if r.returncode == 0 else "missing"
 
 
 def status() -> dict[str, Any]:

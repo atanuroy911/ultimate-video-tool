@@ -1,6 +1,6 @@
 // Which Claude directs (plan step B8, decision 3): a labelled choice on Settings, Directors: "Sonnet: faster" and "Opus: slower, the most careful". Saved on the server, kept after a reload,
 // readable on a phone, light and dark. A scratch server only (it changes the server's settings):
-//   VT_DATA=<scratch dir> python -m vt.cli server --host 127.0.0.1 --port 8771 --comfy off --ollama off --voicestudio off
+//   VT_DATA=<scratch dir> python -m vt.cli server --host 127.0.0.1 --port 8771 --comfy off --ollama off
 //   cd client/studio && VT_SERVER_URL=http://127.0.0.1:8771 npx vite --port 5177 --strictPort --host 127.0.0.1
 //   VT_URL=http://127.0.0.1:5177 node e2e/director_model.mjs [out dir]
 import fs from "node:fs";

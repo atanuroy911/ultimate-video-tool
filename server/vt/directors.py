@@ -12,6 +12,7 @@ import threading
 import time
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any, Callable, Optional
 
 from . import llm, paths
@@ -30,6 +31,28 @@ SEEN_KEEP_DAYS = 60
 
 def _seen_path():
     return paths.DATA / SEEN_FILE
+
+
+def _recent_seen(now: float) -> dict[str, dict]:
+    """Recent connection history, newest first, even if nobody has connected since it expired."""
+    try:
+        seen = read_json(_seen_path(), {})
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(seen, dict):
+        return {}
+    cutoff = now - SEEN_KEEP_DAYS * 86400
+    recent = []
+    for key, row in seen.items():
+        if not isinstance(row, dict) or not isinstance(row.get("device"), str) or not row["device"]:
+            continue
+        try:
+            stamp = datetime.fromisoformat(row.get("last_seen", "")).timestamp()
+        except (TypeError, ValueError, OverflowError, OSError):
+            continue
+        if stamp >= cutoff:
+            recent.append((stamp, key, row))
+    return {key: row for _, key, row in sorted(recent, key=lambda entry: entry[0], reverse=True)}
 
 
 def who_asked(assistant: str) -> str:
@@ -108,17 +131,16 @@ class DirectorBroker:
         """Remember a computer that was connected, so the list can still show it, as not connected, after it goes (and after a restart of the server)."""
         key = f"{rec.assistant}:{rec.device_id}"
         now = time.time()
-        if not gone and now - self._noted.get(key, 0) < 60:
-            return
-        self._noted[key] = now
-        try:
-            f = _seen_path()
-            seen = read_json(f, {}) or {}
-            seen[key] = {"device": rec.device_id, "assistant": rec.assistant, "name": rec.device_name, "version": rec.version, "last_seen": now_iso()}
-            cutoff = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(now - SEEN_KEEP_DAYS * 86400))
-            write_json(f, {k: v for k, v in seen.items() if str(v.get("last_seen", "")) >= cutoff})
-        except Exception:
-            pass                                                         # a list of old computers must never stop a connection
+        with self._lock:
+            if not gone and now - self._noted.get(key, 0) < 60:
+                return
+            self._noted[key] = now
+            try:
+                seen = _recent_seen(now)
+                seen[key] = {"device": rec.device_id, "assistant": rec.assistant, "name": rec.device_name, "version": rec.version, "last_seen": now_iso()}
+                write_json(_seen_path(), seen)
+            except Exception:
+                pass                                                     # a list of old computers must never stop a connection
 
     def disconnect(self, device_id: str, send: Optional[Callable[[dict[str, Any]], None]] = None) -> None:
         """The connection to a computer ended. Its tasks are kept for `grace` seconds: they go again when it comes back, and only fail if it does not."""
@@ -321,20 +343,34 @@ def listing() -> dict[str, Any]:
         {"id": "claude-server", "kind": "claude-server", "label": "Claude on the server", "available": server_ok,
          "note": "Uses Claude Code logged in on the server." if server_ok else "Claude Code is not logged in on the server."},
     ]
-    for d in sorted(broker.devices(), key=lambda x: x.device_name.lower()):
+    live = sorted(broker.devices(), key=lambda d: d.device_name.casefold())
+    for d in live:
         items.append({"id": d.id, "kind": f"{d.assistant}-client", "device": d.device_id, "device_name": d.device_name,
                       "label": f"{'Codex' if d.assistant=='codex' else 'Claude'} on {d.device_name}", "available": d.logged_in,
                       "version": d.version,
                       "note": "Ready on this device." if d.logged_in else f"Open {'Codex' if d.assistant == 'codex' else 'Claude Code'} on this device and sign in."})
-    here = {d.id for d in broker.devices()}
-    for key, seen in sorted((read_json(_seen_path(), {}) or {}).items(), key=lambda kv: str(kv[1].get("name", "")).lower()):
-        did = f"{seen.get('assistant', 'claude')}@{seen.get('device', '')}"
-        if did in here or not seen.get("device"):
+    here = {d.id for d in live}
+    displayed = {(d.assistant, d.device_name.strip().casefold()) for d in live}
+    offline = []
+    for seen in _recent_seen(time.time()).values():
+        assistant = seen.get("assistant", "claude")
+        name = str(seen.get("name") or "").strip()
+        did = f"{assistant}@{seen['device']}"
+        if did in here:
             continue
-        who = "Codex" if seen.get("assistant") == "codex" else "Claude"
-        items.append({"id": did, "kind": f"{seen.get('assistant', 'claude')}-client", "device": seen["device"], "device_name": seen.get("name") or "", "label": f"{who} on {seen.get('name') or 'another computer'}", "available": False,
-                      "version": seen.get("version", ""), "last_seen": seen.get("last_seen", ""),
-                      "note": "Not connected. Open Video Tool on that computer; its helper starts with it and reconnects by itself."})
+        if name.casefold() not in ("", "this pc"):
+            # A reinstall can leave a new ID under the same computer name.
+            # Keep every live connection and only the newest offline alias.
+            alias = (assistant, name.casefold())
+            if alias in displayed:
+                continue
+            displayed.add(alias)
+        who = "Codex" if assistant == "codex" else "Claude"
+        offline.append({"id": did, "kind": f"{assistant}-client", "device": seen["device"], "device_name": name,
+                        "label": f"{who} on {name or 'another computer'}", "available": False,
+                        "version": seen.get("version", ""), "last_seen": seen["last_seen"],
+                        "note": "Not connected. Open Video Tool on that computer; its helper starts with it and reconnects by itself."})
+    items.extend(sorted(offline, key=lambda d: d["device_name"].casefold()))
     cfg = settings()
     return {"directors": items, **cfg, "claude_usage_today": usage_today()}
 
@@ -395,10 +431,10 @@ def client_story_prompt(project_id: str) -> str:
 
 def client_scene_prompt(project_id: str) -> str:
     return (
-        f"Direct Video Tool project {project_id}. Use only the Video Tool MCP tools. First call module_catalog_tool to discover the system's capabilities; use module_describe_tool for exact inputs instead of guessing. Call get_script_task for this project, read its "
-        "timed transcript, craft rules, style and schema, then write and submit a complete Video Script with submit_script. Cover every "
-        "beat, use only facts from the source, keep every picture drawable, and fix every validation error. Then call module_call_tool with "
-        "module_id craft.check and inputs {}, and fix every critical and major violation it reports. Then look at your cut: call preview_frames for a moment in each scene and frame_facts for the same moments (exact measurements of what covers which character, what is outside "
-        "the frame), and change what is wrong with update_scene (every element takes x, y, scale, rotation; a cartoon character takes x, y and arrive). After you change a scene, look at it again. "
-        "Keep going until every frame is clear, no character is covered and no text runs off. Do not render or publish."
+        f"Direct Video Tool project {project_id} using only the Video Tool MCP tools. First call get_script_task once for this project. "
+        "It includes the timed words, schema and visual choices. Write the complete Video Script yourself and call submit_script immediately. "
+        "Cover every beat using facts from the source. Fix any errors returned by submit_script. Do not call another module to plan the script for you. "
+        "After a successful submission, call module_call with module_id craft.check and inputs {}. Look once using preview_frames and frame_facts "
+        "at a moment in each scene. Apply one revision with update_scene for the problems you found, then finish. "
+        "Elements take x, y, scale and rotation; cartoon characters take x, y and arrive. Do not render or publish."
     )

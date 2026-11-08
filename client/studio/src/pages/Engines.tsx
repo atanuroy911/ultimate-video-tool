@@ -1,4 +1,4 @@
-import { Check, Cpu, Image as ImageIcon, MessageSquare, Mic, Server } from "lucide-react";
+import { Check, Cpu, Image as ImageIcon, MessageSquare, Mic, RefreshCw, Server } from "lucide-react";
 import { useEffect, useState } from "react";
 import { get, post, put } from "../api";
 import { Group, Row, Steps } from "../ds";
@@ -18,7 +18,7 @@ interface Card {
 }
 type Mode = "here" | "own" | "remote" | "off";
 interface Here { existing: string[]; own_possible: boolean; own_installed: boolean; own_url: string }
-const HERE_ENGINES = ["ollama", "comfy", "voicestudio"];
+const HERE_ENGINES = ["ollama", "comfy"];
 const isHere = (u: string) => /^https?:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/.test(u);
 const ICON: Record<string, JSX.Element> = { llm: <MessageSquare size={18} />, image: <ImageIcon size={18} />, voice: <Mic size={18} /> };
 const WORDS: Record<string, string> = {
@@ -28,9 +28,9 @@ const WORDS: Record<string, string> = {
 
 function where(c: Card): string {
   const m = c.endpoint.mode;
-  if (m === "off") return "Not connected";
-  if (m === "local") return "Video Tool's own copy, on the server computer";
-  if (isHere(c.endpoint.url)) return "Already installed on the server computer";
+  if (m === "off") return "Not set up";
+  if (m === "local") return "Installed by Video Tool on this server";
+  if (isHere(c.endpoint.url)) return "On this server";
   return c.endpoint.url.replace(/^https?:\/\//, "");
 }
 
@@ -39,21 +39,17 @@ export default function Engines() {
   const [editing, setEditing] = useState<Card | null>(null);
   const [wizard, setWizard] = useState(false);
   const server=useFetch<{name:string;computer?:string}>("/api/server");
-  const native=(window as any).vtDesktop?.server;
   return (
-    <section className="card card-pad col" style={{ gap: 14 }} aria-label="Engines" data-testid="engines">
-      <div className="row wrap">
-        <h2 className="grow"><Server size={18} style={{ verticalAlign: -3 }} /> Processing server: {server.data?.name||'Connected server'}</h2>
-        {native&&<button className="btn sm" onClick={()=>native.choose()}>Change processing server</button>}
-        <button className="btn sm" onClick={() => setWizard(true)} data-testid="run-setup">Run setup</button>
-        <button className="btn sm" onClick={() => list.refetch()}>{list.loading ? <Spinner /> : "Check again"}</button>
+    <section className="card card-pad col" style={{ gap: 14 }} aria-label="AI programs" data-testid="engines">
+      <div className="row wrap" style={{ gap: 8, alignItems: "center" }}>
+        <h2 className="grow"><Server size={18} style={{ verticalAlign: -3 }} /> AI programs</h2>
+        <button className="btn sm ghost" onClick={() => list.refetch()} aria-label="Check again" title="Check again">{list.loading ? <Spinner /> : <RefreshCw size={14} />}</button>
+        <button className="btn sm" onClick={() => setWizard(true)} data-testid="run-setup">Set up…</button>
       </div>
-      <p className="muted" style={{ margin: 0 }}>
-        This server stores projects and makes the videos. Checks, downloads and installation folders below belong to this server. Claude and Codex stay on your own PC; the helper there keeps them ready for this server.
-      </p>
+      <p className="muted" style={{ margin: 0 }}>The programs on {server.data?.name || "this server"} that write, draw and speak for your videos.</p>
       {list.loading && !list.data && <Spinner />}
       <div className="col" style={{ gap: 10 }}>
-        {(list.data ?? []).map((c) => (
+        {(list.data ?? []).filter((c) => c.id !== "vtengine" || c.endpoint.mode !== "off").map((c) => (
           <div key={c.id} className="engine-card" data-engine={c.id}>
             <span className="engine-ic" aria-hidden>{ICON[c.kind] ?? <Cpu size={18} />}</span>
             <div className="col grow" style={{ gap: 2, minWidth: 0 }}>
@@ -63,13 +59,11 @@ export default function Engines() {
               {c.health && !c.health.ok && c.endpoint.mode !== "off" && <span className="small" style={{ color: "var(--err)" }}>{c.health.why_not}</span>}
               {c.health?.ok && c.health.note && <span className="small" style={{ color: "var(--warn)" }}>{c.health.note}</span>}
             </div>
-            <span className={`chip ${c.health?.ok ? "ok" : c.endpoint.mode === "off" ? "" : "warn"}`}>{c.health?.ok ? <><Check size={12} /> Ready</> : c.endpoint.mode === "off" ? "Off" : "Not ready"}</span>
-            <button className="btn sm" onClick={() => setEditing(c)} aria-label={`Change ${c.label}`}>Change</button>
+            {c.endpoint.mode !== "off" && <span className={`chip ${c.health?.ok ? "ok" : "warn"}`}>{c.health?.ok ? <><Check size={12} /> Ready</> : "Not answering"}</span>}
+            <button className={`btn sm${c.endpoint.mode === "off" ? " primary" : ""}`} onClick={() => setEditing(c)} aria-label={`${c.endpoint.mode === "off" ? "Set up" : "Change"} ${c.label}`}>{c.endpoint.mode === "off" ? "Set up" : "Change"}</button>
           </div>
         ))}
       </div>
-      <FindEngines onUsed={() => list.refetch()} />
-      <ShareCard />
       {wizard && <SetupWizard onClose={() => { setWizard(false); list.refetch(); }} />}
       {editing && <EngineSheet card={editing} onClose={() => { setEditing(null); list.refetch(); }} />}
     </section>
@@ -99,15 +93,20 @@ function ThisServerCard({ info }: { info: ServerInfo }) {
     <div className="engine-card" data-testid="this-server-card">
       <span className="engine-ic" aria-hidden><Server size={18} /></span>
       <div className="col grow" style={{ gap: 4, minWidth: 0 }}>
-        <strong>This server: {info.name}</strong>
-        <span className="small muted">Other computers and phones on this network can open Video Tool here. They find it by themselves, or type one of these addresses. Nothing else is needed.</span>
-        {info.addresses?.map((a) => <span key={a} className="small bn" style={{ userSelect: "all" }}>Address: {a}</span>)}
+        <strong>Reach this server</strong>
+        <span className="small muted">Computers on this network find it by themselves, or can type one of these addresses.</span>
+        {info.addresses?.map((a) => <span key={a} className="small bn" style={{ userSelect: "all" }}>{a.replace(/^https?:\/\//, "")}</span>)}
       </div>
       <div className="col" style={{ gap: 6, alignItems: "stretch" }}>
         {auto !== undefined && <button className="btn sm" disabled={busy} onClick={toggleAuto} data-testid="server-autostart" title="With the same engines and port as now">{auto ? "Don't start by itself" : "Start by itself"}</button>}
       </div>
     </div>
   );
+}
+
+/** For the Server page's Advanced section: look for programs on other ports or computers, and share this computer's programs. */
+export function EnginesAdvanced() {
+  return <div className="col" style={{ gap: 12 }}><FindEngines onUsed={() => {}} /><ShareCard /></div>;
 }
 
 function ShareCard() {
@@ -141,9 +140,9 @@ function HubShareCard() {
       <span className="engine-ic" aria-hidden><Server size={18} /></span>
       <div className="col grow" style={{ gap: 4, minWidth: 0 }}>
         <strong>Share this computer</strong>
-        <span className="small muted">{on ? "Other computers can use this one's language AI and pictures. On the other computer: Engines, Another Video Tool computer." : "Let a second computer running Video Tool use the programs installed here."}</span>
-        {on && h?.addresses.map((a) => <span key={a} className="small bn" style={{ userSelect: "all" }}>Address: {a}</span>)}
-        {on && h?.code && <span className="small" style={{ userSelect: "all" }}>Pairing code (works once): <strong data-testid="share-code">{h.code}</strong></span>}
+        <span className="small muted">{on ? "Another Video Tool server can now use this computer's AI programs. On that server: AI programs, Set up…, then this address and code." : "Let another Video Tool server use the AI programs installed here."}</span>
+        {on && h?.addresses.map((a) => <span key={a} className="small bn" style={{ userSelect: "all" }}>{a.replace(/^https?:\/\//, "")}</span>)}
+        {on && h?.code && <span className="small" style={{ userSelect: "all" }}>Code (works once): <strong data-testid="share-code">{h.code}</strong></span>}
       </div>
       <div className="col" style={{ gap: 6, alignItems: "stretch" }}>
         {!on && <button className="btn sm primary" disabled={busy} onClick={() => act("/api/hub/start", "")} data-testid="share-start">{busy ? <Spinner /> : "Start sharing"}</button>}
@@ -208,36 +207,36 @@ function EngineSheet({ card, onClose }: { card: Card; onClose: () => void }) {
           subtitle: card.about,
           icon: ICON[card.kind] ?? <Cpu size={26} />,
           body: (
-            <Group title="Where does it run?" note={canHere ? "\"This computer\" is the one running the Video Tool server." : undefined}>
+            <Group title="Where does it run?">
               <Row label="Choose" stack>
                 <Seg<Mode> label="Where it runs" value={mode} onChange={setMode}
                   options={[
-                    ...(canHere ? [{ value: "here" as Mode, label: "Already on this computer" }] : []),
+                    ...(canHere ? [{ value: "here" as Mode, label: "On this server" }] : []),
                     ...(here?.own_possible ? [{ value: "own" as Mode, label: "Video Tool's own copy" }] : []),
                     { value: "remote" as Mode, label: "Another computer" }, { value: "off" as Mode, label: "Off" }]} />
               </Row>
               {mode === "here" && here && (here.existing.length
-                ? <p className="small" style={{ margin: 0 }} data-testid="here-found">Found {here.existing.length > 1 ? `${here.existing.length} running` : "one running"}: {here.existing.map((u) => u.replace(/^https?:\/\//, "")).join(", ")}. Video Tool uses {here.existing.length > 1 ? "them" : "it"} as {here.existing.length > 1 ? "they are" : "it is"} and never starts, stops or changes {here.existing.length > 1 ? "them" : "it"}.</p>
-                : <p className="small" style={{ margin: 0, color: "var(--warn)" }}>Nothing answers on its usual port on this computer. Start it, choose Video Tool's own copy, or give its address under Another computer.</p>)}
+                ? <p className="small" style={{ margin: 0 }} data-testid="here-found">Found and running. Video Tool uses it as it is and never changes it.</p>
+                : <p className="small" style={{ margin: 0, color: "var(--warn)" }}>It isn't running on this server. Start it, choose Video Tool's own copy, or choose Another computer.</p>)}
               {mode === "own" && here && (here.own_installed
-                ? <p className="small" style={{ margin: 0 }}>Its own folder and its own port ({here.own_url.replace(/^https?:\/\//, "")}), so it never collides with another copy on this computer. It starts when you press Done.</p>
-                : <p className="small" style={{ margin: 0, color: "var(--warn)" }}>Not installed yet. Press <strong>Run setup</strong> on the Engines page to install it, then come back here.</p>)}
+                ? <p className="small" style={{ margin: 0 }}>Kept apart from any other copy on this server. It starts when you press Done.</p>
+                : <p className="small" style={{ margin: 0, color: "var(--warn)" }}>Not installed yet. Press <strong>Set up…</strong> under AI programs to install it.</p>)}
             </Group>
           ),
         },
         {
           title: "Connect",
-          subtitle: mode === "off" ? "Nothing to connect: this engine stays off and the built-in fallback is used." : placed ? "Nothing to type: Video Tool knows where it is." : "The address of the computer that runs it, and the key if it has one.",
+          subtitle: mode === "off" ? "Video Tool works without it, using simpler built-in steps." : placed ? "Nothing to type." : "The address of the computer that runs it.",
           icon: <Server size={26} />,
           body: mode === "off" || placed ? null : (
             <>
               <Group title="Address">
                 <Row label="Address" stack><input type="text" value={url} placeholder={card.default_url || "http://192.168.1.20:8188"} onChange={(e) => setUrl(e.target.value)} spellCheck={false} aria-label="Address" style={{ width: "100%" }} /></Row>
                 {card.needs_key && card.id !== "vtengine" && <Row label="Key" stack><input type="password" value={key} placeholder={card.endpoint.has_key ? "Saved. Type a new one to replace it" : "Paste the key"} onChange={(e) => setKey(e.target.value)} aria-label="Key" autoComplete="off" style={{ width: "100%" }} /></Row>}
-                {card.id === "vtengine" && <Row label="Pairing code" stack><input type="text" value={key} placeholder={card.endpoint.has_key ? "Paired. Type a new code to pair again" : "The code shown on the other computer (vt serve-engine)"} onChange={(e) => setKey(e.target.value)} aria-label="Pairing code" autoComplete="off" spellCheck={false} style={{ width: "100%" }} /></Row>}
+                {card.id === "vtengine" && <Row label="Pairing code" stack><input type="text" value={key} placeholder={card.endpoint.has_key ? "Linked. Type a new code to link again" : "The code shown on the other computer"} onChange={(e) => setKey(e.target.value)} aria-label="Pairing code" autoComplete="off" spellCheck={false} style={{ width: "100%" }} /></Row>}
               </Group>
               {card.kind === "image" && (
-                <Group title="More computers" note="Another ComfyUI on a second graphics card, one address per line. A job goes to the one that can run it.">
+                <Group title="More computers (optional)" note="Other ComfyUI addresses, one per line. Each picture goes to one that is free.">
                   <Row label="Addresses" stack><textarea value={workers} rows={2} onChange={(e) => setWorkers(e.target.value)} spellCheck={false} aria-label="More computers" style={{ width: "100%" }} /></Row>
                 </Group>
               )}
@@ -246,7 +245,7 @@ function EngineSheet({ card, onClose }: { card: Card; onClose: () => void }) {
         },
         {
           title: "Try it",
-          subtitle: mode === "off" ? "Press Done to turn it off." : placed ? "Press Done to use it." : "Test the connection, then press Done to save.",
+          subtitle: mode === "off" ? "Press Done to turn it off." : placed ? "Press Done to use it." : "Test it, then press Done.",
           icon: <Check size={26} />,
           body: mode === "off" || placed ? null : (
             <Group>

@@ -1,6 +1,7 @@
+import { fitOf } from "./gestures.ts";
 import { applyPreviewEdit } from "./previewEdits";
 import TransformHandles, { sendGesture, startOf, type Located } from "./TransformHandles";
-import { useHandleMode } from "./transformUi";
+import { setMeasured, useHandleMode } from "./transformUi";
 import { Pause, Play, Volume2 } from "lucide-react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import { fmtTime } from "../api";
@@ -56,6 +57,7 @@ const Preview = forwardRef<PlayerHandle, Props>(function Preview(p, ref) {
   propsRef.current = p;
   const [rate, setRate] = useState(1);
   const [muted, setMuted] = useState(false);
+  const fullRedraw = useRef<any>(null);                           // the picture's data to build if the page could not just move the element (Inspector.tsx drags)
   const [loc, setLoc] = useState<Located | null>(null);        // where the page says the selected element is (its box, its corners, its own size)
   const selRect = loc?.box ?? null;
   const [handleMode] = useHandleMode();
@@ -183,7 +185,13 @@ const Preview = forwardRef<PlayerHandle, Props>(function Preview(p, ref) {
         setReady(true);
         post({ vt: "seek", t: timeRef.current });
       } else if (e.data?.vt === "picked") onPickRef.current?.(e.data.scene, e.data.index);
-      else if (e.data?.vt === "rect") setLoc(e.data.box ? { box: e.data.box, size: e.data.size ?? null, quad: e.data.quad ?? null, free: !!e.data.free, frame: e.data.frame ?? [] } : null);
+      else if (e.data?.vt === "looked") window.dispatchEvent(new CustomEvent("vt-page-looked", { detail: e.data }));
+      else if (e.data?.vt === "rect") {
+        const at = e.data.box ? { box: e.data.box, size: e.data.size ?? null, quad: e.data.quad ?? null, free: !!e.data.free, frame: e.data.frame ?? [], natural: e.data.natural ?? null } : null;
+        setLoc(at);
+        const [fw, fh] = at?.frame ?? [];
+        setMeasured(at && typeof e.data.scene === "string" ? { scene: e.data.scene, index: e.data.index, free: at.free, fit: fitOf(at), cx: fw ? (at.box[0] + at.box[2] / 2) / fw : undefined, cy: fh ? (at.box[1] + at.box[3] / 2) / fh : undefined } : null);
+      }
     };
     window.addEventListener("message", on);
     return () => window.removeEventListener("message", on);
@@ -240,7 +248,7 @@ const Preview = forwardRef<PlayerHandle, Props>(function Preview(p, ref) {
     const edit = (event:Event) => { if(composition.current) draw(applyPreviewEdit(composition.current,(event as CustomEvent).detail)); };
     const elements = (event:Event) => {
       if(!composition.current) return;
-      const {scene,elements}=(event as CustomEvent).detail;
+      const {scene,elements,fast}=(event as CustomEvent).detail;
       let data=composition.current;
       const story=elements.find((el:any)=>el.type==="story");
       if(story){                                   // Cartoon 2 draws from scene.story, not from the element list (vt-story.js)
@@ -248,10 +256,23 @@ const Preview = forwardRef<PlayerHandle, Props>(function Preview(p, ref) {
         for(const sc of data.scenes) if((sc.src||sc.id)===scene) sc.story={bg:story.bg,items:story.items??[],tag:story.tag??"",push:story.push??0.05,speak:story.speak??{}};
         draw(data); return;
       }
-      elements.forEach((el:any,index:number)=>{data=applyPreviewEdit(data,{kind:"element",scene,index,patch:el});}); draw(data);
+      elements.forEach((el:any,index:number)=>{data=applyPreviewEdit(data,{kind:"element",scene,index,patch:el});});
+      if(typeof fast==="number"){                  // a hand is dragging one hand-placed element: the page moves just that element; if it cannot (not hand-placed yet) it answers so and the picture is built
+        composition.current=data;
+        fullRedraw.current=data;
+        post({vt:"look",scene,index:fast,el:elements[fast]});
+        return;
+      }
+      fullRedraw.current=null;
+      draw(data);
     };
-    window.addEventListener("vt-preview-edit",edit); window.addEventListener("vt-preview-elements",elements);
-    return ()=>{window.removeEventListener("vt-preview-edit",edit);window.removeEventListener("vt-preview-elements",elements);};
+    const looked = (event:Event) => {
+      const m=(event as CustomEvent).detail;
+      if(m.ok){ const s=propsRef.current.selectedEl; if(s) requestAnimationFrame(()=>post({vt:"rect",scene:s.scene,index:s.index})); }
+      else if(fullRedraw.current) draw(fullRedraw.current);
+    };
+    window.addEventListener("vt-preview-edit",edit); window.addEventListener("vt-preview-elements",elements); window.addEventListener("vt-page-looked",looked);
+    return ()=>{window.removeEventListener("vt-preview-edit",edit);window.removeEventListener("vt-preview-elements",elements);window.removeEventListener("vt-page-looked",looked);};
   },[ready,post]);
 
   // Local layer edits follow the pointer/text field before the save completes.
@@ -317,7 +338,7 @@ const Preview = forwardRef<PlayerHandle, Props>(function Preview(p, ref) {
           const dir = ({ ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] } as Record<string, number[]>)[e.key];
           if (!dir || !p.selectedEl || !loc) return;
           e.preventDefault();
-          const s = startOf(loc, [sz.w, sz.h]), step = (e.shiftKey ? 0.1 : 0.01), at = { scene: p.selectedEl.scene, index: p.selectedEl.index, center: s.center, frame: s.frame, size: s.size };
+          const s = startOf(loc, [sz.w, sz.h]), step = (e.shiftKey ? 0.1 : 0.01), at = { scene: p.selectedEl.scene, index: p.selectedEl.index, center: s.center, frame: s.frame, size: s.size, fit: s.fit };
           sendGesture({ ...at, phase: "start" });
           sendGesture({ ...at, phase: "end", gesture: { kind: "move", dx: dir[0] * step * s.frame[0], dy: dir[1] * step * s.frame[1] } });
         }}
@@ -354,7 +375,7 @@ const Preview = forwardRef<PlayerHandle, Props>(function Preview(p, ref) {
       </div>
       )}
 
-      <div className="scrub">
+      <div className="scrub" role="toolbar" aria-label="Playback">
         <button className="btn icon" onClick={() => (playing ? pause() : play())} aria-label={playing ? "Pause" : "Play"} disabled={!p.audioUrl}>
           {playing ? <Pause size={16} /> : <Play size={16} />}
         </button>

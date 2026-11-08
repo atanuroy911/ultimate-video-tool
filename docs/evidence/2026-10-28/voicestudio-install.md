@@ -1,6 +1,6 @@
 # VoiceStudio install and first checks (2026-10-28)
 
-What was done on `192.168.123.47`, in order. Runbook: [ops/voicestudio-server.md](../../ops/voicestudio-server.md). Nothing secret is recorded here.
+What was done on `192.168.123.47`, in order. Runbook: [ops/voicestudio-server.md](../../history/voicestudio-server.md). Nothing secret is recorded here.
 
 | Step | Result |
 |---|---|

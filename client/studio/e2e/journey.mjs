@@ -27,11 +27,10 @@ const created = [];
 console.log("Upload -> progress -> review (real speech model)");
 await fetch(base + "/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ autopilot: false }) });   // this suite checks the editor; simple.mjs covers autopilot
 await page.goto(base + "/new", { waitUntil: "networkidle" });
-await page.getByLabel("Choose a file").setInputFiles(path.join(repo, "samples", "audio", "bn_plain.mp3"));
+await page.getByLabel("Choose a file").setInputFiles(path.join(repo, "..", "samples", "audio", "bn_plain.mp3"));
 check("file name shown", (await page.getByText("bn_plain.mp3").count()) > 0);
-await page.getByRole("button", { name: /More options/ }).click();
-await page.getByLabel("Title").fill("UI upload test");
-await page.keyboard.press("Escape");
+for (let i = 0; i < 6 && !(await page.getByRole("button", { name: "Make my video" }).count()); i++) await page.locator(".tf-nav .btn.primary").first().click();   // OK through the screens
+await page.locator("input[placeholder='The app can name it for you']").fill("UI upload test");                                                     // the last screen's video name
 const gen = page.getByRole("button", { name: "Make my video" });
 check("Make enabled once a file is chosen", await gen.isEnabled());
 await gen.click();
@@ -62,7 +61,7 @@ await browser.close();
 console.log("Record with no speech -> clear error (fake microphone plays a noise file)");
 const browser2 = await chromium.launch({
   executablePath: exe,
-  args: ["--disable-gpu", "--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream", "--use-file-for-fake-audio-capture=" + path.join(repo, "samples", "audio", "noise.wav") + ""],
+  args: ["--disable-gpu", "--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream", "--use-file-for-fake-audio-capture=" + path.join(repo, "..", "samples", "audio", "noise.wav") + ""],
 });
 const ctx2 = await browser2.newContext({ viewport: { width: 1500, height: 950 }, permissions: ["microphone"] });
 const page2 = await ctx2.newPage();

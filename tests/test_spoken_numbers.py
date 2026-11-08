@@ -18,3 +18,14 @@ def test_compound_numbers_percent_money_and_scale():
 
 def test_a_comma_keeps_two_numbers_apart():
     assert [n["disp"] for n in _number_items(_ws("we tried twenty, five failed"), "en")] == ["20", "5"]
+
+
+def test_a_bare_hundred_is_a_number():
+    # the owner's lantern cartoon (2026-11-08): "Ravi ran up the hundred steps" and a card showing 100 was called a number never said
+    from types import SimpleNamespace as N
+    from vt.planner.rules import _number_items
+
+    mk = lambda s: [N(text=t, start=float(i), end=i + .5, id=f"w{i}") for i, t in enumerate(s.split())]  # noqa: E731
+    assert [n["val"] for n in _number_items(mk("Ravi ran up the hundred steps."), "en")] == [100.0]
+    assert [n["val"] for n in _number_items(mk("one hundred people"), "en")] == [100.0]
+    assert [n["val"] for n in _number_items(mk("two hundred and fifty five"), "en")] == [255.0]

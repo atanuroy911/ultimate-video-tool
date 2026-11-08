@@ -21,7 +21,7 @@ from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-STUDIO = ROOT / "studio"
+STUDIO = ROOT / "client" / "studio"
 PY = str(ROOT / ".venv" / "Scripts" / "python.exe") if (ROOT / ".venv" / "Scripts" / "python.exe").exists() else sys.executable
 EVIDENCE = ROOT / "docs" / "evidence" / date.today().isoformat()
 

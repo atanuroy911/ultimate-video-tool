@@ -2,7 +2,7 @@
 // opens the Studio with nothing to enter, a page from another site is refused, and a big recording still arrives when the connection drops in the middle of the upload.
 //
 // Needs a scratch `vt server` (it listens beyond this computer) opened by its network address, so the browser counts as another computer:
-//   VT_DATA=<scratch dir> vt server --port 8771 --ollama off --comfy off --voicestudio off
+//   VT_DATA=<scratch dir> vt server --port 8771 --ollama off --comfy off
 //   VT_URL=http://<this computer's LAN address>:8771 node e2e/connect.mjs
 import fs from "node:fs";
 import http from "node:http";

@@ -9,7 +9,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/text.py",
+      "source": "server/vt/modules/defs/text.py",
       "requires": [],
       "produces": [
         "transcript.raw"
@@ -26,7 +26,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/core.py",
+      "source": "server/vt/modules/defs/core.py",
       "requires": [
         "audio.asr"
       ],
@@ -45,7 +45,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/audio_first_new.py",
+      "source": "server/vt/modules/defs/audio_first_new.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -60,7 +60,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/media.py",
+      "source": "server/vt/modules/defs/media.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -75,7 +75,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/core.py",
+      "source": "server/vt/modules/defs/core.py",
       "requires": [
         "source.audio"
       ],
@@ -94,7 +94,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/audio.py",
+      "source": "server/vt/modules/defs/audio.py",
       "requires": [],
       "produces": [],
       "effects": "writes_artifact",
@@ -109,7 +109,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/core.py",
+      "source": "server/vt/modules/defs/core.py",
       "requires": [
         "audio.master",
         "transcript.raw"
@@ -131,7 +131,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/core.py",
+      "source": "server/vt/modules/defs/core.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -145,7 +145,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/audio.py",
+      "source": "server/vt/modules/defs/audio.py",
       "requires": [
         "audio.cuts"
       ],
@@ -164,7 +164,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/audio.py",
+      "source": "server/vt/modules/defs/audio.py",
       "requires": [
         "transcript",
         "audio.cut"
@@ -184,7 +184,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/core.py",
+      "source": "server/vt/modules/defs/core.py",
       "requires": [
         "audio.cut"
       ],
@@ -203,7 +203,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/audio.py",
+      "source": "server/vt/modules/defs/audio.py",
       "requires": [
         "transcript.raw"
       ],
@@ -222,7 +222,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/core.py",
+      "source": "server/vt/modules/defs/core.py",
       "requires": [
         "audio.asr"
       ],
@@ -241,7 +241,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/core.py",
+      "source": "server/vt/modules/defs/core.py",
       "requires": [
         "transcript.raw"
       ],
@@ -258,7 +258,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/audio.py",
+      "source": "server/vt/modules/defs/audio.py",
       "requires": [
         "source.audio"
       ],
@@ -277,7 +277,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/audio_first_new.py",
+      "source": "server/vt/modules/defs/audio_first_new.py",
       "requires": [
         "audio.master"
       ],
@@ -296,7 +296,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/core.py",
+      "source": "server/vt/modules/defs/core.py",
       "requires": [
         "script.text"
       ],
@@ -316,7 +316,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/remaining.py",
+      "source": "server/vt/modules/defs/remaining.py",
       "requires": [],
       "produces": [
         "audio.sentence"
@@ -333,7 +333,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/audio.py",
+      "source": "server/vt/modules/defs/audio.py",
       "requires": [
         "audio.cut",
         "transcript",
@@ -354,7 +354,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/core.py",
+      "source": "server/vt/modules/defs/core.py",
       "requires": [
         "transcript.raw",
         "audio.cuts",
@@ -375,7 +375,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/audio.py",
+      "source": "server/vt/modules/defs/audio.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -383,14 +383,14 @@
     },
     {
       "id": "craft.check",
-      "name": "Checking the craft rules",
+      "name": "Checking the video quality",
       "purpose": "Check a planned video against the measurable craft rules; each violation has its time and a fix.",
       "toolboxes": [
         "autonomous",
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/craft.py",
+      "source": "server/vt/modules/defs/craft.py",
       "requires": [
         "scenes",
         "transcript",
@@ -411,7 +411,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/craft.py",
+      "source": "server/vt/modules/defs/craft.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -425,7 +425,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/cut.py",
+      "source": "server/vt/modules/defs/cut.py",
       "requires": [],
       "produces": [
         "cutplan"
@@ -442,7 +442,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/cut.py",
+      "source": "server/vt/modules/defs/cut.py",
       "requires": [
         "impact.map"
       ],
@@ -461,7 +461,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/reel.py",
+      "source": "server/vt/modules/defs/reel.py",
       "requires": [
         "beats",
         "reel.reading"
@@ -479,7 +479,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/media.py",
+      "source": "server/vt/modules/defs/media.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -494,7 +494,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/cut.py",
+      "source": "server/vt/modules/defs/cut.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -509,7 +509,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/cut.py",
+      "source": "server/vt/modules/defs/cut.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -524,7 +524,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/project_media.py",
+      "source": "server/vt/modules/defs/project_media.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -539,7 +539,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/core.py",
+      "source": "server/vt/modules/defs/core.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -554,7 +554,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/judge.py",
+      "source": "server/vt/modules/defs/judge.py",
       "requires": [
         "script.video",
         "transcript",
@@ -575,7 +575,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/judge.py",
+      "source": "server/vt/modules/defs/judge.py",
       "requires": [
         "script.video",
         "transcript",
@@ -596,7 +596,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/reel.py",
+      "source": "server/vt/modules/defs/reel.py",
       "requires": [
         "script.text"
       ],
@@ -612,7 +612,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/core.py",
+      "source": "server/vt/modules/defs/core.py",
       "requires": [],
       "produces": [],
       "effects": "writes_artifact",
@@ -627,7 +627,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/core.py",
+      "source": "server/vt/modules/defs/core.py",
       "requires": [
         "transcript",
         "beats",
@@ -648,7 +648,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/remaining.py",
+      "source": "server/vt/modules/defs/remaining.py",
       "requires": [
         "transcript",
         "beats",
@@ -670,7 +670,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/phase2_remaining.py",
+      "source": "server/vt/modules/defs/phase2_remaining.py",
       "requires": [
         "script.video",
         "transcript",
@@ -684,6 +684,23 @@
       "studio_form": true
     },
     {
+      "id": "direct.scene_settings",
+      "name": "Scene direction and model choices",
+      "purpose": "Read or change a finished scene's instructions and regeneration models.",
+      "toolboxes": [
+        "autonomous",
+        "studio",
+        "full"
+      ],
+      "source": "server/vt/modules/defs/direction.py",
+      "requires": [
+        "project.meta"
+      ],
+      "produces": [],
+      "effects": "writes_artifact",
+      "studio_form": true
+    },
+    {
       "id": "direct.set_direction",
       "name": "Setting creative direction",
       "purpose": "Persist the director's goal, audience, tone, style, pacing and budget decisions.",
@@ -692,7 +709,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/phase2_remaining.py",
+      "source": "server/vt/modules/defs/phase2_remaining.py",
       "requires": [],
       "produces": [
         "direction"
@@ -709,7 +726,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/reel.py",
+      "source": "server/vt/modules/defs/reel.py",
       "requires": [
         "project.meta"
       ],
@@ -727,7 +744,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/remaining.py",
+      "source": "server/vt/modules/defs/remaining.py",
       "requires": [
         "transcript",
         "beats",
@@ -750,7 +767,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/core.py",
+      "source": "server/vt/modules/defs/core.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -765,7 +782,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/remaining.py",
+      "source": "server/vt/modules/defs/remaining.py",
       "requires": [
         "transcript",
         "beats"
@@ -783,7 +800,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/phase2_remaining.py",
+      "source": "server/vt/modules/defs/phase2_remaining.py",
       "requires": [],
       "produces": [],
       "effects": "external_api",
@@ -798,7 +815,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/phase2_remaining.py",
+      "source": "server/vt/modules/defs/phase2_remaining.py",
       "requires": [
         "script.video"
       ],
@@ -814,7 +831,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/fill.py",
+      "source": "server/vt/modules/defs/fill.py",
       "requires": [
         "project.meta",
         "media.bin"
@@ -836,7 +853,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/reel.py",
+      "source": "server/vt/modules/defs/reel.py",
       "requires": [
         "project.meta",
         "media.bin"
@@ -857,7 +874,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/phase2_remaining.py",
+      "source": "server/vt/modules/defs/phase2_remaining.py",
       "requires": [
         "scenes"
       ],
@@ -874,7 +891,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/phase2_remaining.py",
+      "source": "server/vt/modules/defs/phase2_remaining.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -889,7 +906,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/fill.py",
+      "source": "server/vt/modules/defs/fill.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -904,7 +921,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/fill.py",
+      "source": "server/vt/modules/defs/fill.py",
       "requires": [
         "project.meta",
         "media.bin"
@@ -922,7 +939,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/phase2_remaining.py",
+      "source": "server/vt/modules/defs/phase2_remaining.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -937,7 +954,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/fill.py",
+      "source": "server/vt/modules/defs/fill.py",
       "requires": [
         "project.meta",
         "media.bin"
@@ -954,7 +971,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/phase2_remaining.py",
+      "source": "server/vt/modules/defs/phase2_remaining.py",
       "requires": [],
       "produces": [],
       "effects": "external_api",
@@ -969,7 +986,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/fill.py",
+      "source": "server/vt/modules/defs/fill.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -984,7 +1001,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/fill.py",
+      "source": "server/vt/modules/defs/fill.py",
       "requires": [
         "project.meta",
         "media.bin"
@@ -1002,7 +1019,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/gen.py",
+      "source": "server/vt/modules/defs/gen.py",
       "requires": [],
       "produces": [],
       "effects": "external_api",
@@ -1016,7 +1033,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/gen.py",
+      "source": "server/vt/modules/defs/gen.py",
       "requires": [
         "project.meta",
         "media.bin"
@@ -1036,7 +1053,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/gen.py",
+      "source": "server/vt/modules/defs/gen.py",
       "requires": [],
       "produces": [
         "gen.fit"
@@ -1053,7 +1070,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/gen.py",
+      "source": "server/vt/modules/defs/gen.py",
       "requires": [],
       "produces": [],
       "effects": "external_api",
@@ -1068,7 +1085,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/gen.py",
+      "source": "server/vt/modules/defs/gen.py",
       "requires": [],
       "produces": [],
       "effects": "external_api",
@@ -1082,7 +1099,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/gen.py",
+      "source": "server/vt/modules/defs/gen.py",
       "requires": [
         "project.meta",
         "media.bin"
@@ -1103,7 +1120,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/gen.py",
+      "source": "server/vt/modules/defs/gen.py",
       "requires": [],
       "produces": [],
       "effects": "external_api",
@@ -1118,7 +1135,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/gen.py",
+      "source": "server/vt/modules/defs/gen.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -1133,7 +1150,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/judge.py",
+      "source": "server/vt/modules/defs/judge.py",
       "requires": [
         "transcript"
       ],
@@ -1150,7 +1167,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/judge.py",
+      "source": "server/vt/modules/defs/judge.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -1165,7 +1182,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/remaining.py",
+      "source": "server/vt/modules/defs/remaining.py",
       "requires": [],
       "produces": [],
       "effects": "external_api",
@@ -1180,7 +1197,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/judge.py",
+      "source": "server/vt/modules/defs/judge.py",
       "requires": [],
       "produces": [
         "judge.scorecard"
@@ -1197,7 +1214,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/judge.py",
+      "source": "server/vt/modules/defs/judge.py",
       "requires": [
         "script.video",
         "transcript",
@@ -1216,7 +1233,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/judge.py",
+      "source": "server/vt/modules/defs/judge.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -1231,7 +1248,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/remaining.py",
+      "source": "server/vt/modules/defs/remaining.py",
       "requires": [
         "scenes",
         "beats",
@@ -1253,7 +1270,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/judge.py",
+      "source": "server/vt/modules/defs/judge.py",
       "requires": [
         "scenes",
         "transcript",
@@ -1275,7 +1292,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/meta.py",
+      "source": "server/vt/modules/defs/meta.py",
       "requires": [],
       "produces": [
         "human.request"
@@ -1292,7 +1309,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/meta.py",
+      "source": "server/vt/modules/defs/meta.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -1307,7 +1324,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/meta.py",
+      "source": "server/vt/modules/defs/meta.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -1322,7 +1339,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/meta.py",
+      "source": "server/vt/modules/defs/meta.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -1337,7 +1354,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/meta.py",
+      "source": "server/vt/modules/defs/meta.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -1352,7 +1369,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/meta.py",
+      "source": "server/vt/modules/defs/meta.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -1367,7 +1384,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/meta.py",
+      "source": "server/vt/modules/defs/meta.py",
       "requires": [
         "project.meta"
       ],
@@ -1386,7 +1403,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/meta.py",
+      "source": "server/vt/modules/defs/meta.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -1400,7 +1417,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/meta.py",
+      "source": "server/vt/modules/defs/meta.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -1415,7 +1432,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/meta.py",
+      "source": "server/vt/modules/defs/meta.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -1430,7 +1447,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/meta.py",
+      "source": "server/vt/modules/defs/meta.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -1444,7 +1461,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/meta.py",
+      "source": "server/vt/modules/defs/meta.py",
       "requires": [],
       "produces": [],
       "effects": "writes_artifact",
@@ -1459,7 +1476,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/meta.py",
+      "source": "server/vt/modules/defs/meta.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -1473,7 +1490,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/meta.py",
+      "source": "server/vt/modules/defs/meta.py",
       "requires": [],
       "produces": [],
       "effects": "writes_artifact",
@@ -1488,7 +1505,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/meta.py",
+      "source": "server/vt/modules/defs/meta.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -1503,7 +1520,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/pipeline_stages.py",
+      "source": "server/vt/modules/defs/pipeline_stages.py",
       "requires": [],
       "produces": [
         "aroll"
@@ -1520,7 +1537,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/pipeline_stages.py",
+      "source": "server/vt/modules/defs/pipeline_stages.py",
       "requires": [
         "audio.asr"
       ],
@@ -1539,7 +1556,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/pipeline_stages.py",
+      "source": "server/vt/modules/defs/pipeline_stages.py",
       "requires": [
         "scenes"
       ],
@@ -1558,7 +1575,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/pipeline_stages.py",
+      "source": "server/vt/modules/defs/pipeline_stages.py",
       "requires": [
         "transcript",
         "beats"
@@ -1578,7 +1595,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/pipeline_stages.py",
+      "source": "server/vt/modules/defs/pipeline_stages.py",
       "requires": [
         "audio.master",
         "transcript.raw"
@@ -1599,7 +1616,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/pipeline_stages.py",
+      "source": "server/vt/modules/defs/pipeline_stages.py",
       "requires": [
         "transcript",
         "beats"
@@ -1619,7 +1636,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/pipeline_stages.py",
+      "source": "server/vt/modules/defs/pipeline_stages.py",
       "requires": [],
       "produces": [
         "audio.master",
@@ -1637,7 +1654,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/pipeline_stages.py",
+      "source": "server/vt/modules/defs/pipeline_stages.py",
       "requires": [
         "audio.asr"
       ],
@@ -1656,7 +1673,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/pipeline_stages.py",
+      "source": "server/vt/modules/defs/pipeline_stages.py",
       "requires": [],
       "produces": [
         "audio.events"
@@ -1673,7 +1690,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/pipeline_stages.py",
+      "source": "server/vt/modules/defs/pipeline_stages.py",
       "requires": [
         "transcript",
         "beats"
@@ -1693,7 +1710,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/pipeline_stages.py",
+      "source": "server/vt/modules/defs/pipeline_stages.py",
       "requires": [],
       "produces": [
         "script.text"
@@ -1710,7 +1727,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/pipeline_stages.py",
+      "source": "server/vt/modules/defs/pipeline_stages.py",
       "requires": [
         "transcript.raw",
         "audio.cuts"
@@ -1731,7 +1748,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/plan.py",
+      "source": "server/vt/modules/defs/plan.py",
       "requires": [
         "plan.doc"
       ],
@@ -1750,7 +1767,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/plan.py",
+      "source": "server/vt/modules/defs/plan.py",
       "requires": [
         "plan.doc"
       ],
@@ -1769,7 +1786,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/plan.py",
+      "source": "server/vt/modules/defs/plan.py",
       "requires": [
         "plan.doc"
       ],
@@ -1788,7 +1805,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/plan.py",
+      "source": "server/vt/modules/defs/plan.py",
       "requires": [
         "plan.doc"
       ],
@@ -1805,7 +1822,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/plan.py",
+      "source": "server/vt/modules/defs/plan.py",
       "requires": [
         "transcript",
         "beats"
@@ -1825,7 +1842,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/plan.py",
+      "source": "server/vt/modules/defs/plan.py",
       "requires": [
         "plan.doc"
       ],
@@ -1842,7 +1859,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/plan.py",
+      "source": "server/vt/modules/defs/plan.py",
       "requires": [
         "plan.doc"
       ],
@@ -1861,7 +1878,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/plan.py",
+      "source": "server/vt/modules/defs/plan.py",
       "requires": [
         "plan.doc"
       ],
@@ -1878,7 +1895,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/plan.py",
+      "source": "server/vt/modules/defs/plan.py",
       "requires": [
         "plan.doc"
       ],
@@ -1894,7 +1911,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/project_media.py",
+      "source": "server/vt/modules/defs/project_media.py",
       "requires": [
         "project.meta"
       ],
@@ -1913,7 +1930,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/project_media.py",
+      "source": "server/vt/modules/defs/project_media.py",
       "requires": [
         "project.meta"
       ],
@@ -1932,7 +1949,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/phase2_remaining.py",
+      "source": "server/vt/modules/defs/phase2_remaining.py",
       "requires": [],
       "produces": [],
       "effects": "writes_artifact",
@@ -1946,7 +1963,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/phase2_remaining.py",
+      "source": "server/vt/modules/defs/phase2_remaining.py",
       "requires": [],
       "produces": [],
       "effects": "external_api",
@@ -1961,7 +1978,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/project.py",
+      "source": "server/vt/modules/defs/project.py",
       "requires": [
         "source.audio"
       ],
@@ -1980,7 +1997,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/project_media.py",
+      "source": "server/vt/modules/defs/project_media.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -1995,7 +2012,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/core.py",
+      "source": "server/vt/modules/defs/core.py",
       "requires": [
         "project.meta"
       ],
@@ -2013,7 +2030,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/project_media.py",
+      "source": "server/vt/modules/defs/project_media.py",
       "requires": [
         "project.meta"
       ],
@@ -2033,7 +2050,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/render.py",
+      "source": "server/vt/modules/defs/render.py",
       "requires": [
         "project.meta"
       ],
@@ -2050,7 +2067,7 @@
       "toolboxes": [
         "full"
       ],
-      "source": "vt/modules/defs/phase2_remaining.py",
+      "source": "server/vt/modules/defs/phase2_remaining.py",
       "requires": [
         "project.meta",
         "render.final"
@@ -2068,7 +2085,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/render.py",
+      "source": "server/vt/modules/defs/render.py",
       "requires": [
         "transcript",
         "beats"
@@ -2087,7 +2104,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/shorts.py",
+      "source": "server/vt/modules/defs/shorts.py",
       "requires": [
         "transcript.raw",
         "project.meta"
@@ -2098,13 +2115,13 @@
     },
     {
       "id": "render.export",
-      "name": "Rendering the finished video",
+      "name": "Exporting the finished video",
       "purpose": "Render and mix a finished MP4 and subtitle file from the editable composition.",
       "toolboxes": [
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/render.py",
+      "source": "server/vt/modules/defs/render.py",
       "requires": [
         "composition",
         "audio.cut"
@@ -2123,7 +2140,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/render.py",
+      "source": "server/vt/modules/defs/render.py",
       "requires": [
         "composition",
         "project.meta"
@@ -2136,13 +2153,13 @@
     },
     {
       "id": "render.silent",
-      "name": "Rendering the silent video",
+      "name": "Exporting the silent video",
       "purpose": "Render the current composition to a silent H.264 MP4.",
       "toolboxes": [
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/render.py",
+      "source": "server/vt/modules/defs/render.py",
       "requires": [
         "composition",
         "project.meta"
@@ -2161,7 +2178,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/render.py",
+      "source": "server/vt/modules/defs/render.py",
       "requires": [
         "composition",
         "project.meta"
@@ -2181,7 +2198,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/phase2_remaining.py",
+      "source": "server/vt/modules/defs/phase2_remaining.py",
       "requires": [],
       "produces": [
         "sound.mix"
@@ -2198,7 +2215,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/remaining.py",
+      "source": "server/vt/modules/defs/remaining.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -2213,7 +2230,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/media.py",
+      "source": "server/vt/modules/defs/media.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -2228,7 +2245,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/media.py",
+      "source": "server/vt/modules/defs/media.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -2243,7 +2260,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/styles.py",
+      "source": "server/vt/modules/defs/styles.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -2258,7 +2275,22 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/styles.py",
+      "source": "server/vt/modules/defs/styles.py",
+      "requires": [],
+      "produces": [],
+      "effects": "none",
+      "studio_form": true
+    },
+    {
+      "id": "style.motion_kit",
+      "name": "Motion and animation controls",
+      "purpose": "Discover editable HyperFrames motion recipes and visual keyframes.",
+      "toolboxes": [
+        "autonomous",
+        "studio",
+        "full"
+      ],
+      "source": "server/vt/modules/defs/styles.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -2273,7 +2305,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/styles.py",
+      "source": "server/vt/modules/defs/styles.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -2288,7 +2320,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/core.py",
+      "source": "server/vt/modules/defs/core.py",
       "requires": [
         "transcript.raw",
         "audio.cuts"
@@ -2308,7 +2340,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/phase2_remaining.py",
+      "source": "server/vt/modules/defs/phase2_remaining.py",
       "requires": [
         "transcript",
         "beats",
@@ -2329,7 +2361,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/remaining.py",
+      "source": "server/vt/modules/defs/remaining.py",
       "requires": [
         "transcript",
         "beats",
@@ -2350,7 +2382,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/core.py",
+      "source": "server/vt/modules/defs/core.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -2365,7 +2397,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/core.py",
+      "source": "server/vt/modules/defs/core.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -2380,7 +2412,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/timeline.py",
+      "source": "server/vt/modules/defs/timeline.py",
       "requires": [
         "transcript"
       ],
@@ -2397,7 +2429,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/remaining.py",
+      "source": "server/vt/modules/defs/remaining.py",
       "requires": [
         "script.video",
         "transcript",
@@ -2419,7 +2451,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/core.py",
+      "source": "server/vt/modules/defs/core.py",
       "requires": [
         "scenes"
       ],
@@ -2438,7 +2470,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/timeline.py",
+      "source": "server/vt/modules/defs/timeline.py",
       "requires": [
         "project.meta",
         "media.bin"
@@ -2456,7 +2488,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/timeline.py",
+      "source": "server/vt/modules/defs/timeline.py",
       "requires": [
         "scenes",
         "transcript",
@@ -2477,7 +2509,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/timeline.py",
+      "source": "server/vt/modules/defs/timeline.py",
       "requires": [
         "scenes",
         "transcript",
@@ -2499,7 +2531,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/timeline.py",
+      "source": "server/vt/modules/defs/timeline.py",
       "requires": [
         "project.meta"
       ],
@@ -2518,7 +2550,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/timeline.py",
+      "source": "server/vt/modules/defs/timeline.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -2533,7 +2565,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/phase2_remaining.py",
+      "source": "server/vt/modules/defs/phase2_remaining.py",
       "requires": [
         "project.meta"
       ],
@@ -2553,7 +2585,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/remaining.py",
+      "source": "server/vt/modules/defs/remaining.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -2567,7 +2599,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/timeline.py",
+      "source": "server/vt/modules/defs/timeline.py",
       "requires": [
         "scenes",
         "transcript",
@@ -2589,7 +2621,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/timeline.py",
+      "source": "server/vt/modules/defs/timeline.py",
       "requires": [
         "scenes",
         "transcript",
@@ -2609,7 +2641,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/core.py",
+      "source": "server/vt/modules/defs/core.py",
       "requires": [
         "transcript",
         "beats"
@@ -2629,7 +2661,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/phase2_remaining.py",
+      "source": "server/vt/modules/defs/phase2_remaining.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -2644,7 +2676,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/shorts.py",
+      "source": "server/vt/modules/defs/shorts.py",
       "requires": [
         "transcript.raw"
       ],
@@ -2663,7 +2695,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/cut.py",
+      "source": "server/vt/modules/defs/cut.py",
       "requires": [
         "transcript"
       ],
@@ -2682,7 +2714,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/core.py",
+      "source": "server/vt/modules/defs/core.py",
       "requires": [
         "transcript"
       ],
@@ -2698,7 +2730,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/remaining.py",
+      "source": "server/vt/modules/defs/remaining.py",
       "requires": [
         "project.meta",
         "media.bin"
@@ -2718,7 +2750,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/phase2_remaining.py",
+      "source": "server/vt/modules/defs/phase2_remaining.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -2733,7 +2765,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/reel.py",
+      "source": "server/vt/modules/defs/reel.py",
       "requires": [
         "transcript",
         "beats"
@@ -2753,7 +2785,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/core.py",
+      "source": "server/vt/modules/defs/core.py",
       "requires": [
         "transcript",
         "beats"
@@ -2771,7 +2803,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/core.py",
+      "source": "server/vt/modules/defs/core.py",
       "requires": [
         "transcript",
         "beats",
@@ -2790,7 +2822,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/phase2_remaining.py",
+      "source": "server/vt/modules/defs/phase2_remaining.py",
       "requires": [
         "source.video"
       ],
@@ -2807,7 +2839,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/phase2_remaining.py",
+      "source": "server/vt/modules/defs/phase2_remaining.py",
       "requires": [
         "transcript",
         "beats"
@@ -2824,7 +2856,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/voice.py",
+      "source": "server/vt/modules/defs/voice.py",
       "requires": [],
       "produces": [],
       "effects": "writes_artifact",
@@ -2839,7 +2871,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/voice.py",
+      "source": "server/vt/modules/defs/voice.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -2854,7 +2886,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/voice.py",
+      "source": "server/vt/modules/defs/voice.py",
       "requires": [],
       "produces": [
         "audio.sentence"
@@ -2871,7 +2903,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/voice.py",
+      "source": "server/vt/modules/defs/voice.py",
       "requires": [],
       "produces": [],
       "effects": "none",
@@ -2886,7 +2918,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/voice.py",
+      "source": "server/vt/modules/defs/voice.py",
       "requires": [],
       "produces": [
         "audio.sentence"
@@ -2903,7 +2935,7 @@
         "studio",
         "full"
       ],
-      "source": "vt/modules/defs/voice.py",
+      "source": "server/vt/modules/defs/voice.py",
       "requires": [],
       "produces": [],
       "effects": "writes_artifact",
@@ -3110,6 +3142,11 @@
       "type": "shape",
       "name": "Simple shape",
       "category": "Shapes"
+    },
+    {
+      "type": "story",
+      "name": "Story",
+      "category": "Pictures & characters"
     }
   ],
   "routes": [
@@ -3129,6 +3166,12 @@
     },
     {
       "path": "/api/health",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/house-rules",
       "methods": [
         "GET"
       ]
@@ -3185,12 +3228,6 @@
       "path": "/api/directors",
       "methods": [
         "GET"
-      ]
-    },
-    {
-      "path": "/api/directors/token",
-      "methods": [
-        "POST"
       ]
     },
     {
@@ -3374,18 +3411,6 @@
       ]
     },
     {
-      "path": "/api/mcp/connect-claude-desktop",
-      "methods": [
-        "POST"
-      ]
-    },
-    {
-      "path": "/api/mcp/connect-codex",
-      "methods": [
-        "POST"
-      ]
-    },
-    {
       "path": "/api/assistants",
       "methods": [
         "GET"
@@ -3525,6 +3550,12 @@
     },
     {
       "path": "/api/jobs/{jid}",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/jobs/{jid}/log",
       "methods": [
         "GET"
       ]
@@ -3761,6 +3792,12 @@
       "path": "/api/projects/{pid}/scenes/{sid}/boundary",
       "methods": [
         "POST"
+      ]
+    },
+    {
+      "path": "/api/projects/{pid}/scenes/undo",
+      "methods": [
+        "GET"
       ]
     },
     {
@@ -4098,15 +4135,19 @@
     "AIAssistants",
     "ComfySettings",
     "DesignStudio",
+    "DirectorSettings",
     "Engines",
     "Export",
     "LocalAI",
     "MyVoices",
     "New",
+    "NewOptions",
     "Progress",
     "Projects",
     "Result",
     "Review",
+    "ScriptReview",
+    "Server",
     "Settings",
     "ShortsExtractor",
     "SocialHub",
@@ -4115,8 +4156,11 @@
     "Themes"
   ],
   "plans": [
+    "docs/plans/CODEX-NEXT-STEPS.md",
     "docs/plans/PLAN-AUDIO-FIRST-DIRECTOR.MD",
+    "docs/plans/PLAN-CLIENT-SERVER-2026-11-03.md",
     "docs/plans/PLAN-CLIENT-SERVER.MD",
+    "docs/plans/PLAN-CLIENT-UX.MD",
     "docs/plans/PLAN-CLOUD-AI.MD",
     "docs/plans/PLAN-COMFYUI-VIDEO.MD",
     "docs/plans/PLAN-DIRECTOR-CHOICE.MD",
@@ -4124,9 +4168,13 @@
     "docs/plans/PLAN-EDITOR-UI.MD",
     "docs/plans/PLAN-ENGINES-AND-SETUP.MD",
     "docs/plans/PLAN-PACKAGING.MD",
+    "docs/plans/PLAN-PERFECT.MD",
+    "docs/plans/PLAN-PRODUCT-SPLIT-2026-11-03.md",
     "docs/plans/PLAN-REEL-DIRECTOR.MD",
     "docs/plans/PLAN-RESPONSIVE-EDITOR.MD",
+    "docs/plans/PLAN-SERVER-MANAGER-2026-11-03.md",
     "docs/plans/PLAN-SHORTS.MD",
+    "docs/plans/PLAN-SKILL-INTEGRATION-2026-11-03.md",
     "docs/plans/PLAN-SOCIAL.MD",
     "docs/plans/PLAN-VOICE-DIRECTION.MD",
     "docs/plans/PLAN-VOICESTUDIO.MD",

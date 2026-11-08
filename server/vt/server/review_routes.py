@@ -34,13 +34,23 @@ def newest_export(project, name: Optional[str] = None) -> Path:
     return f
 
 
-def judge_export(project, video: Path) -> dict[str, Any]:
-    """Run the judges on one finished video with the project's own words, scenes and captions; saved next to the video."""
+def export_aspect(project, video: Path) -> str:
+    """Read the format tag after the full project ID, which may itself contain a tag."""
+    from ..compose import FORMATS
+
+    for aspect, fmt in FORMATS.items():
+        if video.name.startswith(f"{project.id}-{fmt['tag']}-"):
+            return aspect
+    return next((aspect for aspect, fmt in FORMATS.items() if f"-{fmt['tag']}-" in video.name), project.meta().aspect)
+
+
+def judge_export(project, video: Path, *, persist: bool = True) -> dict[str, Any]:
+    """Run the judges on one finished video with the project's words, scenes and captions."""
     from ..compose import FORMATS
     from ..judges import judge_video
 
     meta = project.meta()
-    aspect = next((a for a, v in FORMATS.items() if f"-{v['tag']}-" in video.name), meta.aspect)
+    aspect = export_aspect(project, video)
     comp = read_json(project.comp_dir / FORMATS[aspect]["tag"] / "data.json", None)
     beats = {b.id: b for b in project.beats().beats}
     sf = project.scenes()
@@ -53,7 +63,8 @@ def judge_export(project, video: Path) -> dict[str, Any]:
     result = judge_video(video, words=[w.model_dump() for w in project.transcript().kept()], scenes=scenes if meta.options.look == "reel" else None, composition=comp, kind=kind)
     result["file"] = video.name
     result["at"] = time.strftime("%Y-%m-%d %H:%M")
-    write_json(video.with_suffix(".judges.json"), result)
+    if persist:
+        write_json(video.with_suffix(".judges.json"), result)
     return result
 
 

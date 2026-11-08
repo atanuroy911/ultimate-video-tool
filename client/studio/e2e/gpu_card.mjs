@@ -139,7 +139,7 @@ console.log("A server older than the app");
   const { ctx, page } = await open(1280, 900, "light", OLD);
   await page.goto(`${base}/server`, { waitUntil: "load" });
   await card(page).waitFor();
-  check("a server that answers the old way does not break the page: the card says the server must be updated", /cannot choose graphics cards yet\. Update the server/.test(await card(page).innerText()) && /older than this app/.test(await card(page).innerText()));
+  check("a server that answers the old way does not break the page: the card says the server must be updated", /can't choose graphics cards\. Update it/.test(await card(page).innerText()) && /older than this app/.test(await card(page).innerText()));
   check("and the rest of the Server page is still there", (await page.getByTestId("connected-computers").count()) === 1 && errors.length === 0, errors.join(" | ").slice(0, 200));
   await ctx.close();
 }
@@ -149,7 +149,7 @@ console.log("When nobody has answered yet");
   const { ctx, page, seen } = await open(1280, 900, "light", UNANSWERED);
   await goto(page);
   const note = page.getByTestId("gpu-needs-choice");
-  check("it says nobody has chosen and which one card is used meanwhile", /Nobody has chosen yet\. Until you do, Video Tool uses one card only: NVIDIA GeForce RTX 3060\./.test(await note.innerText()), await note.innerText());
+  check("it says nobody has chosen and which one card is used meanwhile", /Choose which cards Video Tool may use\. Until then it uses only NVIDIA GeForce RTX 3060\./.test(await note.innerText()), await note.innerText());
   const dot = page.locator("[data-testid=gpu-choice-dot]:visible");
   await dot.first().waitFor({ timeout: 8000 });
   check("the Server item in the sidebar has a small dot, named for a screen reader, and there is no banner", (await dot.count()) === 1 && /choice is waiting/.test((await dot.first().getAttribute("aria-label")) || "") && (await page.locator(".banner").count()) === 0);
@@ -171,7 +171,7 @@ console.log("When nobody has answered yet");
 {
   const { ctx, page } = await open(1280, 900, "light", RESTART);
   await goto(page);
-  check("after a change, it says programs already started keep their old cards until the server restarts", /keep their old cards until the server is restarted/.test(await page.getByTestId("gpu-restart").innerText()));
+  check("after a change, it says programs already started keep their old cards until the server restarts", /keep their old card until the server restarts/.test(await page.getByTestId("gpu-restart").innerText()));
   await ctx.close();
 }
 
@@ -185,7 +185,7 @@ console.log("The engines Video Tool works with");
   check("and says what Video Tool does and does not do about it", /did not start it and does not change it/.test(text) && /use Video Tool's own copy/.test(text));
   check("it offers Video Tool's own copy as a button", await page.getByTestId("engine-ollama-own").isVisible());
   const ctext = await comfy.innerText();
-  check("ComfyUI says its own copy is not installed yet and where to install it, with no button", /not installed yet/.test(ctext) && /Engines, below/.test(ctext) && (await page.getByTestId("engine-comfy-own").count()) === 0, ctext);
+  check("ComfyUI says its own copy is not installed yet and where to install it, with no button", /isn't installed yet/.test(ctext) && /Set up… under AI programs/.test(ctext) && (await page.getByTestId("engine-comfy-own").count()) === 0, ctext);
   check("the two engines use the names the rest of the app uses", /Language AI \(Ollama\)/.test(text) && /Pictures & clips \(ComfyUI\)/.test(ctext));
   await page.getByTestId("engine-ollama-own").click();
   await ollama.locator("text=own Ollama is running").waitFor();
@@ -199,7 +199,7 @@ console.log("The setup question in the wizard");
 {
   const { ctx, page, seen } = await open(1280, 900, "light", UNANSWERED, SETUP);
   await page.goto(`${base}/`, { waitUntil: "load" });
-  await page.getByRole("button", { name: "Set up server" }).click();
+  await page.locator(".banner").getByRole("button", { name: "Set up", exact: true }).click();
   const sheet = page.getByRole("dialog");
   await sheet.waitFor();
   check("with two cards the wizard has five steps", /Step 1 of 5|1 of 5|1 \/ 5/.test(await sheet.locator(".ios-nav-title").innerText()), await sheet.locator(".ios-nav-title").innerText());
@@ -208,7 +208,7 @@ console.log("The setup question in the wizard");
   await step.waitFor();
   check("the second step is the question, with its own title and no card frame of its own", /Which graphics cards may Video Tool use\?/.test(await sheet.locator(".ios-title").innerText()) && (await step.getAttribute("data-mode")) === "setup" && !/card-pad/.test((await step.getAttribute("class")) || ""));
   check("it lists both cards with their switches", (await sheet.getByTestId("gpu-switch-0").count()) === 1 && (await sheet.getByTestId("gpu-switch-1").count()) === 1);
-  check("the old 'Graphics card for a new install' choice is gone from the folders step", await (async () => { await sheet.getByTestId("gpu-not-now").click(); await sheet.locator("text=Choose folders on the server").first().waitFor(); return (await sheet.locator("text=Graphics card for a new install").count()) === 0; })());
+  check("the old 'Graphics card for a new install' choice is gone from the folders step", await (async () => { await sheet.getByTestId("gpu-not-now").click(); await sheet.locator("text=Where to keep downloads").first().waitFor(); return (await sheet.locator("text=Graphics card for a new install").count()) === 0; })());
   for (let k = 0; k < 40 && !seen.setupPuts.some((b) => b.step === "storage"); k++) await page.waitForTimeout(50);       // the wizard saves where it is, then the step, one after the other
   check("'Not now' moved on without saving an answer", !seen.puts.length && seen.setupPuts.some((b) => b.step === "storage"), JSON.stringify(seen.setupPuts.slice(-2)));
   await sheet.getByRole("button", { name: /^Back$/ }).click();
@@ -216,7 +216,7 @@ console.log("The setup question in the wizard");
   await sheet.getByTestId("gpu-switch-0").click();
   await page.waitForFunction(() => document.querySelector("[data-testid=gpu-switch-0]")?.getAttribute("aria-checked") === "true");
   await sheet.getByTestId("gpu-use-these").click();
-  await sheet.locator("text=Choose folders on the server").first().waitFor();
+  await sheet.locator("text=Where to keep downloads").first().waitFor();
   check("'Use these cards' saves the answer and moves on", seen.puts.length === 2 && JSON.stringify(seen.puts.at(-1).allowed.sort()) === JSON.stringify(["GPU-3060", "GPU-v100"]), JSON.stringify(seen.puts));
   await sheet.getByRole("button", { name: /^Back$/ }).click();
   await sheet.getByTestId("gpu-switch-1").waitFor();
@@ -227,7 +227,7 @@ console.log("The setup question in the wizard");
 for (const [w, h, scheme] of [[400, 860, "dark"], [1280, 900, "dark"], [400, 860, "light"]]) {
   const { ctx, page } = await open(w, h, scheme, UNANSWERED, SETUP);
   await page.goto(`${base}/`, { waitUntil: "load" });
-  await page.getByRole("button", { name: "Set up server" }).click();
+  await page.locator(".banner").getByRole("button", { name: "Set up", exact: true }).click();
   const sheet = page.getByRole("dialog");
   await sheet.waitFor();
   await sheet.getByRole("button", { name: /^Continue$/ }).click();
@@ -241,7 +241,7 @@ for (const [w, h, scheme] of [[400, 860, "dark"], [1280, 900, "dark"], [400, 860
   const one = clone(SETUP); one.hardware.gpus = [one.hardware.gpus[1]];
   const { ctx, page } = await open(1280, 900, "light", { ...clone(ANSWERED), cards: [RTX] }, one);
   await page.goto(`${base}/`, { waitUntil: "load" });
-  await page.getByRole("button", { name: "Set up server" }).click();
+  await page.locator(".banner").getByRole("button", { name: "Set up", exact: true }).click();
   const sheet = page.getByRole("dialog");
   await sheet.waitFor();
   check("with one card there is nothing to ask: four steps, no question", /of 4/.test(await sheet.locator(".ios-nav-title").innerText()) && (await sheet.getByTestId("gpu-assignment").count()) === 0);

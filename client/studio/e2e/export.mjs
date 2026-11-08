@@ -29,7 +29,7 @@ await page.getByRole("button", { name: "Continue" }).click();
 await page.locator(".ios-sheet select").first().selectOption("none");   // music
 await page.getByRole("button", { name: "Done", exact: true }).last().click();
 await page.getByRole("button", { name: /Export video/ }).click();
-await page.getByText(/Rendering…/).first().waitFor({ timeout: 10000 });
+await page.getByText(/Exporting…/).first().waitFor({ timeout: 10000 });
 check("render started and the button shows progress", true);
 await page.screenshot({ path: out + "/h1-rendering.png" });
 await page.locator("video.video-out").waitFor({ timeout: 240000 });

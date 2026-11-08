@@ -3,11 +3,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { chromium } from "playwright-core";
+import { chromePath } from "./common.mjs";
 
 const base = process.env.VT_URL || "http://127.0.0.1:5173";
 const out = process.argv[2] || path.join("e2e", "out", "ux-audit");
 fs.mkdirSync(out, { recursive: true });
-const browser = await chromium.launch({ executablePath: process.env.VT_CHROME, headless: true, args: ["--disable-gpu"] });
+const browser = await chromium.launch({ executablePath: chromePath(), headless: true, args: ["--disable-gpu"] });
 const errors = [];
 for (const [tag, viewport, scheme] of [["desktop", { width: 1440, height: 900 }, "light"], ["phone", { width: 400, height: 760 }, "light"], ["dark", { width: 1440, height: 900 }, "dark"]]) {
   const ctx = await browser.newContext({ viewport, colorScheme: scheme });

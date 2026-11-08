@@ -1,4 +1,4 @@
-"""The voice modules (docs/plans/PLAN-VOICESTUDIO.MD V2): one set of verbs over every voice engine, with the engines replaced by fakes."""
+"""The voice modules: one set of verbs over every voice engine, with the engines replaced by fakes."""
 import numpy as np
 import pytest
 import soundfile as sf
@@ -62,7 +62,7 @@ def test_a_voice_that_fails_says_why_and_is_not_swapped_for_another(ex, monkeypa
         raise tts.TTSError("The voice server does not answer.")
 
     monkeypatch.setattr(tts, "synth_sentence", broken)
-    r = ex.call("voice.speak", {"text": "Hello.", "voice": "voicestudio:x"}, caller="claude", why="a line")
+    r = ex.call("voice.speak", {"text": "Hello.", "voice": "comfyvoice:design:x"}, caller="claude", why="a line")
     assert not r.ok and "does not answer" in r.fix
 
 

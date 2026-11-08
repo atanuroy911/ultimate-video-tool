@@ -248,6 +248,10 @@ def make_cover(project, hook: str, progress: ProgressFn = noop_progress, provide
 def build_kit(project, progress: ProgressFn = noop_progress, provider=None, cover: bool = True) -> dict:
     progress("publish", 0.05, "Writing the title and description")
     kit = metadata(project, provider)
+    from .. import credits as CR
+
+    kit["credits"] = CR.text(project)
+    kit["description"] = CR.with_description(kit.get("description", ""), kit["credits"])
     if cover:
         try:
             make_cover(project, kit.get("hook", ""), lambda s, f, m: progress("publish", 0.2 + 0.75 * f, m), provider)

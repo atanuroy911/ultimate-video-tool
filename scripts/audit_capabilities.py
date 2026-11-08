@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "server"))     # vt/ lives in server/ since the client/server split
 
 
 def main():
@@ -21,7 +21,7 @@ def main():
                 "studio_form": "studio" in m.toolboxes and m.effects != "external_post"} for m in list_modules()]
     routes = [{"path":r.path,"methods":sorted(r.methods)} for r in app.routes if getattr(r,"methods",None) and r.path.startswith("/api/")]
     components=[{"type":c["type"],"name":c["name"],"category":c["category"]} for c in component_catalogue()]
-    pages=[p.stem for p in sorted((ROOT/"studio/src/pages").glob("*.tsx"))]
+    pages=[p.stem for p in sorted((ROOT/"client/studio/src/pages").glob("*.tsx"))]
     plans=[str(p.relative_to(ROOT)).replace("\\","/") for p in sorted((ROOT/"docs/plans").glob("*.MD"))]
     inventory={"modules":modules,"components":components,"routes":routes,"pages":pages,"plans":plans,"registry_errors":lint_registry()}
     target=ROOT/"docs/evidence/capability-inventory.json"

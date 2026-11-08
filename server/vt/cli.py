@@ -325,16 +325,14 @@ ENGINE_CHOICE = "auto = use one already running here, else our own copy if insta
 @app.command()
 def server(host: str = typer.Option("0.0.0.0", help="0.0.0.0 = other computers on this network may connect, by the address printed below; 127.0.0.1 = this computer only"),
            port: Optional[int] = typer.Option(None, help="default 8765, or the next free port when something else has it"),
-           name: str = typer.Option("", help="a name for this computer, shown to the one that pairs"),
+           name: str = typer.Option("", help="a name for this server, shown to the computers that connect to it"),
            ollama: str = typer.Option("auto", help=ENGINE_CHOICE), comfy: str = typer.Option("auto", help="as --ollama"),
-           voicestudio: str = typer.Option("auto", help="auto/existing/off (VoiceStudio has its own installer)"),
            ollama_url: str = typer.Option("", help="an Ollama that is not on its usual port"),
            comfy_url: str = typer.Option("", help="ComfyUI address(es), comma-separated: the first is the main server, the rest are workers"),
-           voicestudio_url: str = typer.Option("", help="a VoiceStudio that is not on its usual port"),
            gpus: str = typer.Option("", "--gpus", help="the graphics cards Video Tool may use: numbers separated by commas, all, or none. Saved: the Server page shows and changes it too"),
            open_ui: bool = typer.Option(False, "--open", help="open the Studio in this computer's browser"),
            start_at_login: bool = typer.Option(False, "--start-at-login", help="also start this server by itself from now on, the same way (Engines page: This server)")) -> None:
-    """Run Video Tool: the Studio, the pipeline and the engines on one port. Other computers pair once with the printed code.
+    """Run Video Tool: the Studio, the pipeline and the engines on one port. A computer on this network connects by typing the address printed below; no code is needed.
 
     Engines already installed on this computer are used as they are (nothing of them is started, stopped or changed); our own copies use their own ports and folders.
     """
@@ -351,8 +349,7 @@ def server(host: str = typer.Option("0.0.0.0", help="0.0.0.0 = other computers o
     if comfy == "auto" and not comfy_url:
         comfy_url = _first_run_comfy()
     console.print("Engines:")
-    placed = placement.place({"ollama": ollama, "comfy": comfy, "voicestudio": voicestudio},
-                             {"ollama": ollama_url, "comfy": comfy_url, "voicestudio": voicestudio_url}, console.print)
+    placed = placement.place({"ollama": ollama, "comfy": comfy}, {"ollama": ollama_url, "comfy": comfy_url}, console.print)
     for p in placed.values():
         where = ", ".join(p.urls()) or "-"
         console.print(f"  {p.engine:11} {p.source:8} {where}  [dim]{p.note}[/dim]")
@@ -403,6 +400,7 @@ def _free_port(port: Optional[int], host: str) -> int:
 
 def _serve(host: str, port: Optional[int], name: str, services: dict[str, str], open_ui: bool, again: Optional[list[str]] = None,
            start_at_login: bool = False) -> None:
+    import socket
     import threading
     import webbrowser
 
@@ -416,7 +414,7 @@ def _serve(host: str, port: Optional[int], name: str, services: dict[str, str], 
     port = _free_port(port, host)
     exposed = host not in serve.LOOPBACK
     ident = hub.identity()
-    serve.configure(key=ident["key"], name=name or ident.get("name", "") or "Video Tool", services=services, exposed=exposed,
+    serve.configure(key=ident["key"], name=name or ident.get("name", "") or socket.gethostname() or "Video Tool", services=services, exposed=exposed,
                     argv=again + ["--port", str(port)] if again else None)
     serve.STATE["port"] = port                                       # for addresses handed to assistants on other computers (prepare_upload)
     if start_at_login:
@@ -530,14 +528,14 @@ def serve_engine(host: str = "0.0.0.0", port: int = 8790, name: str = typer.Opti
 
 def _engine_list(engines: str) -> list[str]:
     out = [e.strip() for e in engines.split(",") if e.strip()]
-    bad = [e for e in out if e not in ("ollama", "comfy", "voicestudio")]
+    bad = [e for e in out if e not in ("ollama", "comfy")]
     if bad:
-        raise typer.BadParameter(f"unknown engine(s): {', '.join(bad)} (choose from ollama, comfy, voicestudio)")
+        raise typer.BadParameter(f"unknown engine(s): {', '.join(bad)} (choose from ollama, comfy)")
     return out
 
 
 @engine_app.command("plan")
-def engine_plan(engines: str = typer.Option("ollama,comfy", help="comma-separated: ollama, comfy, voicestudio"),
+def engine_plan(engines: str = typer.Option("ollama,comfy", help="comma-separated: ollama, comfy"),
                 bundles: str = typer.Option("pictures", help="comfy model sets: pictures, clips"), models: str = typer.Option("", help="folder for the big model files"),
                 json_out: bool = typer.Option(False, "--json", help="machine-readable")) -> None:
     """Show what `vt engine setup` would download. Touches nothing."""
@@ -557,7 +555,7 @@ def engine_plan(engines: str = typer.Option("ollama,comfy", help="comma-separate
 
 
 @engine_app.command("setup")
-def engine_setup(engines: str = typer.Option("ollama,comfy", help="comma-separated: ollama, comfy, voicestudio"), bundles: str = typer.Option("pictures", help="comfy model sets: pictures, clips"),
+def engine_setup(engines: str = typer.Option("ollama,comfy", help="comma-separated: ollama, comfy"), bundles: str = typer.Option("pictures", help="comfy model sets: pictures, clips"),
                  models: str = typer.Option("", help="folder for the big model files"), yes: bool = typer.Option(False, "--yes", help="do it (without this, only show the plan)")) -> None:
     """Download and set up Ollama, ComfyUI and their models on THIS computer. Resumable: run it again after any interruption."""
     from .engines import hub
@@ -788,7 +786,11 @@ def music() -> None:
 @app.command()
 def demo(project_id: str = "reference") -> None:
     """Build the reference-frame fixture project (no speech recognition needed)."""
-    sys.path.insert(0, str(paths.ROOT / "samples"))
+    where = next((d for d in (paths.ROOT / "samples", paths.ROOT.parent / "samples") if (d / "build_reference.py").exists()), None)
+    if where is None:                                     # an installed server has no samples folder: the demo is a developer's fixture
+        console.print("The demo needs the samples folder of a source checkout (samples/build_reference.py); this installation has none.")
+        raise typer.Exit(1)
+    sys.path.insert(0, str(where))
     import build_reference  # type: ignore
 
     build_reference.main(project_id)

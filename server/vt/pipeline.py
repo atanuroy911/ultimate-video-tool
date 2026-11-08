@@ -1065,20 +1065,9 @@ def export(project: Project, aspect: Optional[str] = None, *, quality: str = "lo
     silent.unlink(missing_ok=True)
     srt = final.with_suffix(".srt")
     srt.write_text(to_srt(data["captions"]), encoding="utf-8")
-    from .director.stock import credits_text
+    from . import credits as CR
 
-    credits = credits_text(project)                       # stock pictures/clips come with a thank-you list, written next to the video
-    from .director.catalog import music_credit
-
-    mc = music_credit(track)
-    if mc:
-        credits = (credits or "Media credits\n") + f"- {mc}\n"
-    origin = project.meta().origin
-    if origin:
-        lines = [f"Voice and text from: {origin.get('title', '')} by {origin.get('uploader') or 'unknown'}", origin.get("url", "")]
-        if origin.get("license"):
-            lines.append(f"Licence: {origin['license']}")
-        credits = (credits or "") + "\n".join(lines) + "\n"
+    credits = CR.text(project, track or "")               # stock, catalogue, the music's licence and a link's source, written next to the video
     if credits:
         final.with_suffix(".credits.txt").write_text(credits, encoding="utf-8")
     try:                                                      # the retention scorecard of what was just made (vt/retention.py); never stops an export

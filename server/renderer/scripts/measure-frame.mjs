@@ -1,6 +1,6 @@
 // Pure DOM measurements, shared by the production probe and software-browser fixtures.
 // This function must remain self-contained: Puppeteer serializes it into the page.
-export function measureFrame(at, noRoom = {}) {
+export function measureFrame(at, noRoom = {}, acceptance = false) {
 window.__vt.seek(at);
 const shown = (n) => {
   for (let e = n; e && e.nodeType === 1; e = e.parentElement) {
@@ -14,6 +14,23 @@ const area = (r) => Math.max(0, r.right - r.left) * Math.max(0, r.bottom - r.top
 const both = (a, b) => ({ left: Math.max(a.left, b.left), right: Math.min(a.right, b.right), top: Math.max(a.top, b.top), bottom: Math.min(a.bottom, b.bottom) });
 const part = (a, b) => (area(a) && a.right > b.left && b.right > a.left && a.bottom > b.top && b.bottom > a.top ? area(both(a, b)) / area(a) : 0);
 const W = innerWidth, H = innerHeight, facts = [];
+const coveredFaces = [];
+const unionArea = boxes => {
+  // Slice the clipped rectangles at their left and right edges. Merge
+  // vertical intervals in each slice so shared coverage is counted once.
+  const edges = [...new Set(boxes.flatMap(box => [box.left, box.right]))].sort((a, b) => a - b);
+  let total = 0;
+  for (let i = 1; i < edges.length; i++) {
+    const left = edges[i - 1], right = edges[i];
+    const column = boxes.filter(box => box.left < right && box.right > left).sort((a, b) => a.top - b.top);
+    let bottom = -Infinity;
+    for (const box of column) {
+      total += (right - left) * Math.max(0, box.bottom - Math.max(bottom, box.top));
+      bottom = Math.max(bottom, box.bottom);
+    }
+  }
+  return total;
+};
 const faces = [...document.querySelectorAll(".cn-actor")].filter(shown).map((b) => {   // the drawing is 300 by 520: the head is the middle of its top third
   const r = (b.querySelector("svg") || b).getBoundingClientRect();
   return { name: b.getAttribute("data-name") || "a character", body: { left: r.left + r.width * 0.2, right: r.right - r.width * 0.2, top: r.top + r.height * 0.33, bottom: r.bottom }, box: { left: r.left + r.width * 0.25, right: r.right - r.width * 0.25, top: r.top + r.height * 0.05, bottom: r.top + r.height * 0.33 } };
@@ -49,13 +66,24 @@ for(const item of document.querySelectorAll("[data-story-type]")) {
   els.push({node:item,label:`story item (${item.dataset.storyType})`,box:item.getBoundingClientRect()});
 }
 const caps = [...document.querySelectorAll(".cap")].filter(shown).map((e) => ({node:e,label: "the caption", box: (e.querySelector(".cap-inner") || e).getBoundingClientRect() }));
-for (const f of faces) for (const e of [...els, ...caps]) {
-  if(f.owner && e.node?.contains(f.owner)) continue; // the person's own container is not an overlay
-  if(f.owner && e.node?.dataset.storyType && (f.owner.compareDocumentPosition(e.node)&Node.DOCUMENT_POSITION_PRECEDING)) continue; // scenery painted before the character
-  const covered = part(f.box, e.box);
-  if (covered > 0.1) facts.push(`${e.label} covers ${Math.round(covered * 100)}% of ${f.name}'s face.`);
-  const hidden = part(f.body, e.box);
-  if (hidden > 0.08) facts.push(`${e.label} covers ${Math.round(hidden * 100)}% of ${f.name}'s body.`);
+for (const f of faces) {
+  const overlaps = [], labels = [];
+  for (const e of [...els, ...caps]) {
+    if(f.owner && e.node?.contains(f.owner)) continue; // the person's own container is not an overlay
+    if(f.owner && e.node?.dataset.storyType && (f.owner.compareDocumentPosition(e.node)&Node.DOCUMENT_POSITION_PRECEDING)) continue; // scenery painted before the character
+    const covered = part(f.box, e.box);
+    if (acceptance && covered > 0) {
+      overlaps.push(both(f.box, e.box));
+      labels.push(e.label);
+    }
+    if (covered > 0.1) facts.push(`${e.label} covers ${Math.round(covered * 100)}% of ${f.name}'s face.`);
+    const hidden = part(f.body, e.box);
+    if (hidden > 0.08) facts.push(`${e.label} covers ${Math.round(hidden * 100)}% of ${f.name}'s body.`);
+  }
+  if (overlaps.length) {
+    const percent = 100 * unionArea(overlaps) / area(f.box);
+    if (percent > 10) coveredFaces.push({ face: f.name, by: labels.join(" + "), percent });
+  }
 }
 if (faces.length && !facts.length) facts.push("Nothing covers any character.");
 for (const e of els) {
@@ -107,6 +135,7 @@ const said = (...needles) => facts.some((f) => needles.every((n) => f.includes(n
 for (const g of window.__guard || []) {
   if (!g.directed) continue;
   if (/^prop:/.test(g.type)) { if (g.scene === sceneId) add(`The prop ${g.type.slice(5)} is cut by the shot: more than a quarter of it is outside the frame.`); continue; }
+  if (g.scene !== sceneId) continue;                                                  // another scene's element 0 is not this one's (it was said in every scene, 2026-11-08)
   if (!els.some((e) => e.label.startsWith(`element ${g.el} (`))) continue;           // on another page of the scene, or not on screen at this moment
   const what = `element ${g.el} (${g.type})`;
   if (g.rule === "cut-off" && !said(what, "outside the frame")) add(`${what} runs off the frame.`);
@@ -124,5 +153,18 @@ if (facts.some((f) => f !== "Nothing covers any character.")) {             // w
   const room = free.filter(([a, b]) => b - a >= 0.08).map(([a, b]) => `y ${a.toFixed(2)} to ${b.toFixed(2)}`);
   if (room.length) facts.push(`Empty across the frame: ${room.join(", ")}.`);
 }
-return facts;
+if (!acceptance) return facts;
+
+// Acceptance needs exact thresholds, rather than the rounded, filtered text
+// given to the director. Deliberately oversized backgrounds are not subjects
+// that can run off the frame. Real backdrop media can still open the video.
+const figures = [...document.querySelectorAll(".cn-actor, .stk-ch, [data-person], .cn-prop")].filter(shown)
+  .map(node => ({ label: node.dataset.name || (node.matches(".cn-prop") ? "a prop" : "a character"), box: node.getBoundingClientRect() }));
+const subjects = [...els, ...figures];
+const viewport = { left: 0, top: 0, right: W, bottom: H };
+const subject = subjects.some(e => area(both(e.box, viewport)) > 1)
+  || [...document.querySelectorAll("img.bd-media, video.bd-media")].some(node => shown(node) && (node.naturalWidth || node.videoWidth));
+const outside = [...subjects, ...caps].filter(({ box }) =>
+  box.left < -1 || box.top < -1 || box.right > W + 1 || box.bottom > H + 1).map(e => e.label);
+return { facts, coveredFaces, outside, subject: Boolean(subject) };
 }

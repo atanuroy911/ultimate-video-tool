@@ -13,7 +13,7 @@ for (const [w, h] of [[1280, 1000], [400, 900]]) for (const scheme of ["light", 
   await page.waitForTimeout(3500);
   const text = (await page.locator("body").innerText());
   check(`${w} ${scheme}: no "server 1"-style internal numbers in the first line`, !/server \d\b/i.test(text), text.match(/.{20}server \d\b.{10}/i)?.[0]);
-  check(`${w} ${scheme}: the page says what this server is`, /Server/.test(text) && /(Connected|This computer|Ready|Not connected|Working)/i.test(text));
+  check(`${w} ${scheme}: the page says what this server is`, /The computer that makes your videos/.test(text) && /AI programs/.test(text) && /(Ready|Not set up|Not answering)/.test(text));
   check(`${w} ${scheme}: nothing scrolls sideways`, !(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)));
   check(`${w} ${scheme}: no raw words (undefined, NaN, null, [object])`, !/undefined|NaN|\bnull\b|\[object/.test(text));
   await page.screenshot({ path: `e2e/out/server-page/${w}-${scheme}.png`, fullPage: true });

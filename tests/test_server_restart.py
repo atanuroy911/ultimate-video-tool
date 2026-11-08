@@ -48,3 +48,17 @@ def test_scheduled_restart_fences_new_work_and_failed_command_releases_it(monkey
     monkeypatch.setattr(R.subprocess,"run",lambda *a,**k:SimpleNamespace(returncode=1))
     with pytest.raises(RuntimeError):R.execute(manager,"video-tool.service")
     assert manager.submit("pipeline",None,"Video",lambda cb:None)
+
+
+def test_the_server_app_can_restart_the_server_it_started(monkeypatch):
+    # Windows has no systemd: the server app starts the server with VT_SUPERVISOR=desktop and starts it again when it exits with 75
+    from vt.server import restart
+
+    monkeypatch.setenv("VT_SUPERVISOR", "desktop")
+    assert restart.describe()["available"] and restart.describe()["unit"] == "desktop"
+    exits = []
+    monkeypatch.setattr(restart.os, "_exit", exits.append)
+    import threading
+    monkeypatch.setattr(threading, "Timer", lambda delay, fn: type("T", (), {"start": lambda self: fn()})())
+    restart.execute(None, "desktop")
+    assert exits == [75]

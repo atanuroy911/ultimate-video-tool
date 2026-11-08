@@ -47,23 +47,23 @@ export default function SetupWizard({ onClose }: { onClose: () => void }) {
 
   const steps = [
     {
-      title: 'Set up your processing server', icon: <Cpu size={26} />, subtitle: `All checks and installations happen on ${o.server?.name||'the connected server'}, not on the PC displaying this window.`,
+      title: `Set up ${o.server?.name||'your server'}`, icon: <Cpu size={26} />, subtitle: 'Choose the AI programs it uses. Anything you install goes on the server, not on this computer.',
       body: (
-        <Group title={`Processing server: ${o.server?.name||'Connected server'}`}>
-          <Row label="Graphics cards on the server" stack><span>{o.hardware.gpus.length?o.hardware.gpus.map(g=>`${g.name} (${g.memory_gb} GB)`).join(' · '):'No NVIDIA graphics card found'}</span><span className="small muted">Existing engines keep the graphics card they already use. A new managed install uses the card chosen for it below.</span></Row>
+        <Group title="The server">
+          <Row label={o.hardware.gpus.length>1?'Graphics cards':'Graphics card'}>{o.hardware.gpus.length?o.hardware.gpus.map(g=>`${g.name} (${g.memory_gb} GB)`).join(' · '):'None (uses the processor)'}</Row>
           <Row label={t("setup.disk")}>{o.hardware.disk_free_gb} GB</Row>
           <Row label={t("setup.memory")}>{o.hardware.ram_gb} GB</Row>
         </Group>
       ),
     },
     {
-      title: t("setup.storage"), icon: <FolderOpen size={26} />, subtitle: 'Choose where new installations store programs and models. Existing engines keep their current folders; their model check comes next.',
+      title: t("setup.storage"), icon: <FolderOpen size={26} />, subtitle: 'New programs and models are saved here. Programs you already have stay where they are.',
       body: (
         <Group title={t("setup.folder")} note={t("setup.folder.note").replace("{gb}", String(o.hardware.disk_free_gb))}>
           <Row label={t("setup.modelsfolder")} stack>
             <input type="text" value={dir} placeholder={`${o.hardware.data_dir}/models`} onChange={(e) => setDir(e.target.value)} aria-label={t("setup.modelsfolder")} spellCheck={false} style={{ width: "100%" }} />
           </Row>
-          <Row label="Programs folder on the server" stack><input value={programDir} onChange={e=>setProgramDir(e.target.value)} placeholder={`${o.hardware.data_dir}/engines`} aria-label="Programs folder on the server" spellCheck={false}/><span className="small muted">New engine programs go here. Large models use the separate folder above.</span></Row>
+          <Row label="Programs folder" stack><input value={programDir} onChange={e=>setProgramDir(e.target.value)} placeholder={`${o.hardware.data_dir}/engines`} aria-label="Programs folder" spellCheck={false}/></Row>
         </Group>
       ),
     },
@@ -72,10 +72,10 @@ export default function SetupWizard({ onClose }: { onClose: () => void }) {
       body: (
         <>
           {o.engines.map((e) => (
-            <Group key={e.id} title={e.id==='voicestudio'?'Another voice engine (optional)':plain(e.id, e.label)} note={e.id==='voicestudio'?'ComfyUI supplies voices too. VoiceStudio is an optional alternative.':e.about}>
+            <Group key={e.id} title={plain(e.id, e.label)} note={e.about}>
               <Row label={t("setup.choosehow")} stack>
-                <Seg<Mode> label={`${e.label}: where it runs`} value={choices[e.id] ?? "off"} onChange={(m) => setChoices({ ...choices, [e.id]: m })}
-                  options={[{ value: "local", label: 'Install on server' }, { value: "remote", label: 'Use existing' }, { value: "off", label: 'Skip' }]} />
+                <Seg<Mode> label={`${e.label}: how`} value={choices[e.id] ?? "off"} onChange={(m) => setChoices({ ...choices, [e.id]: m })}
+                  options={[{ value: "local", label: 'Install' }, { value: "remote", label: 'Use one I have' }, { value: "off", label: 'Skip' }]} />
               </Row>
               {e.id === "comfy" && choices.comfy === "local" && (
                 <Row label={t("setup.alsoinstall")} stack>
@@ -114,14 +114,14 @@ export default function SetupWizard({ onClose }: { onClose: () => void }) {
   const visibleSteps=[
     {...steps[0],body:<>{steps[0].body}{steps[2].body}</>},
     ...(manyCards?[cardsStep]:[]),
-    {...steps[1],title:'Choose folders on the server'},
-    {...steps[4],title:'Connect or install',subtitle:'Use the engines already running, or review the download before installing a separate copy.',body:<>{remote.map(e=><Connect key={e.id} id={e.id} label={plain(e.id,e.label)} url={urls[e.id]??''} setUrl={u=>setUrls({...urls,[e.id]:u})}/>)}{steps[4].body}</>},
-    {...steps[5],title:'Check your server',body:<>{steps[5].body}{steps[6].body}</>},
+    {...steps[1],title:'Where to keep downloads'},
+    {...steps[4],title:'Connect and install',subtitle:'Connect the programs you have. Check what will download before installing.',body:<>{remote.map(e=><Connect key={e.id} id={e.id} label={plain(e.id,e.label)} url={urls[e.id]??''} setUrl={u=>setUrls({...urls,[e.id]:u})}/>)}{steps[4].body}</>},
+    {...steps[5],title:'Try it',body:<>{steps[5].body}{steps[6].body}</>},
   ];
   const stateSteps=manyCards?['choose','cards','storage','install','try']:['choose','storage','install','try'];
   const at=(name:string)=>Math.max(0,stateSteps.indexOf(name));
   const initial=o.step==='welcome'||o.step==='choose'?0:o.step==='cards'?at('cards'):o.step==='storage'?at('storage'):o.step==='connect'||o.step==='install'?at('install'):at('try');
-  return <Steps label="Processing server setup" steps={visibleSteps} start={initial} headerDone={false}
+  return <Steps label="Server setup" steps={visibleSteps} start={initial} headerDone={false}
     onClose={()=>{saveChoices().then(onClose).catch(e=>toast(e.message,'err'));}}
     onStep={i=>{saveChoices().then(()=>put('/api/setup',{step:stateSteps[i]})).catch(e=>toast(e.message,'err'));}}
     onDone={async()=>{try{await saveChoices();await put('/api/setup',{step:'done',done:true});onClose();}catch(e:any){toast(e.message,'err');}}}/>;
@@ -143,7 +143,7 @@ function Connect({ id, label, url, setUrl }: { id: string; label: string; url: s
         setNeedsModel(id==='ollama'&&!h.models?.length);
         const names:Record<string,string>={'llm.chat':'planning and writing','llm.vision':'understanding pictures','image.generate':'pictures','video.generate':'moving clips','voice.speak':'voices'};
         const abilities=h.capabilities.map(c=>names[c]).filter(Boolean);
-        setSays(`Connected${h.gpu ? ` (${h.gpu})` : ''}. ${abilities.length?'Available: '+abilities.join(', ')+'.':'Check its models before creating a video.'}`);
+        setSays(`Connected${h.gpu ? ` on ${h.gpu}` : ''}. ${abilities.length?'It can do '+abilities.join(', ')+'.':'It has no models yet.'}`);
         setConnectedUrl(url);
       } else setSays(h.why_not || t("setup.noanswer"));
     } catch (e: any) {
@@ -154,12 +154,12 @@ function Connect({ id, label, url, setUrl }: { id: string; label: string; url: s
   };
   return (
     <Group title={label}>
-      <Row label={t("setup.address")} stack><input type="text" value={url} placeholder={id==='ollama'?'http://127.0.0.1:11434':'http://127.0.0.1:8188'} onChange={(e) => {setUrl(e.target.value);setConnectedUrl('');setSays('');setNeedsModel(false);}} aria-label={`${label}: ${t("setup.address")}`} spellCheck={false} style={{ width: "100%" }} /><span className="small muted">This address is reached from the processing server. 127.0.0.1 means that server itself.</span></Row>
+      <Row label={t("setup.address")} stack><input type="text" value={url} placeholder={id==='ollama'?'http://127.0.0.1:11434':'http://127.0.0.1:8188'} onChange={(e) => {setUrl(e.target.value);setConnectedUrl('');setSays('');setNeedsModel(false);}} aria-label={`${label}: ${t("setup.address")}`} spellCheck={false} style={{ width: "100%" }} /><span className="small muted">Leave it as it is when the program runs on the server itself.</span></Row>
       <div className="ios-row engine-test">
-        <button className="btn sm" onClick={test} disabled={busy || !url.trim()}>{busy ? t("setup.testing") : 'Use this engine'}</button>
+        <button className="btn sm" onClick={test} disabled={busy || !url.trim()}>{busy ? t("setup.testing") : 'Connect'}</button>
         {says && <p className={`status-line ${connectedUrl ? "ok" : "bad"}`} role="status"><i aria-hidden />{says}</p>}
       </div>
-      {needsModel&&<Row label="A language model is missing" stack><span className="small muted">It will download into this Ollama’s configured model storage. To choose a different location, install a separate managed copy instead.</span><button className="btn" disabled={!!modelJob&&!['error','cancelled'].includes(modelJob.status)} onClick={()=>post('/api/setup/ollama-model').then(setModelJob).catch(e=>toast(e.message,'err'))}>Add recommended model</button>{modelJob&&<span className="small">{Math.round((modelJob.frac||0)*100)}% · {modelJob.msg||modelJob.status}</span>}</Row>}
+      {needsModel&&<Row label="No language model yet" stack><span className="small muted">It downloads into this Ollama's own model folder.</span><button className="btn" disabled={!!modelJob&&!['error','cancelled'].includes(modelJob.status)} onClick={()=>post('/api/setup/ollama-model').then(setModelJob).catch(e=>toast(e.message,'err'))}>Download recommended model</button>{modelJob&&<span className="small">{Math.round((modelJob.frac||0)*100)}% · {modelJob.msg||modelJob.status}</span>}</Row>}
       {id==='comfy'&&connectedUrl&&<PrepareComfy key={connectedUrl} url={connectedUrl}/>}
     </Group>
   );
@@ -236,9 +236,9 @@ function Try({ ids }: { ids: string[] }) {
     setSays((s) => ({ ...s, [id]: t("setup.trying") }));
     try {
       const r = await post<{ ok: boolean; says: string }>(`/api/setup/try/${id}`);
-      setSays((s) => ({ ...s, [id]: (r.ok ? "✓ " : "✗ ") + r.says }));
+      setSays((s) => ({ ...s, [id]: (r.ok ? "Works. " : "Problem: ") + r.says }));
     } catch (e: any) {
-      setSays((s) => ({ ...s, [id]: "✗ " + e.message }));
+      setSays((s) => ({ ...s, [id]: "Problem: " + e.message }));
     }
   };
   if (!ids.length) return <p className="muted">{t("setup.nothingconnected")}</p>;

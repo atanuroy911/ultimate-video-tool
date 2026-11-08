@@ -21,9 +21,9 @@ from .model import Endpoint
 
 Choice = Literal["auto", "existing", "own", "off"]
 CHOICES = ("auto", "existing", "own", "off")
-ENGINES = ("ollama", "comfy", "voicestudio")
+ENGINES = ("ollama", "comfy")
 # where an existing install usually listens; ComfyUI is often run once per graphics card on the next ports
-USUAL = {"ollama": [11434], "comfy": list(range(8188, 8196)), "voicestudio": [3900]}
+USUAL = {"ollama": [11434], "comfy": list(range(8188, 8196))}
 # our own copies start here and take the next free port, away from the usual ones
 OWN_BASE = {"ollama": 11444, "comfy": 8288}
 PORTS_FILE = "engine-ports.json"
@@ -82,7 +82,7 @@ def own_installed(engine: str) -> bool:
         return llm.binary() is not None
     if engine == "comfy":
         return (ComfyInstaller().root / "main.py").exists()
-    return False                                   # VoiceStudio is another project with its own installer: only an existing one is used
+    return False
 
 
 def decide(engine: str, choice: str = "auto", url: str = "") -> Placement:
@@ -161,14 +161,14 @@ def restart_own(engines: list[str], say=print) -> list[str]:
     return done
 
 
-def save(p: Placement) -> None:
+def save(p: Placement, *, provisional: bool = False) -> None:
     """Point the pipeline at it: the engines block, plus the flat keys the older code still reads."""
     if p.source == "off":
-        store.save(p.engine, Endpoint(mode="off", url=""))
+        store.save(p.engine, Endpoint(mode="off", url=""), provisional=provisional)
         return
     data_dir = str(paths.DATA / "engines" / p.engine) if p.source == "own" else ""
-    before = store.load(p.engine)                  # a key typed on the Engines page (VoiceStudio) stays
-    store.save(p.engine, Endpoint(mode="remote" if p.source == "existing" else "local", url=p.url, key=before.key, gpu=before.gpu, workers=p.workers, data_dir=data_dir))
+    before = store.load(p.engine)                  # a key typed on the Engines page stays
+    store.save(p.engine, Endpoint(mode="remote" if p.source == "existing" else "local", url=p.url, key=before.key, gpu=before.gpu, workers=p.workers, data_dir=data_dir), provisional=provisional)
     if p.engine in store.LEGACY:
         s = read_json(paths.SETTINGS, {}) or {}
         s[store.LEGACY[p.engine]] = p.url
@@ -179,9 +179,13 @@ def place(choices: dict[str, str], urls: Optional[dict[str, str]] = None, say=pr
     """decide + start + save for each engine. Returns what each came to."""
     out = {}
     for e, c in choices.items():
-        p = decide(e, c, (urls or {}).get(e, ""))
+        url = (urls or {}).get(e, "")
+        p = decide(e, c, url)
         if run:
             start(p, say)
-        save(p)
+        # Startup discovery can pick a usable default. It does not finish setup
+        # for an engine the person has never chosen, even when it finds nothing.
+        provisional = c == "auto" and not url and not store.configured(e)
+        save(p, provisional=provisional)
         out[e] = p
     return out

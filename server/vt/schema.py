@@ -170,7 +170,8 @@ class _El(BaseModel):
         return validate_points(value)
     at_word: str = Field(description="id of the spoken word at which this element animates in")
     until_word: Optional[str] = Field(default=None, description="id of the spoken word after which it leaves; over a picture it leaves by itself "
-                                                                "after its sentence (1.5 to 3 s) so the picture gets the frame back")
+                                                                "after its sentence (1.5 to 3 s) so the picture gets the frame back; in a cartoon it leaves "
+                                                                "when the next picture arrives unless this word comes later")
 
     @model_validator(mode="after")
     def valid_range(self):

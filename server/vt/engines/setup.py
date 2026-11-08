@@ -10,12 +10,15 @@ from .model import Endpoint
 
 STEPS = ["welcome", "storage", "choose", "cards", "connect", "install", "try", "done"]
 CHOICES = ("local", "remote", "off")
-ASKED = ("ollama", "comfy", "voicestudio")                     # the engines the wizard asks about; the Engine Server joins as a remote choice
+ASKED = ("ollama", "comfy")                     # the engines the wizard asks about; the Engine Server joins as a remote choice
 
 
 def state() -> dict[str, Any]:
     s = (read_json(paths.SETTINGS, {}) or {}).get("setup") or {}
-    return {"step": s.get("step", "welcome") if s.get("step") in STEPS else "welcome", "done": bool(s.get("done")), "choices": s.get("choices", {}), "bundles": s.get("bundles", ["pictures"]),
+    from . import store
+
+    settled = all(store.configured(e) for e in ASKED)                   # every engine was already chosen (the launcher's flags do this): nothing is left to ask, so no "Set up server" nag
+    return {"step": s.get("step", "welcome") if s.get("step") in STEPS else "welcome", "done": bool(s.get("done")) or settled, "choices": s.get("choices", {}), "bundles": s.get("bundles", ["pictures"]),
             "models_dir": (read_json(paths.SETTINGS, {}) or {}).get("models_dir", ""),
             "install_dir": (read_json(paths.SETTINGS, {}) or {}).get("install_dir", ""),
             'gpu':pictures_card()}

@@ -102,7 +102,9 @@ class ScriptScene(BaseModel):
     tone: int = Field(default=0, ge=0, le=5)
     archetype: Optional[str] = Field(default=None, max_length=24)
     role: Optional[str] = Field(default=None, max_length=24)
-    backdrop: Optional[dict[str, Any]] = None
+    backdrop: Optional[dict[str, Any]] = Field(default=None, description="a picture or video from the project's media bin behind the whole scene: "
+                                               "{\"media\": \"<media id>\", \"motion\": \"kenburns\" | \"pan\" | \"none\"}. Leave it out when no media fits. "
+                                               "A place (a room, a park; day or night) is not a backdrop: define it in `sets` and name it in this scene's `set`.")
     highlight_words: list[str] = Field(default_factory=list, max_length=3)
 
 

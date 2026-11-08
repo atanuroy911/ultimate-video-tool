@@ -20,10 +20,12 @@ await snap(page, "1-make");
 
 await page.getByLabel("Link or script").fill("Saving money is simple. Put away ten percent of what you earn, every month. In one year, that is more than a month of pay.");
 await page.getByRole("button", { name: /^OK/ }).click();
-check("one question per screen: style comes next", (await page.locator(".tf-question").innerText()).includes("style"));
-await snap(page, "2-style");
+check("one question per screen: where it will be posted comes next", (await page.locator(".tf-question").innerText()).includes("posted"));
+await snap(page, "2-shape");
 for (let i = 0; i < 6 && !(await page.getByRole("button", { name: "Make my video" }).count()); i++) await page.keyboard.press("Enter");
-check("Enter walks to the last screen, which shows the detected language", await page.getByText("English (from the script)").isVisible());
+await page.locator(".opt-tile", { has: page.locator(".opt-tile-title", { hasText: /^Language$/ }) }).click();
+check("Enter walks to the last screen, whose Language choice shows the detected language", await page.getByText("English (from the script)").isVisible());
+await page.getByRole("button", { name: /Back to your choices/ }).click();
 await snap(page, "3-ready");
 
 const clicksAfterSource = 2;   // OK, then Make my video (Enter on every screen in between)

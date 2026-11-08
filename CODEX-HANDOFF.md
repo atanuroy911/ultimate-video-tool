@@ -1,11 +1,15 @@
 # Handoff for Codex (and any other agent)
 
-**STOPPED — documentation only (latest owner instruction, 2026-11-03). Read [CLAUDE-HANDOFF.md](CLAUDE-HANDOFF.md) first.** Do not resume coding, tests, builds, renders, cleanup or queued work without a new instruction. QA workers and Vite were stopped. The remote projects directory was empty at final inventory; failed direct downloads truncated the local MP4 copies. Older “available/delivered/running” statements below are historical and do not establish current deliverability. No comprehensive cleanup was executed. The full change summary, authorization mistakes, output loss, verification and unfinished work are recorded in the Claude handoff.
+**Current state (2026-11-08): work is active; the 2026-11-03 stop was lifted long ago.** The newest entries are at the top of `WORKLOG.md`. Client and server are installed on the owner's PC at `E:\UltimateVideoTool` (Client, Server, ServerData) and tested there; the GPU server keeps its scratch copy for the browser suites. The old Claude handoff is history only: [docs/history/CLAUDE-HANDOFF-2026-11-03.md](docs/history/CLAUDE-HANDOFF-2026-11-03.md). Clutter removed from the checkout on 2026-11-08 sits in `E:\VideoTool-cleanup-2026-11-08` until the owner deletes it; `client/studio/e2e/out/` is no longer tracked (it was already in `.gitignore`).
+
+> **2026-11-07, read this first: [docs/plans/CODEX-NEXT-STEPS.md](docs/plans/CODEX-NEXT-STEPS.md)** is the current hand-over (state of both machines, what Claude changed that is not yet verified, the open plan steps in order, the rules, and the traps found). The older sections below are history.
+
+**2026-11-07 Codex continuation — Done by codex.** The next-steps file records the implementation and evidence added after Claude's handoff. The latest server reads showed an incomplete setup state and a timed-out Sonnet attempt with fallback. The workspace fixes, local judge and selected scratch browser checks are recorded separately from live acceptance. See [CODEX-NEXT-STEPS.md](docs/plans/CODEX-NEXT-STEPS.md).
 
 The owner works with Claude Code and Codex interchangeably. Read this file first, then the tail of `WORKLOG.md` (newest entries at the
 bottom) for details of what was done. When you stop, update both: what you did, what you verified, what is left.
 
-> **Latest state (2026-11-03 night): see the top of `CLAUDE-HANDOFF.md`** (fresh installs on both machines, System stats, GPU assignment, Server page, Settings restructure, the recording-2 judgement and the open list). The task order below still applies after the open list there.
+> **History (2026-11-03 night): see the top of `docs/history/CLAUDE-HANDOFF-2026-11-03.md`** (fresh installs on both machines, System stats, GPU assignment, Server page, Settings restructure, the recording-2 judgement and the open list). The task order below still applies after the open list there.
 
 ## Latest continuation — 2026-11-03
 

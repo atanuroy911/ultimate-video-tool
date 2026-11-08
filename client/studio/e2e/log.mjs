@@ -20,6 +20,7 @@ await call("audio.find_retakes", { why: "Look for abandoned openings. token=abc1
 await call("audio.prosody", { inputs: { windows: [[0, 1]] }, why: "Measure the stress." });
 await page.goto(`${base}/p/reference/result`, { waitUntil: "networkidle" });
 check("the log is hidden until asked", (await page.locator("[data-testid=director-log]").count()) === 0);
+await page.locator("details[aria-label=\"Talk to the director\"] > summary").click();   // "How this was made" sits in this section of the Result page
 await page.getByTestId("log-open").click();
 await page.waitForSelector("[data-testid=director-log]");
 check("the button opens it", await page.getByRole("dialog", { name: "Details" }).isVisible());

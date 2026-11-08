@@ -178,11 +178,20 @@ def _browser() -> str:
     return run(hyperframes_cmd("browser", "path")).strip().splitlines()[-1].strip()
 
 
-def frame_facts(comp_dir: Path, times: list[float]) -> dict[float, list[str]]:
-    """What covers what at these moments, measured on the real page (renderer/scripts/frame-facts.mjs). Facts for the director to read; nothing is changed."""
+def _frame_measurements(comp_dir: Path, times: list[float], *args: str) -> dict:
     script = paths.RENDERER / "scripts" / "frame-facts.mjs"
-    out = run([find_tool("node"), str(script), _browser(), str(comp_dir), json.dumps([float(t) for t in times])])
+    out = run([find_tool("node"), str(script), _browser(), str(comp_dir), json.dumps([float(t) for t in times]), *args])
     return {float(k): v for k, v in json.loads(out.strip().splitlines()[-1]).items()}
+
+
+def frame_facts(comp_dir: Path, times: list[float]) -> dict[float, list[str]]:
+    """What covers what at these moments, measured on the real page. Nothing is changed."""
+    return _frame_measurements(comp_dir, times)
+
+
+def frame_acceptance(comp_dir: Path, times: list[float]) -> dict[float, dict]:
+    """The same probe, with exact coverage, visible subject and bounds for the lab judge."""
+    return _frame_measurements(comp_dir, times, "acceptance")
 
 
 def probe(comp_dir: Path, expression: str, at: float = 0.0, screenshot: Optional[Path] = None):

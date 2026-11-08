@@ -32,8 +32,8 @@ def test_pages_give_each_new_picture_the_whole_screen():
     assert [len(p["elements"]) for p in out] == [3, 1, 1]
     assert [(p["start"], p["end"]) for p in out] == [(0.0, 3.0), (3.0, 6.0), (6.0, 9.0)]
     assert out[0]["id"] == "s1" and out[1]["id"] == "s1p2" and out[1]["transition_in"] == "fade" and out[1]["sfx"] == [{"t": 3.5, "id": "pop"}]
-    sp = paginate([{**sc, "stick": {"x": 1}}], "9:16")          # stick figures: pages too, cut (the figures continue), never faded
-    assert len(sp) == 3 and [p.get("transition_in") for p in sp[1:]] == ["cut", "cut"] and all(p.get("cont") for p in sp[1:]) and all(p["stick"] == {"x": 1} for p in sp)
+    sp = paginate([{**sc, "stick": {"x": 1}}], "9:16")          # stick figures: one picture at a time (even 0.6 s later), cut (the figures continue), never faded
+    assert [len(p["elements"]) for p in sp] == [2, 1, 1, 1] and all(p.get("transition_in") == "cut" and p.get("cont") for p in sp[1:]) and all(p["stick"] == {"x": 1} for p in sp)
 
 
 def test_an_infographic_build_up_stays_on_one_screen():
@@ -71,3 +71,37 @@ def test_a_long_build_up_is_cut_in_two_at_its_biggest_pause():
                                                                  {"type": "ring", "at": 5.77}, {"type": "arrow", "at": 7.78}, {"type": "value_card", "at": 8.67}]}
     out = paginate([sc], "9:16")
     assert [[e["type"] for e in p["elements"]] for p in out][-1] == ["arrow", "value_card"] and len(out) >= 2
+
+
+def test_a_cartoon_shows_one_picture_at_a_time():
+    # the owner's local cartoon (2026-11-08): the shop scene kept a sunrise, the shop sign (the AI set its height) and the sweets on one
+    # screen, and the clock of the next scene was drawn over the pinned shop sign
+    from vt.compose.composer import paginate
+
+    sc = {"id": "s2", "start": 4.52, "end": 10.86, "stick": {"x": 1}, "elements": [
+        {"type": "sticker", "at": 4.79}, {"type": "icon", "at": 5.99, "y": 0.3, "_placed": True, "free": True}, {"type": "sticker", "at": 9.89}]}
+    out = paginate([sc], "9:16")
+    assert [len(p["elements"]) for p in out] == [1, 1, 1]
+    assert [(p["start"], p["end"]) for p in out] == [(4.52, 5.99), (5.99, 9.89), (9.89, 10.86)]
+    assert all(p["transition_in"] == "cut" and p["stick"] == {"x": 1} for p in out[1:])
+
+
+def test_a_cartoon_keeps_together_what_arrives_together_or_was_kept_on_screen():
+    from vt.compose.composer import paginate
+
+    label = {"id": "s1", "start": 0.0, "end": 6.0, "stick": {"x": 1}, "elements": [{"type": "sticker", "at": 0.5}, {"type": "keyword", "at": 0.7}]}
+    assert paginate([label], "9:16") == [label]                              # a sticker and its label
+    kept = {"id": "s1", "start": 0.0, "end": 6.0, "stick": {"x": 1}, "elements": [{"type": "sticker", "at": 0.5, "until": 5.0, "_held": True}, {"type": "icon", "at": 2.0}]}
+    assert paginate([kept], "9:16") == [kept]                                # the director held the first one until a later word
+    build = {"id": "s1", "start": 0.0, "end": 6.0, "stick": {"x": 1}, "elements": [{"type": "icon_row", "at": 0.5}, {"type": "value_card", "at": 2.0}]}
+    assert paginate([build], "9:16") == [build]                              # a build-up accumulates
+
+
+def test_a_placed_cartoon_picture_leaves_with_its_shot():
+    # the owner's lantern cartoon (2026-11-08): the AI placed the lantern; its end at the scene's end kept it beside the next picture
+    from vt.compose.composer import paginate
+
+    sc = {"id": "s1", "start": 0.0, "end": 3.29, "stick": {"x": 1}, "elements": [
+        {"type": "sticker", "at": 0.74, "until": 3.29, "free": True, "_placed": True}, {"type": "icon", "at": 2.24, "until": 3.29, "free": True}]}
+    a, b = paginate([sc], "9:16")
+    assert a["elements"][0]["until"] == 2.24 and b["elements"][0]["until"] == 3.29

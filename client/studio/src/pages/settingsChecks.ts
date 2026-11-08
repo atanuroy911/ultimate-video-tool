@@ -13,7 +13,7 @@ const CHECKS: Record<string, [string, string, string]> = {
   "GPU build": ["Graphics-card support", "The installed app matches this computer's graphics hardware.", "Run the server installer again so it chooses the right graphics support."],
   "ASR model": ["Speech reader", "A downloaded speech reader is ready.", "Open Voice & speech and download a speech reader."],
   "Picture dictionary": ["Matching words to pictures", "The built-in picture dictionary is ready.", "Run the server installer again to restore the picture dictionary."],
-  "Local AI (scene planner)": ["Local AI", "The local AI is ready, or you have chosen built-in rules.", "Open Directors & assistants, then Server details to check the local model."],
+  "Local AI (scene planner)": ["Local AI", "The local AI is ready, or you have chosen built-in rules.", "Check Language AI on the Server page."],
   "Voices (script to speech)": ["Reading scripts aloud", "A voice is available to read your script.", "Open Voice & speech to set up a voice."],
   "Server management": ["Server controls", "The server's control page is installed.", "Run the server installer again to restore its control page."],
 };

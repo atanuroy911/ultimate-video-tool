@@ -32,15 +32,21 @@ const STEPS = [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
 
 const ROW = 22;
 /** Puts items that would overlap on different rows (greedy, left to right): every item gets the first row whose last item ended before it starts. */
-function pack(items: { left: number; w: number }[]): { rows: number[]; count: number } {
+/** Rows for chips that would overlap. `keep` remembers each chip's row (by key) between edits: a chip stays where it was unless something now overlaps it there,
+ *  so moving one chip never reshuffles the others or changes the lane's height under the lanes below it. */
+function pack(items: { left: number; w: number; key?: string }[], keep?: Map<string, number>): { rows: number[]; count: number } {
   const order = items.map((_, i) => i).sort((a, b) => items[a].left - items[b].left);
   const ends: number[] = [];
   const rows = new Array<number>(items.length).fill(0);
+  const free = (r: number, left: number) => (ends[r] ?? -Infinity) + 3 <= left;
   for (const i of order) {
-    let r = ends.findIndex((e) => e + 3 <= items[i].left);
-    if (r < 0) { r = ends.length; ends.push(0); }
+    const want = items[i].key != null ? keep?.get(items[i].key!) : undefined;
+    let r = want != null && free(want, items[i].left) ? want : -1;
+    if (r < 0) { r = 0; while (!free(r, items[i].left)) r++; }
+    while (ends.length <= r) ends.push(-Infinity);
     ends[r] = items[i].left + items[i].w;
     rows[i] = r;
+    if (items[i].key != null) keep?.set(items[i].key!, r);
   }
   return { rows, count: Math.max(1, ends.length) };
 }
@@ -492,7 +498,8 @@ export default function Timeline({ r, duration, seek, selected, onSelect, select
     const t=r.sc.data?.elements?.[`${s.id}:${k}`], sceneTime=timing.get(s.id);
     return {s,el,k,start:el.start ?? t?.start ?? sceneTime?.start ?? 0,end:el.end ?? t?.end ?? sceneTime?.end ?? dur};
   })),[scenes,r.sc.data?.elements,timing,dur]);
-  const elPack = useMemo(()=>pack(elItems.map(q=>({left:x(q.start),w:Math.max(22,(q.end-q.start)*pps)}))),[elItems,pps]);
+  const elRows = useRef(new Map<string, number>());
+  const elPack = useMemo(()=>pack(elItems.map(q=>({left:x(q.start),w:Math.max(22,(q.end-q.start)*pps),key:q.el.id??`${q.s.id}:${q.k}`})),elRows.current),[elItems,pps]);
   const startVisual = (e: React.PointerEvent,q:typeof elItems[number],side:"move"|"start"|"end")=>{
     if(e.button!==0) return; e.stopPropagation();e.preventDefault();
     window.dispatchEvent(new Event("vt-flush-elements"));
@@ -513,7 +520,8 @@ export default function Timeline({ r, duration, seek, selected, onSelect, select
     },()=>{setVisualDrag(null);clearPreview();});
   };
   const actItems = useMemo(() => scenes.flatMap((s) => (s.stick?.actions ?? []).map((a: any, k: number) => ({ s, a, k }))), [scenes]);
-  const actPack = useMemo(() => pack(actItems.map((q) => ({ left: LABEL + q.a.start * pps, w: Math.max(10, (q.a.end - q.a.start) * pps, chipW(q.a.do.replace("_", " "))) }))), [actItems, pps]);
+  const actRows = useRef(new Map<string, number>());
+  const actPack = useMemo(() => pack(actItems.map((q) => ({ left: LABEL + q.a.start * pps, w: Math.max(10, (q.a.end - q.a.start) * pps, chipW(q.a.do.replace("_", " "))), key: `${q.s.id}:${q.k}` })), actRows.current), [actItems, pps]);
   const keyZoom = { t: timeStore.t, px: x(timeStore.t) - (scroller.current?.scrollLeft ?? 0) };
 
   return (
@@ -610,7 +618,7 @@ export default function Timeline({ r, duration, seek, selected, onSelect, select
                   {label:"Split at playhead",run:()=>r.patchElement(q.s.id,q.k,{split:timeStore.t})},
                   {label:"Remove visual",danger:true,run:()=>r.patchElement(q.s.id,q.k,{delete:true})},
                 ]});}}>
-                {chipWidth>=44 && <ElementIcon type={q.el.type}/>}<span className="tl-element-name">{elementName(q.el.type)}</span>
+                <ElementIcon type={q.el.type}/><span className="tl-element-name">{elementName(q.el.type)}</span>
               </div>;
             })}
           </div>

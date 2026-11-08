@@ -1,10 +1,10 @@
 import "../new-options.css";
-import { MessageSquareText, AudioLines, Bot, Check, ChevronRight, Cpu, Eraser, Film, Gauge, Images, Languages, Laptop, MonitorPlay, Music, Palette, Play, Repeat, Server, Sparkles, Square, Subtitles, Terminal, Timer, Upload, Volume2, VolumeX, Wand2, X } from "lucide-react";
+import { MessageSquareText, AudioLines, Bot, Check, ChevronRight, Cpu, Download, Ear, Eraser, Film, Gauge, Images, Languages, Laptop, MonitorPlay, Music, Palette, Play, Repeat, Server, Sparkles, Square, Subtitles, Target, Terminal, Timer, Upload, User, Users, Volume2, VolumeX, Wand2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 
 /* Every choice the New-video flow offers beyond the basics, as a tile on one overview and as its own page of big visual cards.
    Nothing here is a drop-down: a person picks by looking. "Automatic" is always the first card and says what it will do. */
-export type OptionId = "language" | "style" | "edit" | "director" | "look" | "music" | "captions" | "voice" | "pace" | "cleanup" | "length" | "sfx" | "words" | "pictures" | "script";
+export type OptionId = "language" | "style" | "edit" | "director" | "look" | "music" | "captions" | "voice" | "pace" | "cleanup" | "length" | "sfx" | "words" | "pictures" | "script" | "purpose" | "listening";
 
 export interface OptionsCtx {
   source: string | null;
@@ -25,15 +25,21 @@ export interface OptionsCtx {
   endCard: string; setEndCard: (v: string) => void;
   reviewScript: boolean; setReviewScript: (v: boolean) => void;
   voiceSummary: string;
+  usecase: string; setUsecase: (v: string) => void; usecases: { id: string; label: string; about?: string }[];
+  speakers: string; setSpeakers: (v: any) => void;
+  scriptPolicy: string; setScriptPolicy: (v: any) => void;
+  speechModel: string; setSpeechModel: (v: string) => void; speechModelDefault: string; models: { key: string; note: string; installed: boolean }[];
+  subtitlesMode: string; setSubtitlesMode: (v: any) => void;
   legacy: (id: "style" | "voice") => ReactNode;       // the style cards and the voice settings already exist as full pages
 }
 
-const CAPTION_LABELS: Record<string, string> = { auto: "Automatic", pop: "Bold short lines", theme: "Match the theme", word: "One word at a time", keyword: "Emphasize key words", box: "Boxed", pill: "Rounded background", underline: "Underline" };
+export const CAPTION_LABELS: Record<string, string> = { auto: "Automatic", pop: "Bold short lines", theme: "Match the theme", word: "One word at a time", keyword: "Emphasize key words", box: "Boxed", pill: "Rounded background", underline: "Underline" };
 const LANGUAGE_NAMES: Record<string, string> = { auto: "Automatic", bn: "বাংলা", en: "English" };
 const EDIT_NAMES: Record<string, string> = { auto: "Automatic edit", subtitles: "Keep my video, add subtitles", screen: "Screen recording with graphics" };
 const LENGTH_NAMES: Record<string, string> = { auto: "Automatic", keep: "Keep it all", "60": "About 60 seconds", "90": "About 90 seconds" };
 const SFX_NAMES: Record<string, string> = { off: "None", subtle: "A little", normal: "Normal", rich: "Lots" };
 const PACE_NAMES: Record<string, string> = { calm: "Calm", normal: "Normal", fast: "Fast" };
+const listeningAuto = (c: OptionsCtx) => c.speakers === "auto" && c.scriptPolicy === "mixed" && c.speechModel === c.speechModelDefault && c.subtitlesMode === "auto";
 
 interface Def { id: OptionId; title: string; question: string; hint: string; icon: ReactNode; hue: number; show?: (c: OptionsCtx) => boolean; value: (c: OptionsCtx) => string; auto: (c: OptionsCtx) => boolean }
 
@@ -42,6 +48,7 @@ const DEFS: Def[] = [
   { id: "style", title: "Style", question: "What should it look like?", hint: "The style decides what appears on screen while you speak.", icon: <Film size={20} />, hue: 275, value: (c) => c.styleTitle, auto: (c) => c.style === "auto" },
   { id: "edit", title: "Edit this recording", question: "How much should we change your recording?", hint: "Your picture and pauses can stay exactly as they are.", icon: <MonitorPlay size={20} />, hue: 190, show: (c) => c.hasPicture, value: (c) => EDIT_NAMES[c.recordingEdit] ?? c.recordingEdit, auto: (c) => c.recordingEdit === "auto" },
   { id: "director", title: "Director", question: "Who directs this video?", hint: "The director reads the whole script and decides what every moment shows.", icon: <Bot size={20} />, hue: 255, value: (c) => c.directors.find((d) => d.id === c.director)?.label ?? "Best available", auto: (c) => c.director === "best" },
+  { id: "purpose", title: "Purpose", question: "What kind of video is it?", hint: "The director plans a story, a product demo or a lesson differently. Automatic decides from what is said.", icon: <Target size={20} />, hue: 265, value: (c) => (c.usecase === "auto" ? "Automatic" : c.usecases.find((u) => u.id === c.usecase)?.label ?? c.usecase), auto: (c) => c.usecase === "auto" },
   { id: "look", title: "Look", question: "Pick the colours and type.", hint: "Colours, fonts and the feel of titles.", icon: <Palette size={20} />, hue: 330, value: (c) => (c.theme === "auto" ? "Automatic" : c.themes.find((t) => t.name === c.theme)?.label ?? c.theme), auto: (c) => c.theme === "auto" },
   { id: "music", title: "Music", question: "Which music sits under your voice?", hint: "It lowers by itself while someone speaks. You can fine-tune the level later in the editor.", icon: <Music size={20} />, hue: 20, value: (c) => (c.musicTrack === "auto" ? "Automatic" : c.musicTrack === "" ? "No music" : c.music.find((m) => m.id === c.musicTrack)?.title ?? c.musicTrack), auto: (c) => c.musicTrack === "auto" },
   { id: "captions", title: "Captions", question: "How should the words appear?", hint: "Each card shows the real look.", icon: <Subtitles size={20} />, hue: 45, value: (c) => CAPTION_LABELS[c.captions] ?? c.captions, auto: (c) => c.captions === "auto" },
@@ -51,6 +58,7 @@ const DEFS: Def[] = [
   { id: "length", title: "Length", question: "How long should the video be?", hint: "Automatic shortens a long vertical video to about a minute.", icon: <Timer size={20} />, hue: 230, value: (c) => LENGTH_NAMES[c.targetLength] ?? c.targetLength, auto: (c) => c.targetLength === "auto" },
   { id: "sfx", title: "Sound effects", question: "How many sound effects?", hint: "Whooshes for moving pictures, ticks for lists, hits for big moments.", icon: <AudioLines size={20} />, hue: 300, value: (c) => SFX_NAMES[c.soundEffects] ?? c.soundEffects, auto: (c) => c.soundEffects === "normal" },
   { id: "words", title: "Words to get right", question: "Names and unusual words", hint: "Speech recognition can mishear them. List them and they are spelled your way.", icon: <Wand2 size={20} />, hue: 90, value: (c) => (c.glossary.trim() ? `${c.glossary.split(/[,\n]/).filter((s) => s.trim()).length} word(s)` : "None"), auto: (c) => !c.glossary.trim() },
+  { id: "listening", title: "Listening", question: "How should your speech be heard?", hint: "Who is speaking, how mixed English words are written, and which speech model listens.", icon: <Ear size={20} />, hue: 60, show: (c) => c.source !== "script", value: (c) => (listeningAuto(c) ? "Automatic" : [c.speakers === "off" ? "One speaker" : "", c.scriptPolicy === "bangla" ? "Bangla script" : "", c.speechModel !== c.speechModelDefault ? c.speechModel : "", c.subtitlesMode !== "auto" ? (c.subtitlesMode === "off" ? "Listen only" : "Any captions") : ""].filter(Boolean).join(" · ")), auto: listeningAuto },
   { id: "script", title: "Director’s script", question: "Review what the director planned?", hint: "The director plans every scene first. You can read it, change options and send feedback before anything is polished.", icon: <MessageSquareText size={20} />, hue: 250, value: (c) => (c.reviewScript ? "Review it first" : "Straight to the editor"), auto: (c) => !c.reviewScript },
   { id: "pictures", title: "Your own pictures", question: "Add pictures of your own", hint: "Name a file after a word you say and it appears when that word is spoken.", icon: <Images size={20} />, hue: 175, value: (c) => (c.pictures.length ? `${c.pictures.length} added` : "None"), auto: (c) => !c.pictures.length },
 ];
@@ -172,6 +180,50 @@ export function OptionPage({ id, c }: { id: OptionId; c: OptionsCtx }) {
       );
     case "director":
       return <DirectorChoices value={c.director} onChange={c.setDirector} directors={c.directors}/>;
+    case "purpose":
+      return (
+        <Grid label="Purpose" wide>
+          {(c.usecases.length ? c.usecases : [{ id: "auto", label: "Auto", about: "Decided from what is said." }]).map((u) => (
+            <Card key={u.id} selected={c.usecase === u.id} onPick={() => c.setUsecase(u.id)} title={u.id === "auto" ? "Automatic" : u.label} about={u.about} visual={<Glyph hue={265}>{u.id === "auto" ? <Sparkles size={28} /> : <Target size={28} />}</Glyph>} />
+          ))}
+        </Grid>
+      );
+    case "listening":
+      return (
+        <>
+          <h3 className="vsub">Speakers</h3>
+          <Grid label="Speakers">
+            <Card selected={c.speakers === "auto"} onPick={() => c.setSpeakers("auto")} title="Detect" tag="Default" about="Each person in an interview gets their own look." visual={<Glyph hue={60}><Users size={28} /></Glyph>} />
+            <Card selected={c.speakers === "off"} onPick={() => c.setSpeakers("off")} title="One speaker" about="Everything is treated as one voice." visual={<Glyph hue={60}><User size={28} /></Glyph>} />
+          </Grid>
+          {c.language !== "en" && (
+            <>
+              <h3 className="vsub">English words in Bangla speech</h3>
+              <Grid label="English words in Bangla speech">
+                <Card selected={c.scriptPolicy === "mixed"} onPick={() => c.setScriptPolicy("mixed")} title="Keep English letters" tag="Default" about="“Market” stays Market." visual={<Glyph hue={60}><b className="vbig">Aa</b></Glyph>} />
+                <Card selected={c.scriptPolicy === "bangla"} onPick={() => c.setScriptPolicy("bangla")} title="Write in Bangla script" about="“Market” becomes মার্কেট." visual={<Glyph hue={60}><b className="vbig">অ</b></Glyph>} />
+              </Grid>
+            </>
+          )}
+          {c.source === "link" && (
+            <>
+              <h3 className="vsub">Words from the link</h3>
+              <Grid label="Subtitles from the link">
+                <Card selected={c.subtitlesMode === "auto"} onPick={() => c.setSubtitlesMode("auto")} title="Best quality" tag="Default" about="Uses the link's own subtitles when they are good, otherwise listens." visual={<Glyph hue={60}><Sparkles size={28} /></Glyph>} />
+                <Card selected={c.subtitlesMode === "any"} onPick={() => c.setSubtitlesMode("any")} title="Fast: any captions" about="Takes whatever captions the link has." visual={<Glyph hue={60}><Subtitles size={28} /></Glyph>} />
+                <Card selected={c.subtitlesMode === "off"} onPick={() => c.setSubtitlesMode("off")} title="Listen only" about="Ignores the link's captions and listens to the speech." visual={<Glyph hue={60}><Ear size={28} /></Glyph>} />
+              </Grid>
+            </>
+          )}
+          <h3 className="vsub">Speech model</h3>
+          <Grid label="Speech model" wide>
+            {(c.models.length ? c.models : [{ key: c.speechModelDefault, note: "", installed: true }]).map((m) => (
+              <Card key={m.key} selected={c.speechModel === m.key} onPick={() => c.setSpeechModel(m.key)} title={m.key} tag={m.key === c.speechModelDefault ? "Default" : undefined}
+                about={m.installed ? m.note : `${m.note || "A speech model"} · downloaded the first time it is used`} visual={<Glyph hue={60}>{m.installed ? <Ear size={28} /> : <Download size={28} />}</Glyph>} />
+            ))}
+          </Grid>
+        </>
+      );
     case "look":
       return (
         <Grid label="Look">

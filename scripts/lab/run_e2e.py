@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -30,7 +31,22 @@ def main() -> int:
         suites = [s for s in suites if s in a.only.split(",")]
     suites = [s for s in suites if s not in a.skip.split(",")]
     rows = []
+    # Suites change the project and settings they run on. With VT_DATA (the scratch server's data folder) each suite starts from the same
+    # `reference` project and settings: they are copied before it runs and put back after, so a result never depends on the order.
+    data = Path(__import__("os").environ["VT_DATA"]) if __import__("os").environ.get("VT_DATA") else None
+    ref = data / "projects" / "reference" if data else None
+    keep = data / ".e2e-runner-reference" if data else None          # outside projects/: the server would list a copy there as a second video
+    settings = data / "settings.json" if data else None
+    if ref and ref.is_dir():
+        shutil.rmtree(keep, ignore_errors=True)
+        shutil.copytree(ref, keep)
+    settings_text = settings.read_bytes() if settings and settings.exists() else None
     for name in suites:
+        if keep and keep.is_dir():
+            shutil.rmtree(ref, ignore_errors=True)
+            shutil.copytree(keep, ref)
+        if settings_text is not None:
+            settings.write_bytes(settings_text)
         t0 = time.time()
         env = {**__import__("os").environ, "VT_URL": a.url, "VT_PROJECT": "reference"}
         try:
@@ -43,10 +59,16 @@ def main() -> int:
         fails = [ln.strip() for ln in out.splitlines() if ln.strip().startswith("FAIL")]
         wait = re.findall(r"waiting for (.*)", out)
         note = f"{counts[-1][0]} passed, {counts[-1][1]} failed" if counts else ("no counts printed")
-        why = (fails[0] if fails else (("waiting for " + wait[0].strip()[:90]) if wait else ("timed out" if code == 124 else (out.strip().splitlines()[-1][:110] if out.strip() else "no output"))))
+        why = (fails[0] if fails else (("waiting for " + wait[0].strip()[:90]) if wait else ("timed out" if code == 124 else (next((ln.strip()[:110] for ln in reversed(out.strip().splitlines()) if ln.strip() and not ln.strip().startswith(("Node.js v", "}", "at "))), "no output")))))
         rows.append((name, "PASS" if code == 0 else "FAIL", note, why if code != 0 else "", took))
         print(f"{name:28} {'PASS' if code == 0 else 'FAIL':5} {note:24} {took:4}s  {why if code != 0 else ''}", flush=True)
         Path(a.out).write_text("| suite | result | counts | first problem | seconds |\n|---|---|---|---|---|\n" + "\n".join(f"| {n} | {s} | {c} | {w.replace('|', '/')} | {t} |" for n, s, c, w, t in rows) + "\n", encoding="utf-8")
+    if keep and keep.is_dir():
+        shutil.rmtree(ref, ignore_errors=True)
+        shutil.copytree(keep, ref)
+        shutil.rmtree(keep, ignore_errors=True)
+    if settings_text is not None:
+        settings.write_bytes(settings_text)
     bad = [r for r in rows if r[1] != "PASS"]
     print(f"\n{len(rows) - len(bad)} of {len(rows)} suites pass")
     return 1 if bad else 0

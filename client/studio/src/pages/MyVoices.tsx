@@ -65,7 +65,7 @@ export default function MyVoices() {
       <h2>My own voice (cloning)</h2>
       <p className="muted small" style={{ margin: 0 }}>
         Record or upload 10 to 30 seconds of clear speech in English and the app can read typed scripts in that voice, offline. Only use <strong>your own voice</strong> or the voice of
-        someone who agreed. The recording stays on this computer.
+        someone who agreed. The recording is kept on your server and is not sent anywhere else.
       </p>
       {list.data && !list.data.available && (
         <div className="banner" role="note">Voice cloning cannot run on this computer (ONNX Runtime is missing). Reinstall the app's Python packages.</div>

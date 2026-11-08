@@ -21,8 +21,8 @@ for (const [vname, vp] of Object.entries({ desktop: { width: 1440, height: 900 }
     page.on("pageerror", (e) => errs.push(e.message));
     for (const [name, url] of Object.entries(pages)) {
       if (only && !name.includes(only)) continue;
-      await page.goto(base + url, { waitUntil: "networkidle" }).catch(() => {});
-      await page.waitForTimeout(700);
+      await page.goto(base + url, { waitUntil: "load" }).catch(() => {});   // not "networkidle": the editor preview streams audio
+      await page.waitForTimeout(1500);
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       await page.screenshot({ path: path.join(out, `${name}-${vname}-${scheme}.png`) });
       if (overflow > 0) console.log(`  sideways scroll: ${name} ${vname} ${scheme} (+${overflow}px)`);

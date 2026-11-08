@@ -1,7 +1,7 @@
 // Fixing one element by hand (plan step E17, human in the loop): the Position tab's transform controls, the handles on the picture (move, size, turn, pin the four corners), the arrow keys,
 // the motion points that hold the new values, reset, undo, and the same at phone width in light and dark.
 // A scratch server only: it changes the project it runs on.
-//   VT_DATA=<scratch dir> python -m vt.cli server --host 127.0.0.1 --port 8771 --comfy off --ollama off --voicestudio off     (with samples/build_reference.py reference built there)
+//   VT_DATA=<scratch dir> python -m vt.cli server --host 127.0.0.1 --port 8771 --comfy off --ollama off     (with samples/build_reference.py reference built there)
 //   cd client/studio && VT_SERVER_URL=http://127.0.0.1:8771 npx vite --port 5177 --strictPort --host 127.0.0.1
 //   VT_URL=http://127.0.0.1:5177 node e2e/transform.mjs [out dir]
 import fs from "node:fs";
@@ -64,7 +64,7 @@ async function pick(page) {
   await page.waitForTimeout(800);
   const index = Number(target[2]);
   const card = page.locator(".el-card.picked");
-  await card.getByRole("radio", { name: "Position" }).click().catch(async () => card.getByText("Position", { exact: true }).click());
+  await card.getByRole("button", { name: "Position", exact: true }).click();
   await page.waitForTimeout(300);
   return { index, phone, fr };
 }

@@ -27,6 +27,60 @@ def test_tokens_expire_and_revoke_immediately(scoped, monkeypatch):
     assert scope.project_for(fresh) is None
 
 
+def test_scoped_director_gets_a_short_brief_and_blocks_delegation(ref, monkeypatch):
+    from vt.ai import talk
+    from vt.mcp import scope, server
+    from vt.modules.envelope import CallResult
+    from vt.modules.executor import Executor
+    from vt.script import service
+    from vt.script.prompt import transcript_text
+    from vt.planner.catalogue import component_catalogue
+
+    service.set_script_kind(ref, "cartoon")
+    full = service.script_task(ref)
+    calls = []
+
+    def execute(self, module_id, *args, **kwargs):
+        calls.append(module_id)
+        return CallResult(ok=True, status="ok", summary="Checked")
+
+    monkeypatch.setattr(Executor, "call", execute)
+    token = scope.issue(ref.id)
+
+    async def run(_ctx):
+        brief = server.get_script_task(ref.id)
+        assert len(brief["task"]) < .7 * len(full["task"])
+        assert brief["schema"] == full["schema"]
+        assert transcript_text(ref.transcript(), ref.beats()) in brief["task"]
+        for spec in component_catalogue():
+            example = json.dumps(spec["example"], ensure_ascii=False, separators=(",", ":"))
+            assert example in brief["task"], f"{spec['type']} fields remain discoverable"
+        assert "cartoon" in brief["task"] and "submit_script" in brief["submit"]
+        assert brief["has_current_script"] is False
+        assert server.get_current_script(ref.id)["script"] is None
+        with pytest.raises(MCPError, match="already waiting for your direction"):
+            server.run_pipeline(ref.id)
+
+        catalog = {row["id"]: row for row in server.module_catalog_tool()}
+        advice = catalog["direct.plan_script"]["during_director_task"]
+        assert advice == server.module_describe_tool("direct.plan_script")["during_director_task"]
+        result = server.module_call_tool(ref.id, "direct.plan_script", {})
+        assert not result["ok"] and result["status"] == "refused" and result["fix"] == advice
+        assert not calls
+        assert server.module_call_tool(ref.id, "craft.check", {})["ok"]
+        assert calls == ["craft.check"]
+
+    try:
+        ctx = SimpleNamespace(request=SimpleNamespace(headers={scope.HEADER: token}))
+        asyncio.run(scope.middleware(ctx, run))
+    finally:
+        scope.revoke(token)
+
+    logged = [json.loads(row["prompt"]) for row in talk.load(ref.dir) if row["kind"] == "tool"]
+    assert [row["arguments"]["module_id"] for row in logged if row["tool"] == "module_call"] == ["direct.plan_script", "craft.check"]
+    assert server.module_call_tool(ref.id, "direct.plan_script", {})["ok"], "manual assistant use keeps its existing access"
+
+
 def test_cross_project_tools_and_global_changes_are_refused_before_execution(scoped):
     scope, token = scoped
     from vt.mcp import server

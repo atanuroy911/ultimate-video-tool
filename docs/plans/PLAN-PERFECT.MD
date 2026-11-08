@@ -194,6 +194,8 @@ The work is finished when all of these are true. Every gate is checked in Phase 
   Evidence: scratch server on the GPU server (8792), reference built, dashboard.mjs reaches the real app, screenshot read (client/studio/e2e/out/a6-dashboard.png)
 
 - [ ] **A7. Run every browser suite and sort the results.** Write `docs/evidence/perfect/A7-e2e.md` with one row per suite: passes, fails and why, or out of date. Delete helper scripts beginning with `_` that are no longer useful (keep `_audit.mjs`). Fix real bugs now. Update out-of-date suites. Retire a suite to `e2e/retired/` with a reason in its README only if the feature is gone. Find out why `crawl.mjs` takes over 10 minutes (ROADMAP P10-12). **Check:** every kept suite passes.
+  Partial verification — Done by codex (2026-11-07). The updated timeline and layer suites passed 41 checks on isolated scratch projects, including exact boundary saves with unchanged narration beats. Evidence: docs/evidence/perfect/A7-codex-timeline.md. The full sweep stays open.
+  Progress (2026-11-08, Claude): full sweep on this PC behind a guard that refuses heavy work (`scripts/lab/e2e_guard.mjs`; the runner now resets `reference` per suite): 56 of 71 pass. 5 real bugs fixed (empty narrow chips, size jump when typing a transform, the caption look and a picture video's plan unreachable after the old editor, a Settings crash) and 17 out-of-date suites updated; crawl takes 62 s. The other 15 need the GPU server's scratch (they make videos or need ComfyUI). Evidence: docs/evidence/perfect/A7-e2e.md.
 
 - [x] **A8. Run the other test sets.** `cd client/studio && npm run test:timeline && npm run build`. `cd client/desktop && npm test`. `cd server/desktop && npm test`. `.venv/Scripts/python.exe scripts/check_docs.py` (on 2026-11-05 it reported that the facts table in `docs/STATUS.md` differs from the code: run it with `--fix-facts`, then read what changed). **Check:** all pass.
   Evidence: npm run test:timeline 23/23 pass; npm run build (tsc + vite) ok; client/desktop npm test (companion, director runner, transport) ok; server/desktop npm test (3 files) ok; check_docs.py --fix-facts rewrote only the counts in the STATUS.md facts table (40->41 element types, 37->43 MCP tools, 247->264 API routes, new pages NewOptions/ScriptReview/Server...), then check_docs.py reports no PROBLEM.
@@ -276,7 +278,8 @@ Owner, 2026-11-05: Claude and Codex are usually on the person's computer, not on
 - [x] **M6. Make the app use the helper.** In `main.js`: on start, read `helper-run.json` and start the helper if it does not answer: `spawn(process.execPath, [helperPath], {detached: true, stdio: "ignore", windowsHide: true, env: {...process.env, ELECTRON_RUN_AS_NODE: "1"}}).unref()`. In `attach()`, replace `companion.select` with `POST /servers`. Do not stop it in `before-quit`. Add `--helper` at the very top of `main.js`: start the helper and exit before anything else loads. Expose `helper: {status, start, stop, setAutostart}` in `main-preload.js`, and point `vtDesktop.companion` in `Engines.tsx` and `vtDesktop.director` in `store.ts` at it. Remove the old `director.run` and `onLog` preload entries if nothing handles them. Add the new files to `build.files` and, if Node mode cannot read them from the asar archive, to `asarUnpack`. **Check:** `npm test`, `tests/test_product_split.py`, and a built app where closing the window leaves the helper running and "Claude on this PC" still listed.
   Evidence: The app starts/reuses/replaces the helper and only tells it the server's address; --helper entry, helper IPC and preload, companion removed, package and CI updated. A built app (electron-builder --dir): Node mode runs helper.js from app.asar (no asarUnpack), and after the window closes the helper keeps running and the server still lists Claude on this PC. Also fixed a stop-order race (3 of 6 runs failed before). Idle memory: private 58 MB, working set 83 MB (3 MB over the plan's 80). See docs/evidence/perfect/M6-app-uses-the-helper.md.
 
-- [ ] **M7. Start with the computer.** Windows and macOS: `app.setLoginItemSettings({openAtLogin, args: ["--helper"]})`. Linux: a file in `~/.config/autostart/`. On by default at first run. **Check:** a real sign-out and sign-in on this PC if the owner agrees, otherwise the registry entry read back and its command run by hand.
+- [x] **M7. Start with the computer.** Windows and macOS: `app.setLoginItemSettings({openAtLogin, args: ["--helper"]})`. Linux: a file in `~/.config/autostart/`. On by default at first run. **Check:** a real sign-out and sign-in on this PC if the owner agrees, otherwise the registry entry read back and its command run by hand.
+  - 2026-11-08 (Claude): the registry read back showed the helper entry still pointing at an uninstalled copy and the server entry named "electron.app.Electron". Fixed (the client rewrites an on entry that points elsewhere; the server uses its own name and moves the old entry). After reinstalling on E: the registry reads `Ultimate Video Tool Helper: E:/UltimateVideoTool/Client/Ultimate Video Tool.exe --helper` and `Ultimate Video Tool Server: E:/UltimateVideoTool/Server/Ultimate Video Tool Server.exe --background`. The owner declined a sign-out test (2026-11-08); the registry read-back is the check.
   Code: written in `main.js` (M6). Checked so far (2026-11-06): the command the entry runs, `"Ultimate Video Tool.exe" --helper`, on a packaged build: it starts one helper and exits with no window (11.5 s cold, 0.26 s when the helper already runs, same helper kept), and registers nothing. **Waiting for the owner and H1:** the entry itself is written only by an installed build (a scratch build would leave an entry pointing at a temporary folder, and the command checker refused that, rightly). Read the entry back once the real installer has put the new app on this PC, with the owner's agreement. Linux's `.desktop` file is untested (no Linux desktop here).
 
 - [x] **M8. Show it in the app.** In Settings, Directors: "Helper on this PC", running or not, which servers it reaches, Claude and Codex each ready or "Sign in", and a switch "Keep Claude and Codex ready when the app is closed". On the Server page: which computers are connected and which directors each offers. `listing()` notes tell people about the helper, not about opening the app. Where the page runs without the desktop app, say the desktop app is needed. **Check:** screenshots wide and phone, light and dark. (Bangla was part of this check until decision 8, 2026-11-06.)
@@ -292,6 +295,8 @@ Owner, 2026-11-05: Claude and Codex are usually on the person's computer, not on
   - restarting the helper or the server brings the director back by itself.
 
   Do the same with Codex if it is installed. If not, use a fake and say so.
+
+  Follow-up implementation — Done by codex (2026-11-07). The existing Sonnet run reached the 120-second timeout and fell back to Ollama. The scoped brief is shorter and asks for a submission first. Module calls now appear in conversations and modules that would delegate directing work return guidance before execution. 43 local tests passed. A fresh real Sonnet run is still required. Evidence: docs/evidence/perfect/M10-codex-handoff-check.md.
 
 ---
 
@@ -421,7 +426,7 @@ Owner, 2026-11-05: "v100 is for training. i should be able to select gpu while s
 
 ## Phase D: Every kind of video, judged
 
-- [ ] **D1. Write the judge.** Add `vt_lab.py judge <project>`. It prints PASS or FAIL per line and exits non-zero on any FAIL:
+- [x] **D1. Write the judge.** Add `vt_lab.py judge <project>`. It prints PASS or FAIL per line and exits non-zero on any FAIL:
   - one director in the AI conversations, and no fallback notice;
   - `frame_facts` at frame 0 and the middle of every scene: no face covered above 10%, nothing outside the frame;
   - frame 0 shows a subject, not an empty set;
@@ -429,9 +434,14 @@ Owner, 2026-11-05: "v100 is for training. i should be able to select gpu while s
   - `vt/retention.py` risk at or below 15 ("Strong");
   - `vt/judges.py` passes;
   - `ffmpeg blackdetect=d=0.1:pix_th=0.12` finds no flash;
-  - loudness from -16 to -12 LUFS.
+  - loudness from -16 to -12 LUFS;
+  - in a cartoon, one picture at a time: two separate pictures share the frame for no more than 0.4 s (owner, 2026-11-08).
 
   You must also look at the contact sheet and the first three seconds yourself, and check: the picture matches the words, every number is what was said, one person stays one look, text is readable, and it is worth watching. **Check:** it runs on an existing video and catches a bad one.
+
+  Implementation — Done by codex (2026-11-07). Judge checks and fail exit codes passed local tests. An existing MP4 was decoded against an isolated fixture and its low loudness was correctly flagged. A matching real project, export and composition plus visual review remain open. Evidence: docs/evidence/perfect/D1-codex-lab-judge.md.
+
+  Checked by Claude (2026-11-08) on two real cartoons made by the installed server on the owner's PC (Claude on the server, Sonnet): it runs on a real project, export and composition, and it fails the bad one (pictures piled up, a 0.2 s covered opening). Its false alarms were fixed at the cause (WORKLOG 2026-11-08, later): a figure walking in may cross the edge; captions are read over 2 s, not per chunk; a cartoon's figures count as shown.
 
 - [ ] **D2. For each style, with Sonnet, in 9:16.** For each, with the helper running (M9): `make <Claude director id> <style> <name>`, `export` if it did not render by itself, `judge`, and look. When something is wrong, find the cause and fix it with teaching, ability or facts (0.2), not a rule. Deploy and try again until **3 fresh videos in a row pass**, using different scripts (the Maya story, `EN_SLEEP`, `EN_DATA`). Add one row per run to `docs/evidence/perfect/D-matrix.md`.
   - [ ] cartoon
@@ -471,7 +481,10 @@ Owner, 2026-11-05: "v100 is for training. i should be able to select gpu while s
 
 - [ ] **D7. Sound.** Check on 5 videos that the music fits, the voice is clear above it, sound effects land on their words, and nothing clips. Bensound's free licence requires a credit: confirm `music_credit` reaches the Export and Share text, and fix it if not. **Check:** measured loudness and the credit text seen in the UI.
 
+  Progress (2026-11-07, Claude): the credit half is done. One credits text (`server/vt/credits.py`) reaches the export file, the publishing description, the agents' `publish.credits` and the Export page (Copy credits); Share pre-fills it. Tests: `tests/test_credits.py`, `e2e/credits.mjs`. Still open: listening on 5 real videos and measured loudness (server). Evidence: docs/evidence/perfect/UI-WIRING-2026-11-07.md.
+
 - [ ] **D8. Fast speech.** Reading-speed warnings appear on normal videos ("captions go by at 4.8 words a second"; ROADMAP P10-05). Find out whether the captions or the warning are wrong, on real fast speech, and fix it. **Check:** a fast Bangla recording and a fast English one read comfortably, with no false warning.
+  - 2026-11-08 (Claude): the warning was wrong on normal English narration. It measured each 3-word chunk alone; now it measures 2 s of consecutive captions, with a 20 characters-a-second ceiling. Both real cartoons pass. Left: a fast Bangla recording and a fast English one.
 
 - [ ] **D9. Title, description, cover.** On 5 videos, for each director, check they describe the actual video and that the cover is a good frame. **Check:** viewed.
 
@@ -532,6 +545,7 @@ Screens were last audited on 2026-11-05. Use `_audit.mjs` at every step, wide an
 - [x] **E8. Polish the New flow.** Show full values on its tiles ("Best available vo…" and "Straight to the e…" are cut off). All 14 choices stay visible, as the owner asked. Use illustrated previews for every choice that has a look. **Check:** a screenshot at 1440 and 400; `e2e/new_flow.mjs` passes.
   Implementation — Done by codex: option values now wrap; full New-flow acceptance stays open. Evidence: docs/evidence/perfect/CODEX-IMPLEMENTATION-2026-11-06.md.
   Evidence: new_flow 21/21, new_tiles 12/12 at 1440 and 400, screenshots viewed (docs/evidence/perfect/E6-E8-suites.md)
+  Note (2026-11-07, Claude): Purpose and Listening moved here from a Fine tuning panel nothing opened, so the choices screen has 15 tiles for a typed script and 16 for a recording or link; all stay visible (`e2e/new_tiles.mjs`, `e2e/new_moved_choices.mjs`).
 
 - [x] **E9. Make every page reachable on a phone.** The bottom bar has no way to reach Styles. Add a way, keeping 5 tabs or fewer. Use 44 px touch targets. **Check:** a test at 400 px that opens every page by tapping. — Done by codex
   Evidence: docs/evidence/perfect/CODEX-IMPLEMENTATION-2026-11-06.md (E9); targeted regression and software-browser checks passed where applicable. Real processing remains paused.
@@ -615,11 +629,14 @@ Each has an entry in `docs/ROADMAP.md`. Update it when done.
 
 ## Phase H: Installing
 
-- [ ] **H1. Build and open the real app.** Build with `scripts/build_client_windows.sh`. Install with `/S`, only when the app is closed. Open it with `ELECTRON_RUN_AS_NODE` removed from the environment. **Check:** it stays open; a screenshot of the running app.
+- [x] **H1. Build and open the real app.** Build with `scripts/build_client_windows.sh`. Install with `/S`, only when the app is closed. Open it with `ELECTRON_RUN_AS_NODE` removed from the environment. **Check:** it stays open; a screenshot of the running app.
+  Evidence: installed client opens and stays open, screenshot read (docs/evidence/perfect/H1-H3-real-app.md)
 - [ ] **H2. A real video through the real app.** Inside the app, choose "Claude on this PC" with Sonnet and make a video. Then close the app and make another one with only the helper running, started from `vt_lab.py`. `vt_lab.py helper` runs the same `helper.js` as the app, so the second video proves the helper alone; the first proves that the app starts it and uses it. **Check:** Details names Claude for every AI step of both, and both pass `judge`.
-- [ ] **H3. Connecting from nothing.** `--server <url>` on the command line, with a new data folder. **Check:** it connects with no code, and the result is logged.
+- [x] **H3. Connecting from nothing.** `--server <url>` on the command line, with a new data folder. **Check:** it connects with no code, and the result is logged.
+  Evidence: --server from an empty settings folder connects with no code, logged (docs/evidence/perfect/H1-H3-real-app.md)
 - [ ] **H4. Uninstall.** The silent uninstaller leaves program files behind. Test the normal one too. The helper must stop, and its start-with-computer entry must go. **Check:** nothing is left except the person's own data, and it says so.
 - [ ] **H5. Server install on Linux from nothing,** in a new folder under `/home/roy/vt-tests` on a port you checked is free, without touching the running server. Use `--no-setup` so nothing large downloads, point its engines only at ComfyUI on 8188 and Video Tool's own Ollama copy on 11444, and set `--gpus` to the RTX 3060. Also try it without `--gpus` in a terminal and confirm it asks. Test the server manager's Applications entry. **Check:** it reaches a working video.
+  Partial (2026-11-07): a fresh install reached a working video; the V100 is not allowed (fixed by --gpus 1 in the launcher). Still open: the without --gpus prompt and the Applications entry. Evidence: docs/evidence/perfect/H5-fresh-install.md.
 - [x] **H6. Windows server installer:** the icon was not rebuilt. **Check:** the right icon appears.
   Evidence: rebuilt with the icon embedded; icon extracted from program and installer is the current blue one (docs/evidence/perfect/H6-server-icon.md)
 - [x] **H7. Versions and packaging.** `test_packaging.py` passes; `scripts/set_version.py` keeps versions consistent. **Check:** the tests.

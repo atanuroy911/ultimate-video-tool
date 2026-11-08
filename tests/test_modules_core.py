@@ -348,10 +348,10 @@ def test_key_terms_and_usecase_match_existing_rules(ref):
     assert usecase.ok and usecase.output["usecase"] == detect_usecase(analyse(tr, beats, meta.language), bool(meta.media))
 
 
-def test_publish_credits_matches_existing_collector(ref):
-    from vt.director.stock import credits_text
+def test_publish_credits_matches_the_export_credits(ref):
+    from vt import credits as CR
 
-    expected = credits_text(ref)
+    expected = CR.text(ref)
     result = Executor(ref.dir).call("publish.credits", {})
     assert result.ok, result.fix
     assert result.output["text"] == expected

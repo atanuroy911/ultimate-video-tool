@@ -551,3 +551,25 @@ def test_a_cut_nobody_looked_at_is_not_given_a_record_by_the_remeasure(ref):
     (ref.dir / R.REPORT).unlink(missing_ok=True)
     R.remeasure(ref)
     assert not (ref.dir / R.REPORT).exists()
+
+
+def test_a_director_is_never_asked_to_do_a_step_inside_its_own_task(monkeypatch):
+    # Claude on the person's computer was given a video to direct and called a server module that asks "the AI": that is the same Claude on the same helper, busy with this very task,
+    # so the request waited until the task timed out (found on 2026-11-07). Inside a director's own tool call the client provider now refuses at once and says why.
+    from vt import directors
+    from vt.ai import providers as P
+    from vt.mcp import scope
+
+    asked = []
+    monkeypatch.setattr(directors.broker, "ask", lambda *a, **k: asked.append(k) or {"ok": True, "text": "x"})
+    provider = P.ClientProvider("claude@abc")
+    assert provider.complete("s", "p", None, [], 100, 5, 0) == "x", "outside a director's task it is asked as before"
+    marker = scope._current.set(("token", "some-project"))
+    monkeypatch.setattr(scope, "project_for", lambda token: "some-project")
+    try:
+        before = len(asked)
+        with pytest.raises(P.AIUnavailable, match="directing this video right now"):
+            provider.complete("s", "p", None, [], 100, 5, 0)
+        assert len(asked) == before, "nothing was sent to the helper"
+    finally:
+        scope._current.reset(marker)

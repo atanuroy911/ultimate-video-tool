@@ -37,17 +37,17 @@ try {
   const page=await ctx.newPage();page.on('pageerror',e=>errors.push(e.message));
   const url='http://127.0.0.1:'+server.httpServer.address().port+'/__settings';
   await page.goto(url+'?s=directors');await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);
-  await page.getByText('Next ready director: Local AI',{exact:true}).waitFor();
+  await page.getByText('Local AI directs your next video',{exact:true}).waitFor();
   assert.equal(await page.getByRole('heading',{name:'Who directs your videos',exact:true}).count(),1);
-  assert(!await page.getByLabel('Computer address',{exact:true}).isVisible(),'addresses stay inside closed disclosure');
+  assert(!await page.getByLabel('Ollama address',{exact:true}).isVisible(),'addresses stay inside closed disclosure');
   await page.screenshot({path:path.join(out,width+'-'+theme+'-directors.png'),animations:'disabled'});
-  await page.getByLabel('Claude model',{exact:true}).selectOption('opus');
+  await page.getByLabel('Which Claude directs',{exact:true}).selectOption('opus');
   await page.waitForFunction(()=>document.querySelector('[data-testid=director-model]')?.value==='opus');
-  await page.getByText('Server details',{exact:true}).click();
+  await page.getByText('Language AI on the server',{exact:true}).click();
   const automatic=page.locator('#provider-best');assert(await automatic.getByText('Ready',{exact:true}).isVisible(),'Automatic includes the ready local provider');
   await page.locator('#provider-auto [role=radio]').click();
-  await page.getByLabel('Computer address',{exact:true}).waitFor();
-  await page.getByLabel('Computer address',{exact:true}).fill('http://fixture:11434');await page.getByLabel('Computer address',{exact:true}).press('Tab');
+  await page.getByLabel('Ollama address',{exact:true}).waitFor();
+  await page.getByLabel('Ollama address',{exact:true}).fill('http://fixture:11434');await page.getByLabel('Ollama address',{exact:true}).press('Tab');
   await page.waitForTimeout(100);
   assert(patches.some(p=>p.director_model==='opus'));
   assert(patches.some(p=>p.ollama_url==='http://fixture:11434'));
@@ -60,7 +60,7 @@ try {
   assert(!await page.getByText('vt models pull bn-medium',{exact:true}).isVisible());
   await page.screenshot({path:path.join(out,width+'-'+theme+'-help.png'),animations:'disabled'});
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'page fits viewport');
-  readyPC=true;await page.goto(url+'?s=directors');await page.getByText('Next ready director: Claude on Desk PC',{exact:true}).waitFor();
+  readyPC=true;await page.goto(url+'?s=directors');await page.getByText('Claude on Desk PC directs your next video',{exact:true}).waitFor();
   assert.deepEqual(errors,[]);await ctx.close();console.log(width+' '+theme+': fallback summary, collapsed connections, model saves, plain checks PASS');
  }
 } finally {await browser?.close();await server.close();}

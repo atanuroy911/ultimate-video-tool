@@ -17,8 +17,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-STYLES = ROOT / "design" / "styles"
-THEMES = ROOT / "design" / "themes"
+STYLES = ROOT / "server" / "design" / "styles"
+THEMES = ROOT / "server" / "design" / "themes"
 
 # typefaces the bibles name that are bundled (renderer/scripts/build-fonts.mjs); first match wins
 FONT_FAMILY = {
@@ -247,7 +247,7 @@ def build(style_dir: Path) -> tuple[dict, dict] | None:
 def main() -> int:
     src = Path(sys.argv[1]) / "styles"
     STYLES.mkdir(parents=True, exist_ok=True)
-    sys.path.insert(0, str(ROOT))
+    sys.path.insert(0, str(ROOT / "server"))
     from vt.schema import Theme
 
     index = []

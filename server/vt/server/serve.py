@@ -15,6 +15,7 @@ import hmac
 import ipaddress
 import json
 import re
+import socket
 import subprocess
 from http.cookies import SimpleCookie
 from pathlib import Path
@@ -37,7 +38,7 @@ LOCAL_NAMES = (".local", ".lan", ".home.arpa", ".internal", ".localdomain", ".lo
 OPEN = ("/.well-known/", "/v1/", "/gw/")
 GUARDED = ("/api", "/ws", "/media")
 
-STATE: dict[str, Any] = new_state(name="Video Tool")
+STATE: dict[str, Any] = new_state(name=socket.gethostname() or "Video Tool")   # the computer's own name, as people know it ("MSI-LAPTOP"), unless --name says otherwise
 STATE["exposed"] = False                         # True once `vt server` listens beyond this computer
 
 

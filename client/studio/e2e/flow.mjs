@@ -2,9 +2,13 @@
 // screen must appear and say a person is talking), and save a screenshot of every screen. Usage: VT_URL=... node e2e/flow.mjs <out dir> [video]
 import { chromium } from "playwright-core";
 import { chromePath } from "./common.mjs";
+import { mkdirSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 const base = process.env.VT_URL || "http://127.0.0.1:8777";
-const [, , outDir, videoPath] = process.argv;
+const [, , outArg, videoPath] = process.argv;
+const outDir = outArg || fileURLToPath(new URL("./out/flow", import.meta.url));
+mkdirSync(outDir, { recursive: true });
 const browser = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 const errors = [];
 const page = await browser.newPage({ viewport: { width: 1280, height: 860 } });

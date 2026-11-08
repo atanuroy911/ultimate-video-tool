@@ -9,7 +9,7 @@ export type Gesture =
   | { kind: "pin"; corner: 0 | 1 | 2 | 3; dx: number; dy: number };
 
 /** The element as it was when the gesture began, and where it is on the frame: the middle of its box, the frame's size and its own size before any transform. */
-export interface Start { el: El; center: [number, number]; frame: [number, number]; size: [number, number]; quad?: number[][] }
+export interface Start { el: El; center: [number, number]; frame: [number, number]; size: [number, number]; quad?: number[][]; fit?: number }
 
 /** Map a screen point back to a plane through four measured corners. This
  * undoes the actual perspective, slant, stretch and rotation together. */
@@ -43,9 +43,12 @@ const turn = (deg: number) => { const d = ((deg + 180) % 360 + 360) % 360 - 180;
 /** The change a gesture makes, as a patch of the element. An element nobody has placed yet (automatic layout put it there) first takes over where it is, so it does not jump. */
 export function applyGesture(start: Start, g: Gesture): Record<string, any> {
   const { el, center, frame } = start;
-  const x0 = el.x ?? center[0] / frame[0], y0 = el.y ?? center[1] / frame[1], scale0 = el.scale ?? 1, rotation0 = el.rotation ?? 0;
-  const here = { x: round(clamp(x0, 0, 1)), y: round(clamp(y0, 0, 1)) };
-  if (g.kind === "move") return { x: round(clamp(x0 + g.dx / frame[0], 0, 1)), y: round(clamp(y0 + g.dy / frame[1], 0, 1)) };
+  // The API includes scale: 1 for automatic visuals. A measured fit supersedes that neutral default.
+  const takeover = (el.scale ?? 1) === 1 ? start.fit : undefined;
+  const x0 = el.x ?? center[0] / frame[0], y0 = el.y ?? center[1] / frame[1], scale0 = takeover ?? el.scale ?? 1, rotation0 = el.rotation ?? 0;
+  const taken = takeover == null ? {} : { scale: round(clamp(takeover, 0.05, 5)) };
+  const here = { x: round(clamp(x0, 0, 1)), y: round(clamp(y0, 0, 1)), ...taken };
+  if (g.kind === "move") return { x: round(clamp(x0 + g.dx / frame[0], 0, 1)), y: round(clamp(y0 + g.dy / frame[1], 0, 1)), ...taken };
   if (g.kind === "scale") return { ...here, scale: round(clamp(scale0 * g.factor, 0.05, 5)) };
   if (g.kind === "rotate") return { ...here, rotation: round(turn(rotation0 + g.degrees), 2) };
   // a corner pin: the corner moves by the hand's distance, taken back through the element's own turn and size into a fraction of its box
@@ -74,3 +77,11 @@ export const bearing = (p: [number, number], c: [number, number]) => (Math.atan2
 
 /** How far a turn went, however it wrapped (350° to 10° is 20°, not -340°). */
 export const turned = (from: number, to: number) => turn(to - from);
+
+/** An element that automatic layout placed was shrunk or fitted to its place; once hand-placed it is drawn at its own size times `scale`. This is the scale that keeps it the size it is now
+ *  (what the page measures it at, over what it would be at size 1), so taking it over does not make it jump to a larger size. Nothing for an element that is already hand-placed. */
+export function fitOf(at: { free: boolean; box?: number[] | null; natural?: number[] | null }): number | undefined {
+  if (at.free || !at.natural || !at.box || !at.natural[0] || !at.natural[1] || !at.box[2] || !at.box[3]) return undefined;
+  const k = Math.sqrt((at.box[2] / at.natural[0]) * (at.box[3] / at.natural[1]));
+  return Number.isFinite(k) ? Math.round(Math.max(0.05, Math.min(5, k)) * 1000) / 1000 : undefined;
+}

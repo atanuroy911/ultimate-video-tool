@@ -12,6 +12,20 @@ try{
   await page.setContent(`<style>body{margin:0;background:white}.scene{width:1080px;height:1920px;position:relative}.el{position:absolute}.el-tag{background:#fff;color:#000;font-size:50px}</style><div class="scene" data-scene="s1">${html}</div>`);
   await page.evaluate(()=>{window.__vt={seek:()=>{}};window.__guard=[];});
  };
+ await reset(`<svg width="1080" height="1920"><g data-person="story" data-name="Maya"><rect data-face="story" x="100" y="100" width="100" height="100"/></g></svg><div class="el el-tag" data-el="0" style="left:100px;top:100px;width:10.25px;height:100px"></div><div class="el el-tag" data-el="1" style="left:1075px;top:400px;width:7px;height:40px"></div>`);
+ await page.addScriptTag({content:`window.auditFrame = ${measureFrame.toString()}`});
+ const audited=await page.evaluate(()=>window.auditFrame(0,{},true));
+ assert(audited.subject);
+ assert(audited.coveredFaces.some(hit=>hit.face==='Maya'&&hit.percent>10&&hit.percent<10.5));
+ assert.deepEqual(audited.outside,['element 1 (tag)']);
+ await page.locator('[data-el="0"]').evaluate(node=>{node.style.width='8px'});
+ await page.locator('[data-el="1"]').evaluate(node=>Object.assign(node.style,{left:'104px',top:'100px',width:'8px',height:'100px'}));
+ const combined=await page.evaluate(()=>window.auditFrame(0,{},true));
+ assert.equal(combined.coveredFaces[0].percent,12,'two 8% covers sharing 4% cover 12% overall');
+ await reset(`<div class="cap" style="position:absolute;top:1500px">Caption only</div>`);
+ await page.addScriptTag({content:`window.auditFrame = ${measureFrame.toString()}`});
+ assert.equal((await page.evaluate(()=>window.auditFrame(0,{},true))).subject,false);
+ console.log('acceptance probe: exact face coverage, small overflow and caption-only opening PASS');
  for(const kind of ['stick','story']){
   await reset(`<svg width="1080" height="1920"><g class="stk-ch" data-person="${kind}" data-name="Maya" transform="translate(100 200)"><circle data-face="${kind}" cx="60" cy="60" r="50"/><rect y="120" width="100" height="200"/></g></svg><div class="el el-tag" data-el="1" style="left:100px;top:200px;width:120px;height:120px">Hello</div>`);
   const facts=await page.evaluate(measureFrame,1,{});

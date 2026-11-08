@@ -1,21 +1,21 @@
 import { useRef } from "react";
 import type { Gesture } from "./gestures.ts";
-import { bearing, reach, turned } from "./gestures.ts";
+import { bearing, fitOf, reach, turned } from "./gestures.ts";
 import type { HandleMode } from "./transformUi";
 
 /** Where the page says the selected element is: its box on the frame, its own size, the real position of its four corners (a hand-placed one) and the frame's size. */
-export interface Located { box: number[]; size: number[] | null; quad: number[][] | null; free: boolean; frame: number[] }
+export interface Located { box: number[]; size: number[] | null; quad: number[][] | null; free: boolean; frame: number[]; natural?: number[] | null }
 
 /** What the Inspector hears (it owns the element and saves it): a hand began, moved, or let go. */
-export interface GestureEvent { scene: string; index: number; phase: "start" | "move" | "end"; gesture?: Gesture; center: [number, number]; frame: [number, number]; size: [number, number]; quad?: number[][] }
+export interface GestureEvent { scene: string; index: number; phase: "start" | "move" | "end"; gesture?: Gesture; center: [number, number]; frame: [number, number]; size: [number, number]; quad?: number[][]; fit?: number }
 export const sendGesture = (detail: GestureEvent) => window.dispatchEvent(new CustomEvent("vt-element-gesture", { detail }));
 
 const NAMES = ["top left", "top right", "bottom right", "bottom left"];
 
 /** Where the middle of the element is, how big the frame is and how big the element is by itself: what every gesture is measured from. */
-export function startOf(at: Located, fallback: [number, number]): { center: [number, number]; frame: [number, number]; size: [number, number]; quad: [number, number][] } {
+export function startOf(at: Located, fallback: [number, number]): { center: [number, number]; frame: [number, number]; size: [number, number]; quad: [number, number][]; fit?: number } {
   const quad = (at.quad ?? [[at.box[0], at.box[1]], [at.box[0] + at.box[2], at.box[1]], [at.box[0] + at.box[2], at.box[1] + at.box[3]], [at.box[0], at.box[1] + at.box[3]]]) as [number, number][];
-  return { quad, center: [quad.reduce((s, p) => s + p[0], 0) / 4, quad.reduce((s, p) => s + p[1], 0) / 4], frame: [at.frame?.[0] || fallback[0], at.frame?.[1] || fallback[1]], size: [at.size?.[0] || at.box[2], at.size?.[1] || at.box[3]] };
+  return { quad, center: [quad.reduce((s, p) => s + p[0], 0) / 4, quad.reduce((s, p) => s + p[1], 0) / 4], frame: [at.frame?.[0] || fallback[0], at.frame?.[1] || fallback[1]], size: [at.size?.[0] || at.box[2], at.size?.[1] || at.box[3]] , fit: fitOf(at) };
 }
 
 /** The handles on the picture for the selected element (plan step E17): drag the element to move it, a corner to size it, the knob to turn it; in the pin mode each corner moves on its own
@@ -23,7 +23,7 @@ export function startOf(at: Located, fallback: [number, number]): { center: [num
 export default function TransformHandles({ at, scale, mode, scene, index, width, height }: { at: Located; scale: number; mode: HandleMode; scene: string; index: number; width: number; height: number }) {
   const svg = useRef<SVGSVGElement>(null);
   const drag = useRef<null | { kind: "move" | "scale" | "rotate" | "pin"; corner: 0 | 1 | 2 | 3; from: [number, number]; center: [number, number]; frame: [number, number]; size: [number, number] }>(null);
-  const { quad, center, frame, size } = startOf(at, [width / scale, height / scale]);
+  const { quad, center, frame, size, fit } = startOf(at, [width / scale, height / scale]);
   const px = (p: number[]) => `${p[0] * scale},${p[1] * scale}`;
   const top = [(quad[0][0] + quad[1][0]) / 2, (quad[0][1] + quad[1][1]) / 2];                         // the middle of the top edge, and which way is out from the middle
   const out = Math.hypot(top[0] - center[0], top[1] - center[1]) || 1;
@@ -34,7 +34,7 @@ export default function TransformHandles({ at, scale, mode, scene, index, width,
     e.stopPropagation(); e.preventDefault();
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
     drag.current = { kind, corner, from: frameAt(e), center, frame, size };
-    sendGesture({ scene, index, phase: "start", center, frame, size, quad });
+    sendGesture({ scene, index, phase: "start", center, frame, size, quad, fit });
   };
   const gesture = (e: React.PointerEvent): Gesture | null => {
     const d = drag.current;

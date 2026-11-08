@@ -124,6 +124,9 @@ def _number_items(ws: list[Word], language: str = "bn") -> list[dict]:
         if i in skip:
             continue
         p = parse_number(w, language)
+        tok = norm_token(w.text)
+        if not p and tok in SCALES and tok.isascii() and i and norm_token(ws[i - 1].text) in ("a", "the", "one"):
+            p = _scaled("1", 1.0, tok, language)          # "the hundred steps", "a thousand times": the number is said (a card showing 100 is true)
         if not p:
             continue
         disp, val = p

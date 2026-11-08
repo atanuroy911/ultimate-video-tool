@@ -58,7 +58,8 @@ export default function Shell() {
 
   const [stale, setStale] = useState<string | null>(null);
   const [serverSetup,setServerSetup]=useState<{done:boolean;server:{name:string};existing:Record<string,string[]>}|null>(null);
-  const [setupOpen,setSetupOpen]=useState(false),[setupLater,setSetupLater]=useState(false);
+  const [setupOpen,setSetupOpen]=useState(false),[setupLater,setSetupLaterNow]=useState(()=>{try{return localStorage.getItem('vt-setup-later')==='1';}catch{return false;}});
+  const setSetupLater=(v:boolean)=>{setSetupLaterNow(v);try{v?localStorage.setItem('vt-setup-later','1'):localStorage.removeItem('vt-setup-later');}catch{/* private window: it is asked again next time */}};     // "Later" is remembered: the banner does not come back at every launch
   useEffect(()=>{get<any>('/api/setup').then(setServerSetup).catch(()=>{});},[]);
   useEffect(() => {                                   // a page newer than its server calls endpoints the server does not have (they answer 404/405)
     get<{ api_version?: number }>("/api/health").then((h) => setStale(!h.api_version || h.api_version < EXPECTED_API ? "older" : null)).catch(() => {});
@@ -77,9 +78,7 @@ export default function Shell() {
       <header className="topbar">
         {editing && <button className="btn ghost" onClick={() => setMenuOpen(false)}><X size={16} /> Back to editing</button>}
         <button className="brand" onClick={() => nav("/")} aria-label="Ultimate Video Tool home">
-          <span className="brand-mark">
-            <Play size={15} fill="currentColor" />
-          </span>
+          <svg className="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#f26a1f" /><path d="M12 8l11 7-11 7z" fill="#fff" /><rect x="9" y="24" width="14" height="2.4" rx="1.2" fill="#ffc83a" /></svg>
           Ultimate Video Tool
         </button>
         <button className="btn primary shell-create" onClick={() => nav("/new")}>New video</button>
@@ -137,7 +136,7 @@ export default function Shell() {
         <div className="banner ok" role="status" style={{ margin: "8px 18px 0" }} data-testid="link-back"><div className="grow"><strong>Connected again.</strong></div></div>
       )}
       <main className="page" id="main">
-        {!editing&&serverSetup&&!serverSetup.done&&!setupLater&&<div className="banner" style={{margin:'12px 18px'}} role="status"><div className="grow"><strong>Processing server: {serverSetup.server?.name||'Connected server'}</strong><div className="small muted">{Object.values(serverSetup.existing||{}).some(urls=>urls.length)?'Existing engines found on this server. Reuse them and check the models you need.':'Choose folders on this server, then install or connect the engines you need.'}</div></div><button className="btn sm primary" onClick={()=>setSetupOpen(true)}>Set up server</button><button className="btn ghost sm" onClick={()=>setSetupLater(true)}>Later</button></div>}
+        {!editing&&serverSetup&&!serverSetup.done&&!setupLater&&<div className="banner" style={{margin:'12px 18px'}} role="status"><div className="grow"><strong>Finish setting up {serverSetup.server?.name||'your server'}</strong><div className="small muted">{Object.values(serverSetup.existing||{}).some(urls=>urls.length)?'AI programs were found on it. Choose which ones to use.':"Its AI programs aren't set up yet. Videos still work, with simpler pictures and text."}</div></div><button className="btn sm primary" onClick={()=>setSetupOpen(true)}>Set up</button><button className="btn ghost sm" onClick={()=>setSetupLater(true)}>Not now</button></div>}
         <Suspense fallback={<div className="page-inner muted">Loading…</div>}>
           <Outlet />
         </Suspense>

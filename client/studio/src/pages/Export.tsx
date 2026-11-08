@@ -212,7 +212,7 @@ export default function ExportPage() {
               <button className="btn sm" style={{ alignSelf: "flex-start" }} onClick={() => post(`/api/jobs/${job.id}/cancel`)}>Cancel</button>
             </div>
           )}
-          {job?.status === "error" && <div className="banner err"><strong>Render failed:</strong> {job.error}</div>}
+          {job?.status === "error" && <div className="banner err"><strong>Export failed:</strong> {job.error}</div>}
           {latest && !running && (
             <div className="card card-pad col">
               <div className="row">
@@ -260,6 +260,14 @@ export default function ExportPage() {
                 <button className="btn" onClick={() => openFolder(id!)}><FolderOpen size={14} /> Open folder</button>
                 <button className="btn" onClick={() => copyText(latest.path, "Path copied")}><Copy size={14} /> Copy path</button>
               </div>
+              {latest.credits && (
+                <section className="col" style={{ gap: 6 }} aria-label="Credits">
+                  <strong>Credits</strong>
+                  <span className="small muted">The licences of the music and media in this video ask for this. Put it in your post's description.</span>
+                  <pre className="credits-text">{latest.credits.trim()}</pre>
+                  <button className="btn sm" style={{ alignSelf: "flex-start" }} onClick={() => copyText(latest.credits!.trim(), "Credits copied")}><Copy size={13} /> Copy credits</button>
+                </section>
+              )}
             </div>
           )}
           {files.data && files.data.length > 1 && (
@@ -292,7 +300,7 @@ export default function ExportPage() {
               </div>
             )}
           </div>
-          {!latest && !running && <div className="empty">Nothing exported yet. Choose where you will post it and render.</div>}
+          {!latest && !running && <div className="empty">Nothing exported yet. Choose where you will post it, then export.</div>}
         </div>
       </div>
       {redoOpen && p && <RedoModal id={id} title={p.title} open={redoOpen} onClose={() => setRedoOpen(false)} />}

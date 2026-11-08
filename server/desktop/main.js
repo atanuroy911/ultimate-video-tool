@@ -12,11 +12,12 @@ async function start(){
   const source=app.isPackaged?path.join(process.resourcesPath,'app-src'):path.resolve(__dirname,'..');let python,cwd,env;
   if(process.env.VT_USE_REPO==='1'){cwd=source;python=process.env.VT_PYTHON||path.join(source,'.venv',process.platform==='win32'?'Scripts/python.exe':'bin/python');env={...process.env,VT_DATA:process.env.VT_DATA||path.join(home,'data'),PYTHONIOENCODING:'utf-8',PYTHONUNBUFFERED:'1'};}
   else{const layout=B.layout(home,source,app.getVersion());if(!B.isReady(layout))await B.bootstrap(layout,value=>{if(value.line)log(value.line);manager.progress(value);});python=layout.python;cwd=layout.runtime;env=B.serverEnv(layout);}
+  env={...env,VT_SUPERVISOR:'desktop'};                 // the server may ask this app to restart it (exit code 75): Restart on the Server page works here too
   let port=await choosePort(Number(process.env.VT_SERVER_PORT||8790),!!process.env.VT_SERVER_PORT);
   for(let attempt=0;attempt<4;attempt++){
     let output='',spawnError;log(`Starting processing API on ${port}`);
     child=spawn(python,['-m','vt.cli','studio','--host','0.0.0.0','--port',String(port),'--no-open'],{cwd,env,windowsHide:true});
-    const capture=value=>{output=(output+value).slice(-12000);log(String(value).trimEnd());};child.stdout.on('data',capture);child.stderr.on('data',capture);child.once('error',e=>{spawnError=e;});child.once('exit',code=>{log(`Processing server exited ${code}`);if(!stopping)manager.progress({step:code?'The server stopped. View its log or start it again.':'Server stopped.'});});
+    const capture=value=>{output=(output+value).slice(-12000);log(String(value).trimEnd());};child.stdout.on('data',capture);child.stderr.on('data',capture);child.once('error',e=>{spawnError=e;});child.once('exit',code=>{log(`Processing server exited ${code}`);if(stopping)return;if(code===75){child=null;origin=null;manager.progress({step:'Restarting…'});start().catch(e=>{log(e.stack||e);manager.progress({error:true,step:e.message});});return;}manager.progress({step:code?'The server stopped. View its log or start it again.':'Server stopped.'});});
     const until=Date.now()+90000;while(Date.now()<until&&child.exitCode===null&&!spawnError){if(await ready(port)){origin=`http://127.0.0.1:${port}`;fs.writeFileSync(path.join(home,'server-status.json'),JSON.stringify({running:true,url:origin,pid:child.pid,at:new Date().toISOString()}));manager.ready();return;}await new Promise(r=>setTimeout(r,350));}
     if(spawnError)throw spawnError;
     if(attempt<3&&!process.env.VT_SERVER_PORT&&/already in use|EADDRINUSE|address.+in use|10048/i.test(output)){await stop();port=await choosePort();manager.progress({step:'Choosing another address automatically…'});continue;}

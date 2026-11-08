@@ -30,7 +30,7 @@ FOLDER = "video-tool-engine"
 SKIP_DIRS = {"__pycache__", ".pytest_cache", "node_modules"}
 SKIP_SUFFIX = {".pyc", ".pyo"}
 # what the engine needs at run time besides the code: the picture/voice workflows and the model list (each is small)
-ASSET_DIRS = ["assets/comfy", "assets/voicestudio"]
+ASSET_DIRS = ["assets/comfy"]
 TOP_FILES = ["pyproject.toml", "uv.lock", "LICENSE", "LICENSE.txt", "LICENSE.md"]
 PACKAGING = ["install-engine.ps1", "install-engine.sh", "check-engine.py", "README-ENGINE.txt", "Dockerfile", "docker-compose.yml", "docker-entrypoint.sh"]
 

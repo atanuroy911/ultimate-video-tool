@@ -244,6 +244,7 @@ export interface ExportFile {
   size: number;
   url: string;
   srt: string | null;
+  credits?: string;          // what the licences of the media and music ask for (vt/credits.py); '' when all is the person's own
   modified: string;
   path: string;
 }

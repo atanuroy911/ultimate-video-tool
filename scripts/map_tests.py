@@ -18,7 +18,7 @@ OUT = ROOT / "docs" / "evidence" / "code-test-map.md"
 
 def source_modules() -> dict[str, Path]:
     mods = {}
-    for p in sorted((ROOT / "vt").rglob("*.py")):
+    for p in sorted((ROOT / "server" / "vt").rglob("*.py")):
         if "__pycache__" in p.parts:
             continue
         rel = p.relative_to(ROOT).with_suffix("")

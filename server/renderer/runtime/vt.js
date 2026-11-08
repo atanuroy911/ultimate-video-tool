@@ -949,6 +949,39 @@
       if(inst.hideInit) inst.hideInit.forEach(x=>x && gsap.set(x,{opacity:0}));
       tl.set(host,{visibility:"hidden"},end);
     });
+    /* what the editor's hand needs while it drags (Studio: Preview.tsx):
+       natural(scene, index): how big an element that automatic layout placed would be once it is hand-placed at size 1, so taking it over keeps its size;
+       look(scene, index, e): move a hand-placed element to the new position, size and turn at once, without building the whole video again. */
+    window.__vtFree = {
+      natural: (sceneKey, index) => {
+        // A source scene can be split across pages. The selected visual may be on a later page.
+        const sc = D.scenes.find((s) => (s.src || s.id) === sceneKey && (s.elements || []).some((x, k) => (x._i ?? k) === index));
+        const e = sc && (sc.elements || []).find((x, k) => (x._i ?? k) === index);
+        const build = e && C[e.type];
+        if (!build) return null;
+        const host = h("div", "scene vt-free-visual");
+        host.style.cssText = "opacity:1;pointer-events:none;visibility:hidden";
+        if (sc.tone) applyTone(host, D.theme, sc.tone);
+        const position = h("div", "free-position");
+        position.style.cssText = "position:absolute;left:50%;top:50%;width:max-content;max-width:90%";
+        const wrap = h("div", "el el-" + e.type);
+        const inst = build(e, { ...ctxBase, maxW: a169 ? 1500 : 940 });
+        wrap.appendChild(inst.el); position.appendChild(wrap); host.appendChild(position); root.appendChild(host);
+        const b = wrap.getBoundingClientRect();
+        host.remove();
+        return b.width ? [b.width, b.height] : null;
+      },
+      look: (sceneKey, index, e) => {
+        const el = document.querySelector('.scene[data-scene="' + sceneKey + '"] .el[data-el="' + index + '"]');
+        const shape = el && el.closest(".free-shape");
+        if (!shape || (e.keyframes && e.keyframes.length)) return false;          // not hand-placed yet, or animated: the caller builds the video again
+        const position = shape.parentElement;
+        position.style.left = ((e.x ?? .5) * 100) + "%";
+        position.style.top = ((e.y ?? .45) * 100) + "%";
+        window.VTX.look(position, shape, e, W, H);
+        return true;
+      },
+    };
     if (D.layers && D.layers.length && window.VTX.layers) window.VTX.layers(root, tl, D, W, H);
     if (D.captions_enabled !== false) buildCaptions(root, tl, D, M, a169);
 
@@ -1237,6 +1270,9 @@
       const sc = hit && hit.closest(".scene");
       const el = hit && hit.closest(".el");
       window.parent.postMessage({ vt: "picked", scene: sc ? sc.getAttribute("data-scene") : null, index: el ? parseInt(el.getAttribute("data-el"), 10) : null }, "*");
+    } else if (m.vt === "look") {                                                    // a hand is dragging a hand-placed element: only that element is updated
+      const ok = !!(window.__vtFree && window.__vtFree.look(m.scene, m.index, m.el || {}));
+      window.parent.postMessage({ vt: "looked", ok, scene: m.scene, index: m.index }, "*");
     } else if (m.vt === "rect") {
       const el = document.querySelector('.scene[data-scene="' + m.scene + '"] .el[data-el="' + m.index + '"]');     // any page of the scene
       const b = el && el.getBoundingClientRect();
@@ -1257,7 +1293,8 @@
           });
         }
       }
-      window.parent.postMessage({ vt: "rect", scene: m.scene, index: m.index, box: b && b.width ? [b.left, b.top, b.width, b.height] : null, size, quad, free, frame: [innerWidth, innerHeight] }, "*");
+      const natural = el && !free && window.__vtFree ? window.__vtFree.natural(m.scene, m.index) : null;      // for an element layout placed: its size once hand-placed at size 1
+      window.parent.postMessage({ vt: "rect", scene: m.scene, index: m.index, box: b && b.width ? [b.left, b.top, b.width, b.height] : null, size, quad, free, natural, frame: [innerWidth, innerHeight] }, "*");
     } else if (m.vt === "data") {
       const t = tl ? tl.time() : 0;
       build(m.data);

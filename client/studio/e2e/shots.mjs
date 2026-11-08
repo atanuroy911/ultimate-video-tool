@@ -15,8 +15,8 @@ for (const scheme of ["light", "dark"]) for (const [sn, w, h] of sizes) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, colorScheme: scheme });
   const page = await ctx.newPage();
   for (const [name, url] of pages) {
-    await page.goto(base + url, { waitUntil: "networkidle" }).catch(() => {});
-    await page.waitForTimeout(900);
+    await page.goto(base + url, { waitUntil: "load" }).catch(() => {});   // not "networkidle": the editor preview streams audio, so the network never goes quiet (14 s a page)
+    await page.waitForTimeout(1500);
     const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     if (over > 1) overflow.push(`${name} ${scheme} ${sn}: page scrolls sideways by ${over}px`);
     await page.screenshot({ path: path.join(out, `${name}-${scheme}-${sn}.png`) });

@@ -264,7 +264,7 @@ def test_using_our_own_copy_points_the_pipeline_at_it_and_starts_it_in_the_backg
             break
         time.sleep(0.05)
     assert started == [("ollama", own)]
-    assert c.post("/api/system/engine-own", json={"engine": "voicestudio"}).status_code == 422
+    assert c.post("/api/system/engine-own", json={"engine": "nothing"}).status_code == 422
 
 
 def test_vt_gpu_says_it_and_the_mcp_tool_offers_it(box, monkeypatch):

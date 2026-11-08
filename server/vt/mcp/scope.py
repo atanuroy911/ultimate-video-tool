@@ -128,6 +128,8 @@ def check_tool(name: str, arguments: dict[str, Any]) -> None:
     if targets:
         if any(target != project for target in targets):
             raise MCPError(-32001, "This director may use only its own project's tools.")
+        if name == "run_pipeline":
+            raise MCPError(-32001, "This video's pipeline is already waiting for your direction. Submit the script, story or reel plan, then finish your task.")
         if name == "add_media":
             raise MCPError(-32001, "Adding server files requires the person's project media controls.")
         if name not in _PROJECT_TOOLS:

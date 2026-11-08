@@ -313,26 +313,7 @@ class ComfyInstaller(Installer):
         return f"http://127.0.0.1:{self.port}"
 
 
-# ----------------------------------------------------------------------------- VoiceStudio
-class VoiceStudioInstaller(Installer):
-    """VoiceStudio is another project with its own installer; we do not copy it. With Docker we start its image; without, we explain."""
-    engine = "voicestudio"
-
-    def plan(self) -> Plan:
-        p = Plan("voicestudio", [Item("VoiceStudio (Docker image)", 4.0, "a voice studio with many voices and cloning", False)])
-        if not shutil.which("docker"):
-            p.problems.append("Docker is not installed. Install Docker, or run VoiceStudio yourself and use Connect to my server.")
-        p.notes.append("Optional. Pictures, clips and voices through ComfyUI already work without it.")
-        return p
-
-    def install(self, progress: Progress = noop_progress) -> None:
-        raise RuntimeError("Start VoiceStudio with its own instructions (github.com/debpalash/VoiceStudio), then use Connect to my server.")
-
-    def verify(self) -> bool:
-        return False
-
-
-INSTALLERS: dict[str, Callable[..., Installer]] = {"ollama": OllamaInstaller, "comfy": ComfyInstaller, "voicestudio": VoiceStudioInstaller}
+INSTALLERS: dict[str, Callable[..., Installer]] = {"ollama": OllamaInstaller, "comfy": ComfyInstaller}
 
 
 def installer(engine_id: str, **kw: Any) -> Installer:

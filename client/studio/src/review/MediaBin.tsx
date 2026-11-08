@@ -170,7 +170,7 @@ export default function MediaBin({ id, onClose, onChange, onAddToTimeline }: { i
           {media.data && media.data.length === 0 && <div className="muted small" style={{ gridColumn: "1 / -1" }}>Add pictures or video clips to get started.</div>}
         </div>
 
-        {picked&&<div className="media-selection col"><div className="row wrap"><strong className="grow">{picked.caption||picked.id}</strong>{onAddToTimeline&&<button className="btn primary" onClick={()=>onAddToTimeline(picked)}><LayersIcon size={14}/> Add to timeline</button>}</div>
+        {picked&&<div className="media-selection col"><div className="row wrap"><strong className="grow">{picked.caption||picked.id}</strong>{onAddToTimeline&&<button className="btn primary" aria-label={`Put ${picked.id} on the timeline`} onClick={()=>onAddToTimeline(picked)}><LayersIcon size={14}/> Add to timeline</button>}</div>
           <label className="field">Description<input key={picked.id+picked.caption} defaultValue={picked.caption} placeholder="What is in this picture?" onBlur={e=>{if(e.target.value!==picked.caption)patch(`/api/projects/${id}/media/${picked.id}`,{caption:e.target.value}).then(refresh).catch(e=>toast(e.message,'err'));}}/></label>
           <div className="row wrap">{picked.kind==='image'&&<button className="btn sm" disabled={cutting!==null} onClick={()=>cutOut(picked)}>{cutting===picked.id?<Spinner/>:<Eraser size={14}/>} Remove background</button>}<button className="btn sm ghost" onClick={()=>del(`/api/projects/${id}/media/${picked.id}`).then(()=>{setSelected(null);refresh();}).catch(e=>toast(e.message,'err'))}><Trash2 size={14}/> Remove file</button>{picked.credit&&<span className="small muted">© {picked.credit} · {picked.source}</span>}</div>
         </div>}

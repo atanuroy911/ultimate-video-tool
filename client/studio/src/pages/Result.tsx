@@ -18,6 +18,7 @@ interface ExportFile {
   size: number;
   retention: { verdict: string; risk: number; worst: { t: number; why: string }[] } | null;
   judges?: Judges | null;
+  credits?: string;
 }
 interface Decision {
   text: string;
@@ -153,8 +154,8 @@ export default function ResultPage() {
           ) : (
             <div className="result-empty">
               {(p.cover_url || p.thumb) && <img src={p.cover_url || p.thumb || undefined} alt="" />}
-              <span className="result-empty-msg">{busy ? "Rendering…" : "The video has not been rendered yet."}</span>
-              {!busy && <button className="btn primary" onClick={() => render([p.aspect])}><Sparkles size={15} /> Render my video</button>}
+              <span className="result-empty-msg">{busy ? "Exporting…" : "The video has not been exported yet."}</span>
+              {!busy && <button className="btn primary" onClick={() => render([p.aspect])}><Sparkles size={15} /> Export my video</button>}
             </div>
           )}
           {busy && (
@@ -235,7 +236,7 @@ export default function ResultPage() {
               </div>
             )}
             {director.data?.report && director.data.report.issues.length > 0 && (
-              <span className="small muted">The editor still notes: {director.data.report.issues[0].scene}: {director.data.report.issues[0].problem}</span>
+              <span className="small muted">Still to look at: {director.data.report.issues[0].scene}: {director.data.report.issues[0].problem}</span>
             )}
             {id && <DirectorLogButton pid={id} label="How this was made" />}
             </div>
@@ -291,7 +292,7 @@ export default function ResultPage() {
               ))}
             </div>
           )}
-          <SocialDispatch projectId={id!} videoFilename={main.name} defaultTitle={kit.data?.kit?.title || p.title} defaultDescription={kit.data?.kit?.description || ""} defaultTags={kit.data?.kit?.hashtags || []} />
+          <SocialDispatch projectId={id!} videoFilename={main.name} defaultTitle={kit.data?.kit?.title || p.title} defaultDescription={kit.data?.kit?.description || main.credits?.trim() || ""} defaultTags={kit.data?.kit?.hashtags || []} />
           </div></details>}
           <Link className="small muted" to={`/p/${id}/export`}>Export settings (quality, frame rate, music level)…</Link>
         </div>

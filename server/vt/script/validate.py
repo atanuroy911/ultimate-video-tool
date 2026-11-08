@@ -7,7 +7,7 @@ from typing import Any, Optional
 
 from pydantic import TypeAdapter, ValidationError
 
-from ..schema import Beats, Element, Transcript
+from ..schema import Backdrop, Beats, Element, Transcript
 from . import catalogue as C
 from .models import VideoScript
 
@@ -131,6 +131,16 @@ def validate_script(data: dict, tr: Transcript, beats: Beats, icons: Optional[se
             mid = getattr(el, "media", None) if el.type in ("device", "media_frame") else None
             if mid and media_ids is not None and mid not in media_ids:
                 errs.append(f"{w}: media '{mid}' is not in the project's media bin")
+        bd = sc.get("backdrop")
+        if bd:
+            try:
+                b = Backdrop.model_validate(bd)
+                if media_ids is not None and b.media not in media_ids:
+                    errs.append(f"{where}: backdrop media '{b.media}' is not in the project's media bin; media: {', '.join(sorted(media_ids)) or 'none'} (leave `backdrop` out when none fits)")
+            except ValidationError as e:
+                why = "; ".join(".".join(map(str, x["loc"])) + " " + x["msg"] for x in e.errors()[:3])
+                place = " A place (room, park, day or night) belongs in `sets`, named by the scene's `set`." if "media" not in bd else ""
+                errs.append(f"{where}: backdrop must be a picture or video from the media bin, " + '{"media": "<media id>", "motion": "kenburns"}' + f"; got {bd}: {why}.{place}")
         for c in sc["sfx"]:
             if c["at_word"] not in wset:
                 errs.append(f"{where}: sfx at_word '{c['at_word']}' is outside this scene")

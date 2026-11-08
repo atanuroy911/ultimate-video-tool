@@ -24,11 +24,11 @@ from pathlib import Path
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "server"))
 from vt.visuals.embed import Embedder  # noqa: E402
 from vt.visuals.emoji import BLOCKED  # noqa: E402
 
-ICONS = ROOT / "design" / "icons"
+ICONS = ROOT / "server" / "design" / "icons"
 WORD_RE = re.compile(r"^[a-z][a-z' -]{1,30}$")
 NOISE_LINE = re.compile(r"^(tabler|lucide):(brand-|letter-|square-letter|alphabet|number-|square-number|circle-number|flag-|hexagon-letter|hexagon-number|"
                         r"square-rounded-letter|square-rounded-number|currency-(?!dollar|euro|pound|yen|taka|rupee|bitcoin))")

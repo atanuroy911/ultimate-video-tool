@@ -29,7 +29,7 @@ set -euo pipefail
 ROOT=/home/roy/ultimate-video-tool-server
 export VT_DATA="$ROOT/data" PATH="$ROOT/node/bin:/usr/bin:/bin" TMPDIR="$ROOT/tmp" XDG_CACHE_HOME="$ROOT/cache" HYPERFRAMES_NO_TELEMETRY=1 PYTHONIOENCODING=utf-8
 cd "$ROOT/app"
-exec "$ROOT/venv/bin/python" -m vt.cli server --host 0.0.0.0 --port 8790 --name "Ultimate Video Tool Server" --comfy existing --comfy-url http://127.0.0.1:8188 --ollama existing --ollama-url http://127.0.0.1:11434 --voicestudio off
+exec "$ROOT/venv/bin/python" -m vt.cli server --host 0.0.0.0 --port 8790 --name "Ultimate Video Tool Server" --comfy existing --comfy-url http://127.0.0.1:8188 --ollama existing --ollama-url http://127.0.0.1:11434
 '''
     with s.file(root+'/run-server.sh','w') as f:f.write(runner)
     s.chmod(root+'/run-server.sh',0o700)

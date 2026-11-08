@@ -1,6 +1,7 @@
 import { Check, ExternalLink, Film, Image as ImageIcon, Music, RefreshCw } from "lucide-react";
 import { useState } from "react";
-import { post } from "../api";
+import { get, post } from "../api";
+import type { JobInfo } from "../types";
 import { useFetch } from "../hooks";
 import { toast } from "../store";
 import { Spinner } from "../ui";
@@ -49,10 +50,38 @@ export default function CatalogList({ kind, role, action, onPick, label }: { kin
       setBusy("");
     }
   };
+  /* The same job as `vt catalog refresh` (POST /api/catalog/refresh): look for new free media and check every link again. */
+  const [finding, setFinding] = useState("");
+  const findMore = async () => {
+    setFinding("Starting…");
+    try {
+      let j = await post<JobInfo>("/api/catalog/refresh");
+      while (j.status === "queued" || j.status === "running") {
+        setFinding(j.msg || "Looking for free media…");
+        await new Promise((r) => setTimeout(r, 1500));
+        j = await get<JobInfo>(`/api/jobs/${j.id}`);
+      }
+      if (j.status === "error") toast(j.error || "Could not update the free media.", "err", 7000);
+      else if (j.status === "done") toast("Free media updated.", "ok");
+      q.refetch();
+    } catch (err: any) {
+      toast(err.message, "err", 7000);
+    } finally {
+      setFinding("");
+    }
+  };
   return (
     <div className="col" style={{ gap: 8 }} aria-label={label}>
       {q.loading && <div className="row muted"><Spinner /> Loading…</div>}
-      {q.data && entries.length === 0 && <span className="small muted">The catalogue is empty. Run <code>vt catalog refresh</code> to fill it.</span>}
+      {q.data && entries.length === 0 && !finding && <span className="small muted">No free media yet.</span>}
+      {q.data && (
+        <div className="row" style={{ gap: 8 }}>
+          <button className="btn sm" disabled={!!finding || !!busy} onClick={findMore} title="Looks for new free media and checks every link again (downloads each file, so it can take a few minutes)">
+            {finding ? <Spinner size={12} /> : <RefreshCw size={13} />} Look for new free media
+          </button>
+          {finding && <span className="small muted" role="status">{finding}</span>}
+        </div>
+      )}
       <div className="catalog-grid">
         {entries.map((e) => {
           const f = e.format;

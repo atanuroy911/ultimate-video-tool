@@ -3,15 +3,15 @@
 (function () {
   const css = document.createElement('style');
   css.textContent = `
-.gc{display:flex;flex-direction:column;gap:10px}.gc h2{margin:0}.gc p{margin:0}.gc .gc-note{padding:10px 14px;border-radius:12px;background:#e8f1fd;color:#14305a;font-size:14px;line-height:1.45}
-.gc .gc-warn{background:#fff3da;color:#5a3a00}.gc ul{list-style:none;margin:0;padding:0}.gc li{display:flex;align-items:center;gap:12px;min-height:44px;padding:8px 0;border-top:1px solid #e3e8f0}
-.gc li:first-child{border-top:0}.gc li.gc-engine{flex-wrap:wrap}.gc li.gc-engine .gc-text{flex:1 1 260px}.gc .gc-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.gc .gc-small{font-size:13px;color:#66748c}
-.gc button.gc-switch{position:relative;flex:none;width:46px;height:28px;padding:0;border:0;border-radius:999px;background:#d6dbe4;cursor:pointer;transition:background .2s}
+.gc{display:flex;flex-direction:column;gap:10px}.gc h2{margin:0}.gc p{margin:0}.gc .gc-note{padding:10px 14px;border-radius:10px;background:var(--fill,rgba(118,118,128,.12));color:inherit;font-size:13.5px;line-height:1.45}
+.gc .gc-warn{background:rgba(255,149,0,.14);color:var(--warn,#b35c00)}.gc ul{list-style:none;margin:0;padding:0}.gc li{display:flex;align-items:center;gap:12px;min-height:44px;padding:8px 0;border-top:.5px solid var(--line,rgba(0,0,0,.08))}
+.gc li:first-child{border-top:0}.gc li.gc-engine{flex-wrap:wrap}.gc li.gc-engine .gc-text{flex:1 1 260px}.gc .gc-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.gc .gc-small{font-size:12.5px;color:var(--muted,#6e6e73)}
+.gc button.gc-switch{position:relative;flex:none;width:46px;height:28px;padding:0;border:0;border-radius:999px;background:var(--fill,#d6dbe4);cursor:pointer;transition:background .2s}
 .gc button.gc-switch::after{content:"";position:absolute;top:2px;left:2px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.35);transition:transform .2s}
 .gc button.gc-switch[aria-checked="true"]{background:#34c759}.gc button.gc-switch[aria-checked="true"]::after{transform:translateX(18px)}.gc button.gc-switch:disabled{opacity:.5;cursor:default}
 .gc button.gc-switch:focus-visible,.gc button.gc-btn:focus-visible{outline:3px solid #2563eb;outline-offset:2px}.gc .gc-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-.gc button.gc-btn{min-height:44px;padding:0 16px;border:0;border-radius:10px;background:#e9edf4;color:#1c2941;font:600 14px system-ui,sans-serif;cursor:pointer;align-self:flex-start}.gc button.gc-btn:disabled{opacity:.5}
-.gc .gc-err{color:#ae382b}@media (prefers-reduced-motion:reduce){.gc button.gc-switch,.gc button.gc-switch::after{transition:none}}`;
+.gc button.gc-btn{min-height:44px;padding:0 16px;border:0;border-radius:10px;background:var(--fill,#e9edf4);color:inherit;font:500 14px system-ui,sans-serif;cursor:pointer;align-self:flex-start}.gc button.gc-btn:disabled{opacity:.5}
+.gc .gc-err{color:var(--err,#d70015)}@media (prefers-reduced-motion:reduce){.gc button.gc-switch,.gc button.gc-switch::after{transition:none}}`;
   document.head.append(css);
 
   const el = (tag, text, cls) => { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; };
@@ -59,27 +59,27 @@
       root.replaceChildren();
       root.append(el('h2', 'Graphics cards'));
       if (!data) {
-        root.append(el('p', failed ? 'This server cannot choose graphics cards yet. Update the server to use this. (' + failed + ')' : 'Reading the graphics cards…', failed ? 'gc-err' : 'gc-small'), live);
+        root.append(el('p', failed ? 'The graphics cards could not be read. ' + failed : 'Reading the graphics cards…', failed ? 'gc-err' : 'gc-small'), live);
         return;
       }
       if (!data.cards.length) { root.append(el('p', 'This computer has no NVIDIA graphics card, so rendering and speech recognition run on the processor.', 'gc-small'), live); return; }
       root.append(el('p', 'Video Tool only uses the cards you switch on. The other cards stay free for your own programs.'));
       if (data.needs_choice) {
         const note = el('div', undefined, 'gc-note'); note.setAttribute('role', 'note'); note.dataset.testid = 'gpu-needs-choice';
-        note.append(el('p', 'Nobody has chosen yet. Until you do, Video Tool uses one card only: ' + allowedNames() + '.'));
-        const keep = el('button', 'Keep this', 'gc-btn'); keep.disabled = saving; keep.dataset.testid = 'gpu-keep';
+        note.append(el('p', 'Choose which cards Video Tool may use. Until then it uses only ' + allowedNames() + '.'));
+        const keep = el('button', 'Keep it that way', 'gc-btn'); keep.disabled = saving; keep.dataset.testid = 'gpu-keep';
         keep.onclick = () => save({ allowed: on().map((c) => c.uuid) }, () => 'Video Tool may now use: ' + allowedNames() + '.');
         note.append(keep); root.append(note);
       } else if (!on().length) {
         const w = el('p', 'No card is switched on, so Video Tool does everything on the processor. That works, but it is much slower.', 'gc-note gc-warn'); w.setAttribute('role', 'note'); root.append(w);
       }
       if (data.restart_needed) { const n = el('p', 'Programs that Video Tool already started keep their old cards until the server is restarted.', 'gc-note'); n.setAttribute('role', 'note'); root.append(n); }
-      root.append(el('h3', 'Switch on the cards Video Tool may use'));
+      root.append(el('h3', 'Cards Video Tool may use'));
       const list = el('ul'); list.dataset.testid = 'gpu-cards';
       for (const c of data.cards) {
         const li = el('li'); li.dataset.testid = 'gpu-card-' + c.index;
         const text = el('span', undefined, 'gc-text');
-        text.append(el('strong', 'GPU ' + c.index + ': ' + c.name), el('span', c.free_gb + ' of ' + c.total_gb + ' GB free', 'gc-small'), el('span', using(c), 'gc-small'));
+        text.append(el('strong', c.name), el('span', c.free_gb + ' of ' + c.total_gb + ' GB free', 'gc-small'), el('span', using(c), 'gc-small'));
         const sw = el('button', undefined, 'gc-switch'); sw.type = 'button'; sw.setAttribute('role', 'switch'); sw.setAttribute('aria-checked', String(c.allowed));
         sw.setAttribute('aria-label', 'Video Tool may use this card: ' + c.name); sw.disabled = saving; sw.dataset.testid = 'gpu-switch-' + c.index;
         sw.onclick = () => save({ allowed: c.allowed ? on().filter((x) => x.uuid !== c.uuid).map((x) => x.uuid) : on().map((x) => x.uuid).concat(c.uuid) }, () => 'Video Tool may now use: ' + allowedNames() + '.');
@@ -88,7 +88,7 @@
       root.append(list);
       const rows = (data.engines || []);
       if (rows.length) {
-        root.append(el('h3', 'Programs Video Tool works with'));
+        root.append(el('h3', 'AI programs'));
         const ul = el('ul'); ul.dataset.testid = 'gpu-engines';
         for (const e of rows) {
           const li = el('li', undefined, 'gc-engine'); li.dataset.testid = 'engine-' + e.id;

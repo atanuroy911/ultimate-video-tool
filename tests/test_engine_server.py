@@ -61,7 +61,7 @@ def test_another_computers_voice_is_used_like_a_local_one(remote, monkeypatch, t
     registry.forget("vtengine")
     h = registry.health("vtengine", fresh=True)
     assert h.ok and "voice.speak" in h.capabilities and h.version == "Test box"
-    assert "vtengine" in [s.id for s in registry.engines()] and registry.resolve("voice.speak") in ("vtengine", "voicestudio")
+    assert "vtengine" in [s.id for s in registry.engines()] and registry.resolve("voice.speak") == "vtengine"
 
     def fake(text, out, *, engine, voice, rate=1.0, language="", **k):
         sf.write(str(out), (np.sin(np.linspace(0, 440, 24000)) * 0.1).astype("float32"), 24000)

@@ -14,7 +14,7 @@ import numpy as np
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "server"))
 from vt import paths  # noqa: E402
 from vt.compose.composer import resolve_composition, write_composition  # noqa: E402
 from vt.project import load_theme  # noqa: E402

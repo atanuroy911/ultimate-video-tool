@@ -22,7 +22,7 @@ def test_a_computer_without_a_card_is_told_to_connect_a_server():
     assert hardware.recommend(hw)["comfy"] == "remote" and hardware.recommend(hw)["ollama"] == "remote"
     assert "no NVIDIA" in hardware.summary([], 200)
     big = {"best_gpu": {"memory_gb": 16}, "ram_gb": 32}
-    assert hardware.recommend(big)["comfy"] == "local" and hardware.recommend(big)["voicestudio"] == "off"
+    assert hardware.recommend(big)["comfy"] == "local" and "voicestudio" not in hardware.recommend(big)
     assert "Tesla" in hardware.summary([{"name": "Tesla V100", "memory_gb": 16.0}], 500) and "tight" in hardware.summary([{"name": "x", "memory_gb": 12.0}], 20)
 
 
@@ -138,7 +138,7 @@ def test_the_setup_api(data):
         assert isinstance(o["bundles"],list) and "bundle_catalog" in o
         roundtrip=c.put('/api/setup',json={'choices':o['recommended'],'bundles':o['bundles']})
         assert roundtrip.status_code==200,roundtrip.text
-        assert o["step"] == "welcome" and {"hardware", "recommended", "engines", "steps"} <= set(o) and {e["id"] for e in o["engines"]} == {"ollama", "comfy", "voicestudio"}
+        assert o["step"] == "welcome" and {"hardware", "recommended", "engines", "steps"} <= set(o) and {e["id"] for e in o["engines"]} == {"ollama", "comfy"}
         destination=str(data/'model-store')
         assert c.put("/api/setup", json={"step": "storage", "models_dir": destination}).json()["models_dir"] == destination
         assert c.put("/api/setup", json={"step": "x"}).status_code == 422
@@ -146,3 +146,16 @@ def test_the_setup_api(data):
         plan = c.get("/api/setup/plan?engines=comfy&bundles=pictures").json()
         assert plan[0]["engine"] == "comfy" and plan[0]["items"]
         assert c.post("/api/setup/try/toaster").status_code == 404
+
+
+def test_a_server_whose_engines_were_all_chosen_is_not_asked_to_set_up_again(data):
+    # a server started with the launcher's engine flags (`--comfy existing --ollama existing`) has nothing left to ask
+    from vt.engines import store
+    from vt.engines.model import Endpoint
+
+    assert setup.state()["done"] is False, "a brand new server still asks"
+    store.save("ollama", Endpoint(mode="remote", url="http://127.0.0.1:11434"))
+    assert setup.state()["done"] is False, "one engine still unchosen"
+    store.save("comfy", Endpoint(mode="remote", url="http://127.0.0.1:8188"))
+    assert setup.state()["done"] is True
+    assert setup.state()["step"] == "welcome", "the wizard itself is still there to open from Settings"

@@ -148,7 +148,7 @@ def engine_router(state: dict[str, Any]) -> APIRouter:
 
         out = []
         for e in tts.list_engines():
-            if e["id"] in ("vtengine", "voicestudio", "clone") or not e.get("available", True):
+            if e["id"] in ("vtengine", "clone") or not e.get("available", True):
                 continue
             out += [{"id": f"{e['id']}:{v['id']}", "label": f"{e['label'].split(' (')[0]}: {v.get('label', v['id'])}", "lang": v.get("lang", "en")} for v in e["voices"]]
         return {"voices": out}

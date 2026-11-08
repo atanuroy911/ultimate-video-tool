@@ -60,8 +60,6 @@ ENGINES: list[dict] = [
      ]},
     {"id": "clone", "label": "My own voice (cloned, English)", "offline": True, "licence": "Chatterbox (MIT). Only voices you added with the speaker's consent",
      "voices": []},
-    {"id": "voicestudio", "label": "My voice server (VoiceStudio)", "offline": False, "licence": "VoiceStudio runs on your own server; each voice model has its own licence, shown in Settings, Engines",
-     "voices": []},
     {"id": "elevenlabs", "label": "ElevenLabs (online, your key)", "offline": False, "licence": "Your ElevenLabs account and plan decide how you may use the audio", "voices": []},
     {"id": "vtengine", "label": "Another Video Tool computer", "offline": False, "licence": "The voices of that computer, each with its own licence", "voices": []},
     {"id": "comfyvoice", "label": "Voices on my ComfyUI server (Breeze TTS 2, OmniVoice)", "offline": False,
@@ -375,39 +373,6 @@ def _elevenlabs_listing(e: dict) -> tuple[dict, bool, str]:
     return {**e, "voices": voices}, bool(voices), "" if voices else "this ElevenLabs account has no voices yet"
 
 
-def _synth_voicestudio(text: str, voice: str, rate: float, out_wav: Path, instruction: str = "", seed: int = VOICE_SEED) -> None:
-    """`voice` is "<engine>:<preset voice>", "profile:<id>", or "auto" (the server's own default). The sentence is cached by what it says, who says it and the seed.
-
-    The seed is always sent: without one a zero-shot engine picks a new take, and often a new person, on every request.
-    """
-    import hashlib
-
-    from .voicestudio import VoiceStudioError, client_for
-
-    key = hashlib.sha1(f"{voice}|{rate:.3f}|{instruction}|{seed}|{text}".encode("utf-8")).hexdigest()[:20]
-    cache = out_wav.parent / f".vs_{key}.wav"
-    if not cache.exists():
-        kind, _, name = voice.partition(":")
-        kw: dict = {"speed": rate, "seed": seed}
-        if instruction:
-            kw["instruct"] = instruction
-        if kind == "profile":
-            kw["profile_id"] = name
-        elif name:
-            kw.update(engine=kind, preset_voice=name)
-        client = client_for()
-        try:
-            cache.write_bytes(client.speak(text, **kw))
-        except VoiceStudioError as e:
-            raise TTSError(str(e)) from e
-        finally:
-            client.close()
-    cmd = [find_tool("ffmpeg"), "-y", "-v", "error", "-i", str(cache), "-ac", "1", "-ar", str(SR), str(out_wav)]
-    r = subprocess.run(cmd, capture_output=True, text=True, creationflags=CREATE_NO_WINDOW)
-    if r.returncode != 0:
-        raise TTSError("the voice server's sound could not be converted: " + r.stderr[-120:])
-
-
 def _comfy_voice_servers() -> dict[str, str]:
     """{voice workflow id: url of a ComfyUI server that can run it}, over the main server and its workers. Never raises: no server means an empty answer."""
     from .comfy import ComfyClient, list_workflows
@@ -438,29 +403,13 @@ def _comfy_voice_plan(voice: str, language: str, wants_direction: bool) -> tuple
 
 
 def dialect_for(engine: str, voice: str, language: str = "en", wants_direction: bool = False) -> str:
-    """Which direction dialect (vt/voice_direction.py) this voice speaks: the model behind a ComfyUI or VoiceStudio voice decides."""
+    """Which direction dialect (vt/voice_direction.py) this voice speaks: the model behind a ComfyUI voice decides."""
     if engine == "comfyvoice":
         from .comfy import voicing
 
         return voicing.dialect(_comfy_voice_plan(voice, language, wants_direction)[0])
     if engine == "breeze":
         return "breeze"
-    if engine != "voicestudio":
-        return "none"
-    kind = voice.partition(":")[0]
-    if kind in VD.DIALECT_OF:
-        return VD.DIALECT_OF[kind]
-    if kind in ("profile", "auto", ""):
-        try:
-            from .voicestudio import client_for
-
-            c = client_for()
-            try:
-                return VD.DIALECT_OF.get(c.tts_engines().get("active", ""), "none")
-            finally:
-                c.close()
-        except Exception:                                     # noqa: BLE001 - not knowing the dialect only costs the direction, never the sentence
-            return "none"
     return "none"
 
 
@@ -518,15 +467,13 @@ def _synth_comfyvoice(text: str, voice: str, rate: float, out_wav: Path, instruc
 
 
 def synth_sentence(engine: str, voice: str, text: str, rate: float, out_wav: Path, instruction: str = "", language: str = "en", **lock) -> None:
-    """`lock` (comfyvoice: anchor, direct, seed; voicestudio: seed) carries vt/voice_lock.py's choices to the engines that need them."""
+    """`lock` (comfyvoice: anchor, direct, seed) carries vt/voice_lock.py's choices to the engines that need them."""
     if engine == "comfyvoice":
         return _synth_comfyvoice(text, voice, rate, out_wav, instruction, language, **lock)
     if engine == "vtengine":
         return _synth_vtengine(text, voice, rate, out_wav)
     if engine == "elevenlabs":
         return _synth_elevenlabs(text, voice, rate, out_wav, language)
-    if engine == "voicestudio":
-        return _synth_voicestudio(text, voice, rate, out_wav, instruction, **{k: v for k, v in lock.items() if k == "seed"})
     if engine == "clone":
         return _synth_clone(text, voice, rate, out_wav)
     if engine == "kokoro":
@@ -705,7 +652,7 @@ def _lock_voices(engine: str, lines: list[dict], language: str, progress: Progre
     """({voice id: (the voice id to speak with, extra engine arguments)}, why some voice was not locked) for the voices the model would otherwise invent
     per sentence (vt/voice_lock.py).
 
-    A designed ComfyUI voice gets a reference take that every sentence is cloned from; VoiceStudio's default voice gets a profile made from one.
+    A designed ComfyUI voice gets a reference take that every sentence is cloned from.
     When a reference cannot be made the voice is spoken as before, and the reason is kept: a missing lock never stops the video.
     """
     out: dict[str, tuple[str, dict]] = {}
@@ -720,26 +667,9 @@ def _lock_voices(engine: str, lines: list[dict], language: str, progress: Progre
             if engine == "comfyvoice":
                 anchor = VL.make_anchor(engine, vid, text, language, lambda p: _synth_comfyvoice(text, vid, 1.0, p, language=language), cache)
                 out[vid] = (vid, {"anchor": anchor})
-            elif engine == "voicestudio":
-                anchor = VL.make_anchor(engine, vid, text, language, lambda p: _synth_voicestudio(text, vid, 1.0, p), cache)
-                out[vid] = (f"profile:{VL.profile_for(anchor, cache, lambda a: _voicestudio_profile(a, language))}", {})
         except Exception as e:                                                       # noqa: BLE001 - the unlocked voice still speaks
             why.append(f"{vid}: the voice could not be cast once ({e}); each sentence was voiced on its own")
     return out, why
-
-
-def _voicestudio_profile(anchor, language: str) -> str:
-    from .voicestudio import client_for
-
-    c = client_for()
-    try:
-        pr = c.clone(f"Video Tool voice {anchor.key[:8]}", anchor.path, ref_text=anchor.text, language=language)
-    finally:
-        c.close()
-    pid = pr.get("id") or (pr.get("profile") or {}).get("id")
-    if not pid:
-        raise TTSError("the voice server made no profile from the reference")
-    return str(pid)
 
 
 def _keep_one_voice(engine: str, lines: list[dict], takes: list[np.ndarray], locked: dict, speak: Callable[..., np.ndarray], progress: ProgressFn) -> dict:
@@ -807,34 +737,6 @@ def _vtengine_listing(e: dict) -> tuple[dict, bool, str]:
         return e, False, str(err)
 
 
-def _voicestudio_listing(e: dict) -> tuple[dict, bool, str]:
-    """The voices of the connected VoiceStudio: the preset voices of each ready engine, then the person's own profiles. Never raises."""
-    from .engines import registry
-    from .voicestudio import VoiceStudioError, client_for
-
-    ep = registry.endpoint("voicestudio")
-    if ep.mode == "off" or not ep.url:
-        return e, False, "connect your voice server in Settings, Engines"
-    h = registry.health("voicestudio")
-    if not h.ok:
-        return e, False, h.why_not or "the voice server does not answer"
-    voices: list[dict] = [{"id": "auto", "label": "The server's own voice", "lang": "en"}]
-    try:
-        client = client_for()
-        try:
-            for b in client.tts_engines().get("backends", []):
-                if b.get("available") and b.get("preset_voices"):
-                    for v in b["preset_voices"]:
-                        voices.append({"id": f"{b['id']}:{v}", "label": f"{b.get('display_name', b['id']).split(' (')[0]}: {v}", "lang": "en"})
-            for pr in client.profiles():
-                voices.append({"id": f"profile:{pr.get('id')}", "label": f"{pr.get('name', 'Voice')} (mine)", "lang": (pr.get("language") or "en")[:2].lower() or "en"})
-        finally:
-            client.close()
-    except VoiceStudioError as err:
-        return e, False, str(err)
-    return {**e, "voices": voices}, True, h.note if "licence" in h.note else ""
-
-
 DESIGN_PRESETS = [
     ("design:A warm, confident adult man with a clear voice and an even, friendly pace.", "A confident man, warm and clear"),
     ("design:A calm, thoughtful woman with a clear voice and a gentle, reflective delivery.", "A calm woman, gentle and thoughtful"),
@@ -876,8 +778,6 @@ def list_engines() -> list[dict]:
                 ok, why = False, "add a voice first: a few seconds of your own voice, in Settings"
         elif e["id"] == "vtengine":
             e, ok, why = _vtengine_listing(e)
-        elif e["id"] == "voicestudio":
-            e, ok, why = _voicestudio_listing(e)
         elif e["id"] == "elevenlabs":
             e, ok, why = _elevenlabs_listing(e)
         elif e["id"] == "comfyvoice":
@@ -911,7 +811,7 @@ def recommended_voice(language='en', engines=None):
         workflow, _ = _comfy_voice_plan('design:auto', language, True)
         if workflow:
             return 'comfyvoice','design:auto'
-    for name in ('edge','kokoro','vtengine','voicestudio','mms'):
+    for name in ('edge','kokoro','vtengine','mms'):
         for voice in by_id.get(name,{}).get('voices',[]):
             if voice.get('lang','').startswith(language[:2]):
                 return name,voice['id']

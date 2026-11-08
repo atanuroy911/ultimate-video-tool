@@ -109,3 +109,23 @@ def test_extract_recording_range_creates_a_real_editable_audio_asset(ref):
     samples=np.frombuffer(raw,dtype="float32")
     assert len(samples)/16000==pytest.approx(1.2,abs=.03)
     assert np.max(np.abs(samples))>.1
+
+
+def test_moving_one_picture_leaves_the_other_pictures_where_they_were(ref):
+    """The owner dragged a keyword and the sticker before it moved: the composer re-paged the scene around the edited picture. Every other picture keeps its times."""
+    from vt.server.app import edit_element, put_scenes, _element_times
+    sf = ref.scenes()
+    beats = {b.id: b for b in ref.beats().beats}
+    k = max(range(len(sf.scenes)), key=lambda i: sum(len(beats[b].word_ids) for b in sf.scenes[i].beats))
+    words = [w for b in sf.scenes[k].beats for w in beats[b].word_ids]
+    data = sf.model_dump(exclude_none=True)
+    data["scenes"][k]["elements"] = [{"type": "sticker", "emoji": "1f98a", "at_word": words[0]}, {"type": "keyword", "text": "Save", "at_word": words[len(words) // 2]},
+                                     {"type": "sticker", "emoji": "1f4b0", "at_word": words[-1]}]
+    put_scenes(ref.id, data)
+    sid = sf.scenes[k].id
+    before = {j: _element_times(ref)[f"{sid}:{j}"] for j in range(3)}
+    for shift in (0.4, -0.3):
+        t = _element_times(ref)[f"{sid}:1"]
+        edit_element(ref.id, sid, 1, {"start": round(t["start"] + shift, 3), "end": round(t["end"] + shift, 3)})
+        after = _element_times(ref)
+        assert after[f"{sid}:0"] == before[0] and after[f"{sid}:2"] == before[2], (before, after)

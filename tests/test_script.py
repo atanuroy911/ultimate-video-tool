@@ -251,3 +251,16 @@ def test_fit_and_variety_separate_a_thoughtful_plan_from_a_flat_one():
     assert fit_score(gs, beats) == 1.0 and fit_score(fs, beats) < 0.5
     a, b = score(gs, tr, beats), score(fs, tr, beats)
     assert a["variety"] > b["variety"] and a["fit"] > b["fit"]
+
+
+def test_a_place_written_as_a_backdrop_is_sent_back_to_the_ai_not_crashed_on():
+    # A real director wrote backdrop {"type": "room", "time": "day"}; it passed the check, then compiling the plan crashed and the rules took the video.
+    d = good()
+    d["scenes"][0]["backdrop"] = {"type": "room", "time": "day"}
+    errs = validate_script(d, TR, BEATS, media_ids={"pic1"})
+    assert any("backdrop must be a picture or video from the media bin" in e and "belongs in `sets`" in e for e in errs), errs
+    d["scenes"][0]["backdrop"] = {"media": "nope"}
+    assert any("backdrop media 'nope' is not in the project's media bin" in e for e in validate_script(d, TR, BEATS, media_ids={"pic1"}))
+    d["scenes"][0]["backdrop"] = {"media": "pic1", "motion": "pan"}
+    assert validate_script(d, TR, BEATS, media_ids={"pic1"}) == []
+    assert "belongs" not in str(VideoScript.model_json_schema()) or "`sets`" in str(VideoScript.model_json_schema())

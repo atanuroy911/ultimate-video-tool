@@ -178,7 +178,10 @@ class OllamaInstaller(Installer):
 
         root=Path(self.storage.get('install_dir') or paths.DATA/'engines')/'ollama' if self.storage else None
         have_bin = bool(llm.binary(root) if root else llm.binary())
-        p = Plan("ollama", [Item("Ollama program", 1.5 if os.name == "nt" else 0.2, "the engine that runs language models", have_bin), Item(f"Model {self.model}", 3.3, "a small model that reads and plans your videos", False)])
+        from .fit import LANGUAGE_DOWNLOAD_GB
+
+        p = Plan("ollama", [Item("Ollama program", 1.5 if os.name == "nt" else 0.2, "the program that runs the writing AI", have_bin),
+                            Item(f"Model {self.model}", LANGUAGE_DOWNLOAD_GB.get(self.model, 3.3), "the model that plans and writes your videos", False)])
         url=self.storage['url'] if self.storage else llm.settings()['ollama_url']
         if have_bin and llm.reachable(url) and llm.has_model(self.model, url):
             p.items[1].done = True
@@ -241,10 +244,17 @@ class ComfyInstaller(Installer):
 
     def plan(self) -> Plan:
         items = []
+        role = {"diffusion_models": "Picture model", "text_encoders": "Text reader", "vae": "Picture decoder", "loras": "Clip speed-up", "clip_vision": "Picture reader"}
         for x in self.manifest():
             f = self.models / x["path"]
-            items.append(Item(x["path"].rsplit("/", 1)[-1], round(x["size"] / 1e9, 1), x["path"].split("/")[0].replace("_", " "), f.exists() and f.stat().st_size == x["size"]))
-        p = Plan("comfy", [Item("ComfyUI program and its Python", 5.0, "the picture server, with the right PyTorch for your card", (self.root / "main.py").exists() and self.python().exists())] + items)
+            folder, file = x["path"].split("/")[0], x["path"].rsplit("/", 1)[-1]
+            stem = file.rsplit(".", 1)[0]
+            if "wan2" in stem or "umt5" in stem or folder == "loras":
+                folder_role = {"diffusion_models": "Clip model", "text_encoders": "Clip text reader", "vae": "Clip decoder"}.get(folder, role.get(folder, "Model file"))
+            else:
+                folder_role = role.get(folder, "Model file")
+            items.append(Item(f"{folder_role} · {stem}", round(x["size"] / 1e9, 1), file, f.exists() and f.stat().st_size == x["size"]))
+        p = Plan("comfy", [Item("ComfyUI program", 5.0, "the program that draws, set up for your graphics card", (self.root / "main.py").exists() and self.python().exists())] + items)
         if not shutil.which("git"):
             p.problems.append("Git is not installed. Install Git (git-scm.com) and try again.")
         free = shutil.disk_usage(self.models.parent if self.models.parent.exists() else Path.home()).free / 1e9

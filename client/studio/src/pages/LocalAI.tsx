@@ -69,9 +69,9 @@ export default function LocalAI() {
   if (!st) return null;
   const ready = st.reachable && st.model_ready;
   return (
-    <section className="card card-pad col" style={{ gap: 12 }} aria-label="Language AI settings">
+    <section className="card card-pad col" style={{ gap: 12 }} aria-label="Writing AI settings">
       <div className="row wrap">
-        <h2 className="grow"><Cpu size={18} style={{ verticalAlign: -3 }} /> Language AI settings</h2>
+        <h2 className="grow"><Cpu size={18} style={{ verticalAlign: -3 }} /> Writing AI settings</h2>
         <span className={`chip ${st.llm_mode === "off" ? "" : ready ? "ok" : "warn"}`}>
           {st.llm_mode === "off" ? "Off" : ready ? <><Check size={12} /> Ready · {st.model}</> : st.reachable ? `Model ${st.model} not downloaded` : "Not running"}
         </span>

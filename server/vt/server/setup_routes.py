@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from ..engines import hardware, installers, setup
@@ -19,6 +19,8 @@ class SetupBody(BaseModel):
     install_dir: Optional[str] = Field(default=None, max_length=400)
     gpu: Optional[int] = Field(default=None,ge=0,le=16)
     done: Optional[bool] = None
+    picture_model: Optional[str] = Field(default=None, max_length=60)
+    language_model: Optional[str] = Field(default=None, max_length=60)
 
 
 class InstallBody(BaseModel):
@@ -27,6 +29,8 @@ class InstallBody(BaseModel):
     models_dir: Optional[str] = Field(default=None,max_length=400)
     install_dir: Optional[str] = Field(default=None,max_length=400)
     gpu: Optional[int] = Field(default=None,ge=0,le=16)
+    picture_model: Optional[str] = Field(default=None, max_length=60)
+    language_model: Optional[str] = Field(default=None, max_length=60)
 
 
 @router.post('/ollama-model')
@@ -51,8 +55,32 @@ def install_language_model():
 
 
 @router.get("")
-def get_setup() -> dict[str, Any]:
-    return setup.overview()
+def get_setup(request: Request) -> dict[str, Any]:
+    # the person sits at this computer when the request comes from loopback (the client app on the same PC forwards from 127.0.0.1)
+    host = request.client.host if request.client else ""
+    return setup.overview(same_computer=host in ("127.0.0.1", "::1", "localhost"))
+
+
+@router.get("/folders")
+def get_folders(path: str = "") -> dict[str, Any]:
+    """Folder names on this server for the folder picker: drives first, then one folder at a time. No file names."""
+    try:
+        return setup.folders(path)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+
+
+class NewFolderBody(BaseModel):
+    parent: str = Field(max_length=400)
+    name: str = Field(max_length=120)
+
+
+@router.post("/folders")
+def make_folder(body: NewFolderBody) -> dict[str, Any]:
+    try:
+        return setup.new_folder(body.parent, body.name)
+    except (ValueError, OSError) as e:
+        raise HTTPException(422, str(e))
 
 
 @router.put("")
@@ -69,12 +97,15 @@ def get_hardware() -> dict[str, Any]:
 
 
 @router.get("/plan")
-def get_plan(engines: str = "ollama,comfy", bundles: str = "pictures", models_dir: Optional[str] = None, install_dir: Optional[str] = None, gpu: Optional[int] = None) -> list[dict[str, Any]]:
+def get_plan(engines: str = "ollama,comfy", bundles: str = "pictures", models_dir: Optional[str] = None, install_dir: Optional[str] = None, gpu: Optional[int] = None,
+             picture_model: Optional[str] = None, language_model: Optional[str] = None) -> list[dict[str, Any]]:
     names = [e for e in engines.split(",") if e]
     if any(e not in installers.INSTALLERS for e in names):
         raise HTTPException(404, "unknown engine in the plan")
     config=setup.state()
     if gpu is not None:config['gpu']=gpu
+    for key,value in [('picture_model',picture_model),('language_model',language_model)]:
+        if value:config[key]=value
     try:
         for key,value in [('models_dir',models_dir),('install_dir',install_dir)]:
             if value is not None:config[key]=setup.storage_path(value)
@@ -90,12 +121,15 @@ def install(body: InstallBody) -> dict[str, Any]:
         raise HTTPException(404, "unknown engine")
     config = setup.state()
     if body.gpu is not None:config['gpu']=body.gpu
+    for key in ('picture_model','language_model'):
+        if getattr(body,key):config[key]=getattr(body,key)
     try:
         for key in ('models_dir','install_dir'):
             value=getattr(body,key)
             if value is not None:config[key]=setup.storage_path(value)
     except ValueError as e:raise HTTPException(422,str(e))
-    setup.save(models_dir=config['models_dir'],install_dir=config['install_dir'],gpu=config.get('gpu'))
+    try:setup.save(models_dir=config['models_dir'],install_dir=config['install_dir'],gpu=config.get('gpu'),picture_model=body.picture_model,language_model=body.language_model)
+    except ValueError as e:raise HTTPException(422,str(e))
     problems = [p for plan in setup.plans(body.engines, body.bundles,config) for p in plan["problems"]]
     if problems:
         raise HTTPException(409, " ".join(problems))

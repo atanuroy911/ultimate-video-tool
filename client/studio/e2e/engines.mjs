@@ -18,7 +18,7 @@ await page.waitForSelector("[data-testid=engines] .engine-card");
 const cards = page.locator("[data-testid=engines] .engine-card[data-engine]");
 check("one card for each program in use (another Video Tool computer only once it is linked)", (await cards.count()) === before.filter((e) => e.id !== "vtengine" || e.endpoint.mode !== "off").length && (await cards.count()) >= 2);
 const text = await page.getByTestId("engines").innerText();
-check("each says where it runs in words", /Language AI/.test(text) && /Pictures and clips/.test(text) && /(Not set up|On this server|Installed by Video Tool)/.test(text));
+check("each says where it runs in words", /Writing AI/.test(text) && /Picture AI/.test(text) && /(Not set up|On this server|Installed by Video Tool)/.test(text));
 check("no port numbers or JSON on the cards", !/\{|\}/.test(text));
 
 await page.locator(".engine-card[data-engine=comfy]").getByRole("button", { name: /Set up|Change/ }).click();

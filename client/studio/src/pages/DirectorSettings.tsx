@@ -30,7 +30,7 @@ export default function DirectorSettings({ settings, directors, loading, onSave 
     <div className="director-next" role="status" data-testid="next-director">
       {loading ? <><Spinner /> Checking which directors are ready…</> : directors ? <>
         <strong>{next ? `${next.label} directs your next video` : "No director is ready yet"}</strong>
-        <span className="small muted">{next ? "If it can't finish, the next ready one in the list takes over." : "Connect Claude or Codex below, or set up Language AI on the Server page. Videos still work with built-in rules."}</span>
+        <span className="small muted">{next ? "If it can't finish, the next ready one in the list takes over." : "Connect Claude or Codex below, or set up the Writing AI on the Server page. Videos still work with built-in rules."}</span>
       </> : <><strong>Could not check the directors</strong><span className="small muted">Reconnect to the server, then open this page again.</span></>}
     </div>
     <Field label="Automatic tries this order">
@@ -41,7 +41,7 @@ export default function DirectorSettings({ settings, directors, loading, onSave 
     </Field>
     <ol className="director-order" aria-label="Director fallback order">{ordered.map(d => <li key={d.id} data-director={d.id}>
       <div className="col grow" style={{ gap: 4 }}><strong>{d.label}</strong><span className="small muted">{d.available ? (d.id === next?.id ? "First ready choice in your order." : "Ready if an earlier director cannot finish.") :
-        d.kind.endsWith("-client") ? "Open Ultimate Video Tool on that computer and sign in to the assistant." : d.id === "local" ? "Check Language AI on the Server page." : "Sign in to Claude Code on the server."}</span></div>
+        d.kind.endsWith("-client") ? "Open Ultimate Video Tool on that computer and sign in to the assistant." : d.id === "local" ? "Check the Writing AI on the Server page." : "Sign in to Claude Code on the server."}</span></div>
       <span className={`chip ${d.available ? "ok" : "warn"}`}>{d.available ? "Ready" : "Needs attention"}</span>
     </li>)}</ol>
     {missing.length > 0 && <p className="small muted" data-testid="missing-directors">{missing.map(kind => kind.startsWith("codex") ? "Codex" : "Claude").join(" and ")} on your own computer: not connected yet. Open Ultimate Video Tool on that computer; it connects by itself.</p>}

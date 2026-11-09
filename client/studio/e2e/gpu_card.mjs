@@ -34,7 +34,7 @@ const OWN_RUNNING = { ...clone(ANSWERED), engines: [{ ...ENGINES[0], source: "ow
 const SETUP = {
   step: "welcome", done: false, choices: {}, bundles: ["pictures"], models_dir: "", install_dir: "", steps: [], server: { name: "GPU-SERVER", data_dir: "/data", os: "Linux" }, existing: {}, gpu: null, recommended_gpu: 1,
   hardware: { summary: "", disk_free_gb: 116, ram_gb: 47, data_dir: "/data", gpus: [{ index: 0, name: V100.name, memory_gb: 16 }, { index: 1, name: RTX.name, memory_gb: 12 }] },
-  recommended: { ollama: "local", comfy: "local" }, engines: [{ id: "ollama", label: "Ollama", about: "Language AI", installable: true, mode: "off" }, { id: "comfy", label: "ComfyUI", about: "Pictures and clips", installable: true, mode: "off" }],
+  recommended: { ollama: "local", comfy: "local" }, engines: [{ id: "ollama", label: "Ollama", about: "Writing AI", installable: true, mode: "off" }, { id: "comfy", label: "ComfyUI", about: "Picture AI", installable: true, mode: "off" }],
 };
 
 // what the server does with a save, as far as this page can tell
@@ -186,7 +186,7 @@ console.log("The engines Video Tool works with");
   check("it offers Video Tool's own copy as a button", await page.getByTestId("engine-ollama-own").isVisible());
   const ctext = await comfy.innerText();
   check("ComfyUI says its own copy is not installed yet and where to install it, with no button", /isn't installed yet/.test(ctext) && /Set up… under AI programs/.test(ctext) && (await page.getByTestId("engine-comfy-own").count()) === 0, ctext);
-  check("the two engines use the names the rest of the app uses", /Language AI \(Ollama\)/.test(text) && /Pictures & clips \(ComfyUI\)/.test(ctext));
+  check("the two engines use the names the rest of the app uses", /Writing AI \(Ollama\)/.test(text) && /Picture AI \(ComfyUI\)/.test(ctext));
   await page.getByTestId("engine-ollama-own").click();
   await ollama.locator("text=own Ollama is running").waitFor();
   check("choosing it asks the server for exactly that engine", seen.posts.length === 1 && seen.posts[0].engine === "ollama", JSON.stringify(seen.posts));
@@ -208,7 +208,7 @@ console.log("The setup question in the wizard");
   await step.waitFor();
   check("the second step is the question, with its own title and no card frame of its own", /Which graphics cards may Video Tool use\?/.test(await sheet.locator(".ios-title").innerText()) && (await step.getAttribute("data-mode")) === "setup" && !/card-pad/.test((await step.getAttribute("class")) || ""));
   check("it lists both cards with their switches", (await sheet.getByTestId("gpu-switch-0").count()) === 1 && (await sheet.getByTestId("gpu-switch-1").count()) === 1);
-  check("the old 'Graphics card for a new install' choice is gone from the folders step", await (async () => { await sheet.getByTestId("gpu-not-now").click(); await sheet.locator("text=Where to keep downloads").first().waitFor(); return (await sheet.locator("text=Graphics card for a new install").count()) === 0; })());
+  check("the old 'Graphics card for a new install' choice is gone from the folders step", await (async () => { await sheet.getByTestId("gpu-not-now").click(); await sheet.locator("text=Where to save downloads").first().waitFor(); return (await sheet.locator("text=Graphics card for a new install").count()) === 0; })());
   for (let k = 0; k < 40 && !seen.setupPuts.some((b) => b.step === "storage"); k++) await page.waitForTimeout(50);       // the wizard saves where it is, then the step, one after the other
   check("'Not now' moved on without saving an answer", !seen.puts.length && seen.setupPuts.some((b) => b.step === "storage"), JSON.stringify(seen.setupPuts.slice(-2)));
   await sheet.getByRole("button", { name: /^Back$/ }).click();
@@ -216,7 +216,7 @@ console.log("The setup question in the wizard");
   await sheet.getByTestId("gpu-switch-0").click();
   await page.waitForFunction(() => document.querySelector("[data-testid=gpu-switch-0]")?.getAttribute("aria-checked") === "true");
   await sheet.getByTestId("gpu-use-these").click();
-  await sheet.locator("text=Where to keep downloads").first().waitFor();
+  await sheet.locator("text=Where to save downloads").first().waitFor();
   check("'Use these cards' saves the answer and moves on", seen.puts.length === 2 && JSON.stringify(seen.puts.at(-1).allowed.sort()) === JSON.stringify(["GPU-3060", "GPU-v100"]), JSON.stringify(seen.puts));
   await sheet.getByRole("button", { name: /^Back$/ }).click();
   await sheet.getByTestId("gpu-switch-1").waitFor();

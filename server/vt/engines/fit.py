@@ -216,6 +216,22 @@ def choose(card: Card, allow_partial: bool = True) -> Fit:
 # ----------------------------------------------------------------------------- the language model (Ollama)
 # (model, GB on the card with an 8k context) best first; gemma3 reads Bangla best of the small open models
 LANGUAGE = [("gemma3:12b", 10.0), ("gemma3:4b", 4.6), ("gemma3:1b", 1.9)]
+LANGUAGE_DOWNLOAD_GB = {"gemma3:12b": 8.1, "gemma3:4b": 3.3, "gemma3:1b": 0.8}     # the size Ollama's library lists for each
+
+# Short clips (Wan 2.2: two 14B experts at 8 bits that take turns). ComfyUI streams what does not fit from RAM, but below these sizes it
+# swaps or runs out of memory. Estimates from the model sizes, not a bench on every card.
+CLIPS_CARD_GB = 12
+CLIPS_RAM_GB = 32
+
+
+def clips_fit(vram_gb: float, ram_gb: float) -> dict:
+    """Whether this computer can make short video clips; if not, why, in plain words. vram_gb in GB (1e9), as Card.vram_gb."""
+    size = round(vram_gb * GB / 2**30) if vram_gb else 0
+    if size < CLIPS_CARD_GB:
+        return {"fits": False, "why": f"Needs a graphics card with {CLIPS_CARD_GB} GB or more; " + (f"this one has {size} GB." if size else "none was found.")}
+    if ram_gb and ram_gb < CLIPS_RAM_GB:
+        return {"fits": False, "why": f"Needs {CLIPS_RAM_GB} GB of memory; this computer has {ram_gb:.0f} GB."}
+    return {"fits": True, "why": ""}
 
 
 def language_model(vram_gb: float, ram_gb: float = 0.0) -> dict:

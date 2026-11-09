@@ -25,7 +25,7 @@
   const using = (c) => c.using.length
     ? c.using.map((p) => (p.ours ? 'Video Tool is using ' + (p.gb ? p.gb + ' GB' : 'it') + '.' : p.label + ' is using ' + (p.gb ? p.gb + ' GB' : 'it') + '.')).join(' ')
     : 'Nothing else is using it.';
-  const ENGINE = { ollama: 'Language AI (Ollama)', comfy: 'Pictures & clips (ComfyUI)' };
+  const ENGINE = { ollama: 'Writing AI (Ollama)', comfy: 'Picture AI (ComfyUI)' };
 
   function mount(root) {
     root.classList.add('gc');

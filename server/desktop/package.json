@@ -11,7 +11,7 @@
     "dist": "electron-builder --publish never",
     "dist:server": "electron-builder --publish never",
     "dist:dir": "electron-builder --dir --publish never",
-    "test": "node test-server-control.js && node test-server-port.js && node test-bootstrap-update.js"
+    "test": "node test-server-control.js && node test-server-port.js && node test-bootstrap-update.js && node test-log-view.js && node test-contained-manager.js"
   },
   "dependencies": {
     "ffmpeg-static": "^5.2.0",
@@ -38,6 +38,7 @@
       "server-manager-preload.js",
       "server-manager.html",
       "server-manager-ui.js",
+      "log-view.js",
       "server-icon.png",
       "package.json"
     ],

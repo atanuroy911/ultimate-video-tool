@@ -436,6 +436,11 @@ def _serve(host: str, port: Optional[int], name: str, services: dict[str, str], 
             console.print(f"  [yellow]Other computers may not find this server by themselves ({p}); typing the address still works.[/yellow]")
     if open_ui:
         threading.Timer(1.5, lambda: webbrowser.open(f"http://127.0.0.1:{port}")).start()
+    import logging
+
+    from .server.serve import QuietPolling
+
+    logging.getLogger("uvicorn.access").addFilter(QuietPolling())       # the status checks every window makes every few seconds would bury everything else in the log
     try:
         uvicorn.run(studio_app, host=host, port=port, log_level="info")
     finally:

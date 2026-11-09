@@ -56,7 +56,7 @@ def test_the_comfy_plan_lists_models_sizes_and_what_is_already_there(data, monke
     monkeypatch.setattr(installers.shutil, "which", lambda n: "git")
     inst = installers.ComfyInstaller(root=data / "comfy", models=str(data / "models"))
     p = inst.plan()
-    names = [i.name for i in p.items]
+    names = [i.what for i in p.items]                       # the file each item downloads; the name says what it is for ("Picture model · ...")
     assert "z_image_turbo_bf16.safetensors" in names and "qwen_3_4b.safetensors" in names and "ae.safetensors" in names
     assert 20 < p.total_gb < 40 and not p.problems and str(data / "models") in p.notes[0]
     first = next(x for x in inst.manifest() if x["path"].endswith("ae.safetensors"))
@@ -159,3 +159,41 @@ def test_a_server_whose_engines_were_all_chosen_is_not_asked_to_set_up_again(dat
     store.save("comfy", Endpoint(mode="remote", url="http://127.0.0.1:8188"))
     assert setup.state()["done"] is True
     assert setup.state()["step"] == "welcome", "the wizard itself is still there to open from Settings"
+
+
+def test_the_wizard_marks_every_model_against_the_card(data, monkeypatch):
+    """A 6 GB laptop card: the language model that fits is recommended, the bigger one runs on the processor, clips are refused with a reason."""
+    hw = {"ram_gb": 42.0, "gpus": [{"index": 0, "name": "NVIDIA GeForce RTX 4050 Laptop GPU", "memory_gb": 6, "compute": 8.9}]}
+    m = setup.model_choices(hw, {})
+    assert m["card"]["gb"] == 6 and m["language_default"] == "gemma3:4b"
+    big = next(x for x in m["language"] if x["id"] == "gemma3:12b")
+    assert big["speed"] == "slow" and "processor" in big["why"]
+    assert not m["clips"]["fits"] and "12 GB" in m["clips"]["why"]
+    blackwell = next(x for x in m["pictures"] if x["id"] == "zimage-nvfp4")
+    assert not blackwell["fits"] and "RTX 50" in blackwell["why"]
+    assert sum(x["recommended"] for x in m["pictures"]) == 1
+    none = setup.model_choices({"ram_gb": 16.0, "gpus": []}, {})
+    assert not any(x["fits"] for x in none["pictures"]) and not none["clips"]["fits"]
+
+
+def test_a_chosen_model_is_saved_and_a_wrong_one_refused(data):
+    setup.save(picture_model="klein-4b-fp8", language_model="gemma3:1b")
+    s = setup.state()
+    assert s["picture_model"] == "klein-4b-fp8" and s["language_model"] == "gemma3:1b"
+    with pytest.raises(ValueError):
+        setup.save(picture_model="not-a-model")
+    with pytest.raises(ValueError):
+        setup.save(language_model="llama-huge")
+
+
+def test_the_folder_picker_lists_folders_never_files(data, tmp_path):
+    (tmp_path / "a").mkdir(); (tmp_path / "b").mkdir(); (tmp_path / "file.txt").write_text("x")
+    f = setup.folders(str(tmp_path))
+    assert [x["name"] for x in f["folders"]] == ["a", "b"] and f["writable"] and f["roots"]
+    assert setup.folders(str(tmp_path / "not" / "yet"))["path"] == str(tmp_path)        # a folder not made yet shows the nearest one that is
+    made = setup.new_folder(str(tmp_path), "Models")
+    assert made["path"] == str(tmp_path / "Models") and (tmp_path / "Models").is_dir()
+    with pytest.raises(ValueError):
+        setup.new_folder(str(tmp_path), "bad/name")
+    with pytest.raises(ValueError):
+        setup.folders("relative/path")

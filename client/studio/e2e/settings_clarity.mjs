@@ -43,7 +43,7 @@ try {
   await page.screenshot({path:path.join(out,width+'-'+theme+'-directors.png'),animations:'disabled'});
   await page.getByLabel('Which Claude directs',{exact:true}).selectOption('opus');
   await page.waitForFunction(()=>document.querySelector('[data-testid=director-model]')?.value==='opus');
-  await page.getByText('Language AI on the server',{exact:true}).click();
+  await page.getByText('Writing AI on the server',{exact:true}).click();
   const automatic=page.locator('#provider-best');assert(await automatic.getByText('Ready',{exact:true}).isVisible(),'Automatic includes the ready local provider');
   await page.locator('#provider-auto [role=radio]').click();
   await page.getByLabel('Ollama address',{exact:true}).waitFor();

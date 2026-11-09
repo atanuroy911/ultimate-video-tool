@@ -91,7 +91,7 @@ export default function FindEngines({ onUsed }: { onUsed: () => void }) {
           </div>
         </div>
       )}
-      {ollama.length > 0 && <span className="small muted">Language AI found: {ollama.map((o) => `Ollama ${o.version} at ${o.url.replace(/^https?:\/\//, "")}`).join(", ")}.</span>}
+      {ollama.length > 0 && <span className="small muted">Writing AI found: {ollama.map((o) => `Ollama ${o.version} at ${o.url.replace(/^https?:\/\//, "")}`).join(", ")}.</span>}
     </div>
   );
 }

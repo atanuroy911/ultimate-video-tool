@@ -5,7 +5,7 @@ const adapter=`window.serverManager={state:async()=>({running:true,url:${JSON.st
 http.createServer((req,res)=>{
  if(req.url==='/fixture-adapter.js'){res.setHeader('Content-Type','text/javascript');res.end(adapter);return;}
  const name=req.url==='/'?'server-manager.html':req.url.slice(1);
- if(!['server-manager.html','server-manager-ui.js','server-icon.png'].includes(name)){res.writeHead(404);res.end();return;}
+ if(!['server-manager.html','server-manager-ui.js','log-view.js','server-icon.png'].includes(name)){res.writeHead(404);res.end();return;}
  let data=fs.readFileSync(path.join(__dirname,name));
  if(name.endsWith('.html'))data=String(data).replace('<script src="server-manager-ui.js">','<script src="/fixture-adapter.js"></script><script src="server-manager-ui.js">');
  res.setHeader('Content-Type',name.endsWith('.html')?'text/html':name.endsWith('.js')?'text/javascript':'image/png');res.end(data);

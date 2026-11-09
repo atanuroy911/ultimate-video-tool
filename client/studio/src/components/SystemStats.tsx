@@ -171,7 +171,7 @@ export default function SystemPanel() {
         <div className="col" style={{ gap: 4, paddingTop: 10, borderTop: "1px solid var(--line, rgba(128,128,128,.2))" }}>
           <h3 style={{ margin: 0, fontSize: 15, textTransform: "none", letterSpacing: 0 }}>AI programs</h3>
           {s.engines.comfy && <span className="small">Pictures (ComfyUI): {s.engines.comfy.ok ? <>draws on <strong>{(s.engines.comfy.gpus || []).map((x) => `${x.name}${x.vram_free_gb != null ? ` (${x.vram_free_gb} GB free)` : ""}`).join(", ") || "the processor"}</strong></> : <span style={{ color: "var(--err)" }}>not answering</span>}</span>}
-          {s.engines.ollama && <span className="small">Language AI (Ollama): {s.engines.ollama.ok ? ((s.engines.ollama.loaded || []).length ? (s.engines.ollama.loaded || []).map((m) => `${m.model}${m.gb_on_card != null ? ` (${m.gb_on_card} GB on the card)` : ""}`).join(", ") : "nothing loaded right now") : <span style={{ color: "var(--err)" }}>not answering</span>}</span>}
+          {s.engines.ollama && <span className="small">Writing AI (Ollama): {s.engines.ollama.ok ? ((s.engines.ollama.loaded || []).length ? (s.engines.ollama.loaded || []).map((m) => `${m.model}${m.gb_on_card != null ? ` (${m.gb_on_card} GB on the card)` : ""}`).join(", ") : "nothing loaded right now") : <span style={{ color: "var(--err)" }}>not answering</span>}</span>}
         </div>
       )}
       <p className="sr-only" role="status" aria-atomic="true">{said}</p>

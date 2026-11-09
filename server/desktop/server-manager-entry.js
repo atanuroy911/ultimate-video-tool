@@ -19,7 +19,7 @@ let manager;
 app.on('second-instance',()=>manager?.show());
 const service=action=>new Promise((resolve,reject)=>execFile('systemctl',['--user',action,config.service],{timeout:30000},(e,stdout,stderr)=>e?reject(new Error(stderr.trim()||e.message)):resolve(stdout)));
 app.whenReady().then(()=>{
-  manager=createServerManager({url:()=>base,launcher:config.launcher,start:async()=>{await service('start');for(let i=0;i<60;i++){if((await control.inspect(base)).running)return;await new Promise(r=>setTimeout(r,500));}throw new Error('The server is still starting. View the log for details.');},stop:()=>service('stop'),readLog:async()=>(await fs.promises.readFile(path.join(root,'server.log'),'utf8').catch(()=>'' )).slice(-100000),
+  manager=createServerManager({url:()=>base,launcher:config.launcher,start:async()=>{await service('start');for(let i=0;i<60;i++){if((await control.inspect(base)).running)return;await new Promise(r=>setTimeout(r,500));}throw new Error('The server is still starting. View the log for details.');},stop:()=>service('stop'),readLog:async()=>(await fs.promises.readFile(path.join(root,'server.log'),'utf8').catch(()=>'' )).slice(-2000000),
     setAutoStart:async on=>{await service(on?'enable':'disable');const target=path.join(app.getPath('appData'),'autostart','ultimate-video-tool-server.desktop');if(on){fs.mkdirSync(path.dirname(target),{recursive:true});const text=fs.readFileSync(config.desktopFile,'utf8').replace(/^(Exec=.+)$/m,'$1 --background');fs.writeFileSync(target,text);}else if(fs.existsSync(target))fs.unlinkSync(target);}});
 });
 app.on('window-all-closed',()=>{});

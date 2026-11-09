@@ -186,7 +186,7 @@ function EngineSheet({ card, onClose }: { card: Card; onClose: () => void }) {
         onClose();
         return;
       }
-      if (card.id === "vtengine" && mode !== "off" && key.trim()) { const r = await post<{ also_connected?: string[] }>(`/api/engines/vtengine/pair`, { url, code: key.trim() }); if (r.also_connected?.length) toast(`Also connected: ${r.also_connected.map((n) => (n === "ollama" ? "language AI" : "pictures and clips")).join(", ")}`, "ok", 5000); }     // the code is traded for the key; the key is never shown
+      if (card.id === "vtengine" && mode !== "off" && key.trim()) { const r = await post<{ also_connected?: string[] }>(`/api/engines/vtengine/pair`, { url, code: key.trim() }); if (r.also_connected?.length) toast(`Also connected: ${r.also_connected.map((n) => (n === "ollama" ? "the writing AI" : "the picture AI")).join(", ")}`, "ok", 5000); }     // the code is traded for the key; the key is never shown
       else await put(`/api/engines/${card.id}`, { mode, url: mode === "off" ? "" : url, key: card.id === "vtengine" || key === "" ? undefined : key, workers: mode === "off" ? [] : workerList() });
       toast(mode === "off" ? `${card.label} is off` : `${card.label} saved`, "ok");
     } catch (e: any) {

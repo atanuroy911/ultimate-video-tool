@@ -38,6 +38,24 @@ LOCAL_NAMES = (".local", ".lan", ".home.arpa", ".internal", ".localdomain", ".lo
 OPEN = ("/.well-known/", "/v1/", "/gw/")
 GUARDED = ("/api", "/ws", "/media")
 
+class QuietPolling:
+    """A logging filter for uvicorn's access log: drops successful status checks (health, server, cards, stats, jobs, setup) that windows repeat every
+    few seconds. Every other request, every failure (4xx/5xx) and every non-GET stays in the log."""
+
+    PATHS = ("/api/health", "/api/server", "/api/system/gpus", "/api/system/stats", "/api/jobs", "/api/setup", "/.well-known/video-tool", "/api/gpu")
+
+    def filter(self, record: Any) -> bool:
+        args = getattr(record, "args", None)
+        if not isinstance(args, tuple) or len(args) < 5:
+            return True
+        method, path, status = str(args[1]), str(args[2]).split("?", 1)[0], args[4]
+        try:
+            ok = 200 <= int(status) < 400
+        except (TypeError, ValueError):
+            return True
+        return not (method == "GET" and ok and any(path == q or path.startswith(q + "/") for q in self.PATHS))
+
+
 STATE: dict[str, Any] = new_state(name=socket.gethostname() or "Video Tool")   # the computer's own name, as people know it ("MSI-LAPTOP"), unless --name says otherwise
 STATE["exposed"] = False                         # True once `vt server` listens beyond this computer
 

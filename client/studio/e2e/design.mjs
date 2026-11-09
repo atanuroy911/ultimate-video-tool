@@ -135,7 +135,7 @@ async function checkLocalAiSettings() {
     await settingsPage.goto(base + "/settings", { waitUntil: "domcontentloaded", timeout: 10000 });
     await settingsPage.getByRole("button", { name: "Directors & assistants", exact: true }).click();
     const details = settingsPage.getByTestId("server-details");
-    await details.getByText("Language AI on the server", { exact: true }).click();
+    await details.getByText("Writing AI on the server", { exact: true }).click();
     await details.getByRole("region", { name: "Server AI connection" }).locator(".row > .chip").first().waitFor();
     const local = details.getByRole("radio", { name: "Local AI (Ollama)", exact: true });
     const card = details.locator("#provider-auto");

@@ -27,13 +27,28 @@ async function act(action){
   for(const b of document.querySelectorAll('button'))b.disabled=true;
   try{const result=await api.act(action);
     if(action==='engine-settings'||action==='gpu-settings'){$('engine-frame').src=result.url;$('overview').hidden=true;$('log-screen').hidden=true;$('engine-screen').hidden=false;}
-    if(action==='open-log'){$('log-content').textContent=result.log||'No log entries yet.';$('overview').hidden=true;$('engine-screen').hidden=true;$('log-screen').hidden=false;}}
+    if(action==='open-log'){const first=$('log-screen').hidden;showLog(result.log||'',first);$('overview').hidden=true;$('engine-screen').hidden=true;$('log-screen').hidden=false;}}
   catch(e){showError(e.message.replace(/^Error invoking remote method '[^']+': (?:Error: )?/,''));}
   finally{pending=false;for(const b of document.querySelectorAll('button'))b.disabled=false;await refresh();}
 }
 for(const [id,action] of Object.entries({workspace:'engine-settings','gpu-choose':'gpu-settings',start:'start',stop:'stop',restart:'restart',copy:'copy-address',log:'open-log',quit:'quit'}))$(id).onclick=()=>act(action);
 $('refresh').onclick=refresh;
 $('autostart').onchange=()=>act($('autostart').checked?'autostart-on':'autostart-off');
-$('engine-back').onclick=overview;$('log-back').onclick=overview;$('log-refresh').onclick=()=>act('open-log');
+$('engine-back').onclick=overview;$('log-back').onclick=overview;
+
+// The log screen: Important (no routine requests, installs folded), Problems, Everything; search; the newest at the bottom, older on request; live while open.
+const LOG_STEP=300;let logEntries=[],logView='important',logLimit=LOG_STEP,logRaw='';
+function drawLog(scrollToEnd){
+  const lv=window.LogView;if(!lv){$('log-content').textContent=logRaw||'No log entries yet.';return;}
+  const sel=lv.renderLog($('log-content'),logEntries,{view:logView,query:($('log-search').value||'').trim(),limit:logLimit,step:LOG_STEP,scrollToEnd,onMore:()=>{logLimit+=LOG_STEP;drawLog(false);}});
+  const n=$('log-problem-count');n.hidden=!sel.problems;n.textContent=String(sel.problems);
+  $('log-note').textContent=logView==='important'&&sel.hiddenRequests?`${sel.hiddenRequests} routine requests are hidden. Choose Everything to see them.`:'';
+}
+function showLog(raw,first){logRaw=raw;logEntries=window.LogView?window.LogView.parseLog(raw):[];if(first)logLimit=LOG_STEP;drawLog(first);}
+function setView(v){logView=v;logLimit=LOG_STEP;for(const [id,name] of [['log-important','important'],['log-problems','problems'],['log-everything','everything']]){const b=$(id);if(!b)continue;b.classList.toggle('on',name===v);b.setAttribute&&b.setAttribute('aria-selected',String(name===v));}drawLog(true);}
+if($('log-important')){$('log-important').onclick=()=>setView('important');$('log-problems').onclick=()=>setView('problems');$('log-everything').onclick=()=>setView('everything');
+  $('log-search').oninput=()=>{logLimit=LOG_STEP;drawLog(true);};
+  $('log-copy').onclick=async()=>{try{await navigator.clipboard.writeText(logRaw);$('log-copy').textContent='Copied';setTimeout(()=>{$('log-copy').textContent='Copy';},1500);}catch{}};}
+setInterval(async()=>{if($('log-screen').hidden||pending)return;try{const r=await api.act('open-log');if((r.log||'')!==logRaw)showLog(r.log||'',false);}catch{}},3000);
 api.onProgress(value=>{if(value.engines){act('engine-settings');return;}if(value.gpu){act('gpu-settings');return;}if(value.step)$('progress').textContent=value.step;refresh();});
 refresh();setInterval(refresh,4000);

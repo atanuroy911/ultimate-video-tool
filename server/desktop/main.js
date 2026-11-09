@@ -24,5 +24,5 @@ async function start(){
     throw new Error('The processing server could not start. View the log for details.');
   }
 }
-app.whenReady().then(async()=>{manager=createServerManager({url:()=>origin,start,stop,readLog:async()=>(await fs.promises.readFile(logFile,'utf8').catch(()=>'' )).slice(-100000)});const marker=path.join(home,'server-manager-initialized.json');if(!process.env.UVT_DEV_HOME&&!fs.existsSync(marker)){manager.enableAutoStart();fs.writeFileSync(marker,'{}');}try{await manager.start();}catch(e){log(e.stack||e);manager.progress({error:true,step:e.message});}});
+app.whenReady().then(async()=>{manager=createServerManager({url:()=>origin,start,stop,readLog:async()=>(await fs.promises.readFile(logFile,'utf8').catch(()=>'' )).slice(-2000000)});const marker=path.join(home,'server-manager-initialized.json');if(!process.env.UVT_DEV_HOME&&!fs.existsSync(marker)){manager.enableAutoStart();fs.writeFileSync(marker,'{}');}try{await manager.start();}catch(e){log(e.stack||e);manager.progress({error:true,step:e.message});}});
 app.on('before-quit',()=>{if(child&&child.exitCode===null){if(process.platform==='win32')spawnSync('taskkill',['/pid',String(child.pid),'/T','/F'],{windowsHide:true});else child.kill('SIGTERM');}});app.on('window-all-closed',()=>{});app.on('activate',()=>manager?.show());

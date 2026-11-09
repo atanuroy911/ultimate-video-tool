@@ -82,9 +82,9 @@ def check_vtengine(ep: Endpoint) -> Health:
 
 
 SPECS: dict[str, EngineSpec] = {s.id: s for s in (
-    EngineSpec("ollama", "llm", "Language AI (Ollama)", "Writes the script's plan and reads what a video is about. Any Ollama server works.",
+    EngineSpec("ollama", "llm", "Writing AI (Ollama)", "Plans each video and writes its script.",
                ("llm.chat",), default_url="http://127.0.0.1:11434", check=check_ollama, local_install="Download Ollama and a small model"),
-    EngineSpec("comfy", "image", "Pictures and clips (ComfyUI)", "Draws a picture for each sentence and makes short silent clips.",
+    EngineSpec("comfy", "image", "Picture AI (ComfyUI)", "Draws a picture for every sentence. With a big graphics card it can also animate short clips.",
                ("image.generate", "video.generate"), default_url="http://127.0.0.1:8188", check=check_comfy, local_install=""),
     EngineSpec("vtengine", "custom", "Another Video Tool computer", "Uses the voices and speech recognition of another computer that runs Video Tool's engine server (vt serve-engine).",
                ("voice.speak", "asr.transcribe"), default_url="", needs_key=True, check=check_vtengine, local_install=""),

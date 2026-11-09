@@ -264,7 +264,7 @@ export default function AIAssistants() {
   return (
     <>
       <details className="card card-pad ai-server-details" data-testid="server-details">
-        <summary>Language AI on the server</summary>
+        <summary>Writing AI on the server</summary>
       <section className="col" style={{ gap: 16 }} aria-label="Server AI connection">
         <div className="row">
           <h3 className="grow">Connection</h3>

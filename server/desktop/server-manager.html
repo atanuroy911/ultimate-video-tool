@@ -25,8 +25,24 @@ button:hover{filter:brightness(.97)}button:focus-visible{outline:3px solid color
 .switch input::after{content:"";position:absolute;top:2px;left:2px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .2s}
 .switch input:checked{background:var(--ok)}.switch input:checked::after{transform:translateX(16px)}.switch input:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 45%,transparent);outline-offset:2px}
 .footer{display:flex;gap:4px;justify-content:center;margin-top:18px}
-.sub{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column}.bar{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:.5px solid var(--line);background:var(--card)}.bar strong{flex:1;text-align:center;margin-right:70px}
+.sub{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column}.bar{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:.5px solid var(--line);background:var(--card)}.bar strong{flex:1;text-align:center}.bar>.plain:first-child,.bar>.log-live{min-width:70px}.bar>.log-live{text-align:right}
 #progress:empty{display:none}
+.log-tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 16px 6px}
+.seg{display:inline-flex;background:var(--fill);border-radius:9px;padding:2px}.seg button{background:none;min-height:28px;padding:4px 12px;border-radius:7px;font-size:13px}.seg button.on{background:var(--card);box-shadow:0 1px 2px rgba(0,0,0,.15)}
+.count{display:inline-block;margin-left:6px;min-width:18px;padding:0 5px;border-radius:9px;background:var(--err);color:#fff;font-size:11px;line-height:18px;text-align:center}
+#log-search{flex:1;min-width:140px;font:inherit;font-size:13px;padding:6px 10px;border-radius:8px;border:0;background:var(--fill);color:var(--text)}
+.log-note{padding:0 18px 6px;margin:0}.log-note:empty{display:none}
+.log-list{flex:1;overflow:auto;padding:4px 10px 18px}
+.log-day{position:sticky;top:0;z-index:1;margin:10px 0 2px;padding:4px 8px;font-size:12px;font-weight:600;color:var(--muted);background:var(--bg)}
+.log-row{display:grid;grid-template-columns:64px 10px 1fr;gap:8px;align-items:start;padding:5px 8px;border-radius:8px}.log-row:hover{background:var(--fill)}
+.log-time{font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--muted);white-space:nowrap}
+.log-dot{width:8px;height:8px;border-radius:50%;margin-top:6px;background:var(--muted);opacity:.5}
+.log-row.problem .log-dot{background:var(--err);opacity:1}.log-row.warning .log-dot{background:var(--warn);opacity:1}.log-row.event .log-dot{background:var(--ok);opacity:.9}
+.log-row.problem .log-text{color:var(--err)}.log-row.request .log-text,.log-row.install .log-text{color:var(--muted)}
+.log-text{font-size:13px;line-height:1.5;overflow-wrap:anywhere;min-width:0;white-space:pre-line}.log-text summary{cursor:pointer}
+.log-text pre{margin:6px 0 2px;padding:8px 10px;border-radius:8px;background:var(--fill);color:var(--text);white-space:pre-wrap;font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;max-height:320px;overflow:auto}
+.log-more{display:block;margin:4px auto 8px}.log-empty{text-align:center;color:var(--muted);padding:40px 0}
+.log-live::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok);margin-right:6px;vertical-align:1px}
 [hidden]{display:none!important}
 @media (prefers-reduced-motion:reduce){.switch input,.switch input::after{transition:none}}
 </style></head><body><main id="overview">
@@ -54,6 +70,10 @@ button:hover{filter:brightness(.97)}button:focus-visible{outline:3px solid color
 
 <div class="footer"><button class="plain" id="log">View log</button><button class="plain" id="refresh" hidden>Refresh</button><button class="plain" id="quit">Quit server</button></div>
 </main>
-<section id="engine-screen" class="sub" hidden><div class="bar"><button id="engine-back" class="plain">‹ Back</button><strong>AI programs and models</strong></div><iframe id="engine-frame" title="AI programs and models" style="width:100%;flex:1;border:0;background:var(--bg)" sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-downloads"></iframe></section>
-<section id="log-screen" class="sub" hidden><div class="bar"><button id="log-back" class="plain">‹ Back</button><strong>Server log</strong><button id="log-refresh" class="plain" style="margin-left:-70px">Refresh</button></div><pre id="log-content" style="flex:1;overflow:auto;margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;padding:16px 18px"></pre></section>
-<script src="server-manager-ui.js"></script></body></html>
+<section id="engine-screen" class="sub" hidden><div class="bar"><button id="engine-back" class="plain">‹ Back</button><strong>AI programs and models</strong><span style="min-width:70px" aria-hidden="true"></span></div><iframe id="engine-frame" title="AI programs and models" style="width:100%;flex:1;border:0;background:var(--bg)" sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-downloads"></iframe></section>
+<section id="log-screen" class="sub" hidden><div class="bar"><button id="log-back" class="plain">‹ Back</button><strong>Server log</strong><span id="log-live" class="small muted log-live">Live</span></div>
+<div class="log-tools"><div class="seg" role="tablist" aria-label="Show"><button id="log-important" role="tab" aria-selected="true" class="on">Important</button><button id="log-problems" role="tab" aria-selected="false">Problems<span id="log-problem-count" class="count" hidden></span></button><button id="log-everything" role="tab" aria-selected="false">Everything</button></div>
+<input id="log-search" type="search" placeholder="Search the log" aria-label="Search the log"><button id="log-copy" class="plain">Copy</button></div>
+<p id="log-note" class="small muted log-note"></p>
+<div id="log-content" class="log-list" role="log" aria-live="polite" tabindex="0"></div></section>
+<script src="log-view.js"></script><script src="server-manager-ui.js"></script></body></html>

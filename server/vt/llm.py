@@ -241,6 +241,9 @@ def install_local(progress: ProgressFn = noop_progress, *, program_dir=None) -> 
 def pull(model: str, progress: ProgressFn = noop_progress, base: float = 0.0, span: float = 1.0, *, url=None) -> None:
     url = url or settings()["ollama_url"]
     last = 0.0
+    from .util import TimeLeft
+
+    clock: Optional[TimeLeft] = None
     try:
         with httpx.stream("POST", url + "/api/pull", json={"model": model, "stream": True}, timeout=None) as r:
             r.raise_for_status()
@@ -252,9 +255,11 @@ def pull(model: str, progress: ProgressFn = noop_progress, base: float = 0.0, sp
                     raise LLMUnavailable(j["error"])
                 if j.get("total"):
                     f = j.get("completed", 0) / j["total"]
+                    if clock is None or clock.total != j["total"]:              # Ollama reports one file at a time
+                        clock = TimeLeft(j["total"])
                     if f - last >= 0.01 or f >= 1:
                         last = f
-                        progress("llm", base + span * f, f"Downloading the local AI model {int(f * 100)}%")
+                        progress("llm", base + span * f, f"Downloading the writing model {int(f * 100)}%" + clock.words(j.get("completed", 0)))
     except httpx.HTTPError as e:
         raise LLMUnavailable(f"Could not download the model '{model}' ({type(e).__name__}).") from e
 

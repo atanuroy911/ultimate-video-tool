@@ -177,8 +177,12 @@ def _prompt(window: list[Any], first: bool, kind_hint: str) -> str:
     head = (
         "Read these numbered sentences of a script. Decide the kind of video (steps, story, explanation, argument, list or opinion), a drawing style "
         "(cartoon: clean flat cartoon objects; line-art: calm pencil line drawings; comic: inked scenes of one world; photo: cinematic photographs), "
-        "the `cast`: for every person the script names, their name and a short look (age, build, clothes, hair) that tells them apart at a glance; and "
-        "ALWAYS a short generic description of ONE recurring figure for when no one is named (no real person; for a science or health topic a simple stick-like person is fine). Rate how strong the first sentence "
+        "the `cast`: for every person the script names, their name and a short look that tells them apart at a glance; and "
+        "ALWAYS a short generic description of ONE recurring figure for when no one is named (no real person; for a science or health topic a simple stick-like person is fine). "
+        "Each picture is drawn on its own by a model that never sees the others, so a look must be complete enough that two artists would draw the SAME person: "
+        "say man, woman, boy or girl; a rough age; skin tone; hair colour, length and style; build; and the clothes with their colours. "
+        "Choose a person who suits this video and its audience; do not reuse the same person from video to video. "
+        "'A friendly adult in a green hoodie' is not enough: one picture draws a boy, the next a girl. Rate how strong the first sentence "
         "is as a hook (0 to 1) and name its type. When the pictures happen in a few recurring places, list them as `places`: a short name and how the place "
         "looks, with the size of its main things next to a person (for a lighthouse story: 'lantern room: the glass room at the top of the lighthouse, "
         "a brass lamp with a glass lens taller than a child, rain on the windows all round').\n" if first else
@@ -237,8 +241,8 @@ def read_script(beats: list[Any], *, provider=None, use_ai: bool = True) -> Read
             first = False
             base.kind = data.get("kind", base.kind)
             base.style, base.style_why = data.get("style", base.style), data.get("style_why", base.style_why)
-            base.character = (data.get("character") or "")[:160]
-            base.cast = {str(c.get("name", "")).strip()[:30]: str(c.get("looks", ""))[:160] for c in (data.get("cast") or [])[:6] if c.get("name") and c.get("looks")}
+            base.character = (data.get("character") or "")[:260]
+            base.cast = {str(c.get("name", "")).strip()[:30]: str(c.get("looks", ""))[:260] for c in (data.get("cast") or [])[:6] if c.get("name") and c.get("looks")}
             base.places = {str(p.get("name", ""))[:40]: str(p.get("looks", ""))[:240] for p in (data.get("places") or [])[:8] if p.get("name") and p.get("looks")}
             base.hook = Hook(text=beats[0].text[:160], type=data.get("hook_type", base.hook.type), strength=max(0.0, min(1.0, float(data.get("hook_strength", base.hook.strength)))))
         for n in data.get("notes", []):

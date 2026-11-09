@@ -154,3 +154,21 @@ ProgressFn = Callable[[str, float, str], None]  # (stage, fraction 0..1, message
 
 def noop_progress(stage: str, frac: float, msg: str = "") -> None:
     return None
+
+
+class TimeLeft:
+    """Speed and time left of a download, in plain words: " · 12 MB/s · about 6 min left". Silent for the first seconds (no wild guesses)."""
+
+    def __init__(self, total_bytes: float):
+        import time
+
+        self.total, self.start, self._now = max(1.0, float(total_bytes)), time.time(), time.time
+
+    def words(self, done_bytes: float) -> str:
+        took = self._now() - self.start
+        if took < 4 or done_bytes <= 0:
+            return ""
+        rate = done_bytes / took
+        left = max(0.0, (self.total - done_bytes) / rate)
+        when = "less than a minute left" if left < 60 else f"about {round(left / 60)} min left" if left < 5400 else f"about {left / 3600:.1f} h left"
+        return f" · {rate / 1e6:.0f} MB/s · {when}" if rate >= 1e6 else f" · {rate / 1e3:.0f} kB/s · {when}"

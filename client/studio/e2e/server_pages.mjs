@@ -16,7 +16,7 @@ let pass = 0, fail = 0;
 const check = (name, cond, extra = "") => { cond ? (pass++, console.log("  ok  ", name)) : (fail++, console.log("  FAIL", name, extra)); };
 const clone = (x) => JSON.parse(JSON.stringify(x));
 
-const FILES = { "/": "management.html", "/management.js": "management.js", "/gpu-choice.js": "gpu-choice.js", "/manage": "engine-management.html", "/manage.js": "engine-management.js" };
+const FILES = { "/": "management.html", "/management.js": "management.js", "/gpu-choice.js": "gpu-choice.js", "/page-theme.js": "page-theme.js", "/manage": "engine-management.html", "/manage.js": "engine-management.js" };
 const types = { ".html": "text/html; charset=utf-8", ".js": "text/javascript" };
 const web = http.createServer((req, res) => {
   const file = FILES[new URL(req.url, "http://x").pathname];

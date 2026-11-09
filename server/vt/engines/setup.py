@@ -113,6 +113,23 @@ def _card(hw: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
     return next((g for g in cards if g["index"] == config.get("gpu")), None) or max(cards, key=lambda g: g["compute"], default={})
 
 
+# One line a person understands, under each model's name: what it is good at, and how long it takes where that was measured.
+PLAIN = {
+    "klein-4b": "Best pictures, about 9 seconds each on a 12 GB card.",
+    "klein-4b-fp8": "Nearly the same pictures in half the memory.",
+    "klein-4b-q4": "Good pictures made to fit 6 GB cards, about 17 seconds each.",
+    "klein-4b-q3": "A little rougher, for when another program also uses the card.",
+    "qwen21-turbo": "Finest detail of real things, but about 5 times slower.",
+    "zimage-full": "Very good pictures, for 24 GB cards.",
+    "zimage-fp8": "Very good pictures for 12 and 16 GB cards.",
+    "zimage-fp8-small-text": "For computers with little memory to spare.",
+    "zimage-nvfp4": "Made for the newest cards (RTX 50 series).",
+    "gemma3:12b": "Best writing. Needs a 12 GB card to be quick.",
+    "gemma3:4b": "Good writing, quick on most cards.",
+    "gemma3:1b": "Basic writing, for small computers.",
+}
+
+
 def model_choices(hw: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
     """Every model the wizard can install, each marked against this computer's card: fits and fast, fits but slow, or too big.
     The recommended one is what fit.py would pick by itself; the person may pick another that fits."""
@@ -139,14 +156,14 @@ def model_choices(hw: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
             why = f"Needs a bigger graphics card than {c.size} GB."
         if mode == "partial":
             why = f"Bigger than the {c.size} GB card: part of it waits in memory, so each picture takes several times longer."
-        pictures.append({"id": r.id, "label": r.label, "note": r.note, "download_gb": r.download_gb(), "fits": bool(mode), "speed": speed.get(mode, ""),
+        pictures.append({"id": r.id, "label": r.label, "note": PLAIN.get(r.id, r.note), "download_gb": r.download_gb(), "fits": bool(mode), "speed": speed.get(mode, ""),
                          "seconds": r.seconds, "recommended": r.id == best.recipe, "why": why})
     lang_best = fit.language_model(vram, hw.get("ram_gb", 0))["model"]
     language = []
     for name, need in fit.LANGUAGE:
         on_card = bool(vram) and need <= fit.usable(c)
         label = "Gemma 3 " + name.split(":")[1].upper() if name.startswith("gemma3:") else name
-        language.append({"id": name, "label": label, "download_gb": fit.LANGUAGE_DOWNLOAD_GB.get(name, 0), "fits": True, "speed": "fast" if on_card else "slow",
+        language.append({"id": name, "label": label, "note": PLAIN.get(name, ""), "download_gb": fit.LANGUAGE_DOWNLOAD_GB.get(name, 0), "fits": True, "speed": "fast" if on_card else "slow",
                          "recommended": name == lang_best, "why": "" if on_card else ("Bigger than the graphics card: part of it runs on the processor, a few times slower." if vram else "Runs on the processor (no graphics card), a few times slower.")})
     return {"card": {"name": card.get("name", ""), "gb": c.size}, "pictures": pictures, "language": language,
             "clips": fit.clips_fit(vram, hw.get("ram_gb", 0)), "picture_default": best.recipe or "", "language_default": lang_best}
@@ -192,7 +209,10 @@ def run_install(engines: list[str], bundles: list[str], progress, config=None) -
         kw = install_options(e,bundles,config)
         inst = installers.installer(e, **kw)
         base, span = i / len(engines), 1 / len(engines)
-        inst.install(lambda stage, f, m="", b=base, s=span: progress(e, b + s * f, m))
+        try:
+            inst.install(lambda stage, f, m="", b=base, s=span: progress(e, b + s * f, m))
+        except Exception as err:                                      # noqa: BLE001 -- said in plain words; the job shows it with Try again
+            raise RuntimeError(install_trouble(err, registry.spec(e).label if e in ("comfy", "ollama") else e)) from err
         url = inst.start()
         if url:
             store.save(e, Endpoint(mode="local", url=url))
@@ -207,6 +227,23 @@ def run_install(engines: list[str], bundles: list[str], progress, config=None) -
             write_json(paths.SETTINGS, settings)
         result[e] = {"installed": True, "url": url or registry.endpoint(e).url}
     return result
+
+
+def install_trouble(err: BaseException, label: str) -> str:
+    """What went wrong with an install, for a person: no internet, a full drive, or the program's own words."""
+    import errno
+    import socket
+
+    text = f"{type(err).__name__}: {err}"
+    chain = [err] + [c for c in (err.__cause__, err.__context__) if c]
+    keep = " Press Try again: what already finished is kept."
+    if any(isinstance(c, OSError) and c.errno == errno.ENOSPC for c in chain) or "No space left" in text or "not enough space" in text.lower():
+        return f"The drive is full, so {label} could not finish. Free some space or choose another folder, then press Try again."
+    if any(isinstance(c, socket.gaierror) for c in chain) or any(k in text for k in ("ConnectError", "ConnectTimeout", "ReadTimeout", "RemoteProtocolError",
+                                                                                     "getaddrinfo", "Name or service not known", "No route to host",
+                                                                                     "Connection reset", "Connection aborted", "timed out")):
+        return f"The internet connection stopped while getting {label}. Check the connection." + keep
+    return f"{label} could not be installed: {str(err)[:300]}" + keep
 
 
 def install_options(engine,bundles,config=None):

@@ -23,6 +23,9 @@ from ..util import CREATE_NO_WINDOW, noop_progress
 
 Progress = Callable[[str, float, str], None]
 COMFY_REPO = "https://github.com/comfyanonymous/ComfyUI"
+# Without Git (most Windows computers): GitHub's zip of the latest ComfyUI release, else of its main branch
+COMFY_RELEASE_API = "https://api.github.com/repos/comfyanonymous/ComfyUI/releases/latest"
+COMFY_MAIN_ZIP = COMFY_REPO + "/archive/refs/heads/master.zip"
 # the pictures set is what a video needs; clips are optional and large
 BUNDLES = {
     "pictures": ["diffusion_models/z_image_turbo_bf16.safetensors", "text_encoders/qwen_3_4b.safetensors", "vae/ae.safetensors"],
@@ -204,6 +207,48 @@ class OllamaInstaller(Installer):
         return bool(llm.binary()) and llm.reachable(llm.settings()["ollama_url"])
 
 
+# ----------------------------------------------------------------------------- program folders from GitHub, without Git
+def comfy_zip_url(opener: Optional[Callable] = None) -> str:
+    """The zip of ComfyUI's latest release; its main branch when GitHub cannot be asked (rate limit, no answer)."""
+    import httpx
+
+    try:
+        r = (opener or httpx.get)(COMFY_RELEASE_API, timeout=15, follow_redirects=True, headers={"Accept": "application/vnd.github+json"})
+        tag = r.json().get("tag_name") if r.status_code == 200 else ""
+        if tag:
+            return f"{COMFY_REPO}/archive/refs/tags/{tag}.zip"
+    except Exception:                                                   # noqa: BLE001
+        pass
+    return COMFY_MAIN_ZIP
+
+
+def unzip_from(url: str, dest: Path, opener: Optional[Callable] = None) -> Path:
+    """Download a GitHub archive and put its one top folder's contents at `dest` (files already there are kept, so a half-made folder heals)."""
+    import tempfile
+    import zipfile
+
+    import httpx
+
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=dest.parent) as work:
+        zpath = Path(work) / "download.zip"
+        if opener:
+            zpath.write_bytes(opener(url))
+        else:
+            with httpx.stream("GET", url, follow_redirects=True, timeout=httpx.Timeout(60, read=120)) as r:
+                r.raise_for_status()
+                with open(zpath, "wb") as f:
+                    for chunk in r.iter_bytes(1 << 20):
+                        f.write(chunk)
+        with zipfile.ZipFile(zpath) as z:
+            names = [n for n in z.namelist() if n.strip("/")]
+            tops = {n.split("/", 1)[0] for n in names}
+            z.extractall(Path(work) / "out")
+        top = Path(work) / "out" / tops.pop() if len(tops) == 1 else Path(work) / "out"
+        shutil.copytree(top, dest, dirs_exist_ok=True)
+    return dest
+
+
 # ----------------------------------------------------------------------------- ComfyUI
 def torch_index(compute: float) -> str:
     """The PyTorch wheel index for a card. Volta (the V100, 7.0) needs cu126 (the lesson of 2026-10-26); Blackwell (12+) needs cu128; no card = cpu."""
@@ -262,8 +307,6 @@ class ComfyInstaller(Installer):
             items.append(Item(f"{folder_role} · {stem}", round(x["size"] / 1e9, 1), file, f.exists() and f.stat().st_size == x["size"]))
         addons = [Item(f"Add-on · {a['name']}", 0.1, "lets ComfyUI read the small model files", (self.root / "custom_nodes" / a["name"] / "__init__.py").exists()) for a in self.addons()]
         p = Plan("comfy", [Item("ComfyUI program", 5.0, "the program that draws, set up for your graphics card", (self.root / "main.py").exists() and self.python().exists())] + addons + items)
-        if not shutil.which("git"):
-            p.problems.append("Git is not installed. Install Git (git-scm.com) and try again.")
         free = shutil.disk_usage(self.models.parent if self.models.parent.exists() else Path.home()).free / 1e9
         if free < p.total_gb + 5:
             p.problems.append(f"About {p.total_gb:.0f} GB are needed but only {free:.0f} GB are free where the models go. Choose another folder.")
@@ -284,7 +327,7 @@ class ComfyInstaller(Installer):
         self.root.parent.mkdir(parents=True, exist_ok=True)
         if not (self.root / "main.py").exists():
             progress("comfy", 0.01, "Downloading ComfyUI")
-            self._run(["git", "clone", "--depth", "1", COMFY_REPO, str(self.root)])
+            unzip_from(comfy_zip_url(), self.root)
         if not self.python().exists():
             progress("comfy", 0.04, "Making its Python environment")
             self._run([sys.executable, "-m", "venv", str(self.root / "venv")])
@@ -297,17 +340,24 @@ class ComfyInstaller(Installer):
             dest = self.root / "custom_nodes" / a["name"]
             if not (dest / "__init__.py").exists():
                 progress("comfy", 0.16, f"Adding {a['name']}")
-                self._run(["git", "clone", a["repo"], str(dest)])
-                self._run(["git", "-C", str(dest), "checkout", "--quiet", a["commit"]])
+                unzip_from(f"{a['repo']}/archive/{a['commit']}.zip", dest)       # the pinned commit, as a zip: no Git needed
             if (dest / "requirements.txt").exists():
                 self._run([str(self.python()), "-m", "pip", "install", "-r", str(dest / "requirements.txt")])
         self._link_models()
         todo = [x for x in self.manifest()]
+        from ..util import TimeLeft
+
+        missing = [x for x in todo if not ((self.models / x["path"]).exists() and (self.models / x["path"]).stat().st_size == x["size"])]
+        clock, before = TimeLeft(sum(x["size"] for x in missing)), 0
         for i, x in enumerate(todo):
             base = 0.18 + 0.8 * i / max(1, len(todo))
             span = 0.8 / max(1, len(todo))
             name = x["path"].rsplit("/", 1)[-1]
-            fetch(x["url"], self.models / x["path"], size=x["size"], digest=x.get("sha256", ""), progress=lambda f, b=base, s=span, n=name: progress("comfy", b + s * f, f"Downloading {n} {int(f * 100)}%"))
+            counted = x in missing
+            fetch(x["url"], self.models / x["path"], size=x["size"], digest=x.get("sha256", ""),
+                  progress=lambda f, b=base, s=span, n=name, z=x["size"], c=counted, done=before: progress(
+                      "comfy", b + s * f, f"Downloading {n} {int(f * 100)}%" + (clock.words(done + f * z) if c else "")))
+            before += x["size"] if counted else 0
         progress("comfy", 1.0, "ComfyUI is ready")
 
     def _link_models(self) -> None:

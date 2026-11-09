@@ -65,7 +65,7 @@ def test_the_comfy_plan_lists_models_sizes_and_what_is_already_there(data, monke
     f.write_bytes(b"x" * first["size"]) if first["size"] < 10_000_000 else f.write_bytes(b"")
     assert inst.plan().total_gb <= p.total_gb
     monkeypatch.setattr(installers.shutil, "which", lambda n: None)
-    assert any("Git" in x for x in inst.plan().problems)
+    assert not inst.plan().problems                          # no Git on the computer is fine: ComfyUI comes as a zip
 
 
 def test_not_enough_space_is_said_before_anything_is_downloaded(data, monkeypatch):
@@ -81,10 +81,13 @@ def test_the_install_runs_the_right_commands_in_order(data, monkeypatch):
     ran = []
     monkeypatch.setattr(inst, "_run", lambda cmd: ran.append(cmd))
     monkeypatch.setattr(installers, "fetch", lambda url, dest, **k: ran.append(["fetch", dest.name]))
+    monkeypatch.setattr(installers, "comfy_zip_url", lambda: "https://github.com/x/ComfyUI/archive/refs/tags/v1.zip")
+    monkeypatch.setattr(installers, "unzip_from", lambda url, dest: ran.append(["unzip", url, dest.name]))
     inst.python = lambda: data / "comfy" / "py"                                  # type: ignore[method-assign]
     inst.install(compute=7.0)
     flat = [" ".join(c) for c in ran]
-    assert flat[0].startswith("git clone --depth 1") and any("-m venv" in c for c in flat)
+    assert flat[0].startswith("unzip https://github.com/x/ComfyUI/archive/refs/tags/v1.zip") and not any(c.startswith("git") for c in flat)
+    assert any("-m venv" in c for c in flat)
     assert any("--index-url https://download.pytorch.org/whl/cu126" in c for c in flat)
     assert flat.index(next(c for c in flat if "requirements.txt" in c)) > flat.index(next(c for c in flat if "index-url" in c))
     assert [c for c in flat if c.startswith("fetch")] and (data / "comfy" / "extra_model_paths.yaml").exists()
@@ -237,3 +240,50 @@ def test_our_own_ollama_is_found_where_the_setup_installs_it(tmp_path, monkeypat
     (tmp_path / "ollama").mkdir()
     (tmp_path / "ollama" / exe).write_bytes(b"")
     assert llm.ollama_program_dir() == tmp_path / "ollama"            # an older copy is still found
+
+
+def test_comfyui_and_its_add_on_come_as_zips_so_git_is_not_needed(tmp_path):
+    """Most Windows computers have no Git; the install stopped with 'Git is not installed' (2026-11-09)."""
+    import io
+    import zipfile
+    from vt.engines import installers
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("ComfyUI-0.44.0/main.py", "print('hi')")
+        z.writestr("ComfyUI-0.44.0/comfy/x.py", "")
+    dest = tmp_path / "comfyui"
+    (dest / "venv").mkdir(parents=True)                                  # a half-made folder keeps what it has
+    installers.unzip_from("https://example/x.zip", dest, opener=lambda url: buf.getvalue())
+    assert (dest / "main.py").exists() and (dest / "comfy" / "x.py").exists() and (dest / "venv").is_dir()
+    assert not any(i.name.startswith("Git") for i in installers.ComfyInstaller(root=tmp_path / "c", models=str(tmp_path / "m"), recipe="klein-4b-q4", gpu=0).plan().problems)
+    ok = type("R", (), {"status_code": 200, "json": lambda self: {"tag_name": "v1.2.3"}})()
+    assert installers.comfy_zip_url(opener=lambda *a, **k: ok).endswith("/archive/refs/tags/v1.2.3.zip")
+    def down(*a, **k): raise OSError("rate limited")
+    assert installers.comfy_zip_url(opener=down) == installers.COMFY_MAIN_ZIP
+
+
+def test_an_install_that_fails_says_why_in_plain_words():
+    import errno
+    import socket
+    from vt.engines import setup
+
+    lost = setup.install_trouble(RuntimeError("download failed"), "Picture AI (ComfyUI)")
+    assert "could not be installed" in lost and "Try again" in lost
+    try:
+        raise RuntimeError("x") from socket.gaierror(11001, "getaddrinfo failed")
+    except RuntimeError as e:
+        assert "internet connection" in setup.install_trouble(e, "Writing AI (Ollama)")
+    assert "drive is full" in setup.install_trouble(OSError(errno.ENOSPC, "No space left on device"), "Picture AI (ComfyUI)")
+
+
+def test_downloads_say_speed_and_time_left():
+    from vt.util import TimeLeft
+
+    t = TimeLeft(1_000_000_000)
+    clock = [t.start]
+    t._now = lambda: clock[0]
+    assert t.words(10) == ""                                            # no guess in the first seconds
+    clock[0] += 10
+    assert t.words(100_000_000) == " · 10 MB/s · about 2 min left"
+    assert t.words(990_000_000).endswith("less than a minute left")

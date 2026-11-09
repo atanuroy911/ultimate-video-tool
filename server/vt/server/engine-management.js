@@ -7,18 +7,31 @@ const ICONS={pen:'<path d="M13 21h8"/><path d="M21.174 6.812a1 1 0 0 0-3.986-3.9
  download:'<path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/>'};
 function icon(name){const t=document.createElement('template');t.innerHTML='<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+ICONS[name]+'</svg>';return t.content.firstChild;}
 for(const t of document.querySelectorAll('[data-icon]'))t.append(icon(t.dataset.icon));
+const gb=n=>(n>=100?String(Math.round(n)):n>0?n.toFixed(1).replace(/\.0$/,''):'0')+' GB';
 const message=(text,error=false)=>{$('message').textContent=text;$('message').classList.toggle('error',error);};
 async function api(route,method='GET',body){const r=await fetch(route,{method,headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});const d=await r.json();if(!r.ok)throw new Error(typeof d.detail==='string'?d.detail:d.detail?.errors?.[0]||'That didn\'t work. Try again.');return d;}
 async function perform(fn){message('');try{await fn();}catch(e){message(e.message,true);}}
 function element(tag,text){const el=document.createElement(tag);if(text!==undefined)el.textContent=text;return el;}
 function button(text,fn){const b=element('button',text);b.onclick=()=>perform(async()=>{b.disabled=true;try{await fn();}finally{b.disabled=false;}});return b;}
 async function engines(){const data=await api('/api/engines');$('engines').replaceChildren();for(const engine of data.filter(e=>['comfy','ollama'].includes(e.id))){
- const card=element('section'),row=element('div');row.className='row';const h=element('h2');const tile=element('span');tile.className='tile '+engine.id;tile.append(icon(engine.id==='comfy'?'image':'pen'));h.append(tile,engine.id==='comfy'?'Picture AI (ComfyUI)':'Writing AI (Ollama)');row.append(h);const badge=element('span',engine.health?.ok?'Ready':'Not answering');badge.className='badge'+(engine.health?.ok?' ready':'');row.append(badge);card.append(row);
- const label=element('label','Address'),input=element('input');input.value=engine.endpoint.url||engine.default_url;input.spellcheck=false;label.append(input);card.append(label);
- const actions=element('div');actions.className='actions';actions.append(button('Connect',async()=>{const h=await api('/api/engines/'+engine.id+'/test','POST',{mode:'remote',url:input.value});if(!h.ok)throw new Error(h.why_not||'It didn\'t answer. Check that it is running and the address is right.');await api('/api/engines/'+engine.id,'PUT',{mode:'remote',url:input.value});message('Connected. It is ready.');await engines();}));
- if(engine.id==='comfy')actions.append(button('Check models',async()=>{picture=await api('/api/discover/prepare?url='+encodeURIComponent(input.value));showPicture();}));
- if(engine.id==='ollama'&&engine.health?.ok&&!engine.health?.models?.length)actions.append(button('Download recommended model',async()=>follow(await api('/api/setup/ollama-model','POST',{}))));
- card.append(actions);$('engines').append(card);
+ const comfy=engine.id==='comfy',mode=engine.endpoint?.mode||'off',ok=!!engine.health?.ok;
+ const card=element('section'),row=element('div');row.className='row';const h=element('h2');const tile=element('span');tile.className='tile '+engine.id;tile.append(icon(comfy?'image':'pen'));h.append(tile,comfy?'Picture AI (ComfyUI)':'Writing AI (Ollama)');row.append(h);
+ const state=ok?['Ready','ready']:mode==='off'?['Not set up','']:mode==='local'?['Not running','warn']:['Not answering','warn'];
+ const badge=element('span',state[0]);badge.className='badge'+(state[1]?' '+state[1]:'');row.append(badge);card.append(row);
+ const what=element('p',ok?(comfy?'Draws the pictures.':'Plans each video and writes its script.')
+  :mode==='off'?(comfy?'Not installed yet. Without it, each picture becomes a card with the key words.':'Not installed yet. Without it, videos are planned by simple rules or by Claude or Codex.')
+  :mode==='local'?'Video Tool installed it and starts it when a video needs it. If it stays off, restart the server.'
+  :'Check that it is running on that computer and that the address is right.');what.className='small';card.append(what);
+ const actions=element('div');actions.className='actions';
+ if(mode==='off'&&!ok){const go=element('button');go.className='primary';go.type='button';go.append(icon('download'),'Install');go.onclick=()=>{document.querySelector('[data-tab="install"]').click();document.querySelector(`[data-engine="${engine.id}"]`)?.click();};actions.append(go);}
+ const label=element('label','Address'),input=element('input');input.value=engine.endpoint.url||engine.default_url;input.spellCheck=false;label.append(input);
+ const connect=button(mode==='off'?'Use this address':'Connect',async()=>{const t=await api('/api/engines/'+engine.id+'/test','POST',{mode:'remote',url:input.value});if(!t.ok)throw new Error(t.why_not||'It didn\'t answer. Check that it is running and the address is right.');await api('/api/engines/'+engine.id,'PUT',{mode:'remote',url:input.value});message('Connected. It is ready.');await engines();});
+ if(mode==='off'&&!ok){const more=element('details');more.append(element('summary','I already have it running'),label);const a2=element('div');a2.className='actions';a2.append(connect);more.append(a2);card.append(actions,more);}
+ else{card.append(label);actions.append(connect);
+  if(comfy)actions.append(button('Check models',async()=>{picture=await api('/api/discover/prepare?url='+encodeURIComponent(input.value));showPicture();}));
+  if(!comfy&&ok&&!engine.health?.models?.length)actions.append(button('Download recommended model',async()=>follow(await api('/api/setup/ollama-model','POST',{}))));
+  card.append(actions);}
+ $('engines').append(card);
 }}
 function showPicture(){const p=picture;$('prepare').hidden=false;$('model-name').textContent=p.label;$('model-folder').replaceChildren(new Option('Where ComfyUI keeps them now',''),...(p.model_locations||[]).map(v=>new Option(v,v)));$('model-folder').value=p.models_dir||'';$('model-plan').textContent=p.files.map(f=>(f.have?'Have · ':'Needs download · ')+f.file+(f.have?'':' · '+f.gb+' GB')).concat(p.problems||[]).join('\n');$('prepare-go').textContent=p.download_gb?'Download missing models · '+p.download_gb+' GB':'Use these models';$('prepare-go').disabled=!!p.problems?.length;}
 $('model-folder').onchange=()=>perform(async()=>{picture=await api('/api/discover/prepare?url='+encodeURIComponent(picture.url)+'&recipe='+encodeURIComponent(picture.recipe)+'&models_dir='+encodeURIComponent($('model-folder').value));showPicture();});
@@ -34,14 +47,14 @@ function showModels(){const m=setup?.models;if(!m)return;const engine=$('install
  for(const x of shown){const l=element('label');l.className=(x.id===model?'on ':'')+(x.fits?'':'off');const r=element('input');r.type='radio';r.name='install-model';r.value=x.id;r.checked=x.id===model;r.disabled=!x.fits;r.onchange=()=>{model=x.id;showModels();refreshPlan();};
   const g=element('span');g.className='grow';const b=element('b',x.label);if(x.recommended){const c=element('span');c.className='chip';c.append(icon('sparkles'),'Best for this card');b.append(c);}
   const f=element('span');f.className='small '+(!x.fits?'fit-no':x.speed==='fast'?'fit-fast':'fit-slow');f.append(icon(!x.fits?'ban':x.speed==='fast'?'zap':'hourglass'),' '+fitText(x,m.card.gb));g.append(b,f);
-  const z=element('span',x.download_gb+' GB');z.className='size';l.append(r,g,z);box.append(l);}
- const more=list.length-shown.length;if(more>0){const b=element('button','Show '+more+' bigger model'+(more>1?'s':'')+' (slow or too big for this card)');b.type='button';b.onclick=()=>{showAll=true;showModels();};box.append(b);}}
+  const z=element('span',gb(x.download_gb));z.className='size';l.append(r,g,z);box.append(l);}
+ const more=list.length-shown.length;if(more>0){const b=element('button','Show '+more+' bigger model'+(more>1?'s':'')+' (slow or too big for this card)');b.type='button';b.className='more';b.onclick=()=>{showAll=true;showModels();};box.append(b);}}
 // What would download, worked out by itself whenever a choice changes; the button says the size
 function refreshPlan(){clearTimeout(planTimer);plans=null;$('install-go').disabled=true;$('install-go').replaceChildren('Working out the size…');planTimer=setTimeout(()=>perform(async()=>{const c=config();const params=new URLSearchParams({engines:c.engines.join(','),bundles:'pictures',models_dir:c.models_dir,install_dir:c.install_dir});if(c.picture_model)params.set('picture_model',c.picture_model);if(c.language_model)params.set('language_model',c.language_model);
  plans=await api('/api/setup/plan?'+params);const total=plans.reduce((a,p)=>a+p.total_gb,0),problems=plans.flatMap(p=>p.problems);$('install-plan').replaceChildren();
- const d=element('details');d.append(element('summary','What downloads ('+Math.round(total)+' GB)'));for(const plan of plans)d.append(element('pre',plan.items.map(i=>(i.done?'✓ Already there · ':'↓ ')+i.name+(i.done?'':' · '+i.size_gb+' GB')).concat(plan.notes||[]).join('\n')));$('install-plan').append(d);
+ const d=element('details');d.append(element('summary','What downloads ('+gb(total)+')'));for(const plan of plans)d.append(element('pre',plan.items.map(i=>(i.done?'✓ Already there · ':'↓ ')+i.name+(i.done?'':' · '+gb(i.size_gb))).concat(plan.notes||[]).join('\n')));$('install-plan').append(d);
  for(const p of problems){const e=element('p',p);e.className='error';$('install-plan').append(e);}
- $('install-go').replaceChildren(icon('download'),total>0?'Install · '+Math.max(1,Math.round(total))+' GB':'Install');$('install-go').disabled=problems.length>0;}),250);}
+ $('install-go').replaceChildren(icon('download'),total>0?'Install · '+gb(total):'Install');$('install-go').disabled=problems.length>0;}),250);}
 for(const b of document.querySelectorAll('[data-engine]'))b.onclick=()=>{for(const o of document.querySelectorAll('[data-engine]'))o.setAttribute('aria-checked',String(o===b));$('install-engine').value=b.dataset.engine;model='';showAll=false;showModels();refreshPlan();};
 for(const id of ['programs','models'])$(id).onchange=refreshPlan;
 // Browse: folders on this server (the window may be on another computer), names only
@@ -56,5 +69,9 @@ async function follow(value){job=value;$('job').hidden=false;$('job-status').tex
 setInterval(async()=>{if(!job||!['queued','running'].includes(job.status))return;try{job=await api('/api/jobs/'+job.id);$('job-status').textContent=job.status==='error'?job.error:Math.round(job.frac*100)+'% · '+(job.msg||job.status);$('job-cancel').hidden=!['queued','running'].includes(job.status);if(job.status==='done')engines();}catch{}},1500);
 $('job-cancel').onclick=()=>perform(()=>api('/api/jobs/'+job.id+'/cancel','POST',{}));
 addEventListener('hashchange',()=>{if(location.hash==='#cards')document.querySelector('[data-tab="cards"]').click();});
-for(const tab of document.querySelectorAll('[data-tab]'))tab.onclick=()=>{for(const other of document.querySelectorAll('[data-tab]'))other.setAttribute('aria-selected',String(other===tab));for(const panel of document.querySelectorAll('.tab-panel'))panel.hidden=panel.id!==tab.dataset.tab;};
+const tabs=[...document.querySelectorAll('[data-tab]')];
+for(const tab of tabs){tab.onclick=()=>{for(const other of tabs){other.setAttribute('aria-selected',String(other===tab));other.tabIndex=other===tab?0:-1;}for(const panel of document.querySelectorAll('.tab-panel'))panel.hidden=panel.id!==tab.dataset.tab;};
+ tab.tabIndex=tab.getAttribute('aria-selected')==='true'?0:-1;
+ tab.onkeydown=e=>{const i=tabs.indexOf(tab),to={ArrowRight:i+1,ArrowLeft:i-1,Home:0,End:tabs.length-1}[e.key];if(to===undefined)return;e.preventDefault();const t=tabs[(to+tabs.length)%tabs.length];t.focus();t.click();};}
+for(const b of document.querySelectorAll('[data-engine]'))b.onkeydown=e=>{const all=[...document.querySelectorAll('[data-engine]')],i=all.indexOf(b);if(!['ArrowRight','ArrowLeft','ArrowDown','ArrowUp'].includes(e.key))return;e.preventDefault();const t=all[(i+(e.key==='ArrowRight'||e.key==='ArrowDown'?1:-1)+all.length)%all.length];t.focus();t.click();};
 perform(async()=>{setup=await api('/api/setup');$('computer').textContent=setup.server.name;$('programs').value=setup.install_dir||'';$('models').value=setup.models_dir||'';showModels();refreshPlan();await engines();const cards=await api('/api/system/gpus').catch(()=>null);if(location.hash==='#cards'||cards?.needs_choice)document.querySelector('[data-tab="cards"]').click();});

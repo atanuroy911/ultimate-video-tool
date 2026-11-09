@@ -3,6 +3,30 @@
 Newest first. Every agent (Claude Code, Codex) adds an entry when it stops: what it did, what it verified, what is left. Read
 `CODEX-HANDOFF.md` first.
 
+## 2026-11-09, afternoon (Claude) — the setup UI audit, all 17 findings fixed
+
+Owner: "what else needed to be done.. be critical about the UI" (ui-ux-pro-max), then "fix em all". The audit measured the installed app (contrast, tap sizes, focus, keyboard) at 1280 and 400 px, light and dark. Fixed:
+
+1. Squeezed sheets: `.ios-body` is a flex column; long steps shrank the step icon and the Install button (21 px). `.ios-body > * { flex-shrink: 0 }` (ds.css) — every sheet in the app.
+2. Focus left the setup window after 8 Tabs: `Steps` (ds/index.tsx) traps Tab/Shift+Tab and gives focus back on close.
+3. ComfyUI needed Git: `installers.unzip_from` + `comfy_zip_url` (latest release zip, else main) and the add-on at its pinned commit as a zip. No Git anywhere; verified for real (add-on 1.8 s, ComfyUI 16 s).
+4. Server Programs page: "Not set up" + Install (jumps to Install with that program), "Not running" / "Not answering" with what to do; the address hides under "I already have it running".
+5. One main button per screen: `StepDef.next` (hidden / quiet / own label). Step 1 has only "Install everything"; step 2 footer is "Do it later" / "Close, it keeps going"; when nothing is left, "Everything is already installed".
+6. Step dots: `StepDef.locked` — "Check it works" is locked until the install is done (dot disabled, says why); dots are 44 px tap areas.
+7. Sizes add up: rows show the program + model total from the plan; one `gb()` (one decimal below 100) on the wizard and /manage.
+8. Downloads say speed and time left (`util.TimeLeft`, ComfyUI files and the Ollama model); failures in plain words (`setup.install_trouble`: no internet, full drive) with "Try again: what finished is kept".
+9. No grey example text that looks like a value: the real default folders are shown (sent as "" so they stay defaults); Connect is prefilled with the usual address.
+10. Leaving early says the choices are kept and where to come back (toast).
+11. A plain line under every model (`setup.PLAIN`): "Good pictures made to fit 6 GB cards, about 17 seconds each."
+12. Contrast: greyed rows no longer fade their text; /manage now uses the Studio's tokens (muted, ok-green, button blue that passes in dark).
+13. 44 px controls on phones/touch in sheets and on /manage (tabs, switches with a larger hit area, summaries).
+14. No text below 12 px.
+15. Arrow keys: /manage tabs (and Home/End, roving tabindex), program cards; wizard choice pills are a real radio group.
+16. One look: the server's pages use the Studio's colours and pill buttons and follow the app's theme (`/page-theme.js`: ?theme=, else the Studio's saved `vt-theme`, else the system).
+17. Same person in every picture: the reel reader is taught to describe the person completely (man/woman, age, skin, hair, build, clothes) and to choose one that suits the video; limits 160 → 260 characters. Real reel: the same woman in all three pictures (16.6–16.7 s each warm).
+
+Also: a test downloaded ComfyUI for real (the zip is now faked there). Checks: new `client/studio/e2e/setup_audit.mjs` measures all of the above (121 pass on an installed server, 107 on an empty one); gpu_card 41/0, engines 9/0, design 15/0, server_pages 21/0, settings_clarity 4 PASS; Studio tsc, build, 35 unit tests; server desktop npm test; pytest setup/server_pages/fit/placement/client_server/reel suites pass; broad not-slow pytest exit 0 (about 1,863 pass). Rebuilt and reinstalled on this PC (E:\UVT-Client, E:\UVT-Server). A 2:35 PM timer is set to continue with the timeline / OpenChatCut job.
+
 ## 2026-11-09, morning (Claude) — models for 6 GB cards, setup for lazy people, tested on this PC
 
 Owner: "find other models to fit on 6 GB and lower… the model selection and download pages… or the setup pages should be a no brainer… users are lazy… use icons… then test everything locally."

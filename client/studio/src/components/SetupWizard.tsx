@@ -34,6 +34,7 @@ const OFF_NOTE: Record<string, string> = {
   ollama: "Videos are planned by simple rules, or by Claude or Codex if you connect them.",
   comfy: "Each picture becomes a card with the key words. The video is still made.",
 };
+export const gb = (n: number) => (n >= 100 ? String(Math.round(n)) : n > 0 ? n.toFixed(1).replace(/\.0$/, "") : "0") + " GB";   // one decimal below 100, so the rows add up to the total
 const running = (j: Job | null) => !!j && ["queued", "running"].includes(j.status);
 
 export default function SetupWizard({ onClose }: { onClose: () => void }) {
@@ -51,6 +52,7 @@ export default function SetupWizard({ onClose }: { onClose: () => void }) {
   const [plans, setPlans] = useState<Plan[] | null>(null);
   const [job, setJob] = useState<Job | null>(null);
   const [jobChecked, setJobChecked] = useState(false);
+  const [planTick, setPlanTick] = useState(0);
   useEffect(() => {
     get<Overview>("/api/setup").then((d) => {
       setO(d);
@@ -61,8 +63,9 @@ export default function SetupWizard({ onClose }: { onClose: () => void }) {
       const initial={ ...suggested,...Object.fromEntries(Object.entries(d.existing||{}).filter(([,urls])=>urls.length).map(([id])=>[id,'remote'])), ...d.choices };
       setChoices(Object.fromEntries(Object.entries(initial).filter(([id])=>d.engines.some(e=>e.id===id))) as Record<string,Mode>);
       setUrls(Object.fromEntries(Object.entries(d.existing||{}).filter(([,urls])=>urls.length).map(([id,urls])=>[id,urls[0]])));
-      setDir(d.models_dir);
-      setProgramDir(d.install_dir||'');
+      const sep0 = d.server?.os === "Windows" ? "\\" : "/";
+      setDir(d.models_dir || `${d.server?.data_dir || d.hardware.data_dir}${sep0}models`);
+      setProgramDir(d.install_dir || `${d.server?.data_dir || d.hardware.data_dir}${sep0}engines`);
       const clipsOk = d.models?.clips.fits ?? true;
       setBundles((Array.isArray(d.bundles)?d.bundles:["pictures"]).filter((b) => b !== "clips" || clipsOk));
       // a saved model is kept only when it runs well (an old default that only works slowly gives way to the one that fits)
@@ -80,10 +83,13 @@ export default function SetupWizard({ onClose }: { onClose: () => void }) {
     if (!o) return;
     if (!localIds) { setPlans([]); return; }
     setPlans(null);
-    const q = `/api/setup/plan?engines=${localIds}&bundles=${bundles.join(",")}&models_dir=${encodeURIComponent(dir)}&install_dir=${encodeURIComponent(programDir)}&picture_model=${encodeURIComponent(pictureModel)}&language_model=${encodeURIComponent(languageModel)}`;
+    const base = o.server?.data_dir || o.hardware.data_dir, sl = o.server?.os === "Windows" ? "\\" : "/";
+    const md = dir === `${base}${sl}models` ? "" : dir, pd = programDir === `${base}${sl}engines` ? "" : programDir;     // the default folders go as "" (they stay the default)
+    const q = `/api/setup/plan?engines=${localIds}&bundles=${bundles.join(",")}&models_dir=${encodeURIComponent(md)}&install_dir=${encodeURIComponent(pd)}&picture_model=${encodeURIComponent(pictureModel)}&language_model=${encodeURIComponent(languageModel)}`;
     const timer = setTimeout(() => get<Plan[]>(q).then(setPlans).catch((e) => toast(e.message, "err")), 250);
     return () => clearTimeout(timer);
-  }, [o, localIds, bundles.join(","), dir, programDir, pictureModel, languageModel]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [o, localIds, bundles.join(","), dir, programDir, pictureModel, languageModel, planTick]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (job?.status === "done") setPlanTick((n) => n + 1); }, [job?.status]);
   useEffect(() => {
     if (!running(job)) return;
     const timer = setInterval(() => get<Job>(`/api/jobs/${job!.id}`).then(setJob).catch(() => {}), 1500);
@@ -95,16 +101,18 @@ export default function SetupWizard({ onClose }: { onClose: () => void }) {
   const name = o.server?.name || "the video computer";
   const where = here ? "this computer" : name;
   const remote = o.engines.filter((e) => choices[e.id] === "remote");
-  const saveChoices = () => put("/api/setup", { choices, models_dir: dir, install_dir:programDir, bundles, picture_model: pictureModel, language_model: languageModel });
+  const sep = o.server?.os === "Windows" ? "\\" : "/";
+  const defaultDir = `${o.server?.data_dir || o.hardware.data_dir}${sep}models`, defaultProgramDir = `${o.server?.data_dir || o.hardware.data_dir}${sep}engines`;
+  const dirOut = dir === defaultDir ? "" : dir, programDirOut = programDir === defaultProgramDir ? "" : programDir;
+  const saveChoices = () => put("/api/setup", { choices, models_dir: dirOut, install_dir: programDirOut, bundles, picture_model: pictureModel, language_model: languageModel });
   const m = o.models;
   const cardGb = m?.card.gb || 0;
   const pick = (list: ModelOption[] | undefined, id: string) => list?.find((x) => x.id === id);
   const totalGb = (plans || []).reduce((a, p) => a + p.total_gb, 0);
   const problems = (plans || []).flatMap((p) => p.problems);
-  const sep = o.server?.os === "Windows" ? "\\" : "/";
   const start = async () => {
     await saveChoices();
-    const j = await post<Job>("/api/setup/install", { engines: local.map((e) => e.id), bundles, models_dir: dir, install_dir: programDir, picture_model: pictureModel, language_model: languageModel });
+    const j = await post<Job>("/api/setup/install", { engines: local.map((e) => e.id), bundles, models_dir: dirOut, install_dir: programDirOut, picture_model: pictureModel, language_model: languageModel });
     setJob(j);
   };
   const setMode = (id: string, v: Mode) => setChoices({ ...choices, [id]: v });
@@ -115,7 +123,7 @@ export default function SetupWizard({ onClose }: { onClose: () => void }) {
     const x = e.id === "comfy" ? pick(m?.pictures, pictureModel) : pick(m?.language, languageModel);
     const have = mode === "local" && plans?.find((p) => p.engine === e.id)?.total_gb === 0;      // already installed: nothing left to download
     const status = have && x ? <><CircleCheck size={14} aria-hidden /> {x.label}<span className="muted"> · installed</span></>
-      : mode === "local" && x ? <><FitIcon x={x} /> {x.label}<span className="muted"> · {fitWords(x, cardGb)}</span></>
+      : mode === "local" && x ? <><FitIcon x={x} /> {x.label}<span className="muted"> · {x.speed === "fast" && x.note ? x.note : fitWords(x, cardGb)}</span></>
       : mode === "remote" ? <><Link2 size={14} aria-hidden /> Uses the {PROGRAM[e.id]} {urls[e.id] ? `found on ${where}` : "you already have"}</>
       : <><CircleSlash size={14} aria-hidden /> Not now. {OFF_NOTE[e.id]}</>;
     return (
@@ -126,7 +134,7 @@ export default function SetupWizard({ onClose }: { onClose: () => void }) {
           <span className="small muted">{ABOUT[e.id]}</span>
           <span className={`pick-status ${have ? "fast" : mode === "local" && x ? (x.speed === "fast" ? "fast" : "slow") : ""}`}>{status}</span>
         </span>
-        {mode === "local" && x && !have && <span className="pick-size">{x.download_gb} GB</span>}
+        {mode === "local" && x && !have && <span className="pick-size" title="The program and its model">{gb(plans?.find((p) => p.engine === e.id)?.total_gb ?? x.download_gb)}</span>}
       </div>
     );
   };
@@ -149,9 +157,18 @@ export default function SetupWizard({ onClose }: { onClose: () => void }) {
     return (
       <Group key={e.id} title={`${plain(e.id, e.label)} (${PROGRAM[e.id]})`}>
         <div className="ios-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 8 }}>
-          <div className="choice-pills" role="radiogroup" aria-label={`${plain(e.id, e.label)}: how to get it`}>
+          <div className="choice-pills" role="radiogroup" aria-label={`${plain(e.id, e.label)}: how to get it`}
+            onKeyDown={(ev) => {                                       // a radio group: arrows choose, only the chosen one is in the Tab order
+              const order: Mode[] = ["local", "remote", "off"], k = order.indexOf(mode);
+              const step = ev.key === "ArrowRight" || ev.key === "ArrowDown" ? 1 : ev.key === "ArrowLeft" || ev.key === "ArrowUp" ? -1 : 0;
+              if (!step) return;
+              ev.preventDefault();
+              const to = order[(k + step + order.length) % order.length], box = ev.currentTarget;   // currentTarget is gone after the handler
+              setMode(e.id, to);
+              requestAnimationFrame(() => box.querySelector<HTMLElement>(`[data-mode="${to}"]`)?.focus());
+            }}>
             {([["local", <Download size={16} />, "Install it"], ["remote", <Link2 size={16} />, "I already have it"], ["off", <CircleSlash size={16} />, "Not now"]] as const).map(([v, icon, label]) => (
-              <button key={v} type="button" role="radio" aria-checked={mode === v} className={mode === v ? "on" : ""} onClick={() => setMode(e.id, v)}>{icon}{label}</button>
+              <button key={v} type="button" role="radio" data-mode={v} aria-checked={mode === v} tabIndex={mode === v ? 0 : -1} className={mode === v ? "on" : ""} onClick={() => setMode(e.id, v)}>{icon}{label}</button>
             ))}
           </div>
           <span className="small muted">{mode === "local" ? `Video Tool downloads it and sets it up on ${where}.` : mode === "remote" ? "You connect it on the next screen." : OFF_NOTE[e.id]}</span>
@@ -163,10 +180,16 @@ export default function SetupWizard({ onClose }: { onClose: () => void }) {
     );
   };
   const nothing = !local.length && !remote.length;
+  const ready = !local.length || job?.status === "done" || (plans !== null && totalGb === 0);
+  // leaving early keeps every choice; say where to come back
+  const closeWith = (note = "Your choices are kept. Open Set up again from the banner or the Server page.") => {
+    saveChoices().then(() => { toast(note); onClose(); }).catch((e: any) => toast(e.message, "err"));
+  };
   const gpu = o.hardware.gpus[0];
 
   const steps = [
     {
+      next: { hidden: true },
       title: here ? "Set up the AI on this computer" : `Set up the AI on ${name}`, icon: <Sparkles size={26} />,
       subtitle: here ? "We picked what fits this computer. Press Install and Video Tool does the rest."
         : `We picked what fits ${name}, the computer that makes your videos. Everything goes there, not on the computer you are using now.`,
@@ -195,7 +218,7 @@ export default function SetupWizard({ onClose }: { onClose: () => void }) {
               : running(job) ? <button type="button" className="btn primary lg" onClick={go.next}><Spinner size={16} /> Installing… see how far it is</button>
               : <button type="button" className="btn primary lg" data-testid="setup-go" disabled={plans === null || problems.length > 0}
                   onClick={() => (local.length ? start().then(go.next) : Promise.resolve(saveChoices()).then(go.next)).catch((e: any) => toast(e.errors?.[0] || e.message, "err", 8000))}>
-                  {local.length ? <><Download size={18} aria-hidden /> {plans === null ? "Working out the size…" : `Install everything · ${Math.max(1, Math.round(totalGb))} GB`}</>
+                  {local.length ? <><Download size={18} aria-hidden /> {plans === null ? "Working out the size…" : `Install everything · ${gb(totalGb)}`}</>
                     : nothing ? "Continue without AI" : <><Link2 size={18} aria-hidden /> Connect what I have</>}
                 </button>}
             <button type="button" className="btn ghost" aria-expanded={custom} onClick={() => setCustom(!custom)}><SlidersHorizontal size={16} aria-hidden /> {custom ? "Hide the choices" : "Choose myself"}</button>
@@ -212,6 +235,9 @@ export default function SetupWizard({ onClose }: { onClose: () => void }) {
       ),
     },
     {
+      next: !local.length || job?.status === "done" || totalGb === 0 ? undefined
+        : running(job) ? { label: "Close, it keeps going", primary: false, onClick: () => closeWith("The install keeps going. Open Set up again any time to see it.") }
+        : { label: "Do it later", primary: false, onClick: () => closeWith() },
       title: job?.status === "done" ? "Installed" : running(job) ? "Installing" : remote.length && !local.length ? "Connect what you have" : "Install",
       icon: <Download size={26} />,
       subtitle: running(job) ? "You can close this window. It keeps going and you can come back here any time." : job?.status === "done" ? "Everything is in place. Continue to check that it works."
@@ -225,6 +251,7 @@ export default function SetupWizard({ onClose }: { onClose: () => void }) {
       ),
     },
     {
+      locked: ready ? undefined : "install first",
       title: "Check it works", icon: <Check size={26} />, subtitle: "Video Tool asks each AI program for a tiny piece of work.",
       body: <Try ids={o.engines.filter((e) => choices[e.id] && choices[e.id] !== "off").map((e) => e.id)} waiting={running(job)} />,
     },
@@ -236,7 +263,7 @@ export default function SetupWizard({ onClose }: { onClose: () => void }) {
   const at=(n:string)=>Math.max(0,stateSteps.indexOf(n));
   const initial=running(job)?at('install'):o.step==='cards'?at('cards'):o.step==='connect'||o.step==='install'?at('install'):o.step==='try'||o.step==='done'?at('try'):at(manyCards?'cards':'choose');
   return <Steps label={here ? "Set up this computer" : `Set up ${name}`} steps={visibleSteps} start={initial} headerDone={false} doneLabel="Finish"
-    onClose={()=>{saveChoices().then(onClose).catch(e=>toast(e.message,'err'));}}
+    onClose={()=>closeWith(running(job)?"The install keeps going. Open Set up again any time to see it.":undefined)}
     onStep={i=>{saveChoices().then(()=>put('/api/setup',{step:stateSteps[i]})).catch(e=>toast(e.message,'err'));}}
     onDone={async()=>{try{await saveChoices();await put('/api/setup',{step:'done',done:true});onClose();}catch(e:any){toast(e.message,'err');}}}/>;
 }
@@ -266,11 +293,13 @@ function Connect({ id, label, url, setUrl, where }: { id: string; label: string;
       setBusy(false);
     }
   };
+  const usual = id === "ollama" ? "http://127.0.0.1:11434" : "http://127.0.0.1:8188";
+  useEffect(() => { if (!url) setUrl(usual); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const tried = useRef(false);
   useEffect(() => { if (url && !tried.current) { tried.current = true; test(); } }, []); // eslint-disable-line react-hooks/exhaustive-deps -- a found program connects by itself
   return (
     <Group title={`Your ${label} (${id === 'comfy' ? 'ComfyUI' : 'Ollama'})`}>
-      <Row label={t("setup.address")} stack><input type="text" value={url} placeholder={id==='ollama'?'http://127.0.0.1:11434':'http://127.0.0.1:8188'} onChange={(e) => {setUrl(e.target.value);setConnectedUrl('');setSays('');setNeedsModel(false);}} aria-label={`${label}: ${t("setup.address")}`} spellCheck={false} style={{ width: "100%" }} /><span className="small muted">{url ? `Found on ${where}. Change it only if the program runs on a different computer.` : `Type the address the program shows when it starts, such as ${id==='ollama'?'http://127.0.0.1:11434':'http://127.0.0.1:8188'}.`}</span></Row>
+      <Row label={t("setup.address")} stack><input type="text" value={url} onChange={(e) => {setUrl(e.target.value);setConnectedUrl('');setSays('');setNeedsModel(false);}} aria-label={`${label}: ${t("setup.address")}`} spellCheck={false} style={{ width: "100%" }} /><span className="small muted">{url === usual ? `The usual address on ${where}. Change it only if the program runs elsewhere, then press Connect.` : url ? `Found on ${where}. Change it only if the program runs on a different computer.` : "Type the address the program shows when it starts, then press Connect."}</span></Row>
       <div className="ios-row engine-test">
         <button className="btn sm" onClick={test} disabled={busy || !url.trim()}>{busy ? t("setup.testing") : connectedUrl ? "Connect again" : 'Connect'}</button>
         {says && <p className={`status-line ${connectedUrl ? "ok" : "bad"}`} role="status"><i aria-hidden />{says}</p>}
@@ -288,19 +317,20 @@ function Install({ plans, job, total, problems, onStart, onCancel }: { plans: Pl
   if (!plans) return <p className="small muted row" style={{ gap: 8 }}><Spinner size={14} /> Working out what to download…</p>;
   const list = (
     <details className="setup-more" open={!job}>
-      <summary className="small">What downloads ({total.toFixed(0)} GB)</summary>
+      <summary className="small">What downloads ({gb(total)})</summary>
       {plans.map((p) => (
         <Group key={p.engine} title={plain(p.engine)} note={p.notes.join(" ")}>
-          {p.items.map((i) => <Row key={i.name} label={<span className="row" style={{ gap: 6 }}>{i.done ? <CircleCheck size={14} className="ok-icon" aria-hidden /> : <Download size={14} aria-hidden />}{i.name}</span>}>{i.done ? t("setup.already") : `${i.size_gb} GB`}</Row>)}
+          {p.items.map((i) => <Row key={i.name} label={<span className="row" style={{ gap: 6 }}>{i.done ? <CircleCheck size={14} className="ok-icon" aria-hidden /> : <Download size={14} aria-hidden />}{i.name}</span>}>{i.done ? t("setup.already") : gb(i.size_gb)}</Row>)}
         </Group>
       ))}
     </details>
   );
+  if (!job && total === 0 && !problems.length) return <p className="status-line ok" role="status" data-testid="setup-nothing-left"><i aria-hidden />Everything is already installed. Continue to check that it works.</p>;
   if (!job) return (
     <>
       {list}
       {problems.map((x, i) => <p key={i} className="small status-line bad" role="alert"><i aria-hidden />{x}</p>)}
-      <button className="btn primary lg" onClick={onStart} disabled={problems.length > 0} data-testid="setup-start"><Download size={18} aria-hidden /> {total > 0 ? `Install · ${Math.max(1, Math.round(total))} GB` : t("setup.start")}</button>
+      <button className="btn primary lg" onClick={onStart} disabled={problems.length > 0} data-testid="setup-start"><Download size={18} aria-hidden /> {total > 0 ? `Install · ${gb(total)}` : t("setup.start")}</button>
     </>
   );
   const pct = Math.round((job.frac || 0) * 100);

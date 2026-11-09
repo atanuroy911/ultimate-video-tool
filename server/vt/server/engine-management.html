@@ -1,6 +1,8 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"><title>AI programs and models · Ultimate Video Tool Server</title><style>
-:root{color-scheme:light dark;--bg:#f5f5f7;--card:#fff;--text:#1d1d1f;--muted:#6e6e73;--line:rgba(0,0,0,.08);--fill:rgba(118,118,128,.12);--accent:#0a66ff;--ok:#1f9d55;--ok-bg:rgba(52,199,89,.14);--warn:#b35c00;--err:#d70015}
-@media (prefers-color-scheme:dark){:root{--bg:#1c1c1e;--card:#2c2c2e;--text:#f5f5f7;--muted:#98989d;--line:rgba(255,255,255,.1);--fill:rgba(118,118,128,.24);--accent:#3b8cff;--ok:#32d74b;--ok-bg:rgba(50,215,75,.16);--warn:#ffb340;--err:#ff453a}}
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"><title>AI programs and models · Ultimate Video Tool Server</title><script src="/page-theme.js"></script><style>
+/* the Studio's colours (client/studio/src/styles.css), so the server's pages look like the same app; dark follows the app (page-theme.js) */
+:root{color-scheme:light;--bg:#f5f5f7;--card:#fff;--text:#1d1d1f;--muted:#5f5f64;--line:rgba(0,0,0,.08);--fill:rgba(120,120,128,.12);--accent:#0071e3;--accent-text:#005bb8;--btn:#0071e3;--ok:#166534;--ok-bg:rgba(52,199,89,.16);--warn:#a14800;--err:#d70015}
+:root[data-theme=dark]{color-scheme:dark;--bg:#000;--card:#1c1c1e;--text:#f5f5f7;--muted:#b4b4b9;--line:rgba(255,255,255,.1);--fill:rgba(120,120,128,.24);--accent:#0a84ff;--accent-text:#64b0ff;--btn:#0a6cd9;--ok:#30d158;--ok-bg:rgba(48,209,88,.18);--warn:#ffb340;--err:#ff6961}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){color-scheme:dark;--bg:#000;--card:#1c1c1e;--text:#f5f5f7;--muted:#b4b4b9;--line:rgba(255,255,255,.1);--fill:rgba(120,120,128,.24);--accent:#0a84ff;--accent-text:#64b0ff;--btn:#0a6cd9;--ok:#30d158;--ok-bg:rgba(48,209,88,.18);--warn:#ffb340;--err:#ff6961}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
 main{max-width:680px;margin:0 auto;padding:22px 20px 32px}a{color:var(--accent);text-decoration:none}
 h1{font-size:20px;font-weight:650;margin:10px 0 2px}h2{font-size:15px;font-weight:600;margin:0}h3{font-size:13px;font-weight:600;color:var(--muted);margin:14px 0 6px}
@@ -14,11 +16,12 @@ input:focus,select:focus{outline:3px solid color-mix(in srgb,var(--accent) 40%,t
 button{font:inherit;font-weight:500;padding:7px 14px;min-height:32px;background:var(--fill);color:var(--text);border:0;border-radius:8px;cursor:pointer}
 button.primary,.actions button:first-child{background:var(--accent);color:#fff}button.secondary{background:var(--fill);color:var(--text)}button:disabled{opacity:.45;cursor:default}
 button:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 45%,transparent);outline-offset:2px}
-.badge{font-size:12px;font-weight:500;border-radius:20px;background:var(--fill);color:var(--muted);padding:3px 9px}.ready{color:var(--ok);background:var(--ok-bg)}
+.badge{font-size:12.5px;font-weight:500;border-radius:20px;background:var(--fill);color:var(--text);padding:3px 9px}.ready{color:var(--ok);background:var(--ok-bg)}.badge.warn{color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent)}
+.models button.more{width:100%;background:transparent;box-shadow:inset 0 0 0 1px var(--line);color:var(--accent-text)}section>p.small{margin-top:6px}
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 #message{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px}#message:empty{display:none}#model-plan{white-space:pre-wrap}.error{color:var(--err)}
-.tabs{display:inline-flex;gap:2px;margin:16px 0 4px;padding:2px;border-radius:9px;background:var(--fill)}
-.tabs button{background:none;color:var(--text);border-radius:7px;padding:5px 14px;min-height:28px;font-size:13px}.tabs button[aria-selected=true]{background:var(--card);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.tabs{display:inline-flex;gap:2px;margin:16px 0 4px;padding:3px;border-radius:999px;background:var(--fill)}
+.tabs button{background:none;color:var(--text);border-radius:999px;padding:6px 16px;min-height:32px;font-size:13.5px}.tabs button[aria-selected=true]{background:var(--card);box-shadow:0 1px 3px rgba(0,0,0,.12)}
 pre{white-space:pre-wrap;overflow-wrap:anywhere;font:12.5px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;background:var(--fill);border-radius:8px;padding:10px 12px;margin:10px 0}
 input[type=checkbox]{width:auto}
 .pick{display:flex;gap:8px}.pick input{flex:1}
@@ -28,20 +31,24 @@ input[type=checkbox]{width:auto}
 .browser ul{list-style:none;margin:0;padding:0;max-height:220px;overflow:auto;border-radius:8px;background:var(--card)}
 .browser li button{width:100%;text-align:left;background:none;border-radius:0;font-weight:400}.browser li+li{border-top:.5px solid var(--line)}
 .fit-fast{color:var(--ok)}.fit-slow{color:var(--warn)}.fit-no{color:var(--muted)}
-svg.i{width:16px;height:16px;vertical-align:-3px;flex:none}
+svg.i{width:16px;height:16px;vertical-align:-3px;flex:none}button svg.i{margin-right:6px}
 .tile{display:inline-grid;place-items:center;width:36px;height:36px;border-radius:10px;color:#fff;flex:none}.tile svg.i{width:20px;height:20px;vertical-align:0}
 .tile.comfy{background:linear-gradient(135deg,#ff9f0a,#ff375f)}.tile.ollama{background:linear-gradient(135deg,#5e5ce6,#0a84ff)}
 h2 .tile{width:28px;height:28px;border-radius:8px;margin-right:8px;vertical-align:middle}h2 .tile svg.i{width:16px;height:16px}
 .programs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0 4px}.programs button{display:flex;gap:10px;align-items:center;text-align:left;padding:10px 12px;background:var(--fill);border-radius:12px}
-.programs button b{display:block}.programs button[aria-checked=true]{box-shadow:inset 0 0 0 2px var(--accent);background:var(--card)}
+.programs button b{display:block}.programs button{background:var(--card);box-shadow:inset 0 0 0 1px var(--line)}.programs button[aria-checked=true]{box-shadow:inset 0 0 0 2px var(--accent)}
 .models{display:flex;flex-direction:column;gap:6px}.models label{flex-direction:row;align-items:flex-start;gap:10px;margin:0;padding:10px 12px;border-radius:10px;background:var(--fill);font-weight:400;cursor:pointer}
 .models label.on{box-shadow:inset 0 0 0 2px var(--accent)}.models label.off{opacity:.55;cursor:default}.models input{width:auto;margin-top:3px}
 .models .grow{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}.models b{font-weight:600}.models .size{font-weight:600;color:var(--muted);font-size:12.5px}
-.chip{display:inline-flex;align-items:center;gap:4px;margin-left:6px;font-size:11.5px;font-weight:600;padding:1px 8px;border-radius:20px;background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent)}.chip svg.i{width:12px;height:12px}
-button.big{min-height:40px;padding:8px 20px;font-size:15px;font-weight:600;display:inline-flex;gap:8px;align-items:center}
-details summary{cursor:pointer;color:var(--accent);margin-top:12px}
+.chip{display:inline-flex;align-items:center;gap:4px;margin-left:6px;font-size:12.5px;font-weight:600;padding:1px 8px;border-radius:20px;background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent-text)}.chip svg.i{width:12px;height:12px}
+button.big{min-height:44px;padding:8px 20px;font-size:15px;font-weight:600;display:inline-flex;gap:8px;align-items:center}
+details summary{cursor:pointer;color:var(--accent-text);margin-top:12px}
 @media(max-width:600px){.programs{grid-template-columns:1fr}}[hidden]{display:none!important}
 @media(max-width:600px){main{padding:14px}.grid{grid-template-columns:1fr}}
+
+/* one button shape with the Studio (pills); fingers get 44 px targets */
+button{border-radius:999px}button.primary,.actions button:first-child{background:var(--btn)!important;color:#fff}a{color:var(--accent-text)}
+@media (max-width:600px),(pointer:coarse){button,input,select,.tabs button{min-height:44px}details>summary{min-height:44px;display:flex;align-items:center}}
 </style></head><body><main><a href="/">‹ Server</a><h1>AI programs and models</h1><p id="computer" class="small">Checking this server…</p><div class="tabs" role="tablist"><button role="tab" aria-selected="true" data-tab="engines">Programs</button><button role="tab" aria-selected="false" data-tab="install">Install new</button><button role="tab" aria-selected="false" data-tab="cards">Graphics cards</button></div>
 <div id="message" role="status"></div><div id="engines" class="tab-panel"></div>
 <section id="cards" class="tab-panel" hidden><div data-gpu-choice></div></section>

@@ -3271,6 +3271,11 @@ def server_management_script():
     return FileResponse(Path(__file__).with_name('management.js'), media_type='text/javascript')
 
 
+@app.get('/page-theme.js')
+def server_page_theme_script():
+    return FileResponse(Path(__file__).with_name('page-theme.js'), media_type='text/javascript')
+
+
 @app.get('/gpu-choice.js')
 def server_gpu_choice_script():
     return FileResponse(Path(__file__).with_name('gpu-choice.js'), media_type='text/javascript')

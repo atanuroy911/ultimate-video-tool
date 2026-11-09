@@ -10,7 +10,7 @@ STYLES: dict[str, dict] = {
     "photo": {"label": "Cinematic photo", "text": "cinematic photograph, natural light, shallow depth of field, realistic, one clear subject, vertical composition"},
 }
 # the recurring figure when the AI gave none: the same one in every picture is what makes separate pictures read as one story
-FIGURE = {"cartoon": "a friendly cartoon man with a round head, short black hair and a beige coat",
+FIGURE = {"cartoon": "a friendly cartoon man in his thirties with a round head, light brown skin, short black hair, a beige coat and dark trousers",
           "line-art": "a simple stick-like person with a round head",
           "comic": "a round-headed figure in a red scarf",
           "photo": ""}

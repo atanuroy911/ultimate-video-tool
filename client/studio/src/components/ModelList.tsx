@@ -27,9 +27,10 @@ export default function ModelList({ name, options, value, onChange, cardGb }: { 
             <input type="radio" name={name} value={x.id} checked={value === x.id} disabled={!x.fits} onChange={() => onChange(x.id)} />
             <span className="grow">
               <strong>{x.label}{x.recommended && <span className="chip accent" style={{ marginLeft: 8 }}><Sparkles size={12} aria-hidden /> Best for this computer</span>}</strong>
+              {x.note && <span className="model-note">{x.note}</span>}
               <span className={`model-fit ${cls}`}><FitIcon x={x} /> {text}</span>
             </span>
-            <span className="model-size">{x.download_gb} GB</span>
+            <span className="model-size">{x.download_gb >= 10 ? Math.round(x.download_gb) : x.download_gb} GB</span>
           </label>
         );
       })}

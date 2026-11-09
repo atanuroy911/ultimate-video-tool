@@ -23,3 +23,12 @@ def test_the_overview_and_the_settings_page_use_it():
     assert 'id="gpu"' not in manage.text and "see Graphics cards" in manage.text           # the install tab no longer asks for a card
     script = c.get("/manage.js").text
     assert "$('gpu')" not in script and "#cards" in script and "needs_choice" in script    # and the page opens on the cards when a choice is waiting
+
+
+def test_the_server_pages_follow_the_app_theme():
+    c = client()
+    js = c.get("/page-theme.js")
+    assert js.status_code == 200 and "vt-theme" in js.text and "data-theme" in js.text
+    for page in ("/", "/manage"):
+        html = c.get(page).text
+        assert '<script src="/page-theme.js"></script>' in html and ":root[data-theme=dark]" in html and ":root:not([data-theme=light])" in html

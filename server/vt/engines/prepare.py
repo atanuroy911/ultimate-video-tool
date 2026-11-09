@@ -114,7 +114,8 @@ def plan(url: str, recipe: str = "", models_dir: str = "") -> dict:
     for o in sorted(fitted.get("options") or [], key=lambda o: (rank.get(o["mode"], 2), -o["quality"])):
         r = fit.BY_ID[o["recipe"]]
         missing = round(sum(fit.FILES[f]["size"] for f in r.files() if f.rsplit("/", 1)[-1] not in have) / fit.GB, 1)
-        choices.append({"id": r.id, "label": r.label, "fits": bool(o["mode"]), "speed": {"resident": "fast", "sequential": "fast", "partial": "slow"}.get(o["mode"], ""),
+        from .setup import PLAIN
+        choices.append({"id": r.id, "label": r.label, "note": PLAIN.get(r.id, ""), "fits": bool(o["mode"]), "speed": {"resident": "fast", "sequential": "fast", "partial": "slow"}.get(o["mode"], ""),
                         "why": "" if o["mode"] in ("resident", "sequential") else ("Bigger than the card: part of it waits in memory, so each picture takes several times longer."
                                                                                      if o["mode"] == "partial" else ("Needs a newer card (RTX 50 series)." if "RTX 50" in o["why"] else "Too big for this card.")),
                         "download_gb": missing, "recommended": r.id == fitted["recipe"], "addon": bool(r.addons())})

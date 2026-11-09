@@ -242,23 +242,45 @@ export interface StepDef {
   subtitle?: string;
   icon?: ReactNode;
   body: ReactNode | ((go: { next: () => void; back: () => void }) => ReactNode);
+  /** The footer's forward button for this step. Hidden, or quiet (not blue), when the body has the one main action of the screen. */
+  next?: { label?: string; primary?: boolean; hidden?: boolean; onClick?: () => void };
+  /** Not reachable yet (its dot is off and the forward button stops before it), with why. */
+  locked?: string;
 }
 export function Steps({ label, steps, onClose, onDone, onStep, start = 0, doneLabel, headerDone = true, className = "", cancelLabel }: { label: string; steps: StepDef[]; onClose: () => void; onDone?: () => void; onStep?: (i: number) => void; start?: number; doneLabel?: string; headerDone?: boolean; className?: string; cancelLabel?: string }) {
   const t = useT();
-  const [i, setI0] = useState(start);
+  const [i, setI0] = useState(Math.min(start, steps.length - 1));
   const setI = (n: number) => { setI0(n); onStep?.(n); };
   const ref = useRef<HTMLDivElement>(null);
+  const sheet = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const key = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
   }, [onClose]);
+  useEffect(() => {                                              // focus goes back where it was when the sheet closes
+    const before = document.activeElement as HTMLElement | null;
+    return () => { try { before?.focus?.(); } catch { /* gone */ } };
+  }, []);
   useEffect(() => ref.current?.focus(), [i]);
+  // a modal keeps the keyboard inside it: Tab from the last control goes to the first, Shift+Tab from the first to the last
+  const trap = (e: React.KeyboardEvent) => {
+    if (e.key !== "Tab" || !sheet.current) return;
+    const all = [...sheet.current.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])')]
+      .filter((el) => el.offsetParent !== null || el === document.activeElement);
+    if (!all.length) return;
+    const first = all[0], lastEl = all[all.length - 1], at = document.activeElement;
+    if (e.shiftKey && (at === first || at === ref.current)) { e.preventDefault(); lastEl.focus(); }
+    else if (!e.shiftKey && at === lastEl) { e.preventDefault(); first.focus(); }
+  };
   const s = steps[i];
   const last = i === steps.length - 1;
+  const reachable = (k: number) => !steps.slice(1, k + 1).some((st) => st.locked);
+  const forward = s.next ?? {};
+  const nextLocked = !last && !reachable(i + 1);
   return (
     <div className="ios-back" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className={`ios-sheet ${className}`} role="dialog" aria-modal="true" aria-label={label}>
+      <div className={`ios-sheet ${className}`} role="dialog" aria-modal="true" aria-label={label} ref={sheet} onKeyDown={trap}>
         <header className="ios-nav">
           <button type="button" className="ios-link" onClick={onClose}>{cancelLabel ?? t("ds.cancel")}</button>
           <span className="ios-nav-title">{t("ds.step").replace("{i}", String(i + 1)).replace("{n}", String(steps.length))}</span>
@@ -273,12 +295,18 @@ export function Steps({ label, steps, onClose, onDone, onStep, start = 0, doneLa
         <footer className="ios-foot">
           <div className="ios-dots" role="tablist" aria-label="Steps">
             {steps.map((st, k) => (
-              <button key={k} type="button" role="tab" aria-selected={k === i} aria-label={`${k + 1}. ${st.title}`} className={k === i ? "on" : ""} onClick={() => setI(k)} />
+              <button key={k} type="button" role="tab" aria-selected={k === i} aria-label={`${k + 1}. ${st.title}${!reachable(k) && st.locked ? ` (${st.locked})` : ""}`} title={!reachable(k) ? st.locked : undefined}
+                className={k === i ? "on" : ""} disabled={k !== i && !reachable(k)} onClick={() => setI(k)} />
             ))}
           </div>
           <div className="row" style={{ gap: 8 }}>
             {i > 0 && <button type="button" className="btn" onClick={() => setI(i - 1)}>{t("ds.back")}</button>}
-            <button type="button" className="btn primary" onClick={() => (last ? (onDone ?? onClose)() : setI(i + 1))}>{last ? (doneLabel ?? t("ds.done")) : t("ds.continue")}</button>
+            {!forward.hidden && (
+              <button type="button" className={forward.primary === false ? "btn" : "btn primary"} disabled={nextLocked && !forward.onClick}
+                onClick={() => forward.onClick ? forward.onClick() : last ? (onDone ?? onClose)() : setI(i + 1)}>
+                {forward.label ?? (last ? (doneLabel ?? t("ds.done")) : t("ds.continue"))}
+              </button>
+            )}
           </div>
         </footer>
       </div>

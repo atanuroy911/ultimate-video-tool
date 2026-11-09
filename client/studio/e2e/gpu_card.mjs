@@ -61,6 +61,16 @@ async function open(width, height, scheme, data, setup = null) {
   await ctx.route("**/api/system/gpu", (r) => { const body = JSON.parse(r.request().postData() || "{}"); seen.puts.push(body); seen.data = applySave(seen.data, body); r.fulfill({ json: { ...seen.data, restarting: body.allowed ? ["ollama"] : [] } }); });
   await ctx.route("**/api/system/engine-own", (r) => { seen.posts.push(JSON.parse(r.request().postData() || "{}")); seen.data = clone(OWN_RUNNING); r.fulfill({ json: { engine: "ollama", source: "own", starting: true } }); });
   if (setup) {
+    seen.installs = [];
+    let job = null;
+    await ctx.route(/\/api\/jobs(\/[^/?]+)?(\?.*)?$/, (r) => {
+      if (/\/api\/jobs\/[^/?]+/.test(r.request().url())) { job = job && { ...job, status: "done", frac: 1, msg: "" }; return r.fulfill({ json: job }); }
+      return r.fulfill({ json: job ? [job] : [] });
+    });
+    await ctx.route("**/api/setup/plan?*", (r) => r.fulfill({ json: [
+      { engine: "ollama", items: [{ name: "Ollama program", size_gb: 1.5, what: "", done: false }, { name: "Model gemma3:12b", size_gb: 8.1, what: "", done: false }], notes: [], problems: [], total_gb: 9.6 },
+      { engine: "comfy", items: [{ name: "ComfyUI program", size_gb: 5, what: "", done: false }, { name: "Picture model · flux-2-klein-4b", size_gb: 7.8, what: "", done: false }], notes: [], problems: [], total_gb: 12.8 }] }));
+    await ctx.route("**/api/setup/install", (r) => { seen.installs.push(JSON.parse(r.request().postData() || "{}")); job = { id: "j1", kind: "setup", status: "running", stage: "comfy", frac: 0.3, msg: "Downloading flux-2-klein-4b 40%", error: "" }; return r.fulfill({ json: job }); });
     await ctx.route("**/api/setup", (r) => { if (r.request().method() === "PUT") { seen.setupPuts.push(JSON.parse(r.request().postData() || "{}")); return r.fulfill({ json: setup }); } return r.fulfill({ json: setup }); });
   }
   const page = await ctx.newPage();
@@ -202,21 +212,20 @@ console.log("The setup question in the wizard");
   await page.locator(".banner").getByRole("button", { name: "Set up", exact: true }).click();
   const sheet = page.getByRole("dialog");
   await sheet.waitFor();
-  check("with two cards the wizard has five steps", /Step 1 of 5|1 of 5|1 \/ 5/.test(await sheet.locator(".ios-nav-title").innerText()), await sheet.locator(".ios-nav-title").innerText());
-  await sheet.getByRole("button", { name: /^Continue$/ }).click();
+  check("with two cards the wizard has four steps", /Step 1 of 4|1 of 4|1 \/ 4/.test(await sheet.locator(".ios-nav-title").innerText()), await sheet.locator(".ios-nav-title").innerText());
   const step = sheet.getByTestId("gpu-assignment");
   await step.waitFor();
-  check("the second step is the question, with its own title and no card frame of its own", /Which graphics cards may Video Tool use\?/.test(await sheet.locator(".ios-title").innerText()) && (await step.getAttribute("data-mode")) === "setup" && !/card-pad/.test((await step.getAttribute("class")) || ""));
+  check("the cards question comes first (the install is built for the cards it may use), with its own title and no card frame of its own", /Which graphics cards may Video Tool use\?/.test(await sheet.locator(".ios-title").innerText()) && (await step.getAttribute("data-mode")) === "setup" && !/card-pad/.test((await step.getAttribute("class")) || ""));
   check("it lists both cards with their switches", (await sheet.getByTestId("gpu-switch-0").count()) === 1 && (await sheet.getByTestId("gpu-switch-1").count()) === 1);
-  check("the old 'Graphics card for a new install' choice is gone from the folders step", await (async () => { await sheet.getByTestId("gpu-not-now").click(); await sheet.locator("text=Where to save downloads").first().waitFor(); return (await sheet.locator("text=Graphics card for a new install").count()) === 0; })());
-  for (let k = 0; k < 40 && !seen.setupPuts.some((b) => b.step === "storage"); k++) await page.waitForTimeout(50);       // the wizard saves where it is, then the step, one after the other
-  check("'Not now' moved on without saving an answer", !seen.puts.length && seen.setupPuts.some((b) => b.step === "storage"), JSON.stringify(seen.setupPuts.slice(-2)));
+  check("'Not now' moves on to the answer screen, where no card is asked for", await (async () => { await sheet.getByTestId("gpu-not-now").click(); await sheet.getByTestId("setup-go").waitFor(); return (await sheet.locator("text=Graphics card for a new install").count()) === 0; })());
+  for (let k = 0; k < 40 && !seen.setupPuts.some((b) => b.step === "choose"); k++) await page.waitForTimeout(50);       // the wizard saves where it is, then the step, one after the other
+  check("'Not now' moved on without saving an answer", !seen.puts.length && seen.setupPuts.some((b) => b.step === "choose"), JSON.stringify(seen.setupPuts.slice(-2)));
   await sheet.getByRole("button", { name: /^Back$/ }).click();
   await step.waitFor();
   await sheet.getByTestId("gpu-switch-0").click();
   await page.waitForFunction(() => document.querySelector("[data-testid=gpu-switch-0]")?.getAttribute("aria-checked") === "true");
   await sheet.getByTestId("gpu-use-these").click();
-  await sheet.locator("text=Where to save downloads").first().waitFor();
+  await sheet.getByTestId("setup-go").waitFor();
   check("'Use these cards' saves the answer and moves on", seen.puts.length === 2 && JSON.stringify(seen.puts.at(-1).allowed.sort()) === JSON.stringify(["GPU-3060", "GPU-v100"]), JSON.stringify(seen.puts));
   await sheet.getByRole("button", { name: /^Back$/ }).click();
   await sheet.getByTestId("gpu-switch-1").waitFor();
@@ -230,21 +239,30 @@ for (const [w, h, scheme] of [[400, 860, "dark"], [1280, 900, "dark"], [400, 860
   await page.locator(".banner").getByRole("button", { name: "Set up", exact: true }).click();
   const sheet = page.getByRole("dialog");
   await sheet.waitFor();
-  await sheet.getByRole("button", { name: /^Continue$/ }).click();
   await sheet.getByTestId("gpu-assignment").waitFor();
   if (!(await noOverflow(page))) check(`the setup step does not scroll sideways (${w} ${scheme})`, false);
   await page.waitForTimeout(700);
   await page.screenshot({ path: path.join(out, `gpu-setup-step-${w < 500 ? "phone" : "wide"}-${scheme}.png`) });
   await ctx.close();
 }
+console.log("The answer screen: one button installs what fits");
 {
   const one = clone(SETUP); one.hardware.gpus = [one.hardware.gpus[1]];
-  const { ctx, page } = await open(1280, 900, "light", { ...clone(ANSWERED), cards: [RTX] }, one);
+  const { ctx, page, seen } = await open(1280, 900, "light", { ...clone(ANSWERED), cards: [RTX] }, one);
   await page.goto(`${base}/`, { waitUntil: "load" });
   await page.locator(".banner").getByRole("button", { name: "Set up", exact: true }).click();
   const sheet = page.getByRole("dialog");
   await sheet.waitFor();
-  check("with one card there is nothing to ask: four steps, no question", /of 4/.test(await sheet.locator(".ios-nav-title").innerText()) && (await sheet.getByTestId("gpu-assignment").count()) === 0);
+  check("with one card there is nothing to ask: three steps, no question", /of 3/.test(await sheet.locator(".ios-nav-title").innerText()) && (await sheet.getByTestId("gpu-assignment").count()) === 0, await sheet.locator(".ios-nav-title").innerText());
+  const go = sheet.getByTestId("setup-go");
+  await page.waitForFunction(() => /Install everything · 22 GB/.test(document.querySelector("[data-testid=setup-go]")?.textContent || ""));
+  check("the first screen already holds the answer: both AI programs with an icon, and one button with the whole size", (await sheet.getByTestId("pick-ollama").locator(".pick-icon svg").count()) === 1 && (await sheet.getByTestId("pick-comfy").locator(".pick-icon svg").count()) === 1 && /Install everything · 22 GB/.test(await go.innerText()));
+  check("the details wait behind 'Choose myself'", (await sheet.locator(".choice-pills").count()) === 0 && await (async () => { await sheet.getByRole("button", { name: /Choose myself/ }).click(); return (await sheet.locator(".choice-pills").count()) === 2; })());
+  await go.click();
+  await sheet.getByTestId("setup-progress").waitFor();
+  check("one press installs both and shows it happening on the next screen", seen.installs.length === 1 && JSON.stringify(seen.installs[0].engines.sort()) === JSON.stringify(["comfy", "ollama"]) && /Step 2 of 3/.test(await sheet.locator(".ios-nav-title").innerText()));
+  await page.waitForFunction(() => /All installed/.test(document.querySelector("[data-testid=setup-progress]")?.textContent || ""), null, { timeout: 8000 });
+  check("when it finishes the screen says so", /All installed/.test(await sheet.getByTestId("setup-progress").innerText()));
   await ctx.close();
 }
 check("no page errors", errors.length === 0, errors.join(" | ").slice(0, 400));

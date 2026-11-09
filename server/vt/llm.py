@@ -132,7 +132,12 @@ def has_model(name: str, url: Optional[str] = None) -> bool:
 
 def ollama_program_dir() -> Path:
     chosen=(read_json(paths.SETTINGS,{}) or {}).get('install_dir')
-    return Path(chosen)/'ollama' if chosen else paths.DATA/'ollama'
+    if chosen:
+        return Path(chosen)/'ollama'
+    # where the setup installs it (setup.install_options, placement.own_dirs); copies from before 2026-11-09 sit in DATA/ollama
+    new, old = paths.DATA/'engines'/'ollama', paths.DATA/'ollama'
+    exe = "ollama.exe" if WIN else "ollama"
+    return old if not (new/exe).exists() and (old/exe).exists() else new
 
 
 def binary(root: Optional[Path] = None) -> Optional[Path]:

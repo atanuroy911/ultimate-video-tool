@@ -305,6 +305,7 @@ export default function AIAssistants() {
                   )}
                   <Field label="Address" hint="Where Ollama is running">
                     <input
+                      key={llmStatus?.ollama_url ?? "none"}
                       aria-label="Ollama address"
                       type="text"
                       defaultValue={llmStatus?.ollama_url ?? "http://localhost:11434"}

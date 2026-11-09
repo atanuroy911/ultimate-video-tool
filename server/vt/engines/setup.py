@@ -125,7 +125,8 @@ def model_choices(hw: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
     checks = best.options or [fit.check(r, c) for r in fit.PICTURES]
     speed = {"resident": "fast", "sequential": "fast", "partial": "slow"}
     pictures = []
-    for o in sorted(checks, key=lambda o: -o["quality"]):
+    rank = {"resident": 0, "sequential": 0, "partial": 1, "": 2}           # what runs well first, then what works slowly, then what does not fit
+    for o in sorted(checks, key=lambda o: (rank.get(o["mode"] if vram > 0 else "", 2), -o["quality"])):
         r = fit.BY_ID[o["recipe"]]
         mode = o["mode"] if vram > 0 else ""
         if mode:
@@ -136,15 +137,17 @@ def model_choices(hw: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
             why = "Needs a newer card (RTX 50 series)."
         else:
             why = f"Needs a bigger graphics card than {c.size} GB."
+        if mode == "partial":
+            why = f"Bigger than the {c.size} GB card: part of it waits in memory, so each picture takes several times longer."
         pictures.append({"id": r.id, "label": r.label, "note": r.note, "download_gb": r.download_gb(), "fits": bool(mode), "speed": speed.get(mode, ""),
                          "seconds": r.seconds, "recommended": r.id == best.recipe, "why": why})
     lang_best = fit.language_model(vram, hw.get("ram_gb", 0))["model"]
     language = []
     for name, need in fit.LANGUAGE:
         on_card = bool(vram) and need <= fit.usable(c)
-        label = "Gemma 3, " + name.split(":")[1].upper() if name.startswith("gemma3:") else name
+        label = "Gemma 3 " + name.split(":")[1].upper() if name.startswith("gemma3:") else name
         language.append({"id": name, "label": label, "download_gb": fit.LANGUAGE_DOWNLOAD_GB.get(name, 0), "fits": True, "speed": "fast" if on_card else "slow",
-                         "recommended": name == lang_best, "why": "" if on_card else "Too big for the graphics card: runs on the processor, a few times slower."})
+                         "recommended": name == lang_best, "why": "" if on_card else ("Bigger than the graphics card: part of it runs on the processor, a few times slower." if vram else "Runs on the processor (no graphics card), a few times slower.")})
     return {"card": {"name": card.get("name", ""), "gb": c.size}, "pictures": pictures, "language": language,
             "clips": fit.clips_fit(vram, hw.get("ram_gb", 0)), "picture_default": best.recipe or "", "language_default": lang_best}
 
@@ -153,7 +156,9 @@ def chosen_picture_model(config: dict[str, Any], hw: Optional[dict[str, Any]] = 
     """The person's picture model when it still fits the card, else the one fit.py picks."""
     m = model_choices(hw or hardware.detect(), config)
     want = config.get("picture_model") or ""
-    return want if any(p["id"] == want and p["fits"] for p in m["pictures"]) else m["picture_default"]
+    best = next((p for p in m["pictures"] if p["id"] == m["picture_default"]), None)
+    # a saved choice that only works slowly gives way when one that runs well fits (it was usually the old default, not a choice)
+    return want if any(p["id"] == want and p["fits"] and (p["speed"] == "fast" or not best or best["speed"] != "fast") for p in m["pictures"]) else m["picture_default"]
 
 
 def overview(same_computer: bool = False) -> dict[str, Any]:
@@ -196,6 +201,10 @@ def run_install(engines: list[str], bundles: list[str], progress, config=None) -
                 settings=read_json(paths.SETTINGS,{}) or {}
                 settings[store.LEGACY[e]]=url
                 write_json(paths.SETTINGS,settings)
+        if e == "comfy" and kw.get("recipe"):                         # pictures use the set installed for this card, not whatever else lies in the folder
+            settings = read_json(paths.SETTINGS, {}) or {}
+            settings["picture_recipe"] = kw["recipe"]
+            write_json(paths.SETTINGS, settings)
         result[e] = {"installed": True, "url": url or registry.endpoint(e).url}
     return result
 
@@ -285,5 +294,44 @@ def try_it(engine_id: str) -> dict[str, Any]:
             return {"ok": False, "says": "It is running but has no model yet. Install one in Engines."}
         except Exception as e:                                                       # noqa: BLE001
             return {"ok": False, "says": f"It is running but could not answer: {str(e)[:120]}"}
+    if engine_id == "comfy":
+        return _try_picture()
     ready = [m for m in h.models if m.get("ready")]
     return {"ok": True, "says": f"Connected. {len(h.capabilities)} thing(s) it can do for you: {', '.join(h.capabilities) or 'none yet'}." + (f" {len(ready)} workflow(s) ready." if ready else "")}
+
+
+TEST_PICTURE = "a red apple on a wooden kitchen table by a window, soft morning light, close-up"
+
+
+def test_picture_path():
+    return paths.DATA / "setup" / "test-picture.png"
+
+
+def _try_picture() -> dict[str, Any]:
+    """Draw one real picture with the set chosen for this card, so the person sees it work (and how long a picture takes)."""
+    import time
+    from ..comfy import ComfyClient, picture_workflow
+    from ..comfy.client import output_files
+
+    try:
+        client = ComfyClient(registry.endpoint("comfy").url)
+        oi = client.object_info()
+        w = picture_workflow(object_info=oi)
+        problems = w.problems(oi)
+        if problems:
+            return {"ok": False, "says": "It is running, but the picture model is not in place yet: " + problems[0]}
+        graph, _ = w.patched(image="", prompt=TEST_PICTURE, aspect="9:16", seconds=0, seed=int(time.time()) % 100000, prefix="video_tool/setup-test")   # a new seed: ComfyUI would hand back the same picture without drawing
+        started = time.time()
+        entry = client.wait(client.submit(graph), None, lambda: False, 900)
+        files = output_files(entry, w.output) or output_files(entry)
+        if not files:
+            return {"ok": False, "says": "It ran but made no picture."}
+        dest = test_picture_path()
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        client.download(files[0]["filename"], files[0]["subfolder"], files[0]["type"], dest)
+        took = time.time() - started
+        model = w.label.split(": ", 1)[-1]
+        return {"ok": True, "says": f"Drew this test picture with {model} in {took:.0f} seconds." + (" The first picture is the slowest: the model was loading." if took > 25 else ""),
+                "image": f"/api/setup/test-picture?t={int(time.time())}"}
+    except Exception as e:                                                           # noqa: BLE001
+        return {"ok": False, "says": f"It is running but could not draw: {str(e)[:160]}"}

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { get, post } from "../api";
 import { toast } from "../store";
 import { Spinner } from "../ui";
+import PrepareComfy from "./PrepareComfy";
 
 /* Every ComfyUI and Ollama on a computer, the card each one runs on, and the picture set that fits it (vt/engines/discover.py, fit.py).
    The person picks one; Video Tool puts the models that fit into that ComfyUI's own folders and uses it. Nothing found is started, stopped or changed. */
@@ -44,11 +45,6 @@ export default function FindEngines({ onUsed }: { onUsed: () => void }) {
     try { setPlan(await get<PlanOut>(`/api/discover/prepare?url=${encodeURIComponent(inst.url)}`)); }
     catch (e) { toast((e as Error).message, "err"); }
   };
-  const go = async () => {
-    if (!plan) return;
-    try { setJob(await post<Job>("/api/discover/prepare", { url: plan.url, recipe: plan.recipe, models_dir:plan.models_dir||'' })); }
-    catch (e) { toast((e as Error).message, "err"); }
-  };
 
   const comfy = (found?.instances ?? []).filter((i) => i.engine === "comfy");
   const ollama = (found?.instances ?? []).filter((i) => i.engine === "ollama");
@@ -79,16 +75,9 @@ export default function FindEngines({ onUsed }: { onUsed: () => void }) {
       ))}
       {plan && (
         <div className="card card-pad col" style={{ gap: 6 }} data-testid="prepare-plan">
-          <strong>{plan.label} on {plan.url.replace(/^https?:\/\//, "")}</strong>
-          {!!plan.model_locations?.length&&<label className="field">Model folder on the processing server<select value={plan.models_dir||''} onChange={async e=>{try{setPlan(await get<PlanOut>(`/api/discover/prepare?url=${encodeURIComponent(plan.url)}&recipe=${encodeURIComponent(plan.recipe)}&models_dir=${encodeURIComponent(e.target.value)}`));}catch(e:any){toast(e.message,'err');}}}><option value="">Use this ComfyUI’s current folders</option>{plan.model_locations.map(p=><option key={p} value={p}>{p}</option>)}</select></label>}
-          {plan.files.map((f) => <span key={f.file} className="small">{f.have ? "Has" : "Downloads"} {f.file} ({f.gb} GB){!f.have && f.to ? ` into ${f.to.replace(/\/[^/]+$/, "")}` : ""}</span>)}
-          {plan.problems.map((p) => <span key={p} className="small" style={{ color: "var(--err)" }}>{p}</span>)}
-          {running && <span className="small">{Math.round(job!.frac * 100)}% · {job!.msg}</span>}
-          <div className="row" style={{ gap: 8 }}>
-            <button className="btn sm primary" disabled={plan.problems.length > 0 || !!running} onClick={go} data-testid="prepare-go">
-              {plan.download_gb ? `Download ${plan.download_gb} GB and use it` : "Use it"}</button>
-            <button className="btn sm ghost" onClick={() => setPlan(null)} disabled={!!running}>Not now</button>
-          </div>
+          <strong>Pictures on {plan.url.replace(/^https?:\/\//, "")}</strong>
+          <PrepareComfy url={plan.url} onReady={() => { toast("Ready: pictures are drawn there now"); setPlan(null); onUsed(); scan(); }} />
+          <button className="btn sm ghost" style={{ alignSelf: "flex-start" }} onClick={() => setPlan(null)}>Not now</button>
         </div>
       )}
       {ollama.length > 0 && <span className="small muted">Writing AI found: {ollama.map((o) => `Ollama ${o.version} at ${o.url.replace(/^https?:\/\//, "")}`).join(", ")}.</span>}

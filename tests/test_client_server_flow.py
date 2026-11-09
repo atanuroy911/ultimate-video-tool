@@ -6,6 +6,7 @@ from vt.engines import setup,installers,placement
 
 def test_storage_paths_belong_to_processing_server(tmp_path,monkeypatch):
     monkeypatch.setattr(paths,'SETTINGS',tmp_path/'settings.json')
+    monkeypatch.setattr(paths,'DATA',tmp_path)                       # install_options picks a port and remembers it under DATA
     setup.save(install_dir=str(tmp_path/'programs'),models_dir=str(tmp_path/'models'))
     inst=installers.ComfyInstaller()
     assert inst.root==tmp_path/'programs/comfyui'

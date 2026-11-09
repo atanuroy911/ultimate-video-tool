@@ -46,6 +46,22 @@ FILES.update({
     "vae/qwen_image_2.1_vae_bf16.safetensors": {"size": 675509688, "sha256": "bb21f7473051e1ac368515dd3f2e15cd44d7a11748ee8823e1ddca3e4876b7c9",
                                                 "url": QWEN + "vae/qwen_image_2.1_vae_bf16.safetensors"},
 })
+# Small cards (6 GB and less): the same Klein 4B and its Qwen3-4B text reader, squeezed to 4 or 3 bits (GGUF, Apache-2.0, unsloth). ComfyUI reads them
+# through the ComfyUI-GGUF add-on (city96), which the installer puts in custom_nodes; they stay squeezed on the card and are unpacked layer by layer.
+KLEIN_GGUF = "https://huggingface.co/unsloth/FLUX.2-klein-4B-GGUF/resolve/a09d5bb51ac4000ccd9643d10e9db3ed14200508/"
+QWEN3_GGUF = "https://huggingface.co/unsloth/Qwen3-4B-GGUF/resolve/22c9fc8a8c7700b76a1789366280a6a5a1ad1120/"
+FILES.update({
+    "diffusion_models/flux-2-klein-4b-Q4_K_M.gguf": {"size": 2604311104, "sha256": "0b25d143c8469b342bc5af3bce92b783bf6b0636d285f7b2f75e38af63af9a15",
+                                                    "url": KLEIN_GGUF + "flux-2-klein-4b-Q4_K_M.gguf"},
+    "diffusion_models/flux-2-klein-4b-Q3_K_M.gguf": {"size": 2124489280, "sha256": "0f27104f7b5842b7bfd5909645c60208cbb6b8d43f5d65f58b085f45ed18c9e1",
+                                                    "url": KLEIN_GGUF + "flux-2-klein-4b-Q3_K_M.gguf"},
+    "text_encoders/Qwen3-4B-Q4_K_M.gguf": {"size": 2497281312, "sha256": "f6f851777709861056efcdad3af01da38b31223a3ba26e61a4f8bf3a2195813a",
+                                          "url": QWEN3_GGUF + "Qwen3-4B-Q4_K_M.gguf"},
+    "text_encoders/Qwen3-4B-Q3_K_M.gguf": {"size": 2075618592, "sha256": "e78ff54a67f3b3f57e637fbf0770d5b73c1e215ea7c0153980f1e8140c2b2486",
+                                          "url": QWEN3_GGUF + "Qwen3-4B-Q3_K_M.gguf"},
+})
+GGUF_ADDON = {"name": "ComfyUI-GGUF", "repo": "https://github.com/city96/ComfyUI-GGUF", "commit": "6ea2651e7df66d7585f6ffee804b20e92fb38b8a",
+              "nodes": ["UnetLoaderGGUF", "CLIPLoaderGGUF"]}
 
 CUDA_SHARE = 0.9          # GB the CUDA context, cuBLAS workspaces and PyTorch's allocator take before any weight
 COMFORT = 1.0            # headroom rule: 0.85 kept 15 % of the card free; switched off by the owner for now (2026-11-01). Lower it to bring it back
@@ -72,6 +88,7 @@ class Recipe:
     note: str = ""
     workflow: str = "zimage_t2i"                  # the graph (assets/comfy/workflows); its loaders are nodes 1, 2, 3
     seconds: float = 0.0                          # measured seconds a picture, warm, on an RTX 3060 at 720x1280 (0 = not measured)
+    gguf: bool = False                            # squeezed files: loaded by ComfyUI-GGUF's loaders instead of ComfyUI's own
 
     def files(self) -> list[str]:
         return [self.unet, self.text, self.vae]
@@ -96,8 +113,17 @@ class Recipe:
 
     def graph_inputs(self) -> dict[str, dict[str, str]]:
         """What the recipe writes into its graph: only its three loaders."""
+        if self.gguf:
+            return {"1": {"unet_name": self.unet.rsplit("/", 1)[-1]}, "2": {"clip_name": self.text.rsplit("/", 1)[-1]}, "3": {"vae_name": self.vae.rsplit("/", 1)[-1]}}
         return {"1": {"unet_name": self.unet.rsplit("/", 1)[-1], "weight_dtype": self.unet_dtype}, "2": {"clip_name": self.text.rsplit("/", 1)[-1]},
                 "3": {"vae_name": self.vae.rsplit("/", 1)[-1]}}
+
+    def graph_classes(self) -> dict[str, str]:
+        """Loader nodes this recipe swaps in (squeezed files need the add-on's loaders); empty when the graph's own loaders read the files."""
+        return {"1": "UnetLoaderGGUF", "2": "CLIPLoaderGGUF"} if self.gguf else {}
+
+    def addons(self) -> list[dict]:
+        return [GGUF_ADDON] if self.gguf else []
 
 
 PICTURES: list[Recipe] = [
@@ -119,6 +145,12 @@ PICTURES: list[Recipe] = [
            "text_encoders/qwen_3_4b_fp4_mixed.safetensors", 3.48, note="when the server has little RAM to park the text reader in"),
     Recipe("zimage-nvfp4", "Z-Image Turbo, 4-bit (Blackwell)", 88, "diffusion_models/z_image_turbo_nvfp4.safetensors", "default", 4.51,
            "text_encoders/qwen_3_4b_fp4_mixed.safetensors", 3.48, min_compute=10.0, note="RTX 50-series: 8 GB cards"),
+    Recipe("klein-4b-q4", "FLUX.2 Klein 4B, small", 96, "diffusion_models/flux-2-klein-4b-Q4_K_M.gguf", "default", 2.6,
+           "text_encoders/Qwen3-4B-Q4_K_M.gguf", 2.5, vae="vae/flux2-vae.safetensors", workflow="klein_t2i", gguf=True,
+           note="the same model squeezed to 4 bits: 6 GB cards"),          # RTX 4050 Laptop 6 GB (2026-11-09): 16.5 s a picture warm, 33 s the first, 5.5 GB peak
+    Recipe("klein-4b-q3", "FLUX.2 Klein 4B, smallest", 91, "diffusion_models/flux-2-klein-4b-Q3_K_M.gguf", "default", 2.12,
+           "text_encoders/Qwen3-4B-Q3_K_M.gguf", 2.08, vae="vae/flux2-vae.safetensors", workflow="klein_t2i", gguf=True,
+           note="3 bits, a little rougher: when another program holds part of a 6 GB card"),
 ]
 BY_ID = {r.id: r for r in PICTURES}
 
@@ -186,7 +218,7 @@ def check(r: Recipe, card: Card) -> dict:
 def choose(card: Card, allow_partial: bool = True) -> Fit:
     """The best picture recipe for this card. Quality first among the fast modes; partial only when nothing else fits."""
     if card.vram_gb <= 0:
-        return Fit(None, why="no graphics card was found on this ComfyUI's computer; pictures need an NVIDIA card with 8 GB or more")
+        return Fit(None, why="no graphics card was found on this ComfyUI's computer; pictures need an NVIDIA card with 6 GB or more")
     options = [check(r, card) for r in PICTURES]
     fast = [o for o in options if o["mode"] in ("resident", "sequential")]
     slow = [o for o in options if o["mode"] == "partial"]

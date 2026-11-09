@@ -74,7 +74,8 @@ class Workflow:
                 if definition is None or isinstance(value, list):
                     continue
                 choices = definition[0] if isinstance(definition, (list, tuple)) and definition else None
-                if isinstance(choices, list) and choices and isinstance(value, str) and value not in choices and name != "image":
+                # an empty list of model files means none is installed (a ComfyUI with only the small GGUF files lists no .safetensors at all)
+                if isinstance(choices, list) and (choices or name.endswith("_name")) and isinstance(value, str) and value not in choices and name != "image":
                     out.append(f"'{value}' is not installed for {cls}.{name} (node {nid})")
         return out
 
@@ -146,8 +147,13 @@ def picture_workflow(recipe: str = "", object_info: Optional[dict] = None) -> Wo
 
 def w_with(w: Workflow, recipe) -> Workflow:
     out = copy.deepcopy(w)
+    swap = recipe.graph_classes() if hasattr(recipe, "graph_classes") else {}
     for nid, inputs in recipe.graph_inputs().items():
-        out.graph[nid]["inputs"].update(inputs)
+        if nid in swap:                                               # another loader: keep only the inputs it shares with the old one (CLIPLoader's type)
+            old = out.graph[nid]["inputs"]
+            out.graph[nid] = {"class_type": swap[nid], "inputs": {**({"type": old["type"]} if "type" in old else {}), **inputs}}
+        else:
+            out.graph[nid]["inputs"].update(inputs)
     out.label = f"{w.label}: {recipe.label}"
     return out
 

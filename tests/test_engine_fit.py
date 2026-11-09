@@ -124,3 +124,42 @@ def test_script_rules_measure_title_ease_and_questions():
             "because unrealized appreciation of concentrated equity positions generally isn't subject to federal income taxation until realization.")
     rules = {x["rule"] for x in craft.script_problems(hard, title, 60)}
     assert {"script.title_first", "script.easy", "script.questions"} <= rules
+
+
+def test_six_gb_cards_get_klein_squeezed_to_four_bits():
+    """A 6 GB card (RTX 4050 Laptop, 6141 MiB) used to get nothing that ran on the card; now the 4-bit Klein set takes turns with its 4-bit text reader."""
+    six = fit.Card("RTX 4050 Laptop", 6141 * 2**20 / fit.GB, 0, 8.9, 42, 30)
+    f = fit.choose(six)
+    assert (f.recipe, f.mode) == ("klein-4b-q4", "sequential") and f.card_gb <= six.vram_gb * (1 - fit.MARGIN)
+    assert fit.check(fit.BY_ID["klein-4b-q3"], six)["mode"] in ("resident", "sequential")
+    assert fit.choose(card(8, 8.6, 16)).recipe == "klein-4b-fp8"           # bigger cards keep the unsqueezed sets: faster, a little better
+    q4 = fit.BY_ID["klein-4b-q4"]
+    assert q4.download_gb() < 6 and all(fit.FILES[f]["sha256"] and "/resolve/" in fit.FILES[f]["url"] for f in q4.files())
+
+
+def test_squeezed_sets_swap_in_the_gguf_loaders_and_name_their_add_on():
+    from vt.comfy import load_workflow, picture_workflow
+
+    w, base = picture_workflow("klein-4b-q4"), load_workflow("klein_t2i")
+    assert w.graph["1"] == {"class_type": "UnetLoaderGGUF", "inputs": {"unet_name": "flux-2-klein-4b-Q4_K_M.gguf"}}
+    assert w.graph["2"] == {"class_type": "CLIPLoaderGGUF", "inputs": {"type": "flux2", "clip_name": "Qwen3-4B-Q4_K_M.gguf"}}
+    assert w.graph["3"]["class_type"] == "VAELoader"
+    assert {k: v for k, v in w.graph.items() if k not in ("1", "2", "3")} == {k: v for k, v in base.graph.items() if k not in ("1", "2", "3")}
+    assert [a["name"] for a in fit.BY_ID["klein-4b-q4"].addons()] == ["ComfyUI-GGUF"] and not fit.BY_ID["klein-4b"].addons()
+    oi = {c: {"input": {"required": {}}} for c in ("CLIPTextEncode", "ConditioningZeroOut", "CFGGuider", "KSamplerSelect", "Flux2Scheduler", "RandomNoise",
+                                                   "EmptyFlux2LatentImage", "SamplerCustomAdvanced", "VAEDecode", "SaveImage", "VAELoader", "UNETLoader", "CLIPLoader")}
+    assert any("UnetLoaderGGUF" in p for p in w.problems(oi))            # a ComfyUI without the add-on is told so before a picture is asked for
+
+
+def test_a_set_whose_files_are_missing_is_never_chosen_even_when_comfy_lists_none():
+    """A ComfyUI with only the GGUF files lists no .safetensors at all; that empty list used to count as 'nothing to check', so the first big set won (2026-11-09)."""
+    from vt.comfy import picture_workflow
+
+    req = lambda **kw: {"input": {"required": {k: [v] for k, v in kw.items()}}}
+    oi = {c: {"input": {"required": {}}} for c in ("CLIPTextEncode", "ConditioningZeroOut", "CFGGuider", "KSamplerSelect", "Flux2Scheduler", "RandomNoise",
+                                                   "EmptyFlux2LatentImage", "SamplerCustomAdvanced", "VAEDecode", "SaveImage", "EmptySD3LatentImage", "KSampler",
+                                                   "ModelSamplingAuraFlow", "EmptyLatentImage")}
+    oi.update(UNETLoader=req(unet_name=[], weight_dtype=["default", "fp8_e4m3fn"]), CLIPLoader=req(clip_name=[], type=["flux2", "lumina2"]),
+              VAELoader=req(vae_name=["flux2-vae.safetensors"]), UnetLoaderGGUF=req(unet_name=["flux-2-klein-4b-Q4_K_M.gguf"]),
+              CLIPLoaderGGUF=req(clip_name=["Qwen3-4B-Q4_K_M.gguf"], type=["flux2"]))
+    assert picture_workflow(object_info=oi).label.endswith("FLUX.2 Klein 4B, small")

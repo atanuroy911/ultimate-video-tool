@@ -1066,3 +1066,42 @@ select option, select optgroup { background-color: var(--panel); }
 .setup-more { padding: 4px 16px 12px; }
 .setup-more > summary { cursor: pointer; padding: 6px 0; color: var(--accent-text); }
 .setup-more > .ios-row { padding-left: 0; padding-right: 0; }
+
+/* Setup for lazy people: the answer on one screen (SetupWizard.tsx) */
+.hw-strip { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 14px; margin: 0 0 14px; font-size: 13px; color: var(--muted); }
+.hw-strip span { display: inline-flex; align-items: center; gap: 5px; }
+.pick-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+.pick-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border-radius: 14px; background: var(--panel); box-shadow: 0 0 0 0.5px var(--border); min-width: 0; }
+.pick-row.off { opacity: 0.62; }
+.pick-row.folder { margin-bottom: 12px; }
+.pick-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 11px; color: #fff; background: var(--muted); }
+.pick-icon.ollama { background: linear-gradient(135deg, #5e5ce6, #0a84ff); }
+.pick-icon.comfy { background: linear-gradient(135deg, #ff9f0a, #ff375f); }
+.pick-icon.clips { background: linear-gradient(135deg, #bf5af2, #ff375f); }
+.pick-icon.folder { background: linear-gradient(135deg, #30b0c7, #34c759); }
+.pick-main { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.pick-main strong { font-size: 15px; font-weight: 600; }
+.pick-status { display: block; font-size: 13px; line-height: 1.45; margin-top: 2px; }
+.pick-status svg { vertical-align: -2px; margin-right: 3px; }
+.pick-status input { vertical-align: -2px; margin: 0 4px 0 0; }
+.pick-status.fast { color: var(--ok); }
+.pick-status.slow { color: var(--warn); }
+.pick-status.bad { color: var(--err); }
+.pick-status .muted { color: var(--muted); }
+.pick-size { flex: none; font-size: 13px; font-weight: 600; color: var(--muted); padding-top: 2px; }
+.setup-go { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 4px 0 8px; }
+.setup-go .btn.lg { width: 100%; max-width: 360px; }
+.setup-custom { margin-top: 8px; }
+.choice-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.choice-pills button { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border-radius: 999px; border: 0; background: var(--fill); color: var(--text); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.choice-pills button.on { background: var(--accent); color: #fff; }
+.model-fit { display: block; line-height: 1.45; }
+.model-fit svg { vertical-align: -2px; margin-right: 3px; }
+.model-opt .chip svg { margin-right: 2px; }
+.install-card { display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: 16px; background: var(--panel); box-shadow: 0 0 0 0.5px var(--border); margin-bottom: 10px; }
+.install-card .install-icon { flex: none; display: grid; place-items: center; width: 44px; height: 44px; color: var(--accent); }
+.install-card.ok .install-icon { color: var(--ok); }
+.install-card.bad .install-icon { color: var(--err); }
+.install-card progress { width: 100%; height: 8px; margin-top: 6px; accent-color: var(--accent); }
+.ok-icon { color: var(--ok); }
+.try-picture { display: block; width: 150px; max-width: 100%; aspect-ratio: 9 / 16; object-fit: cover; margin-top: 8px; border-radius: 10px; box-shadow: 0 0 0 0.5px var(--border); }

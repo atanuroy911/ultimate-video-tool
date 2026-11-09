@@ -239,6 +239,12 @@ class ComfyInstaller(Installer):
             return [merged[p] for p in sorted(want)]
         return [x for x in m if x["path"] in want]
 
+    def addons(self) -> list[dict]:
+        """ComfyUI add-ons the chosen picture set needs (none for the full-size sets)."""
+        from .fit import BY_ID
+        r = BY_ID.get(self.recipe) if self.recipe and "pictures" in self.bundles else None
+        return r.addons() if r else []
+
     def python(self) -> Path:
         return self.root / "venv" / ("Scripts" if os.name == "nt" else "bin") / ("python.exe" if os.name == "nt" else "python")
 
@@ -254,7 +260,8 @@ class ComfyInstaller(Installer):
             else:
                 folder_role = role.get(folder, "Model file")
             items.append(Item(f"{folder_role} · {stem}", round(x["size"] / 1e9, 1), file, f.exists() and f.stat().st_size == x["size"]))
-        p = Plan("comfy", [Item("ComfyUI program", 5.0, "the program that draws, set up for your graphics card", (self.root / "main.py").exists() and self.python().exists())] + items)
+        addons = [Item(f"Add-on · {a['name']}", 0.1, "lets ComfyUI read the small model files", (self.root / "custom_nodes" / a["name"] / "__init__.py").exists()) for a in self.addons()]
+        p = Plan("comfy", [Item("ComfyUI program", 5.0, "the program that draws, set up for your graphics card", (self.root / "main.py").exists() and self.python().exists())] + addons + items)
         if not shutil.which("git"):
             p.problems.append("Git is not installed. Install Git (git-scm.com) and try again.")
         free = shutil.disk_usage(self.models.parent if self.models.parent.exists() else Path.home()).free / 1e9
@@ -286,6 +293,14 @@ class ComfyInstaller(Installer):
         self._run([str(self.python()), "-m", "pip", "install", "torch", "torchvision", "torchaudio", "--index-url", torch_index(cc)])
         progress("comfy", 0.14, "Installing ComfyUI's requirements")
         self._run([str(self.python()), "-m", "pip", "install", "-r", str(self.root / "requirements.txt")])
+        for a in self.addons():                                            # e.g. ComfyUI-GGUF for the squeezed picture sets of small cards
+            dest = self.root / "custom_nodes" / a["name"]
+            if not (dest / "__init__.py").exists():
+                progress("comfy", 0.16, f"Adding {a['name']}")
+                self._run(["git", "clone", a["repo"], str(dest)])
+                self._run(["git", "-C", str(dest), "checkout", "--quiet", a["commit"]])
+            if (dest / "requirements.txt").exists():
+                self._run([str(self.python()), "-m", "pip", "install", "-r", str(dest / "requirements.txt")])
         self._link_models()
         todo = [x for x in self.manifest()]
         for i, x in enumerate(todo):
@@ -309,7 +324,7 @@ class ComfyInstaller(Installer):
             raise RuntimeError(f"`{' '.join(cmd[:3])}` failed: {(r.stderr or r.stdout)[-300:]}")
 
     def verify(self) -> bool:
-        return (self.root / "main.py").exists() and self.python().exists() and all((self.models / x["path"]).exists() for x in self.manifest())
+        return (self.root / "main.py").exists() and self.python().exists() and all((self.models / x["path"]).exists() for x in self.manifest())             and all((self.root / "custom_nodes" / a["name"] / "__init__.py").exists() for a in self.addons())
 
     def start(self) -> Optional[str]:
         env={**os.environ,'HF_HOME':str(self.models/'huggingface'),'TORCH_HOME':str(self.models/'torch-cache')}

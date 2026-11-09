@@ -71,7 +71,8 @@ const TITLES: [RegExp, string][] = [
   [/\/api\/projects$/, "Uploading your recording"],
 ];
 // background work nobody is waiting for (the Studio asks for these by itself): never worth a full-screen layer
-const QUIET = [/\/thumbnails/, /\/open-folder/, /\/catalog\/refresh/, /\/catalog\/[^/]+\/check/, /\/api\/jobs\//, /\/api\/settings/, /\/api\/health/, /\/words\//, /\/duplicate/, /\/layers/, /\/themes\//, /\/glossary/];
+const QUIET = [/\/thumbnails/, /\/open-folder/, /\/catalog\/refresh/, /\/catalog\/[^/]+\/check/, /\/api\/jobs\//, /\/api\/settings/, /\/api\/health/, /\/words\//, /\/duplicate/, /\/layers/, /\/themes\//, /\/glossary/,
+  /\/api\/setup\/try\//, /\/api\/setup\/plan/, /\/api\/setup\/folders/, /\/api\/discover\/prepare\?/];   // the setup screens show their own progress
 
 export function titleFor(method: string, url: string): string | null {
   if (method === "GET" || method === "HEAD") return null;

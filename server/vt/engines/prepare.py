@@ -30,11 +30,20 @@ def _installed(info: dict) -> set[str]:
         oi = ComfyClient(info["url"]).object_info()
     except Exception:                                                   # noqa: BLE001
         return have
-    for cls, field in (("UNETLoader", "unet_name"), ("CLIPLoader", "clip_name"), ("VAELoader", "vae_name")):
+    for cls, field in (("UNETLoader", "unet_name"), ("CLIPLoader", "clip_name"), ("VAELoader", "vae_name"), ("UnetLoaderGGUF", "unet_name"), ("CLIPLoaderGGUF", "clip_name")):
         spec = (oi.get(cls) or {}).get("input", {}).get("required", {}).get(field)
         if spec and isinstance(spec[0], list):
             have.update(spec[0])
     return have
+
+
+def _has_nodes(info: dict, names: list[str]) -> bool:
+    from ..comfy import ComfyClient
+    try:
+        oi = ComfyClient(info["url"]).object_info()
+    except Exception:                                                   # noqa: BLE001
+        return False
+    return all(n in oi for n in names)
 
 
 def _folder(info: dict, kind: str) -> Optional[Path]:
@@ -85,6 +94,9 @@ def plan(url: str, recipe: str = "", models_dir: str = "") -> dict:
         files.append({"file": name, "kind": f.split("/")[0], "gb": round(fit.FILES[f]["size"] / fit.GB, 1), "have": name in have, "to": str(dest / name) if dest else ""})
     todo = [x for x in files if not x["have"]]
     problems = []
+    if choice.addons() and not _has_nodes(info, [n for a in choice.addons() for n in a["nodes"]]):
+        problems.append(f"{choice.label} needs the free ComfyUI add-on {choice.addons()[0]['name']}. Add it with ComfyUI's Manager and restart ComfyUI, "
+                        "or let Video Tool install its own ComfyUI, or choose another model.")
     if todo and not local:
         problems.append(f"{len(todo)} file(s) must be put on that computer. Install Video Tool's server there (it finds this ComfyUI by itself), or copy them into its models folder.")
     if local and any(not x["to"] for x in todo):
@@ -96,12 +108,22 @@ def plan(url: str, recipe: str = "", models_dir: str = "") -> dict:
         if free < need + 2:
             problems.append(f"{need:.0f} GB to download but only {free:.0f} GB free in {first}")
     roots=sorted({str(Path(p).parent) for folders in info.get('model_folders',{}).values() for p in folders})
+    # every picture set marked against that ComfyUI's card, what runs well first, with what it would still download there
+    rank = {"resident": 0, "sequential": 0, "partial": 1, "": 2}
+    choices = []
+    for o in sorted(fitted.get("options") or [], key=lambda o: (rank.get(o["mode"], 2), -o["quality"])):
+        r = fit.BY_ID[o["recipe"]]
+        missing = round(sum(fit.FILES[f]["size"] for f in r.files() if f.rsplit("/", 1)[-1] not in have) / fit.GB, 1)
+        choices.append({"id": r.id, "label": r.label, "fits": bool(o["mode"]), "speed": {"resident": "fast", "sequential": "fast", "partial": "slow"}.get(o["mode"], ""),
+                        "why": "" if o["mode"] in ("resident", "sequential") else ("Bigger than the card: part of it waits in memory, so each picture takes several times longer."
+                                                                                     if o["mode"] == "partial" else ("Needs a newer card (RTX 50 series)." if "RTX 50" in o["why"] else "Too big for this card.")),
+                        "download_gb": missing, "recommended": r.id == fitted["recipe"], "addon": bool(r.addons())})
     if chosen and local and any(not x['to'] for x in todo):
         problems.append('Choose a model folder this ComfyUI already reads, or install a separate managed copy to use a new folder.')
     return {"url": url, 'models_dir':models_dir,'model_locations':roots, "instance": {k: info[k] for k in ("version", "gpu", "vram_gb", "ram_gb", "compute")}, "recipe": choice.id, "label": choice.label,
             "fit": fitted if fitted["recipe"] == choice.id else fit.check(choice, fit.card_from_stats({"system": {"ram_total": info["ram_gb"] * fit.GB},
                                                                                                    "devices": [{"type": "cuda", "name": info["gpu"], "vram_total": info["vram_gb"] * fit.GB}]})),
-            "files": files, "download_gb": round(sum(x["gb"] for x in todo), 1), "local": local, "problems": problems}
+            "files": files, "download_gb": round(sum(x["gb"] for x in todo), 1), "local": local, "problems": problems, "choices": choices}
 
 
 def prepare(url: str, recipe: str = "", progress: Progress = lambda f, m: None, save: bool = True, models_dir: str = "") -> dict:

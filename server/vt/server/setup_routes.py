@@ -140,6 +140,17 @@ def install(body: InstallBody) -> dict[str, Any]:
     return jobs.submit("setup", None, "Setting up " + ", ".join(body.engines), work, when_busy="reuse").public()
 
 
+@router.get("/test-picture")
+def test_picture():
+    """The picture the setup check drew (setup.try_it), shown in the wizard."""
+    from fastapi.responses import FileResponse
+
+    p = setup.test_picture_path()
+    if not p.exists():
+        raise HTTPException(404, "No test picture yet.")
+    return FileResponse(p, media_type="image/png", headers={"Cache-Control": "no-store"})
+
+
 @router.post("/try/{engine_id}")
 def try_engine(engine_id: str) -> dict[str, Any]:
     try:

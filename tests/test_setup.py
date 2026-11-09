@@ -197,3 +197,43 @@ def test_the_folder_picker_lists_folders_never_files(data, tmp_path):
         setup.new_folder(str(tmp_path), "bad/name")
     with pytest.raises(ValueError):
         setup.folders("relative/path")
+
+
+def test_a_six_gb_card_is_offered_what_runs_well_first(monkeypatch):
+    from vt.engines import setup
+
+    hw = {"gpus": [{"index": 0, "name": "NVIDIA GeForce RTX 4050 Laptop GPU", "memory_gb": 6, "compute": 8.9}], "ram_gb": 42}
+    m = setup.model_choices(hw, {})
+    assert m["picture_default"] == "klein-4b-q4" and m["pictures"][0]["id"] == "klein-4b-q4" and m["pictures"][0]["speed"] == "fast"
+    speeds = [p["speed"] or "no" for p in m["pictures"]]
+    assert speeds == sorted(speeds, key=["fast", "slow", "no"].index)    # runs well, then slowly, then does not fit
+    assert all("several times longer" in p["why"] for p in m["pictures"] if p["speed"] == "slow")
+    monkeypatch.setattr(setup.hardware, "detect", lambda: hw)
+    assert setup.chosen_picture_model({"picture_model": "klein-4b"}) == "klein-4b-q4"     # an old slow default gives way to the set that runs well
+    assert setup.chosen_picture_model({"picture_model": "klein-4b-q3"}) == "klein-4b-q3"  # a choice that runs well is kept
+
+
+def test_the_install_plan_adds_the_gguf_add_on_only_for_squeezed_sets(tmp_path):
+    from vt.engines.installers import ComfyInstaller
+
+    small = ComfyInstaller(root=tmp_path / "comfy", models=str(tmp_path / "m"), recipe="klein-4b-q4", gpu=0)
+    names = [i.name for i in small.plan().items]
+    assert "Add-on · ComfyUI-GGUF" in names and any("flux-2-klein-4b-Q4_K_M" in n for n in names) and any("Qwen3-4B-Q4_K_M" in n for n in names)
+    big = ComfyInstaller(root=tmp_path / "comfy", models=str(tmp_path / "m"), recipe="klein-4b", gpu=0)
+    assert not any(n.startswith("Add-on") for n in (i.name for i in big.plan().items))
+
+
+def test_our_own_ollama_is_found_where_the_setup_installs_it(tmp_path, monkeypatch):
+    """The setup installs Ollama into DATA/engines/ollama; after a restart Video Tool looked in DATA/ollama, found nothing and turned the Writing AI off (2026-11-09)."""
+    from vt import llm, paths
+
+    monkeypatch.setattr(paths, "DATA", tmp_path)
+    monkeypatch.setattr(paths, "SETTINGS", tmp_path / "settings.json")
+    exe = "ollama.exe" if llm.WIN else "ollama"
+    (tmp_path / "engines" / "ollama").mkdir(parents=True)
+    (tmp_path / "engines" / "ollama" / exe).write_bytes(b"")
+    assert llm.ollama_program_dir() == tmp_path / "engines" / "ollama"
+    (tmp_path / "engines" / "ollama" / exe).unlink()
+    (tmp_path / "ollama").mkdir()
+    (tmp_path / "ollama" / exe).write_bytes(b"")
+    assert llm.ollama_program_dir() == tmp_path / "ollama"            # an older copy is still found

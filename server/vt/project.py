@@ -2,12 +2,24 @@
 from __future__ import annotations
 
 import shutil
+import threading
 from pathlib import Path
 from typing import Optional
 
 from . import paths
 from .schema import Beats, Cuts, PlanRequest, ProjectMeta, ScenesFile, Theme, Transcript
 from .util import now_iso, read_json, slugify, write_json
+
+
+_SCENES_LOCKS: dict[str, threading.RLock] = {}
+_SCENES_LOCKS_GUARD = threading.Lock()
+
+
+def _scenes_lock(path: Path):
+    """One re-entrant plan lock per project folder, shared by every Project instance in this process."""
+    key = str(path.resolve()).casefold()
+    with _SCENES_LOCKS_GUARD:
+        return _SCENES_LOCKS.setdefault(key, threading.RLock())
 
 
 class Project:
@@ -189,8 +201,13 @@ class Project:
         d = read_json(self.scenes_path)
         return ScenesFile.model_validate(d) if d else None
 
+    def scenes_lock(self):
+        """Serialize a plan compare-and-write transaction. The lock is re-entrant so helpers may call save_scenes inside it."""
+        return _scenes_lock(self.dir)
+
     def save_scenes(self, sf: ScenesFile) -> None:
-        write_json(self.scenes_path, sf.model_dump(exclude_none=True))
+        with self.scenes_lock():
+            write_json(self.scenes_path, sf.model_dump(exclude_none=True))
 
     def glossary(self) -> dict[str, str]:
         g = dict(read_json(paths.GLOBAL_GLOSSARY, {}) or {})

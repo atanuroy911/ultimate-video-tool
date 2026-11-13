@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Turn a voice recording or a typed script into a faceless explainer video. Free and open source.",
   "author": "Ultimate Video Tool",
-  "license": "Apache-2.0",
+  "license": "AGPL-3.0-or-later",
   "main": "main.js",
   "scripts": {
     "start": "electron .",

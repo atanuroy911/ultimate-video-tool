@@ -239,25 +239,27 @@ def save_and_compose(p: Project, sf: ScenesFile) -> None:
     errs = validate_scenes(sf, p.transcript(), p.beats(), all_icon_names(), {m.id for m in p.meta().media})
     if errs:
         raise HTTPException(422, {"errors": errs[:12]})
-    cur = p.scenes()
-    if cur:
-        write_json(p.dir / "scenes.prev.json", cur.model_dump(exclude_none=True))
-    p.save_scenes(sf)
-    compose_all(p)
-    changed(p.id)
+    with p.scenes_lock():
+        cur = p.scenes()
+        if cur:
+            write_json(p.dir / "scenes.prev.json", cur.model_dump(exclude_none=True))
+        p.save_scenes(sf)
+        compose_all(p)
+        changed(p.id)
 
 
 def edit_scenes(p: Project, fn) -> ScenesFile:
-    sf = p.scenes()
-    if not sf:
-        raise HTTPException(409, "no plan yet; process the audio first")
-    try:
-        new = fn(sf)
-    except scene_ops.OpError as e:
-        raise HTTPException(422, {"errors": [str(e)]})
-    new = new.model_copy(update={"planner": "manual" if new.planner == "rules" else new.planner})
-    save_and_compose(p, new)
-    return new
+    with p.scenes_lock():
+        sf = p.scenes()
+        if not sf:
+            raise HTTPException(409, "no plan yet; process the audio first")
+        try:
+            new = fn(sf)
+        except scene_ops.OpError as e:
+            raise HTTPException(422, {"errors": [str(e)]})
+        new = new.model_copy(update={"planner": "manual" if new.planner == "rules" else new.planner})
+        save_and_compose(p, new)
+        return new
 
 
 # ------------------------------------------------------------------ meta / catalogue
@@ -1488,6 +1490,38 @@ def director_chat(pid: str, body: DirectorMessage) -> dict:
             autopilot_finish(p, lambda s, f, m="": cb(s, 0.6 + 0.4 * f, m), again=True)
         return res
     return jobs.submit("director", pid, "The director is working on your note", work, when_busy="refuse").public()
+
+
+class DirectorStateBody(BaseModel):
+    state: dict[str, Any]
+
+
+@app.put("/api/projects/{pid}/director/state")
+def put_director_state(pid: str, body: DirectorStateBody) -> dict:
+    """Swap the whole state written by one Director turn. The returned prior state makes the same action a redo."""
+    from ..script import chat
+
+    p = proj(pid)
+    with p.scenes_lock():
+        before = chat.director_state(p)
+        try:
+            chat.restore_director_state(p, body.state)
+        except (ValueError, ValidationError) as e:
+            raise HTTPException(422, f"Could not restore the Director change: {e}") from e
+        try:
+            compose_all(p)
+        except Exception as e:
+            # The HTTP request must be all-or-nothing. Otherwise the client keeps its old history stacks while the files have already moved.
+            chat.restore_director_state(p, before)
+            try:
+                compose_all(p)
+            except Exception:
+                pass
+            raise HTTPException(500, f"Could not rebuild the restored Director change: {e}") from e
+        if before.get("plan"):
+            write_json(p.dir / "scenes.prev.json", before["plan"])
+    changed(pid)
+    return {"state": before}
 
 
 @app.get("/api/projects/{pid}")

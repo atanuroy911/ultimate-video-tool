@@ -63,7 +63,8 @@ def _craft_and_style(p: Project, theme: str, *, include_draft_report: bool = Tru
 SCRIPT_PLAN = "video_script.plan.json"   # what the current script compiled to, to see what was edited after it
 
 
-def apply_script(p: Project, data: dict, *, planner: str = "claude", compose: bool = True, strict: bool = False) -> dict[str, Any]:
+def apply_script(p: Project, data: dict, *, planner: str = "claude", compose: bool = True, strict: bool = False,
+                 expected_plan: Optional[dict] = None) -> dict[str, Any]:
     """Repair, validate and compile `data`; on success it becomes the project's plan. Returns {ok, errors, repaired, repairs}.
 
     Nothing the repair does is silent (repair_script's notes). With `strict` (a director that can answer: Claude or Codex over MCP) every repair that changes what it wrote (a word
@@ -103,13 +104,19 @@ def apply_script(p: Project, data: dict, *, planner: str = "claude", compose: bo
     errs = validate_scenes(sf, tr, beats, icons, media)
     if errs:
         return {"ok": False, "errors": errs[:12]}
-    cur = p.scenes()
-    if cur:
-        write_json(p.dir / "scenes.prev.json", cur.model_dump(exclude_none=True))
-    write_json(p.dir / "video_script.json", script.model_dump(by_alias=True, exclude_none=True))
-    write_json(p.dir / SCRIPT_PLAN, sf.model_dump(exclude_none=True))
-    p.save_scenes(sf)
-    p.update_meta(status="planned")
+    # Compare and commit the plan plus both script sidecars under the same per-project lock. Every save_scenes caller participates,
+    # so an edit either lands before this check (and causes a conflict) or after this complete commit (and therefore wins).
+    with p.scenes_lock():
+        cur = p.scenes()
+        if expected_plan is not None and (not cur or cur.model_dump(exclude_none=True) != expected_plan):
+            return {"ok": False, "conflict": True,
+                    "errors": ["The video was edited while the director was working. The newer edits were kept; send the request again."]}
+        if cur:
+            write_json(p.dir / "scenes.prev.json", cur.model_dump(exclude_none=True))
+        write_json(p.dir / "video_script.json", script.model_dump(by_alias=True, exclude_none=True))
+        write_json(p.dir / SCRIPT_PLAN, sf.model_dump(exclude_none=True))
+        p.save_scenes(sf)
+        p.update_meta(status="planned")
     if compose:
         from ..pipeline import compose_all
 
@@ -118,7 +125,8 @@ def apply_script(p: Project, data: dict, *, planner: str = "claude", compose: bo
         REPAIRS.record(p, notes, "the director" if strict else "the AI")
     except Exception:                                                                    # noqa: BLE001  a report, never a reason to lose a script
         pass
-    return {"ok": True, "applied": True, "scenes": len(sf.scenes), "repaired": len(before), "dropped": dropped, "kind": script.kind,
+    return {"ok": True, "applied": True, "scenes": len(sf.scenes), "plan": sf.model_dump(exclude_none=True),
+            "repaired": len(before), "dropped": dropped, "kind": script.kind,
             "repairs": REPAIRS.small(notes) if strict else REPAIRS.meaning(notes) + REPAIRS.small(notes)}
 
 

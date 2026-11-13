@@ -19,7 +19,8 @@ export interface AudioView {
   can_redo: boolean;
   peaks: { n: number; duration: number; v: number[] };
 }
-type Kind = "plan" | "audio" | "layers" | "words";
+type Kind = "plan" | "director-pending" | "director" | "audio" | "layers" | "words";
+export interface DirectorState { plan: Plan; script?: Record<string, any> | null; script_plan?: Plan | null; report?: Record<string, any> | null; status?: string }
 
 export function useReview(id: string) {
   const project = useProject(id);
@@ -38,6 +39,10 @@ export function useReview(id: string) {
   const layerUndo = useRef<{ undo: () => Promise<unknown>; redo: () => Promise<unknown> } | null>(null);       // the layers keep their own history; this list only says in which order things happened
   const [past, setPast] = useState<Plan[]>([]);
   const [future, setFuture] = useState<Plan[]>([]);
+  const [directorPast, setDirectorPast] = useState<DirectorState[]>([]);
+  const [directorFuture, setDirectorFuture] = useState<DirectorState[]>([]);
+  const directorToken = useRef(0);
+  const directorPending = useRef<number | null>(null);
   const busy = useRef(false);
   const mutationQueue = useRef(Promise.resolve());
 
@@ -81,6 +86,7 @@ export function useReview(id: string) {
         if (record && before) {
           setPast((p) => [...p.slice(-49), before]);
           setFuture([]);
+          setDirectorFuture([]);
           setOrder((o) => [...o.slice(-99), "plan"]);
           setOfut([]);
         }
@@ -118,6 +124,35 @@ export function useReview(id: string) {
   const patchCast = (cid: string, body: Record<string, any>) => run(() => patch(`/api/projects/${id}/cast/${cid}`, body));
   const patchProject = (body: Record<string, any>) => run(() => patch(`/api/projects/${id}`, body), false);
 
+  /** Reserve the Director's chronological history slot before its async POST. Later timeline edits must stay after this barrier. */
+  const beginDirectorChange = () => {
+    if (directorPending.current !== null) return directorPending.current;
+    const token = ++directorToken.current;
+    directorPending.current = token;
+    setFuture([]);
+    setDirectorFuture([]);
+    setOfut([]);
+    setOrder((o) => [...o.slice(-99), "director-pending"]);
+    return token;
+  };
+
+  /** Turn the reserved slot into a real undo step, or remove it when the job failed/conflicted. */
+  const finishDirectorChange = (token: number | null | undefined, before: DirectorState | null | undefined) => {
+    if (token == null || directorPending.current !== token) return false;
+    directorPending.current = null;
+    const completed = !!before?.plan;
+    if (completed) setDirectorPast((p) => [...p.slice(-49), before]);
+    setOrder((o) => {
+      const at = o.lastIndexOf("director-pending");
+      if (at < 0) return o;
+      const next = [...o];
+      if (completed) next[at] = "director";
+      else next.splice(at, 1);
+      return next;
+    });
+    return completed;
+  };
+
   const planUndo = async () => {
     if (!past.length || !plan) return false;
     const prev = past[past.length - 1];
@@ -125,7 +160,7 @@ export function useReview(id: string) {
       await put(`/api/projects/${id}/scenes`, prev);
       setPast((p) => p.slice(0, -1));
       setFuture((f) => [...f, plan]);
-      reloadAll();
+      await reloadAll();
       return true;
     } catch (e: any) {
       toast(e.message, "err");
@@ -139,7 +174,28 @@ export function useReview(id: string) {
       await put(`/api/projects/${id}/scenes`, next);
       setFuture((f) => f.slice(0, -1));
       setPast((p) => [...p, plan]);
-      reloadAll();
+      await reloadAll();
+      return true;
+    } catch (e: any) {
+      toast(e.message, "err");
+      return false;
+    }
+  };
+
+  const directorStep = async (dir: "undo" | "redo") => {
+    const source = dir === "undo" ? directorPast : directorFuture;
+    const target = source[source.length - 1];
+    if (!target) return false;
+    try {
+      const swapped = await put<{ state: DirectorState }>(`/api/projects/${id}/director/state`, { state: target });
+      if (dir === "undo") {
+        setDirectorPast((p) => p.slice(0, -1));
+        setDirectorFuture((f) => [...f, swapped.state]);
+      } else {
+        setDirectorFuture((f) => f.slice(0, -1));
+        setDirectorPast((p) => [...p, swapped.state]);
+      }
+      await reloadAll();
       return true;
     } catch (e: any) {
       toast(e.message, "err");
@@ -190,9 +246,10 @@ export function useReview(id: string) {
   const undo = async () => {
     const k = order[order.length - 1];
     if (!k || busy.current || audioBusy.current) return;
+    if (k === "director-pending") { toast("The Director is still working. You can undo edits made after it finishes."); return; }
     busy.current = true;
     try {
-      const ok = k === "words" ? await wordHistory("undo") : k === "plan" ? await planUndo() : k === "layers" ? await layerUndo.current?.undo() : await audioHistory("undo");
+      const ok = k === "words" ? await wordHistory("undo") : k === "director" ? await directorStep("undo") : k === "plan" ? await planUndo() : k === "layers" ? await layerUndo.current?.undo() : await audioHistory("undo");
       if (!ok) return;
       setOrder((o) => o.slice(0, -1));
       setOfut((f) => [...f, k]);
@@ -201,9 +258,10 @@ export function useReview(id: string) {
   const redo = async () => {
     const k = ofut[ofut.length - 1];
     if (!k || busy.current || audioBusy.current) return;
+    if (k === "director-pending") return;
     busy.current = true;
     try {
-      const ok = k === "words" ? await wordHistory("redo") : k === "plan" ? await planRedo() : k === "layers" ? await layerUndo.current?.redo() : await audioHistory("redo");
+      const ok = k === "words" ? await wordHistory("redo") : k === "director" ? await directorStep("redo") : k === "plan" ? await planRedo() : k === "layers" ? await layerUndo.current?.redo() : await audioHistory("redo");
       if (!ok) return;
       setOfut((f) => f.slice(0, -1));
       setOrder((o) => [...o, k]);
@@ -215,7 +273,10 @@ export function useReview(id: string) {
     plan, timing, words, beats, wordById, aspect,
     noteLayers: () => { setOrder((o) => [...o.slice(-99), "layers"]); setOfut([]); },
     setLayerHistory: (h: { undo: () => Promise<unknown>; redo: () => Promise<unknown> } | null) => { layerUndo.current = h; },
-    canUndo: order.length > 0 && !audioSaving, canRedo: ofut.length > 0 && !audioSaving, undo, redo,
+    canUndo: order.length > 0 && order.at(-1) !== "director-pending" && !audioSaving, canRedo: ofut.length > 0 && !audioSaving, undo, redo,
+    beginDirectorChange, finishDirectorChange,
+    directorHistory: order.at(-1) === "director" ? "undo" as const : ofut.at(-1) === "director" ? "redo" as const : null,
+    toggleDirectorChange: () => order.at(-1) === "director" ? undo() : ofut.at(-1) === "director" ? redo() : Promise.resolve(),
     moveEdge, splitAt, patchElement, patchScene, splitScene, mergeNext, removeScene, moveBoundary, replanRules, replanAuto, editWord, addGlossary,
     applyAlt, askClaude, dropRequest, patchProject, patchAction, addAction, patchCast,
   };

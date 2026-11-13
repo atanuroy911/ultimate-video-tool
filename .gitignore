@@ -53,6 +53,7 @@ engine-hub.json
 tools/concat/
 fb-shorts-example/
 !assets/music/*.mp3
+!/docs/assets/*.mp4
 third_party/ai-youtube-shorts-generator/
 
 # our own copies of node etc. (scripts/setup.sh, the installers)

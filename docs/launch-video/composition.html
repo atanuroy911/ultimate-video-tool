@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+@font-face{font-family:Brico;font-weight:700;src:url(fonts/bricolage-grotesque-latin-700-normal.woff2)}
+@font-face{font-family:Brico;font-weight:800;src:url(fonts/bricolage-grotesque-latin-800-normal.woff2)}
+@font-face{font-family:Inter;font-weight:400;src:url(fonts/inter-latin-400-normal.woff2)}
+@font-face{font-family:Inter;font-weight:500;src:url(fonts/inter-latin-500-normal.woff2)}
+@font-face{font-family:Inter;font-weight:600;src:url(fonts/inter-latin-600-normal.woff2)}
+@font-face{font-family:Inter;font-weight:700;src:url(fonts/inter-latin-700-normal.woff2)}
+@font-face{font-family:Hind;font-weight:600;src:url(fonts/hind-siliguri-bengali-600-normal.woff2)}
+@font-face{font-family:Mono;font-weight:400;src:url(fonts/jetbrains-mono-latin-400-normal.woff2)}
+:root{--o:#f26a1f;--y:#ffc83a;--bg:#13100c;--ink:#f6f1e8;--ink2:#bdb4a5;--card:#1f1b16;--line:#3a332a}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1920px;height:1080px;overflow:hidden;background:var(--bg)}
+#root{position:relative;width:1920px;height:1080px;overflow:hidden;background:var(--bg);color:var(--ink);font-family:Inter,sans-serif}
+.glow{position:absolute;border-radius:50%;filter:blur(10px);pointer-events:none}
+#g1{width:1100px;height:1100px;left:-300px;top:-450px;background:radial-gradient(closest-side,rgba(242,106,31,.28),transparent)}
+#g2{width:1000px;height:1000px;right:-300px;bottom:-500px;background:radial-gradient(closest-side,rgba(255,200,58,.18),transparent)}
+.grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:64px 64px;mask-image:radial-gradient(ellipse at center,#000 30%,transparent 75%)}
+.scene{position:absolute;inset:0;opacity:0}
+.center{display:flex;flex-direction:column;align-items:center;justify-content:center}
+h1,.big{font-family:Brico,sans-serif;font-weight:800;letter-spacing:-.025em;line-height:1.02}
+.kicker{font:600 26px/1 Inter;letter-spacing:.14em;text-transform:uppercase;color:var(--o)}
+.win{position:absolute;border-radius:18px;overflow:hidden;background:#1a1714;box-shadow:0 40px 120px -20px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.08)}
+.win .bar{height:34px;background:#24201b;display:flex;gap:9px;align-items:center;padding-left:16px}
+.win .bar i{width:12px;height:12px;border-radius:50%;background:#4a4238;display:block}
+.win .bar i:first-child{background:#ff5f57}.win .bar i:nth-child(2){background:#febc2e}.win .bar i:nth-child(3){background:#28c840}
+.win img{display:block;width:100%}
+.chip{position:absolute;display:flex;align-items:center;gap:14px;padding:18px 28px;border-radius:18px;background:var(--card);border:2px solid var(--line);font:600 34px/1 Inter;color:var(--ink);box-shadow:0 20px 50px -10px rgba(0,0,0,.6);white-space:nowrap}
+.chip.o{background:var(--o);border-color:var(--o);color:#fff}
+.chip.y{background:var(--y);border-color:var(--y);color:#1b1206}
+.chip svg{width:38px;height:38px}
+.label{position:absolute;font:600 30px/1.2 Inter;color:var(--ink2)}
+/* captions */
+#cap{position:absolute;left:0;right:0;bottom:56px;height:80px;display:flex;justify-content:center;pointer-events:none}
+.phrase{position:absolute;opacity:0;padding:14px 28px;border-radius:16px;background:rgba(10,8,6,.78);font:600 44px/1.15 Inter;color:#fff;white-space:nowrap;letter-spacing:-.005em}
+.phrase span{color:rgba(255,255,255,.55)}
+.phrase span.on{color:#fff}
+.phrase span.hot{color:var(--y)}
+/* scene specifics */
+.logo{width:200px;height:200px}
+.wave{position:absolute;left:260px;top:430px;width:1400px;height:220px;display:flex;align-items:center;gap:6px}
+.wave b{flex:1;background:var(--o);border-radius:4px;display:block}
+.wave b.sil{background:#4a4238}
+.word{position:absolute;padding:12px 18px;border-radius:12px;background:var(--card);border:2px solid var(--line);font:600 30px/1 Inter;text-align:center}
+.word small{display:block;font:400 20px/1 Mono;color:var(--y);margin-top:8px}
+.card3{position:absolute;top:150px;width:520px;height:640px;border-radius:28px;background:var(--card);border:2px solid var(--line);overflow:hidden;box-shadow:0 30px 80px -20px rgba(0,0,0,.7)}
+.card3 h3{position:absolute;left:36px;right:36px;bottom:34px;font:700 40px/1.1 Brico;letter-spacing:-.01em}
+.card3 h3 em{font-style:normal;color:var(--o)}
+.bars{position:absolute;left:60px;right:60px;top:80px;height:380px;display:flex;align-items:flex-end;gap:34px}
+.bars b{flex:1;border-radius:12px 12px 4px 4px;display:block;background:var(--o);transform-origin:bottom}
+.bars b:nth-child(2){background:var(--y)}.bars b:nth-child(4){background:#ff9a52}
+.checks{position:absolute;left:56px;right:56px;top:90px;display:grid;gap:26px}
+.checks div{display:flex;align-items:center;gap:22px;font:600 36px/1 Inter}
+.box{width:56px;height:56px;border-radius:14px;border:3px solid var(--line);display:grid;place-items:center;flex:none}
+.box svg{width:36px;height:36px;color:#fff;opacity:0}
+.bubble{position:absolute;padding:22px 30px;border-radius:26px 26px 26px 6px;background:var(--o);color:#fff;font:600 36px/1.2 Inter;box-shadow:0 20px 50px -10px rgba(0,0,0,.6)}
+.node{position:absolute;width:560px;padding:40px;border-radius:30px;background:var(--card);border:2px solid var(--line);box-shadow:0 30px 80px -20px rgba(0,0,0,.7)}
+.node .tag{display:inline-block;font:700 22px/1 Inter;letter-spacing:.12em;text-transform:uppercase;color:var(--o);background:rgba(242,106,31,.14);padding:10px 14px;border-radius:10px}
+.node h3{font:800 50px/1.05 Brico;margin-top:22px;letter-spacing:-.02em}
+.node p{font:500 30px/1.35 Inter;color:var(--ink2);margin-top:14px}
+.node svg{width:96px;height:96px;color:var(--y);position:absolute;right:36px;top:34px}
+.dot{position:absolute;width:18px;height:18px;border-radius:50%;background:var(--y);box-shadow:0 0 20px var(--y)}
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="root" data-start="0" data-duration="__DUR__" data-width="1920" data-height="1080">
+  <div class="glow" id="g1"></div><div class="glow" id="g2"></div><div class="grid"></div>
+
+  <!-- 1 intro -->
+  <div class="scene center" id="s1">
+    <img class="logo" id="s1logo" src="media/icon.svg" alt="">
+    <h1 id="s1t" style="font-size:150px;margin-top:40px">Ultimate Video Tool</h1>
+    <p id="s1s" style="font:500 46px/1.3 Inter;color:var(--ink2);margin-top:26px">Your voice <span style="color:var(--o)">→</span> a finished video</p>
+    <div style="display:flex;gap:22px;justify-content:center;margin-top:44px;height:90px">
+      <div class="chip o" id="s1c1" style="position:relative">Free</div>
+      <div class="chip y" id="s1c2" style="position:relative">Open source</div>
+    </div>
+  </div>
+
+  <!-- 2 record or type -->
+  <div class="scene" id="s2">
+    <div class="win" id="s2w" style="left:660px;top:80px;width:1140px"><div class="bar"><i></i><i></i><i></i></div><img src="media/new-video.png" alt=""></div>
+    <div class="kicker" id="s2k" style="position:absolute;left:110px;top:200px">Step 1</div>
+    <h1 id="s2h" style="position:absolute;left:110px;top:250px;font-size:96px">Talk<br>or type.</h1>
+    <div class="chip" id="s2c1" style="left:110px;top:540px">🎙️ English</div>
+    <div class="chip" id="s2c2" style="left:110px;top:640px"><span style="font-family:Hind;font-size:40px">বাংলা</span></div>
+    <div class="chip" id="s2c3" style="left:110px;top:740px">Banglish</div>
+    <div class="chip y" id="s2c4" style="left:110px;top:540px">⌨️ Type a script</div>
+    <div class="chip o" id="s2c5" style="left:110px;top:640px">🔊 Natural voice</div>
+  </div>
+
+  <!-- 3 clean + time -->
+  <div class="scene" id="s3">
+    <div class="kicker" id="s3k" style="position:absolute;left:0;right:0;top:130px;text-align:center">Automatic</div>
+    <h1 id="s3h" style="position:absolute;left:0;right:0;top:180px;text-align:center;font-size:92px">Clean audio. Every word timed.</h1>
+    <div class="wave" id="s3wave"></div>
+    <div id="s3words"></div>
+  </div>
+
+  <!-- 4 director plans -->
+  <div class="scene" id="s4">
+    <div class="win" id="s4w" style="left:120px;top:90px;width:1060px"><div class="bar"><i></i><i></i><i></i></div><img src="media/plan-review.png" alt=""></div>
+    <div class="kicker" id="s4k" style="position:absolute;left:1260px;top:300px">Step 2</div>
+    <h1 id="s4h" style="position:absolute;left:1260px;top:350px;font-size:96px">An AI<br>director<br>plans it.</h1>
+    <div class="chip" id="s4c1" style="left:1260px;top:700px">🖼️ Pictures that match</div>
+  </div>
+
+  <!-- 5 look + sound -->
+  <div class="scene" id="s5">
+    <div class="win" id="s5w" style="left:120px;top:90px;width:1180px"><div class="bar"><i></i><i></i><i></i></div><img src="media/looks.png" alt=""></div>
+    <h1 id="s5h" style="position:absolute;left:1380px;top:220px;font-size:96px">A look<br>for every<br>video.</h1>
+    <div class="chip" id="s5c1" style="left:1380px;top:580px">💬 Captions</div>
+    <div class="chip" id="s5c2" style="left:1380px;top:680px">🎵 Music</div>
+    <div class="chip" id="s5c3" style="left:1380px;top:780px">🔔 Sound effects</div>
+  </div>
+
+  <!-- 6 charts checklists cartoons -->
+  <div class="scene" id="s6">
+    <div class="card3" id="s6a" style="left:120px">
+      <div class="bars"><b style="height:35%"></b><b style="height:60%"></b><b style="height:48%"></b><b style="height:88%"></b></div>
+      <h3>Numbers <em>→</em><br>charts</h3>
+    </div>
+    <div class="card3" id="s6b" style="left:700px">
+      <div class="checks" id="s6checks"></div>
+      <h3>Steps <em>→</em><br>checklists</h3>
+    </div>
+    <div class="card3" id="s6c" style="left:1280px">
+      <img src="media/cartoon.png" alt="" style="position:absolute;left:0;top:0;width:100%;height:470px;object-fit:cover;object-position:top">
+      <h3>Stories <em>→</em><br>cartoons</h3>
+    </div>
+  </div>
+
+  <!-- 7 change -->
+  <div class="scene" id="s7">
+    <h1 id="s7q" class="big" style="position:absolute;left:0;right:0;top:400px;text-align:center;font-size:150px">Want a change?</h1>
+    <div class="win" id="s7w" style="left:560px;top:60px;width:1440px;height:934px;opacity:0;transform-origin:0 0"><div class="bar"><i></i><i></i><i></i></div>
+      <div id="s7img" style="position:relative;width:1440px;height:900px;transform-origin:50% 100%"><img src="media/editor.png" alt=""><div id="s7sel" style="position:absolute;left:466px;top:752px;width:254px;height:40px;border:4px solid var(--y);border-radius:8px;opacity:0"></div></div>
+    </div>
+    <div class="bubble" id="s7b" style="left:70px;top:180px;width:420px">“Make the opening punchier.”</div>
+    <div class="chip y" id="s7c" style="left:70px;top:420px">✋ Or edit it yourself</div>
+  </div>
+
+  <!-- 8 directors -->
+  <div class="scene" id="s8">
+    <div class="kicker" id="s8k" style="position:absolute;left:0;right:0;top:170px;text-align:center">Choose who directs</div>
+    <div class="chip" id="s8c1" style="left:190px;top:330px;font-size:44px;padding:30px 40px">🦙 Local AI</div>
+    <div class="chip" id="s8c2" style="left:640px;top:330px;font-size:44px;padding:30px 40px">✳️ Claude</div>
+    <div class="chip" id="s8c3" style="left:1030px;top:330px;font-size:44px;padding:30px 40px">◎ Codex</div>
+    <div class="chip" id="s8c4" style="left:1400px;top:330px;font-size:44px;padding:30px 40px">🔌 MCP</div>
+    <h1 id="s8h" style="position:absolute;left:0;right:0;top:560px;text-align:center;font-size:140px">No API key <span style="color:var(--o)">needed.</span></h1>
+  </div>
+
+  <!-- 9 client/server -->
+  <div class="scene" id="s9">
+    <div class="node" id="s9a" style="left:680px;top:250px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M1 20h22"/></svg>
+      <span class="tag">Client</span><h3>Edit anywhere</h3><p>The editor, on any laptop. No models, no Python.</p>
+    </div>
+    <div class="node" id="s9b" style="left:680px;top:250px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="7" rx="1.5"/><rect x="3" y="14" width="18" height="7" rx="1.5"/><path d="M7 6.5h.01M7 17.5h.01"/></svg>
+      <span class="tag">Server</span><h3>Heavy work on a GPU</h3><p>Speech, AI, voices and rendering. Same computer, or your network.</p>
+    </div>
+    <div id="s9line" style="position:absolute;left:780px;top:520px;width:360px;height:4px;background:repeating-linear-gradient(90deg,var(--line) 0 14px,transparent 14px 24px);opacity:0"></div>
+    <div class="dot" id="s9d1" style="left:780px;top:513px;opacity:0"></div>
+    <div class="dot" id="s9d2" style="left:780px;top:513px;opacity:0"></div>
+  </div>
+
+  <!-- 10 made with -->
+  <div class="scene center" id="s10">
+    <div class="kicker" id="s10k">This video</div>
+    <h1 id="s10h" style="font-size:120px;text-align:center;margin-top:26px">Voiced, timed and rendered<br>by <span style="color:var(--o)">Ultimate Video Tool</span></h1>
+  </div>
+
+  <!-- 11 end -->
+  <div class="scene center" id="s11">
+    <img class="logo" id="s11logo" src="media/icon.svg" alt="" style="width:170px;height:170px">
+    <h1 id="s11t" style="font-size:132px;margin-top:34px">Ultimate Video Tool</h1>
+    <p id="s11s" style="font:600 46px/1.3 Inter;color:var(--y);margin-top:22px">Free and open source</p>
+    <p id="s11u" style="font:400 38px/1 Mono;color:var(--ink2);margin-top:40px;padding:22px 34px;border:2px solid var(--line);border-radius:18px;background:var(--card)">github.com/atanuroy911/ultimate-video-tool</p>
+  </div>
+
+  <div id="cap"></div>
+</div>
+
+<script src="runtime/gsap.min.js"></script>
+<script>
+(function(){
+var W=__WORDS__;
+var DUR=__DUR__;
+var tl=gsap.timeline({paused:true});
+var $=function(id){return document.getElementById(id)};
+// time of the n-th word whose text starts with w
+function T(w,n){n=n||1;var k=0;for(var i=0;i<W.length;i++){if(W[i][0].replace(/[.,?!:]/g,'').toLowerCase()===w.toLowerCase()){k++;if(k===n)return W[i][1];}}throw new Error('no word '+w);}
+var E='power3.out';
+function show(id,t0,t1){tl.fromTo($(id),{opacity:0},{opacity:1,duration:.35,ease:'power1.out'},t0);if(t1!=null)tl.to($(id),{opacity:0,duration:.3,ease:'power1.in'},t1-.3);}
+function pop(id,t,from){tl.fromTo($(id),Object.assign({opacity:0,y:30,scale:.92},from||{}),{opacity:1,y:0,x:0,scale:1,duration:.5,ease:'back.out(1.6)'},t);}
+function rise(id,t,d){tl.fromTo($(id),{opacity:0,y:60},{opacity:1,y:0,duration:d||.7,ease:E},t);}
+
+// background drift
+tl.to('#g1',{x:260,y:120,duration:DUR,ease:'none'},0);
+tl.to('#g2',{x:-220,y:-140,duration:DUR,ease:'none'},0);
+
+// 1 intro 0 - 5.8
+show('s1',0,5.85);
+tl.fromTo('#s1logo',{scale:0,rotation:-20},{scale:1,rotation:0,duration:.8,ease:'back.out(1.8)'},.05);
+rise('s1t',.3,.8); rise('s1s',T('turns'),.6);
+pop('s1c1',T('free'));pop('s1c2',T('open-source'));
+
+// 2 talk or type 5.88 - 12.25
+show('s2',5.8,12.3);
+tl.fromTo('#s2w',{opacity:0,x:120},{opacity:1,x:0,duration:.8,ease:E},5.85);
+rise('s2k',5.9);rise('s2h',5.95);
+pop('s2c1',T('english'));pop('s2c2',T('bangla'));pop('s2c3',T('banglish'));
+tl.to(['#s2c1','#s2c2','#s2c3'],{opacity:0,y:-30,duration:.3,stagger:.04},T('type')-.35);
+pop('s2c4',T('type'),{x:-20});pop('s2c5',T('voice',2),{x:-20});
+tl.to('#s2w',{scale:1.04,duration:6,ease:'none'},6.2);
+
+// 3 clean + timed 12.35 - 17.5
+show('s3',12.25,17.55);
+rise('s3k',12.3);rise('s3h',12.35);
+var wave=$('s3wave'),bars=[],seed=7;function rnd(){seed=(seed*16807)%2147483647;return seed/2147483647}
+for(var i=0;i<70;i++){var b=document.createElement('b');var sil=(i>=16&&i<24)||(i>=44&&i<51);if(sil)b.className='sil';b.style.height=(sil?6+rnd()*10:30+rnd()*170)+'px';wave.appendChild(b);bars.push(b);}
+tl.fromTo(bars,{scaleY:0},{scaleY:1,duration:.5,stagger:.008,ease:E},12.5);
+var sils=bars.filter(function(b){return b.className==='sil'});
+tl.to(sils,{flex:0,width:0,marginLeft:-6,opacity:0,duration:.6,ease:'power2.inOut'},T('silences'));
+var picks=[['It',0],['cleans',0],['the',0],['audio,',0],['cuts',0],['silences',0],['times',0],['every',0],['single',0],['word.',0]];
+var holder=$('s3words'),x=170;
+picks.forEach(function(p,i){var w=W.filter(function(q){return q[0]===p[0]&&q[1]>12&&q[1]<18})[0];if(!w)return;var d=document.createElement('div');d.className='word';d.id='w3_'+i;d.innerHTML=w[0].replace(/[.,]/g,'')+'<small>'+w[1].toFixed(2)+'s</small>';d.style.left=x+'px';d.style.top='720px';holder.appendChild(d);x+=Math.max(120,w[0].length*19+56)+14;tl.fromTo(d,{opacity:0,y:20},{opacity:1,y:0,duration:.35,ease:E},Math.max(T('times'),12.4)+i*.09);});
+
+// 4 director plans 17.6 - 22.4
+show('s4',17.5,22.45);
+tl.fromTo('#s4w',{opacity:0,x:-120},{opacity:1,x:0,duration:.8,ease:E},17.55);
+rise('s4k',17.6);rise('s4h',17.65);pop('s4c1',T('pictures'));
+tl.to('#s4w',{scale:1.04,duration:4.5,ease:'none'},17.9);
+
+// 5 look + sound 22.45 - 26.1
+show('s5',22.4,26.15);
+tl.fromTo('#s5w',{opacity:0,y:60},{opacity:1,y:0,duration:.7,ease:E},22.45);
+rise('s5h',22.5);
+pop('s5c1',T('adds')+.2);pop('s5c2',T('music'));pop('s5c3',T('sound'));
+
+// 6 charts / checklists / cartoons 26.2 - 32.25
+show('s6',26.1,32.3);
+pop('s6a',T('numbers'),{y:80});
+tl.fromTo('#s6a .bars b',{scaleY:0},{scaleY:1,duration:.7,stagger:.12,ease:E},T('numbers')+.3);
+pop('s6b',T('steps'),{y:80});
+var ck=$('s6checks');['Record','Direct','Export'].forEach(function(t,i){var r=document.createElement('div');r.innerHTML='<span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2"><path d="m5 12 5 5 9-10"/></svg></span>'+t;ck.appendChild(r);var bx=r.firstChild;tl.to(bx,{background:'#f26a1f',borderColor:'#f26a1f',duration:.2},T('steps')+.5+i*.32);tl.to(bx.firstChild,{opacity:1,duration:.2},T('steps')+.5+i*.32);});
+pop('s6c',T('stories'),{y:80});
+tl.fromTo('#s6c img',{scale:1.15},{scale:1,duration:2.5,ease:'power2.out'},T('stories'));
+
+// 7 change 32.35 - 37.8
+show('s7',32.3,37.85);
+tl.fromTo('#s7q',{opacity:0,scale:.9},{opacity:1,scale:1,duration:.45,ease:'back.out(1.6)'},32.35);
+tl.to('#s7q',{opacity:0,y:-80,duration:.35},T('tell')-.25);
+tl.set('#s7w',{scale:.88},0);tl.fromTo('#s7w',{opacity:0,x:120},{opacity:1,x:0,duration:.7,ease:E},T('tell')-.1);
+pop('s7b',T('tell')+.1,{x:-40});
+pop('s7c',T('move'),{x:-40});
+tl.to('#s7img',{scale:1.35,y:-60,duration:1.4,ease:'power2.inOut'},T('move')+.1);
+tl.to('#s7sel',{opacity:1,duration:.2},T('move')+.8);
+tl.to('#s7sel',{x:150,duration:.9,ease:'power2.inOut'},T('move')+1.1);
+
+// 8 directors 37.9 - 44.1
+show('s8',37.85,44.15);
+rise('s8k',37.9);
+pop('s8c1',T('local'));pop('s8c2',T('claude'));pop('s8c3',T('codex'));pop('s8c4',T('mcp'));
+tl.fromTo('#s8h',{opacity:0,scale:.85},{opacity:1,scale:1,duration:.5,ease:'back.out(1.7)'},T('no'));
+
+// 9 client / server 44.2 - 49.75
+show('s9',44.15,49.8);
+pop('s9a',44.2);
+tl.set('#s9b',{opacity:0},0);
+tl.to('#s9b',{opacity:1,duration:.01},T('graphics')-.6);
+tl.to('#s9a',{x:-560,duration:.8,ease:'power3.inOut'},T('graphics')-.6);
+tl.to('#s9b',{x:560,duration:.8,ease:'power3.inOut'},T('graphics')-.6);
+tl.set('#s9line',{left:680+560-560+560,width:0},0);
+tl.fromTo('#s9line',{opacity:0,left:680,width:0},{opacity:1,left:690,width:540,duration:.6,ease:E},T('graphics')+.2);
+[['#s9d1',0],['#s9d2',.9]].forEach(function(d){tl.fromTo(d[0],{opacity:1,left:690},{left:1210,duration:1.4,ease:'none',repeat:2,immediateRender:false},T('graphics')+.5+d[1]);});
+tl.to('#s9a',{borderColor:'#f26a1f',duration:.3},T('edit'));
+
+// 10 made with 49.8 - 52.8
+show('s10',49.75,52.85);
+rise('s10k',49.8);rise('s10h',49.9,.8);
+
+// 11 end 52.87 - DUR
+show('s11',52.8,null);
+tl.fromTo('#s11logo',{scale:0},{scale:1,duration:.7,ease:'back.out(1.8)'},52.85);
+rise('s11t',53.0);rise('s11s',53.4);rise('s11u',T('github'));
+
+// captions: phrases of up to 5 words, broken at punctuation
+var cap=$('cap'),ph=[],cur=[];
+W.forEach(function(w,i){cur.push(w);var end=/[.,?!:]$/.test(w[0]);if(end||cur.length>=5||i===W.length-1){ph.push(cur);cur=[];}});
+var hot=/^(free|open-source|voice|english|bangla|banglish|script|silences|ums|word|director|scene|look|captions|music|charts|checklists|cartoons|change|timeline|claude|codex|mcp|key|server|laptop|itself|github)$/i;
+ph.forEach(function(p,k){var d=document.createElement('div');d.className='phrase';p.forEach(function(w){var s=document.createElement('span');s.textContent=w[0]+' ';d.appendChild(s);w.el=s;});cap.appendChild(d);
+  var t0=p[0][1]-.05,t1=(ph[k+1]?Math.min(ph[k+1][0][1]-.05,p[p.length-1][2]+.6):DUR);
+  tl.set(d,{opacity:1},t0);tl.set(d,{opacity:0},t1);
+  p.forEach(function(w){tl.set(w.el,{className:hot.test(w[0].replace(/[.,?!:]/g,''))?'hot':'on'},w[1]);});
+});
+
+tl.to({}, {duration:.01}, DUR-.01);
+window.__timelines=window.__timelines||{};window.__timelines["root"]=tl;
+})();
+</script>
+</body>
+</html>

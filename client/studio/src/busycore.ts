@@ -72,6 +72,7 @@ const TITLES: [RegExp, string][] = [
 ];
 // background work nobody is waiting for (the Studio asks for these by itself): never worth a full-screen layer
 const QUIET = [/\/thumbnails/, /\/open-folder/, /\/catalog\/refresh/, /\/catalog\/[^/]+\/check/, /\/api\/jobs\//, /\/api\/settings/, /\/api\/health/, /\/words\//, /\/duplicate/, /\/layers/, /\/themes\//, /\/glossary/,
+  /[?&]quiet=1(&|$)/,   // a screen that shows its own progress (the director chat) asks for no full-screen layer
   /\/api\/setup\/try\//, /\/api\/setup\/plan/, /\/api\/setup\/folders/, /\/api\/discover\/prepare\?/];   // the setup screens show their own progress
 
 export function titleFor(method: string, url: string): string | null {

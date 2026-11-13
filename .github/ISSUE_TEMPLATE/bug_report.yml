@@ -1,0 +1,55 @@
+name: Bug report
+description: Something does not work, or a video came out wrong
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting. Please don't attach recordings you are not allowed to share. For a security problem, use Security → Report a vulnerability instead.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what you saw instead. Screenshots or a short screen recording help a lot.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. New video → Type a script
+        2. Style: Stick figures, Director: Local AI
+        3. ...
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The installer's file name (it includes the version), or the commit if you run from source
+    validations:
+      required: true
+  - type: dropdown
+    id: setup
+    attributes:
+      label: How is it installed?
+      options:
+        - Client and server on one computer
+        - Client and server on different computers
+        - Development install (from source)
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: Operating system and graphics card
+      placeholder: Windows 11, RTX 4050 6 GB
+  - type: input
+    id: director
+    attributes:
+      label: Director and language
+      placeholder: Claude on the server, English voice
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: The server window's log (Problems tab), or Details → AI conversations for a director problem
+      render: text

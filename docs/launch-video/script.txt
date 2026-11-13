@@ -1,0 +1,10 @@
+Meet Ultimate Video Tool: the free, open-source studio that turns your voice into a finished video.
+Record yourself in English, Bangla or Banglish. Or just type a script, and a natural voice reads it for you.
+It cleans the audio, cuts the silences and the ums, and times every single word.
+Then an AI director plans every scene. It picks pictures that match your words, designs a look, and adds captions, music and sound effects.
+Numbers turn into charts. Steps turn into checklists. Stories turn into cartoons that act them out.
+Want a change? Tell the director in plain words, or move any element yourself on the timeline.
+Direct it with a local AI model, or with Claude or Codex through MCP. No API key needed.
+Run it all on one computer, or keep the heavy work on a graphics server and edit from any laptop.
+This video was made with Ultimate Video Tool itself.
+Get it free on GitHub.

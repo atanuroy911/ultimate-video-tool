@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Processing API, engine management and native server controls. Install the editor client separately.",
   "author": "Ultimate Video Tool",
-  "license": "Apache-2.0",
+  "license": "AGPL-3.0-or-later",
   "main": "main.js",
   "scripts": {
     "start": "electron .",

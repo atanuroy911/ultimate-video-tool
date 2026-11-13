@@ -53,12 +53,12 @@ The settled totals were **801 fast passed**, 1 opt-in skip and **67 slow passed*
 | cartoon characters / scenes (assets/cartoon) | 4, 4 |
 | ComfyUI workflow assets | breeze_clone.json, breeze_design.json, breeze_direction.json, klein_t2i.json, ltx23_i2v.json, omnivoice_clone.json, omnivoice_design.json, qwen21_t2i.json, wan22_i2v.json, zimage_t2i.json |
 | MCP tools / prompts | 43, 4 |
-| REST API | api routes: 263, methods: 267 |
+| REST API | api routes: 267, methods: 271 |
 | downloadable models (vt/models.py) | 3 |
-| python source | files: 256, lines: 47860 |
+| python source | files: 256, lines: 48483 |
 | renderer runtime (js+css) lines | 4578 |
-| studio source | files: 129, lines: 17037, pages: AIAssistants, ComfySettings, DesignStudio, DirectorSettings, Engines, Export, LocalAI, MyVoices, New, NewOptions, Progress, Projects, Result, Review, ScriptReview, Server, Settings, ShortsExtractor, SocialHub, StockKeys, StyleThumbnails, Themes |
-| browser suites (studio/e2e, not helpers) | 71 |
+| studio source | files: 335, lines: 43760, pages: AIAssistants, ComfySettings, DesignStudio, DirectorSettings, Engines, Export, LocalAI, MyVoices, New, NewOptions, Progress, Projects, Result, Review, ScriptReview, Server, Settings, ShortsExtractor, SocialHub, StockKeys, StyleThumbnails, Themes |
+| browser suites (studio/e2e, not helpers) | 75 |
 | pytest files | 188 |
 <!-- facts:end -->
 

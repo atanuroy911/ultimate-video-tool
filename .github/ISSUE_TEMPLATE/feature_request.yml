@@ -1,0 +1,20 @@
+name: Idea or feature request
+description: Suggest something the tool should do
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to make?
+      description: Describe the video or the job, not the solution. "I make 60-second Bangla finance Shorts and..."
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help?
+  - type: textarea
+    id: examples
+    attributes:
+      label: Examples
+      description: Links to videos that do it well, sketches, screenshots

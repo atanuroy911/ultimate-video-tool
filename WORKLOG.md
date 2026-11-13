@@ -3,6 +3,63 @@
 Newest first. Every agent (Claude Code, Codex) adds an entry when it stops: what it did, what it verified, what is left. Read
 `CODEX-HANDOFF.md` first.
 
+## 2026-11-09, evening (Codex) — Director undo and visible changes — Done by codex
+
+Continued the newest OpenChatCut work rather than the older drag thread. A Director turn is now one complete editor-history step: Ctrl+Z
+and the reply button undo/redo its scene plan, video script, compiled script plan and Director report together. The reply lists changed
+scenes as buttons that select and scroll to the clip; scene and element clips briefly pulse. Added optimistic concurrency before Director
+apply, so a timeline edit made while the AI is working is preserved and the job reports a conflict instead of overwriting it.
+
+Checks after the last implementation change: Director/script/undo pytest suites 25 passed; timeline unit suite 44/44; TypeScript clean;
+production build clean; live `e2e/occ_director_chat.mjs` 20/0 with the real AI (including exact plan/script-version undo/redo),
+`e2e/occ_timeline_save.mjs` 6/0 and `e2e/occ_timeline.mjs` 42/0. The disposable test server, Studio and helper were stopped. Still open:
+proposals (optional; ask the owner), Director timeline operations, and selection/time-range context. Nothing committed.
+
+## 2026-11-09, late night (Claude) — the director chat beside the new timeline (phase 4, first part)
+
+Director tab in the editor's left panel: OpenChatCut's chat parts (ChatMessage, ChatRunStatus, ToolGroupRow, WidgetCard, message grouping;
+9 files ported, a small Markdown renderer instead of react-markdown) on our director's conversation (`/api/projects/{id}/director[/chat]`).
+Steps show live; the full-screen job window stays away (`?quiet=1` on the chat's request, `busycore` QUIET); the timeline rebuilds after the
+change. Real runs with Claude on this PC (claude-server): "show a big title: Tiny habits, big change" → Title added; tag and value card text
+changed. Tests: `e2e/occ_director_chat.mjs` 10/0 (real AI), `e2e/occ_timeline_save.mjs` 6/0 (now scrolls the scene into view: more element
+rows push it below the fold), `e2e/occ_timeline.mjs` 42/0, editor 22/1 (the Settings directors check fails the same way before), timeline2
+10/0, unit 44, tsc, build. Next: a chat change as one undoable step, marking what it changed, proposals, timeline operations for the director.
+
+## 2026-11-09, night (Claude) — OpenChatCut timeline, phase 2: edits are saved
+
+Owner: "continue". Every finished edit on the new timeline is now saved to the project through the calls our classic timeline already makes
+(`src/occ/bridge/toProject.ts`; details in docs/plans/PLAN-OPENCHATCUT.MD, Status). Ctrl+Z goes to our project's undo; captions track locked
+for now; the save status sits beside the Classic / New switch. Found while testing: OpenChatCut edits a narration with words as word streams
+(a split gives each piece its own words), so narration cuts are worked out from the words no longer played. Tests: unit 44, new
+`e2e/occ_timeline_save.mjs` 6/0 (mutating, on the copy `2026-11-09-small-habits-low-vram-test-copy`, each change undone; the copy lost one
+element in an early failed run), `e2e/occ_timeline.mjs` 42/0, tsc, build. Nothing committed.
+
+## 2026-11-09, evening (Claude) — OpenChatCut's timeline inside ours, phase 1
+
+Owner: adopt OpenChatCut (github.com/0xsline/OpenChatCut, AGPL; "i am part of the same team. Copy their code.") into our timeline. After two
+wrong readings (a separate app; their editor replacing ours) the owner chose **"Our timeline, their parts"**: Video Tool keeps its editor and
+data; OpenChatCut's code is ported piece by piece onto our scenes and pictures. Plan: `docs/plans/PLAN-OPENCHATCUT.MD` (critique of our
+timeline, what is taken, the bridge, five phases). Reference checkout: `E:\OpenChatCut-9242a95` (commit 9242a95).
+
+Done (phase 1, behind a Classic / New timeline switch on the editor page, remembered per browser):
+- Ported 172 files (~21k lines) into `client/studio/src/occ/` keeping upstream layout and a source header each (`scripts/port_openchatcut.py`,
+  list `scripts/openchatcut-timeline-files.txt`; never overwrites files marked `// Video Tool:`): timeline UI, editing engine (store, reducer,
+  history, keyframes, multi-select, slip, snap), captions track, transcript search, shortcuts, English dictionary. 17 stand-ins for what we do
+  not take (other languages, GL effects, uploads, scene detection, tracking, caption translation, plugin templates, version store); a typed
+  `@remotion/player` PlayerRef; 9 small React 18 typing fixes. Studio tsconfig now ES2022/ES2024 lib. `src/occ/NOTICE.md` records the licence.
+- Bridge `src/occ/bridge/`: `fromProject.ts` (C1 captions from the narration's words; our layers; elements packed into rows; V1 scenes with
+  their picture; A1 narration after cuts, words clamped to the kept audio, "five"+"-minute" joined), `playerAdapter.ts` (our Preview + timeStore
+  as a PlayerRef), `OccTimeline.tsx` (their `useEditor` store and shortcuts, lazy-loaded chunk ~450 kB). Their colours map to our tokens
+  (`src/occ/occ.css`), so light/dark and our blue accent follow. Edits stay local and the panel says "not saved yet"; our page's key handler
+  steps aside while the new timeline is on.
+
+Checks: Studio tsc, build, unit tests 38 (new `tests/occ-bridge.test.mjs`: OpenChatCut's own engine moves, trims and deletes our converted
+project); new `e2e/occ_timeline.mjs` 38/0 (cartoon + reel, light + dark: tracks, playhead follows our preview, select, Delete, note, back to
+Classic, no errors); classic editor suites on a copy (`2026-11-09-small-habits-low-vram-test-copy` on the E:\VT-test-lowvram server): editor
+21/2, layers 19/1, layers_media 11/0, timeline2 10/0, timeline3 13/0 — the 3 failures are the same with the committed page (pre-existing).
+Not done: phase 2 (save edits: `PUT /api/projects/{id}/timeline`), keyframes/audio, director chat, polish. Running `npm install` in a full
+OpenChatCut checkout was refused by the auto-mode check; not needed for this path. Nothing committed.
+
 ## 2026-11-09, afternoon (Claude) — the setup UI audit, all 17 findings fixed
 
 Owner: "what else needed to be done.. be critical about the UI" (ui-ux-pro-max), then "fix em all". The audit measured the installed app (contrast, tap sizes, focus, keyboard) at 1280 and 400 px, light and dark. Fixed:
@@ -478,3 +535,13 @@ Tests: tests/test_story_engine.py (8). Do not edit runtime/vt-story.js by hand. 
 - 2026-11-07 23:30 (Claude) Consistency pass at the owner's request ("fix everything that is inconsistent, not tied to UI"). One credits text (vt/credits.py) for export, module, publishing description and exports list, shown on Export with Copy and pre-filled in Share (D7's credit half). AI panel: Undo the last plan change (an assistant's MCP change can be undone; new GET /scenes/undo), the checked frames shown. Settings: What every director is told (house rules). Removed the duplicate /api/mcp/connect-* routes. Render to Export wording (E1). vt server help without pairing, vt demo fixed, 18 scripts plus build_reference moved to the server/ and client/ layout (audit_capabilities, map_tests, inventory and STATUS facts regenerated). 55 Python tests and 99 browser checks pass, plus build and timeline. Reported: new_flow.mjs had made a real video on this PC against an older scratch server left on 8771; the scratch server now has no graphics card, and new_flow must run on the GPU server's scratch. Evidence: docs/evidence/perfect/UI-WIRING-2026-11-07.md.
 - 2026-11-08 03:00 (Claude) A7 on this PC: a guard (scripts/lab/e2e_guard.mjs) refuses heavy work, so browser suites can run here; run_e2e.py resets `reference` and settings per suite (copies kept outside projects/). 56 of 71 suites pass; the 15 left need the GPU server's scratch (videos, jobs, ComfyUI, a stick project, a network address). Fixed: empty narrow timeline chips; a laid-out element jumped to its own size when a transform was typed; the caption look and a picture video's plan, both lost with the old editor, are back (editor Captions tab, AI panel); PATCH options validated (test_project_options.py); a Settings crash on a bad house-rules answer; B8 wording; Playback toolbar name; "editor still notes" wording. 17 out-of-date suites updated. crawl 62 s, shots 505 to 61 s. Server tests: test_api, test_modes, test_project_options, test_plan_undo, test_credits 46 passed. The GPU server went down at about 02:30 (the owner saw it); it answers again with only the RTX 3060 allowed and no jobs; nothing of this work touched it. Evidence: docs/evidence/perfect/A7-e2e.md.
 - 2026-11-08 23:50 (Claude) Setup, Server page and server log made plain, at the owner's request (screenshots: vague "server", no folder browse, "Pictures and clips", models not matched to the card, two scroll bars, endless log). Done: (1) Server page double scroll bar: a `.sr-only` status line was positioned against the window and grew it 87 px; `.page` is now `position: relative` and `.sr-only` pinned (styles.css). Other pages checked: none. (2) Names: "Writing AI (Ollama)" and "Picture AI (ComfyUI)" everywhere a person reads them (specs.py, i18n, Server page, server pages, tests). (3) Setup wizard (SetupWizard.tsx): says "this computer" when the person sits at it (`GET /api/setup` → `same_computer`, from a loopback client) else the computer's name; per program "Install it / I already have it / Not now" with what each means; model list per program marked against the card (`setup.model_choices`: runs well / works but slowly / too big, why; best one preselected; `picture_model`, `language_model` saved and used by the install); clips refused below 12 GB card or 32 GB RAM (`fit.clips_fit`, an estimate); "I already have it" only suggested when one was found; readable download items ("Picture model · flux-2-klein-4b"); Ollama model size from `fit.LANGUAGE_DOWNLOAD_GB`. (4) Folder Browse: `GET/POST /api/setup/folders` lists folder names (never files) on the server and makes a new folder; FolderPicker.tsx in the wizard, the same in the server's /manage Install tab (which also got the model choice). (5) Server log: `serve.QuietPolling` drops successful status GETs from the access log (they were ~95% of it); the server window's log is parsed (server/desktop/log-view.js): Important / Problems (with count) / Everything, search, installs folded, tracebacks collapsible, newest 300 with Show older, live while open; it reads the last 2 MB. Also fixed: setup.py used `socket` without importing it. Checks: pytest test_setup, engine_fit, engine_placement, gpu_setup (50 pass, 3 new), test_api + bad_input + server_restart pass; server desktop `npm test` (with new test-log-view.js and contained-manager) pass; Studio tsc, build, 35 unit tests; browser suites engines 9/0, gpu_card 37/0, server_page 16/0, settings_clarity 4 PASS. Not committed (owner's standing "no commits until asked"). Not done: the installed copy on this PC still runs the old build until it is rebuilt/reinstalled.
+
+## 2026-11-13 — Open-source release preparation (Claude)
+
+- Licence: whole repository AGPL-3.0-or-later (`LICENSE`), required because client/studio/src/occ carries OpenChatCut (AGPL) code; package.json/pyproject licence fields aligned (were Apache-2.0/ISC). `THIRD-PARTY.md` lists code, libraries, engines, models (MMS voice is CC-BY-NC) and media.
+- New README (product-facing); the old development README moved to docs/history/README-DEVELOPMENT-2026-11.md with links fixed. Added CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, issue/PR templates.
+- Website: docs/index.html + docs/assets (screenshots from e2e/out, launch video, poster), docs/.nojekyll, .github/workflows/pages.yml (publishes only the site files; Pages source must be set to "GitHub Actions"). `.gitignore` lets docs/assets/*.mp4 through.
+- Launch video: the installed server on this PC voiced and word-timed the typed script (project 2026-11-13-ultimate-video-tool-launch). Claude's own cut, revised once through director chat, was not launch quality (small elements in the top-left, overlapping and edge-clipped text, uploaded screenshots unused): worth feeding back into the director. The published video is a hand-written HyperFrames composition on those word timings, rendered by server/renderer; sources in docs/launch-video/.
+- .mcp.json and .codex/config.toml PYTHONPATH made relative (`server`).
+- Release blockers found, not changed: server/assets/music techhouse-01, house-01/02, hiphop-01/02 are Logic Pro X exports (2019) of unknown licence, not in index.json and not used by code; docs/research/reels/*.png are screenshots of third-party reels; git history also contains them.
+- STATUS.md facts table regenerated (check_docs.py passes).

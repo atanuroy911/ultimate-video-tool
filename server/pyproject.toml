@@ -3,6 +3,7 @@ name = "video-tool"
 version = "1.0.0"
 description = "Voice recording -> faceless motion-graphics explainer video (Bangla/Banglish first). Open-source stack."
 requires-python = ">=3.11,<3.12"
+license = { text = "AGPL-3.0-or-later" }
 # Everything a user needs is here: there is no "install this extra to get feature X" for a shipped feature.
 dependencies = [
   "pydantic>=2.7",

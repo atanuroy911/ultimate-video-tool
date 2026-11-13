@@ -7,4 +7,4 @@ args = [
 
 [mcp_servers.video-tool.env]
 PYTHONIOENCODING = "utf-8"
-PYTHONPATH = "C:/Users/Roy/Desktop/ultimate-video-tool/server"
+PYTHONPATH = "server"

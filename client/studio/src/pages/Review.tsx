@@ -1,7 +1,7 @@
 import VideoTools from "../review/VideoTools";
 import CaptionInspector from "../review/CaptionInspector";
 import { MessageSquareText, ChevronLeft, Download, Image as ImageIcon, Pause, Play, Redo2, Scissors, Sparkles, Undo2, Wand2, Menu, PanelLeftClose, PanelRightClose, Maximize2, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { del, get, post } from "../api";
 import { fmtTime } from "../api";
@@ -24,10 +24,15 @@ import ScriptPanel from "../review/ScriptPanel";
 import DirectionPanel from "../review/DirectionPanel";
 import Timeline, { type Sel, type Tool } from "../review/Timeline";
 import { timeStore } from "../review/timeStore";
+// OpenChatCut's timeline, ported into ours (docs/plans/PLAN-OPENCHATCUT.MD); loaded only when switched on
+const OccTimeline = lazy(() => import("../occ/bridge/OccTimeline"));
+const DirectorChat = lazy(() => import("../occ/bridge/DirectorChat"));
+const ELEMENT_NAME: Record<string, string> = { value_card: "Value card", big_number: "Number", icon_row: "Icons", bar_chart: "Bar chart", media_frame: "Picture or video", speaker_card: "Speaker", cartoon: "Cartoon", story: "Story cartoon" };
+const CANVAS: Record<string, { width: number; height: number }> = { "9:16": { width: 1080, height: 1920 }, "16:9": { width: 1920, height: 1080 }, "1:1": { width: 1080, height: 1080 } };
 import CaptionLook from "../review/CaptionLook";
 import TranscriptPanel from "../review/TranscriptPanel";
 import VideoInspector from "../review/VideoInspector";
-import { useReview } from "../review/useReview";
+import { useReview, type DirectorState } from "../review/useReview";
 import type { LClip, MediaItem, SoundEvents, UseCase } from "../types";
 import LayerInspector from "../review/LayerInspector";
 import * as LOps from "../review/layerOps";
@@ -37,7 +42,7 @@ import PictureTools from "../editor/PictureTools";
 import SoundPanel from "../editor/SoundPanel";
 import HookCard from "../editor/HookCard";
 
-type LeftTab = "scenes" | "elements" | "direction" | "script" | "words" | "media" | "sound";
+type LeftTab = "chat" | "scenes" | "elements" | "direction" | "script" | "words" | "media" | "sound";
 
 /** The editing window: title bar with menus, browser (scenes, words, media), canvas, context-aware inspector, and a timeline. */
 export default function ReviewPage() {
@@ -150,8 +155,27 @@ function ReviewEditor() {
   const [keys, setKeys] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const [tab, setTab] = useState<LeftTab>(() => { const q = new URLSearchParams(location.search).get("tab"); return q === "words" || q === "script" || q === "media" ? q : "scenes"; });
+  const [directorMounted, setDirectorMounted] = useState(tab === "chat"); // once opened, keep its job poll alive while another tool tab is used
   const { data: useCases } = useFetch<UseCase[]>("/api/usecases");
   const [playing, setPlaying] = useState(false);
+  const [directorRunning, setDirectorRunning] = useState(false);
+  const [directorChangedScenes, setDirectorChangedScenes] = useState<string[]>([]);
+  const [directorRemovedScenes, setDirectorRemovedScenes] = useState<string[]>([]);
+  const [newTimeline, setNewTimeline] = useState(() => { try { return localStorage.getItem("vt-timeline") === "new"; } catch { return false; } });
+  // edits made on the new timeline, as our own edit calls (src/occ/bridge/toProject.ts); one after the other, then the page reloads
+  const saveTimeline = async (ops: import("../occ/bridge/toProject").SaveOp[]) => {
+    for (const op of ops) {
+      const ok = op.kind === "layers" ? await layers.saveNow(op.doc)
+        : op.kind === "element" ? await r.patchElement(op.scene, op.index, op.body)
+        : op.kind === "scene-edge" ? await r.moveEdge(op.scene, op.t)
+        : op.kind === "scene-split" ? await r.splitAt(op.scene, op.t)
+        : op.kind === "scene-remove" ? await r.removeScene(op.scene)
+        : await r.audioEdit("cut", { start: op.start, end: op.end });
+      if (ok === null || ok === false) { await r.reloadAll(); throw new Error("the server did not accept the change; the timeline shows what is saved"); }
+    }
+    await r.reloadAll();
+  };
+  const chooseTimeline = (next: boolean) => { setNewTimeline(next); try { localStorage.setItem("vt-timeline", next ? "new" : "classic"); } catch { /* not kept */ } };
   const [stamp] = useState(() => String(Date.now()));
   const [repaceAsk, setRepaceAsk] = useState<{ pace: string; from: string } | null>(null);
   const [left, setLeft] = useSize("left", 290, 200, 460);
@@ -248,6 +272,8 @@ function ReviewEditor() {
   // keyboard shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (directorRunning) return;                              // the gradient shield owns the timeline until the Director commits or fails
+      if (newTimeline) return;                                // the new timeline has its own shortcuts (src/occ/src/shortcuts); one owner per key
       const el = e.target as HTMLElement;
       if (e.defaultPrevented || el?.closest('[role="dialog"], [role="menu"]')) return;
       const mod = e.ctrlKey || e.metaKey;
@@ -446,15 +472,26 @@ function ReviewEditor() {
           <aside className="ed-left" style={{ width: left, display: showBrowser ? undefined : "none" }} aria-label="Editing tools panel">
             <div className="ed-panel-heading"><strong>Build your video</strong><button className="btn ghost icon sm" aria-label="Close tools panel" onClick={() => setShowBrowser(false)}><X size={16}/></button></div>
             <nav className="ed-tool-grid" aria-label="Editing tools">
-              {([ ["scenes", "Scenes", "Arrange the story"], ["direction", "Direction", "Edit instructions and regenerate a scene"], ["elements", "Elements", "Add text, shapes and diagrams"], ["script", "Script", "Read and correct lines"], ["words", "Captions", "Fix individual words"], ["media", "Pictures", "Add or replace pictures and clips"], ["sound", "Sound", "Voice, music and effects"] ] as const).map(([value, label, hint]) => <button key={value} title={hint} aria-pressed={tab === value} className={tab === value ? "on" : ""} onClick={() => { setTab(value); if(value === "elements") { setSelectedWord(null); setSel(null); setSelLayer(null); setVideoSel(false); } }}>{label}</button>)}
+              {([ ["chat", "Director", "Talk to the director: it edits the video while you edit the timeline"], ["scenes", "Scenes", "Arrange the story"], ["direction", "Direction", "Edit instructions and regenerate a scene"], ["elements", "Elements", "Add text, shapes and diagrams"], ["script", "Script", "Read and correct lines"], ["words", "Captions", "Fix individual words"], ["media", "Pictures", "Add or replace pictures and clips"], ["sound", "Sound", "Voice, music and effects"] ] as const).map(([value, label, hint]) => <button key={value} title={hint} aria-pressed={tab === value} className={tab === value ? "on" : ""} onClick={() => { setTab(value); if(value === "chat") setDirectorMounted(true); if(value === "elements") { setSelectedWord(null); setSel(null); setSelLayer(null); setVideoSel(false); } }}>{label}</button>)}
             </nav>
-            <div key={tab} className={`scroll ${tab === "words" || tab === "script" ? "fill" : ""}`}>
+            <div className={`scroll ${tab === "words" || tab === "script" || tab === "chat" ? "fill" : ""}`}>
               {tab === "elements" && <ComponentLibrary catalogue={cat} disabled={!scene}
                 reason={!scene ? "Select a scene in the timeline first." : `Adding to scene ${idx + 1}`}
                 onAdd={spec => {
                   const added = inspector.current?.add(spec);
                   if(added != null && scene) { setSelectedWord(null); setSelEl({scene:scene.id,index:added}); setShowInspector(true); }
                 }}/>}
+              {directorMounted && <div hidden={tab !== "chat"} style={{ height: "100%" }}><Suspense fallback={<div className="row muted" style={{ padding: 12 }}><Spinner /> Opening the chat…</div>}><DirectorChat projectId={id}
+                onStarted={r.beginDirectorChange}
+                onRunningChange={setDirectorRunning}
+                onChanged={async (result, token) => {
+                  r.finishDirectorChange(token, result?.ok ? result.previous_state as unknown as DirectorState | null | undefined : null);
+                  setDirectorChangedScenes(result?.ok ? result.changed_scenes ?? [] : []);
+                  setDirectorRemovedScenes(result?.ok ? result.removed_scenes ?? [] : []);
+                  await r.reloadAll();
+                }}
+                director={p.director?.who} historyAction={r.directorHistory} onHistoryAction={r.toggleDirectorChange}
+                changedScenes={directorChangedScenes} removedScenes={directorRemovedScenes} /></Suspense></div>}
               {tab === "scenes" && <ScenesPanel r={r} selected={selected} onSelect={pickScene} seek={seek} />}
               {tab === "direction" && (scene?<DirectionPanel key={scene.id} r={r} sid={scene.id} onElement={index=>{setSelectedWord(null);setSel(null);setSelLayer(null);setVideoSel(false);setSelEl({scene:scene.id,index});setShowInspector(true);if(compact)setShowBrowser(false);}}/>:<p className="small muted" style={{padding:16}}>Select a scene in the timeline.</p>)}
               {tab === "script" && <><HookCard pid={id} onApplied={progress} /><ScriptPanel r={r} time={time} playing={playing} seek={seek} /></>}
@@ -554,8 +591,28 @@ function ReviewEditor() {
         </div>
 
         <Splitter dir="y" size={tlH} onSize={setTlH} invert label="Resize the timeline" />
-        <section className="ed-timeline" style={{ height: tlH }} aria-label="Timeline panel">
-          {timeline}
+        <section className="ed-timeline occ-switchable" style={{ height: tlH }} aria-label="Timeline panel" aria-busy={directorRunning}>
+          <div className="seg occ-switch" role="group" aria-label="Which timeline">
+            <button type="button" className={newTimeline ? "" : "on"} aria-pressed={!newTimeline} onClick={() => chooseTimeline(false)}>Classic</button>
+            <button type="button" className={newTimeline ? "on" : ""} aria-pressed={newTimeline} onClick={() => chooseTimeline(true)}>New timeline</button>
+          </div>
+          {newTimeline ? (
+            <Suspense fallback={<div className="row muted" style={{ padding: 12 }}><Spinner /> Opening the new timeline…</div>}>
+              <OccTimeline player={player} playing={playing} revision={`${r.rev}-${r.audioRev}-${JSON.stringify(layers.doc).length}`}
+                onSave={saveTimeline} onUndo={() => void r.undo()} onRedo={() => void r.redo()}
+                disabled={directorRunning}
+                highlightScenes={directorChangedScenes}
+                view={{ projectId: id, fps: 30, ...(p.canvas ?? CANVAS[p.aspect] ?? CANVAS["9:16"]), duration: dur, plan, timing: r.timing.scenes,
+                  elementTimes: r.sc.data?.elements, words: r.words, keep: r.audio?.keep ?? [],
+                  audioUrl: p.audio_url ? `${p.audio_url}${p.audio_url.includes("?") ? "&" : "?"}v=${r.audioRev}` : null,
+                  layers: layers.doc, media: Object.fromEntries(mediaMap), elementName: (t) => ELEMENT_NAME[t] ?? t.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase()) }} />
+            </Suspense>
+          ) : <div className="occ-classic">{timeline}</div>}
+          {directorRunning && <div className="occ-director-timeline-block" role="status" aria-live="polite" data-testid="director-timeline-block">
+            <div className="occ-director-timeline-block-card"><Sparkles size={19} aria-hidden="true" />
+              <div><strong>Director is updating the video</strong><span>Timeline editing unlocks as soon as it finishes.</span></div>
+            </div>
+          </div>}
         </section>
       </div>
 

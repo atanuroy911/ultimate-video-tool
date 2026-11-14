@@ -3,6 +3,14 @@
 Newest first. Every agent (Claude Code, Codex) adds an entry when it stops: what it did, what it verified, what is left. Read
 `CODEX-HANDOFF.md` first.
 
+## 2026-11-14 — Automatic releases from main; CI green on GitHub for the first time (Claude)
+
+- `release.yml` now runs on every push to `main` (docs-only pushes skipped; `[skip release]` in the message skips one). It numbers the release as the next patch after the newest `vX.Y.Z` tag (the first is the version in the files, 1.0.0), builds CI, both installers on Windows and Linux, the engine package and its Docker image, then tags the commit and publishes. A pushed tag still publishes exactly that version. A manual run can tick "publish".
+- `ci.yml` concurrency group now includes the workflow name, so the release's CI call and the push's CI run do not cancel each other.
+- CI had failed on every push since the first commit. Fixed three tests that only passed on this PC: test-helper (real-process part assumed Claude installed), test_gpu_fence (Linux browser lookup), test_setup (read `.name` from sentences), and test_story_kit (path relative to cwd).
+- First release builds found: no ffmpeg on the build machines for `make_assets.py` (now installed per OS), the Linux .deb needs `homepage` (added to both desktop package.json, with `repository`), and the publish step got nested folders (now flattened before checksums).
+- Not done: GitHub Pages is not enabled yet (Settings → Pages → Source: GitHub Actions); the Pages run fails until then. The repo is public, so the unknown-licence music files and reel screenshots listed on 2026-11-13 are public too.
+
 ## 2026-11-09, evening (Codex) — Director undo and visible changes — Done by codex
 
 Continued the newest OpenChatCut work rather than the older drag thread. A Director turn is now one complete editor-history step: Ctrl+Z

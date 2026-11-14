@@ -214,6 +214,9 @@ jobs:
         with: { name: engine-package, path: out }
       - name: Checksums
         run: |
+          # the installers arrive as client/desktop/dist/... and server/desktop/dist/...: one flat folder of downloads
+          find out -mindepth 2 -type f -exec mv -n {} out/ \;
+          find out -mindepth 1 -type d -empty -delete
           cd out
           rm -f SHA256SUMS-engine.txt
           sha256sum * > SHA256SUMS.txt

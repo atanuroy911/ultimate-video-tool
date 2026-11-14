@@ -95,6 +95,12 @@ jobs:
       - name: Version
         shell: bash
         run: python scripts/set_version.py "${{ needs.version.outputs.version }}"
+      - name: FFmpeg for the bundled music and sounds (server only)
+        if: matrix.edition == 'server'
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then choco install ffmpeg -y --no-progress >/dev/null; else sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg; fi
+          ffmpeg -version | head -1
       - name: Processing assets (server only)
         if: matrix.edition == 'server'
         shell: bash

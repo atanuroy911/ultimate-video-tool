@@ -10,7 +10,7 @@ def test_story_kit_matches_renderer_contract():
     assert len(kit.environments) == 10
     assert kit.text_treatments == ['sign', 'chalk', 'paint', 'neon']
     from pathlib import Path
-    renderer = Path('renderer/runtime/vt-cartoon.js').read_text(encoding='utf-8')
+    renderer = (Path(__file__).resolve().parents[1] / 'server' / 'renderer' / 'runtime' / 'vt-cartoon.js').read_text(encoding='utf-8')
     for env in kit.environments:
         assert f'{env}: (g)' in renderer
 

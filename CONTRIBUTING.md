@@ -54,6 +54,10 @@ These rules keep the product coherent. Pull requests that break them will be ask
 - Update the docs your change affects (`docs/STATUS.md` for features), and run `scripts/check_docs.py`.
 - Ported code keeps its original notice and source path in a header comment (see `client/studio/src/occ/NOTICE.md`).
 
+## Releases
+
+Every push to `main` builds the whole tool (both installers for Windows and Linux, the Engine package and its Docker image) and publishes the next patch release, for example `v1.0.4`. The CI checks run first, and a failing check stops the release. Pushes that change only documentation are skipped. To skip one by hand, put `[skip release]` in the commit message. To move to a new minor or major version, push a tag such as `v1.1.0`, and later releases count on from it.
+
 ## Licence of contributions
 
 Ultimate Video Tool is licensed under the [GNU AGPL-3.0-or-later](LICENSE). By submitting a contribution you agree that it is licensed under the same terms (inbound = outbound), and that you have the right to submit it.

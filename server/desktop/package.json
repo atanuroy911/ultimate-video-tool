@@ -24,7 +24,7 @@
   "build": {
     "appId": "app.videotool.server",
     "productName": "Ultimate Video Tool Server",
-    "copyright": "Apache-2.0",
+    "copyright": "Released under AGPL-3.0-or-later",
     "directories": {
       "output": "dist",
       "buildResources": "build"

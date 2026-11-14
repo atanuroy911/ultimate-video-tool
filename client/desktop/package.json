@@ -23,7 +23,7 @@
   "build": {
     "appId": "app.videotool.studio",
     "productName": "Ultimate Video Tool",
-    "copyright": "Apache-2.0",
+    "copyright": "Released under AGPL-3.0-or-later",
     "directories": {
       "output": "dist",
       "buildResources": "build"

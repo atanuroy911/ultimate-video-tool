@@ -1,41 +1,81 @@
 # Builds every download from one tag:
 #   Video Tool          the app (client + the ability to set the engines up on the same computer): .exe, .dmg, .AppImage, .deb
 #   Video Tool Engine   the server for a GPU computer: one .zip / .tar.gz for Windows, Linux and macOS, and a Docker image on ghcr.io
-# Run it by pushing a tag like v1.2.0, or by hand from the Actions tab (a manual run builds everything but publishes nothing).
-# Nothing is code-signed (see README, "Installing"). The version in the tag is written into every file by scripts/set_version.py.
+# When it runs:
+#   every push to main       builds everything and publishes the next patch release (v1.0.0 -> v1.0.1 ...), tagged on that commit.
+#                            Pushes that only touch docs are skipped; put [skip release] in the commit message to skip one by hand.
+#   a pushed tag like v1.2.0 publishes exactly that version (use it for minor and major steps; later pushes count on from it).
+#   by hand (Actions tab)    builds everything; publishes only when "publish" is ticked.
+# The CI workflow runs first, so a release is never built from code that fails it.
+# Nothing is code-signed (see README, "Installing"). The version is written into every file by scripts/set_version.py.
 name: Release
 on:
   push:
+    branches: [main]
     tags: ["v*"]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/workflows/pages.yml"
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to build, e.g. 1.2.0 (a manual run publishes nothing)"
-        required: true
-        default: "0.0.0-test"
+        description: "Version to build, e.g. 1.2.0 (empty: the next patch after the newest tag)"
+        required: false
+        default: ""
+      publish:
+        description: "Publish it as a GitHub release"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
   packages: write
 
-jobs:
-  ci:
-    uses: ./.github/workflows/ci.yml
+# one release at a time, in push order; a newer push never cancels a release that is half published
+concurrency:
+  group: release
+  cancel-in-progress: false
 
+jobs:
   version:
+    if: "!contains(github.event.head_commit.message, '[skip release]')"
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.v.outputs.version }}
       publish: ${{ steps.v.outputs.publish }}
     steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
       - id: v
         env:
           REQUESTED_VERSION: ${{ inputs.version }}
+          REQUESTED_PUBLISH: ${{ inputs.publish }}
         run: |
-          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then v="${GITHUB_REF_NAME#v}"; p=true; else v="$REQUESTED_VERSION"; p=false; fi
-          [[ "${v#v}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || exit 1
-          echo "version=${v#v}" >> "$GITHUB_OUTPUT"
+          next_patch() {
+            # the newest plain vX.Y.Z tag, plus one; with no tag yet, the version already in the files
+            last=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
+            if [ -z "$last" ]; then python3 scripts/set_version.py --show; return; fi
+            IFS=. read -r a b c <<< "${last#v}"; echo "$a.$b.$((c + 1))"
+          }
+          case "$GITHUB_EVENT_NAME:$GITHUB_REF_TYPE" in
+            push:tag)    v="${GITHUB_REF_NAME#v}"; p=true ;;
+            push:branch) v="$(next_patch)"; p=true ;;
+            *)           v="${REQUESTED_VERSION:-$(next_patch)}"; p="${REQUESTED_PUBLISH:-false}" ;;
+          esac
+          v="${v#v}"
+          [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo "::error::'$v' is not a version like 1.2.0"; exit 1; }
+          if [ "$p" = true ] && [ "$GITHUB_REF_TYPE" != tag ] && git rev-parse -q --verify "refs/tags/v$v" >/dev/null; then
+            echo "::error::v$v is already released"; exit 1
+          fi
+          echo "Building v$v (publish: $p)"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
           echo "publish=$p" >> "$GITHUB_OUTPUT"
+
+  ci:
+    needs: version
+    uses: ./.github/workflows/ci.yml
 
   app:
     name: ${{ matrix.edition }} installer (${{ matrix.os }})
@@ -174,6 +214,10 @@ jobs:
           cat SHA256SUMS.txt
       - uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ needs.version.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          name: Ultimate Video Tool ${{ needs.version.outputs.version }}
+          make_latest: "true"
           files: out/*
           generate_release_notes: true
           body: |

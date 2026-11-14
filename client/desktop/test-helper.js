@@ -248,8 +248,12 @@ const tmp = (name) => fs.mkdtempSync(path.join(os.tmpdir(), name));
     assert.equal(run.pid, first.pid);
     await call(run, "POST", "/servers", { server: quiet.url, token: "tok-real" });
     await wait(async () => { const r = await call(run, "GET", "/status"); return r && r.body.servers[0].connected && r.body.assistants.claude && r.body.assistants.claude.reason !== "Checking…"; }, "the first check of Claude and Codex", 20000);
-    await wait(() => quiet.got("director").length >= 1, "the server to hear the announcements");
-    assert.equal(quiet.got("director")[0].device_name, "Lab PC (lab)", "the name from VT_HELPER_NAME is the name the server hears");
+    // the real process looks for the real Claude and Codex: a computer without either (a CI runner) has nothing to announce
+    const found = Object.values((await call(run, "GET", "/status")).body.assistants).some((a) => a.found);
+    if (found) {
+      await wait(() => quiet.got("director").length >= 1, "the server to hear the announcements");
+      assert.equal(quiet.got("director")[0].device_name, "Lab PC (lab)", "the name from VT_HELPER_NAME is the name the server hears");
+    } else console.log("helper: neither Claude nor Codex is installed here, so the real-process announcement is not checked");
     const secondCopy = spawn(process.execPath, [path.join(__dirname, "helper.js")], { env, stdio: "ignore" });
     const code = await new Promise((resolve) => { const timer = setTimeout(() => { secondCopy.kill(); resolve("still running"); }, 10000); secondCopy.once("exit", (c) => { clearTimeout(timer); resolve(c); }); });
     assert.equal(code, 0, "a second copy exits at once");

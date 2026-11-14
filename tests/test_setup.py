@@ -256,7 +256,7 @@ def test_comfyui_and_its_add_on_come_as_zips_so_git_is_not_needed(tmp_path):
     (dest / "venv").mkdir(parents=True)                                  # a half-made folder keeps what it has
     installers.unzip_from("https://example/x.zip", dest, opener=lambda url: buf.getvalue())
     assert (dest / "main.py").exists() and (dest / "comfy" / "x.py").exists() and (dest / "venv").is_dir()
-    assert not any(i.name.startswith("Git") for i in installers.ComfyInstaller(root=tmp_path / "c", models=str(tmp_path / "m"), recipe="klein-4b-q4", gpu=0).plan().problems)
+    assert not any("Git" in problem for problem in installers.ComfyInstaller(root=tmp_path / "c", models=str(tmp_path / "m"), recipe="klein-4b-q4", gpu=0).plan().problems)
     ok = type("R", (), {"status_code": 200, "json": lambda self: {"tag_name": "v1.2.3"}})()
     assert installers.comfy_zip_url(opener=lambda *a, **k: ok).endswith("/archive/refs/tags/v1.2.3.zip")
     def down(*a, **k): raise OSError("rate limited")

@@ -177,6 +177,7 @@ def test_rendering_uses_the_graphics_card_only_when_one_is_allowed(box, monkeypa
 
     hyperframes, calls = _fake_hyperframes(monkeypatch)
     monkeypatch.setattr(browser_gpu, "nvidia_render_device", lambda: {"name": "NVIDIA GeForce RTX 3060", "uuid": "GPU-3060"})
+    monkeypatch.setattr(browser_gpu, "browser_environment", lambda work, device: {"CUDA_VISIBLE_DEVICES": device["uuid"]} if device else {})   # on Linux the real one needs the installed browser
     gpuassign.save({"allowed": ["GPU-3060"]})
     hyperframes.render_silent(tmp_path / "comp", tmp_path / "a.mp4")
     assert "--gpu" in calls[-1] and "--browser-gpu" in calls[-1]

@@ -115,6 +115,16 @@ def build_prompt(tr: Transcript, beats: Beats, *, kind: str = "stick", language:
                     "never use the same emoji in two scenes in a row.")
     else:
         user.append(f"\nFor kind={kind}: leave `cast` and `sets` empty and `actions` empty; design with overlays only.")
+        if kind == "infographic":                   # what the person chose on the New page: "Charts, numbers and diagrams explain the facts in your narration"
+            user.append("An infographic explains with data pictures: every number becomes a `big_number`, `ring`, `bar_chart`, `line_chart`, `stat_row` or `compare`; "
+                        "every sequence a `steps` or `timeline`; every list a `list` or `checklist`. Icons and stickers only label those pictures. "
+                        "Prefer one strong data picture per scene over several small ones.")
+        elif kind == "mixed":                       # "A-roll video footage alternating with motion graphics, titles and animations"
+            user.append("A mixed-style video alternates the person's own footage (media in the bin, `media` overlays, or the speaker when there is an a-roll) with "
+                        "motion graphics: titles, icons, charts and pictures. When there is no footage, it is a motion-graphics explainer.")
+        elif kind == "explainer":                   # "Titles, icons, charts and pictures that move with your words"
+            user.append("An explainer shows what each sentence means as it is said: a title or keyword for the idea, an icon or sticker for each thing named, "
+                        "a chart or number card for each figure. Every scene shows at least one picture besides its text.")
         if kind == "cartoon":
             user.append("A `cartoon` overlay is used exactly as you write it: you choose its set, each character (who, name, pose, expression, x), framing \"scene\" to fill the frame, "
                         "and the bubble. Keep one person looking the same in every scene.")

@@ -8,6 +8,7 @@ picture is cropped to a tall one.
 """
 from __future__ import annotations
 
+import shutil
 import subprocess
 from pathlib import Path
 from typing import Optional
@@ -219,7 +220,6 @@ def build(project, progress=None, force: bool = False) -> Optional[MediaItem]:
 
     out = media_dir(project) / "aroll.mp4"
     if meta.options.recording_edit != 'auto' and len(cuts.keep)==1 and abs(cuts.keep[0][0])<.001 and abs(cuts.keep[0][1]-cuts.source_duration)<.05:
-        import shutil
         # Retain the original recording, including its frame rate and tiny text.
         out=out.with_suffix(src.suffix.lower());shutil.copyfile(src,out)
         item=MediaItem(id='aroll',file=str(out.relative_to(project.dir)).replace('\\','/'),kind='video',role='a_roll',caption='Original screen recording',
@@ -243,7 +243,7 @@ def build(project, progress=None, force: bool = False) -> Optional[MediaItem]:
         if r.returncode != 0 or not tmp.exists():
             raise RuntimeError("the speaker's picture could not be cut: " + r.stderr[-200:])
         out.unlink(missing_ok=True)
-        tmp.replace(out)
+        shutil.move(str(tmp), str(out))                            # the temp folder is often on another drive than the projects (C: and E:), where a rename fails
         faces, poster_im = track_face(out, info["duration"], Path(d))
         fx, fy = face_focus(faces, subject_position(poster_im) if poster_im is not None else (0.5, 0.4))
         band = text_band(out, info["duration"])
@@ -366,7 +366,8 @@ def apply_speaker(sf, project, beats, aspect: str, item: Optional[MediaItem] = N
 
     * the first scene always shows the speaker (a talking head opens on the person);
     * a scene whose only pictures are words or small stickers shows the speaker, with its first word or sticker as text over the picture;
-    * never more than two speaker scenes in a row (the picture has to change now and then);
+    * never more than two speaker scenes in a row (the picture has to change now and then), unless a scene has nothing else at all: a scene the director left
+      empty shows the speaker, never an empty frame with only the captions (2026-11-15: every third scene of a talking-head video was empty);
     * a gentle punch-in on every other speaker scene, never on two in a row, and only when the face is in the shot (no crop that cuts the face)."""
     from .director import contrast as K
     from .schema import Scene
@@ -389,7 +390,8 @@ def apply_speaker(sf, project, beats, aspect: str, item: Optional[MediaItem] = N
         span = scene_span(sc, bmap)
         types = [getattr(e, "type", "") for e in sc.elements]
         weak = all(t in WEAK for t in types) and sc.backdrop is None
-        want = span is not None and ((i == 0 or weak) and run < 2 or (force is not None and sc.id in force and sc.backdrop is None))
+        empty = not sc.elements and sc.backdrop is None                   # the director left it to the speaker: nothing else would be on screen but the
+        want = span is not None and ((i == 0 or weak) and run < 2 or empty or (force is not None and sc.id in force and sc.backdrop is None))   # captions
         if not want:
             run = 0
             continue

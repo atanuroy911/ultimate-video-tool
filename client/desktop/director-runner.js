@@ -62,6 +62,8 @@ async function statusAsync(exec = execAsync) {
   return interpret(ver, await exec(command.file, [...command.prefix, "auth", "status"], opts));
 }
 
+const MCP_ANSWER_TOKENS = "200000";          // the largest tool answer a directing session takes whole (Claude Code's MAX_MCP_OUTPUT_TOKENS)
+
 /** The planning session: the Video Tool MCP tools and nothing else. `--tools ""` removes every built-in tool (shell, file reading, searching), which an ordinary
  *  `--allowedTools` does not (checked against the real program on 2026-11-05: `echo` ran and the folder could be read). */
 function args(configPath, model) {
@@ -83,7 +85,9 @@ function run({ prompt, mcp, server, token, directorToken, signal, model }, onLog
     fs.writeFileSync(config, JSON.stringify({ mcpServers: { "video-tool": definition({ mcp, server, token, directorToken }) } }), { mode: 0o600 });
     const cleanup = () => fs.rmSync(dir, { recursive: true, force: true });
     let command;try{command=deps.command||commandFor('claude');}catch(e){cleanup();resolve({ok:false,error:e.message,error_kind:'login'});return;}
-    const child = (deps.spawn||spawn)(command.file, [...command.prefix,...args(config, model)], { cwd: work, windowsHide: true, shell:false,env:cleanEnv(command.env), stdio: ["pipe", "pipe", "pipe"] });
+    // A long video's script task is larger than Claude Code's usual limit for one tool answer (25,000 tokens). Over it, Claude Code saves the answer to a
+    // file and asks for it to be read, but this session has no file tools (--tools ""): the director gave up without a script. 2026-11-15, a 4.5 min interview.
+    const child = (deps.spawn||spawn)(command.file, [...command.prefix,...args(config, model)], { cwd: work, windowsHide: true, shell:false,env:cleanEnv({ ...command.env, MAX_MCP_OUTPUT_TOKENS: MCP_ANSWER_TOKENS }), stdio: ["pipe", "pipe", "pipe"] });
     const stop=()=>child.kill();signal?.addEventListener('abort',stop,{once:true});
     child.once('close',()=>signal?.removeEventListener('abort',stop));
     if(signal?.aborted)stop();
@@ -168,4 +172,4 @@ function ask({ system, prompt, schema, images = [], model, timeout = 300, signal
   });
 }
 
-module.exports = { status, statusAsync, args, definition, run, ask, kindOf, modelName, cleanEnv, DEFAULT_MODEL };
+module.exports = { status, statusAsync, args, definition, run, ask, kindOf, modelName, cleanEnv, DEFAULT_MODEL, MCP_ANSWER_TOKENS };

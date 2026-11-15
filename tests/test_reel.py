@@ -209,3 +209,24 @@ def test_the_reel_stages_are_modules_the_director_can_call(ref):
     assert not bad.ok and bad.status == "failed"
     dry = ex.call("fill.generated_still", {"draw": "a man hands over a check"}, force=True)
     assert dry.status in ("ok", "needs_input", "failed")                               # no picture server in the test: it must say so, never crash
+
+
+def test_a_reel_with_the_automatic_look_gets_a_real_theme(ref, monkeypatch):
+    """2026-11-15: "Pictures for every sentence" with the automatic look (the New page's default) saved its plan with theme "auto", which is no theme,
+    and the video failed at composing with "theme 'auto' not found"."""
+    from vt.pipeline import Pipeline, compose_all
+    from vt.project import load_theme
+
+    m0 = ref.meta()
+    m0.options.look, m0.options.plan_review = "reel", "never"
+    m0.theme = "auto"
+    ref.save_meta(m0)
+    ref.scenes_path.unlink(missing_ok=True)
+
+    from vt.reel.plan import build_reel_plan as real
+
+    monkeypatch.setattr("vt.reel.plan.build_reel_plan", lambda project, progress=None, **kw: real(project, generate=False, use_ai=False))
+    Pipeline(ref).stage_plan(force=True)
+    assert ref.meta().theme != "auto" and ref.scenes().theme == ref.meta().theme
+    load_theme(ref.scenes().theme)                             # it exists
+    compose_all(ref)

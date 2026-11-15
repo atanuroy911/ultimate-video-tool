@@ -150,6 +150,7 @@ async def ws_endpoint(ws: WebSocket) -> None:
                                         detail={"text": str(msg.get("text", ""))[:directors.MAX_ANSWER], "error_kind": str(msg.get("error_kind", ""))[:20],
                                                 "models": [str(x)[:80] for x in (msg.get("models") or [])[:6]]})
             elif msg.get("type") == "director_log":
+                directors.broker.working(str(msg.get("request", "")))             # it has begun: from here it is directing, not busy
                 hub.emit({"type": "director_log", "project": str(msg.get("project", "")), "message": str(msg.get("message", ""))[:500]})
     except WebSocketDisconnect:
         pass
@@ -235,14 +236,26 @@ def load_settings() -> dict:
     return d
 
 
+def editable(pid: str) -> None:
+    """An edit while the pipeline is remaking this video would be overwritten by it a moment later (or land in half of its stages): it is refused with
+    the reason, like the voice undo in direction_routes. The person's editor leaves the page during a job; an assistant does not. An export is not a
+    job of this kind: it renders from its own copy (export_source), so editing during one is fine."""
+    job = jobs.active_for(pid, ("pipeline",))
+    if job is not None:
+        raise HTTPException(409, f"The video is being made right now ({job.label}{', ' + job.stage if job.stage else ''}). Wait for it to finish, or stop it, before editing.")
+
+
 def save_and_compose(p: Project, sf: ScenesFile) -> None:
+    editable(p.id)
     errs = validate_scenes(sf, p.transcript(), p.beats(), all_icon_names(), {m.id for m in p.meta().media})
     if errs:
         raise HTTPException(422, {"errors": errs[:12]})
+    from ..script import service as script_service
+
     with p.scenes_lock():
         cur = p.scenes()
         if cur:
-            write_json(p.dir / "scenes.prev.json", cur.model_dump(exclude_none=True))
+            script_service.remember_for_undo(p, cur)
         p.save_scenes(sf)
         compose_all(p)
         changed(p.id)
@@ -1283,7 +1296,7 @@ def start_pipeline(p: Project, from_stage: Optional[str], force: bool, rerender:
         if pl.pause_reason:                                          # the plan is waiting for the person: nothing more is made until they press Start
             return {"project": p.id, "waiting": pl.pause_reason}
         if rerender or (from_stage is None and load_settings().get("autopilot", True)):
-            autopilot_finish(p, cb, again=rerender)
+            autopilot_finish(p, cb, again=rerender, failed=pl._failed)
         return {"project": p.id}
     return jobs.submit("pipeline", p.id, p.meta().title, work, when_busy="reuse")
 
@@ -1321,7 +1334,7 @@ def watch_and_revise(p: Project, card: dict, first: Path, cb, qa: Optional[dict]
     if (card["risk"] <= REVISE_OVER and len(seen) < 2) or not AIP.ai_enabled() or not current_script(p) or not (card.get("worst") or seen):
         return False
     a = p.meta().aspect
-    saved = {n: read_json(p.dir / n) for n in ("scenes.json", "video_script.json", "director.json")}
+    saved = {n: read_json(p.dir / n) for n in ("scenes.json", "video_script.json", "video_script.plan.json", "director.json")}
     notes = "; ".join([f"at {w['t0']:.1f}-{w['t1']:.1f} s: {w['message']}" for w in card["worst"][:4]]
                       + [f"scene {s['id']} (at {s['t']:.1f} s): " + ", ".join(QA_WORDS.get(x, x) for x in s["problems"]) + (f" ({s['fix_hint']})" if s.get("fix_hint") else "") for s in seen[:5]])
     cb("check", 0.3, "Fixing the slow moments")
@@ -1357,11 +1370,12 @@ def watch_and_revise(p: Project, card: dict, first: Path, cb, qa: Optional[dict]
     return False
 
 
-def autopilot_finish(p: Project, cb, again: bool = False) -> None:
-    """Checking and revising the cut is the video's own director's work, and its prompts stay on the video's record."""
+def autopilot_finish(p: Project, cb, again: bool = False, failed: Optional[dict] = None) -> None:
+    """Checking and revising the cut is the video's own director's work, and its prompts stay on the video's record. `failed`: the directors that did
+    not finish this video in the run this belongs to; the one that took over finishes it."""
     from ..pipeline import directing
 
-    with directing(p):
+    with directing(p, failed):
         _autopilot_finish(p, cb, again)
 
 
@@ -1519,7 +1533,10 @@ def put_director_state(pid: str, body: DirectorStateBody) -> dict:
                 pass
             raise HTTPException(500, f"Could not rebuild the restored Director change: {e}") from e
         if before.get("plan"):
+            from ..script import service as script_service
+
             write_json(p.dir / "scenes.prev.json", before["plan"])
+            write_json(p.dir / script_service.UNDO_STATE, before)
     changed(pid)
     return {"state": before}
 
@@ -1606,7 +1623,7 @@ def duplicate_project(pid: str) -> dict:
     while (paths.PROJECTS / new_id).exists():
         new_id, n = f"{base}-{n}", n + 1
     dst = paths.PROJECTS / new_id
-    shutil.copytree(src.dir, dst, ignore=shutil.ignore_patterns("exports", "snapshots", "qa_frames", "cover_frames", "cover_comp", "*.tmp", "requests"))
+    shutil.copytree(src.dir, dst, ignore=shutil.ignore_patterns("exports", "snapshots", "qa_frames", "cover_frames", "cover_comp", "cover_source", "export_source", "*.tmp", "requests"))
     meta = read_json(dst / "project.json", {}) or {}
     meta.update(id=new_id, title=f"{meta.get('title') or src.id} (copy)", created_at=now_iso(), status="planned" if (dst / "scenes.json").exists() else "draft")
     write_json(dst / "project.json", meta)
@@ -1728,6 +1745,7 @@ def correct_transcript(pid: str, body: SnippetBody) -> dict:
     from .. import transcript_edit as TE
 
     p = proj(pid)
+    editable(pid)
     if not p.raw_transcript_path.exists():
         raise HTTPException(409, "this project has no transcript to edit yet; process the audio first")
     if not body.text.strip():
@@ -1751,36 +1769,52 @@ def correct_transcript(pid: str, body: SnippetBody) -> dict:
         return {"changed": len(changes), "changes": preview, "applied": False}
     path = p.dir / "edits.json"
     cur = read_json(path, {"words": {}}) or {"words": {}}
-    write_json(p.dir / "edits.prev.json", cur)                       # one step back for "Undo the text change"
     write_json(path, TE.merge(cur, changes))
-    _rebuild_words(p, pid)
+    plan_before = _rebuild_words(p, pid)
+    write_json(p.dir / "edits.prev.json", {**cur, "plan": plan_before})          # one step back for "Undo the text change", with the plan when the change moved it
     return {"changed": len(changes), "changes": preview, "applied": True}
 
 
 @app.post("/api/projects/{pid}/transcript/undo")
 def undo_transcript(pid: str) -> dict:
     p = proj(pid)
+    editable(pid)
     prev = read_json(p.dir / "edits.prev.json")
     if prev is None:
         raise HTTPException(409, "there is no text change to undo")
     cur = read_json(p.dir / "edits.json", {"words": {}}) or {"words": {}}
+    plan = prev.pop("plan", None)
     write_json(p.dir / "edits.json", prev)
-    write_json(p.dir / "edits.prev.json", cur)                       # so a second press redoes it
-    _rebuild_words(p, pid)
+    write_json(p.dir / "edits.prev.json", {**cur, "plan": _rebuild_words(p, pid, plan)})     # so a second press redoes it
     return {"ok": True}
 
 
-def _rebuild_words(p: Project, pid: str) -> None:
+def _rebuild_words(p: Project, pid: str, plan: Optional[dict] = None) -> Optional[dict]:
+    """The words changed (a fix, a word hidden, an undo): sentences, plan and preview follow. `plan` is the plan to bring back with an undo or redo, used
+    when it fits the words again. Returns the plan as it was before, when this changed it: a picture timed to a word that is now hidden moves to the
+    nearest spoken word, and undoing the word must move the picture back too."""
+    before = p.scenes()
     pl = Pipeline(p)
     pl.stage_words()
+    if plan:
+        try:
+            wanted = ScenesFile.model_validate(plan)
+            if not validate_scenes(wanted, p.transcript(), p.beats(), all_icon_names(), {m.id for m in p.meta().media}):
+                with p.scenes_lock():
+                    p.save_scenes(wanted)
+        except ValidationError:
+            pass                                                 # a plan from an older version: the repair below makes the current one fit
     pl.stage_plan()
     compose_all(p)
     changed(pid)
+    after = p.scenes()
+    return before.model_dump(exclude_none=True) if before and after and before != after else None
 
 
 @app.put("/api/projects/{pid}/words/{wid}")
 def edit_word(pid: str, wid: str, body: WordEdit) -> dict:
     p = proj(pid)
+    editable(pid)
     if not re.fullmatch(r"w\d+", wid):
         raise HTTPException(400, "bad word id")
     if not p.raw_transcript_path.exists():
@@ -1825,16 +1859,12 @@ def edit_word(pid: str, wid: str, body: WordEdit) -> dict:
     else:
         edits["words"].pop(wid, None)
     write_json(path, edits)
+    plan_before = _rebuild_words(p, pid)
     if edits != before:
         history = read_json(p.dir / "word_history.json", {"past": [], "future": []})
-        history["past"] = (history["past"] + [before])[-50:]
+        history["past"] = (history["past"] + [{"edits": before, "plan": plan_before}])[-50:]
         history["future"] = []
         write_json(p.dir / "word_history.json", history)
-    pl = Pipeline(p)
-    pl.stage_words()
-    pl.stage_plan()
-    compose_all(p)
-    changed(pid)
     return {"ok": True}
 
 
@@ -1844,15 +1874,19 @@ def word_history(pid: str, direction: str) -> dict:
     if direction not in ("undo", "redo"):
         raise HTTPException(404, "Unknown history action")
     p = proj(pid)
+    editable(pid)
     path = p.dir / "word_history.json"
     history = read_json(path, {"past": [], "future": []})
     take, give = ("past", "future") if direction == "undo" else ("future", "past")
     if not history[take]:
         raise HTTPException(409, "No caption change to restore")
-    history[give].append(read_json(p.dir / "edits.json", {"words": {}}))
-    write_json(p.dir / "edits.json", history[take].pop())
+    current = read_json(p.dir / "edits.json", {"words": {}})
+    step = history[take].pop()
+    if "edits" not in step:                                      # a step saved by an older version: the words only
+        step = {"edits": step, "plan": None}
+    write_json(p.dir / "edits.json", step["edits"])
+    history[give].append({"edits": current, "plan": _rebuild_words(p, pid, step.get("plan"))})
     write_json(path, history)
-    _rebuild_words(p, pid)
     return {"ok": True}
 
 
@@ -2035,14 +2069,8 @@ def _audio_apply(p: Project, pid: str, rerun: bool = True) -> dict:
     from .. import audio_edit as AE
 
     if rerun:
-        old_cuts, old_plan = p.cuts(), p.scenes()
         pl = Pipeline(p)
-        pl.stage_cuts()
-        if old_plan and old_cuts:
-            from ..editor_timing import retime_manual
-            remapped, clock = retime_manual(old_plan, old_cuts, p.cuts(), read_json(p.dir / "editor_clock.json", {}) or {})
-            p.save_scenes(remapped)
-            write_json(p.dir / "editor_clock.json", clock)
+        pl.stage_cuts()                            # also moves every hand-set time and extra-track clip with the cut (Pipeline._follow_cuts)
         pl.stage_aroll()
         pl.stage_words()
         pl.stage_plan()
@@ -2055,6 +2083,7 @@ def _audio_edit(pid: str, fn, rerun: bool = True) -> dict:
     from .. import audio_edit as AE
 
     p = proj(pid)
+    editable(pid)
     if not p.cuts_path.exists():
         raise HTTPException(409, "process the audio first")
     with _audio_lock(pid):                         # one voice edit at a time per project (each re-cuts the audio and rewrites the plan)
@@ -2143,6 +2172,7 @@ def audio_undo(pid: str) -> dict:
     from .. import audio_edit as AE
 
     p = proj(pid)
+    editable(pid)
     with _audio_lock(pid):
         if not AE.undo(p):
             raise HTTPException(409, "nothing to undo")
@@ -2154,6 +2184,7 @@ def audio_redo(pid: str) -> dict:
     from .. import audio_edit as AE
 
     p = proj(pid)
+    editable(pid)
     with _audio_lock(pid):
         if not AE.redo(p):
             raise HTTPException(409, "nothing to redo")
@@ -2235,7 +2266,7 @@ def put_scenes(pid: str, body: dict[str, Any]) -> dict:
 @app.patch("/api/projects/{pid}/scenes/{sid}")
 def patch_scene(pid: str, sid: str, body: dict[str, Any]) -> dict:
     p = proj(pid)
-    sf = edit_scenes(p, lambda s: scene_ops.patch_scene(s, sid, body))
+    sf = edit_scenes(p, lambda s: scene_ops.patch_scene(s, sid, body, p.transcript(), p.beats()))
     return {"plan": sf.model_dump(exclude_none=True)}
 
 
@@ -2333,14 +2364,25 @@ def can_undo_scenes(pid: str) -> dict:
 @app.post("/api/projects/{pid}/scenes/undo")
 def undo_scenes(pid: str) -> dict:
     p = proj(pid)
+    editable(pid)
+    from ..script import chat
+    from ..script import service as script_service
+
     prev = read_json(p.dir / "scenes.prev.json")
     if not prev:
         raise HTTPException(409, "nothing to undo")
-    cur = p.scenes()
-    sf = ScenesFile.model_validate(prev)
-    p.save_scenes(sf)
-    if cur:
-        write_json(p.dir / "scenes.prev.json", cur.model_dump(exclude_none=True))  # a second undo = redo
+    with p.scenes_lock():
+        before = chat.director_state(p)
+        kept = read_json(p.dir / script_service.UNDO_STATE, None)
+        if isinstance(kept, dict) and kept.get("plan") == prev:        # the previous plan was kept with its script and record: all of it comes back
+            chat.restore_director_state(p, {**kept, "status": None})
+            sf = p.scenes()
+        else:                                                           # an older record of the plan alone
+            sf = ScenesFile.model_validate(prev)
+            p.save_scenes(sf)
+        if before.get("plan"):                                          # a second undo = redo
+            write_json(p.dir / "scenes.prev.json", before["plan"])
+            write_json(p.dir / script_service.UNDO_STATE, before)
     compose_all(p)
     changed(pid)
     return {"plan": sf.model_dump(exclude_none=True)}
@@ -2352,6 +2394,9 @@ def replan_rules(pid: str) -> dict:
     p = proj(pid)
     sf = plan_rules(p.transcript(), p.beats(), p.meta().theme, language=p.meta().language)
     save_and_compose(p, sf)
+    from ..script import service as script_files
+
+    script_files.forget_script(p)                                # the rules made this plan: a director asked later must not revise the script of the plan before it
     return {"plan": sf.model_dump(exclude_none=True)}
 
 
@@ -2486,6 +2531,7 @@ def put_layers(pid: str, body: LayersBody) -> dict:
     from .. import layers as L
 
     p = proj(pid)
+    editable(pid)
     view = _layers_view(p)
     if not view["duration"]:
         raise HTTPException(409, "process the audio first")
@@ -2506,6 +2552,7 @@ def layers_history(pid: str, what: str) -> dict:
     if what not in ("undo", "redo"):
         raise HTTPException(404)
     p = proj(pid)
+    editable(pid)
     with _LAYER_LOCKS.setdefault(pid, threading.Lock()):
         doc = L.step(p, what)
     if doc is None:

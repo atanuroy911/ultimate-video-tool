@@ -194,5 +194,12 @@ process.stdin.on("end", () => {
   const crashed = await runner.run({ prompt: "p", server: "http://box:8790", token: "t" }, () => {}, { command: streamIn("crash") });
   assert.deepStrictEqual([crashed.ok, crashed.error_kind, crashed.exit_code], [false, "other", 3]);
   assert.match(crashed.error, /boom/);
+  // a long video's whole task arrives as one tool answer: the session has no file tools to read a saved copy (2026-11-15)
+  const { EventEmitter } = require("events");
+  let env = null;
+  const fake = (file, args, opts) => { env = opts.env; const c = new EventEmitter(); c.stdout = new EventEmitter(); c.stderr = new EventEmitter();
+    c.stdin = { end: () => setImmediate(() => c.emit("close", 0)) }; c.kill = () => {}; return c; };
+  await runner.run({ prompt: "p", server: "http://box:8790", token: "t" }, () => {}, { command: { file: "claude", prefix: [] }, spawn: fake });
+  assert(Number(env.MAX_MCP_OUTPUT_TOKENS) >= 100000, "a long video's task is not cut into a file the director cannot read");
   console.log("director runner: ok");
 })().catch((e) => { console.error(e); process.exit(1); });

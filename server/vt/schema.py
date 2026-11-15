@@ -1085,6 +1085,9 @@ def validate_scenes(sf: ScenesFile, tr: Transcript, beats: Beats, icons: set[str
             if bid in beat_by_id:
                 word_ids.extend(beat_by_id[bid].word_ids)
         wset = set(word_ids)
+        for k, act in enumerate((sc.stick or {}).get("actions") or [] if isinstance(sc.stick, dict) else []):
+            if not isinstance(act, dict) or not isinstance(act.get("start"), (int, float)) or not isinstance(act.get("end"), (int, float)):
+                errs.append(f"scene {sc.id}: stick action {k} has no start and end time (add actions with the action operations, which time them from their words)")
         for el in sc.elements:
             if el.at_word not in words:
                 errs.append(f"scene {sc.id}: element at_word '{el.at_word}' is not a transcript word")

@@ -730,6 +730,31 @@ def _sync(src: Path, dst: Path) -> None:
     _put(dst, data)
 
 
+def _sync_media(src: Path, dst: Path) -> None:
+    """A picture or a clip next to the page. Media can be gigabytes and every edit composes three shapes, so it is never read to compare: the same size and
+    not older means the same file. A new one is linked to the original (no second copy on the disk) and only copied when a link cannot be made."""
+    import os
+
+    try:
+        have, want = dst.stat(), src.stat()
+        if have.st_size == want.st_size and have.st_mtime >= want.st_mtime:
+            return
+    except OSError:
+        pass
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    tmp = dst.with_name(f"{dst.name}.{os.getpid()}.link.tmp")
+    try:
+        tmp.unlink(missing_ok=True)
+        try:
+            os.link(src, tmp)
+        except OSError:                                            # another drive, or a file system without links
+            shutil.copy2(src, tmp)
+        os.replace(tmp, dst)
+    except OSError:                                                # the page is being read right now (Windows): the slow, patient way
+        tmp.unlink(missing_ok=True)
+        _put(dst, src.read_bytes())
+
+
 def _put(dst: Path, data: bytes) -> None:
     """Write via a temp file of its own and an atomic replace. Windows refuses to replace a file that is being read, so this retries for up to ~3 s;
     two writers never share a temp name (they used to, and one renamed the other's file away: HTTP 500)."""
@@ -826,7 +851,7 @@ def write_composition(out_dir: Path, data: dict, theme: Theme, title: str = "Vid
     for item in (data.get("media") or {}).values():            # media is copied next to the composition so the page is self-contained
         src = item.pop("_abs", None)
         if src and Path(src).exists():
-            _sync(Path(src), out_dir / item["src"])
+            _sync_media(Path(src), out_dir / item["src"])
     gsap = paths.RENDERER / "node_modules" / "gsap" / "dist" / "gsap.min.js"
     _sync(gsap, rt / "gsap.min.js")
     _copy_fonts(out_dir / "fonts", theme, all_fonts)
@@ -878,8 +903,10 @@ def reel_caption_preset(project) -> str:
     return CAPTION_FOR_KIND.get(kind, "pop")
 
 
-def compose_project(project, aspect: Optional[str] = None, duration: Optional[float] = None, captions: bool = True) -> Path:
-    """Compose a project for one aspect. Returns the path to index.html."""
+def compose_project(project, aspect: Optional[str] = None, duration: Optional[float] = None, captions: bool = True, out: Optional[Path] = None) -> Path:
+    """Compose a project for one aspect. Returns the path to index.html. Without `out` this is the page the editor previews. A job that reads the page for
+    minutes or wants it different (an export, a cover without captions) gives a folder of its own, so the person's edits meanwhile never reach its frames
+    and it never changes what the editor shows."""
     from ..project import load_theme
 
     meta = project.meta()
@@ -926,5 +953,5 @@ def compose_project(project, aspect: Optional[str] = None, duration: Optional[fl
     if meta.options.recording_edit != 'auto':
         from ..screen_recording import layout
         layout(data,meta)
-    out = project.comp_dir / FORMATS[aspect]["tag"]
+    out = out or project.comp_dir / FORMATS[aspect]["tag"]
     return write_composition(out, data, theme, meta.title or project.id)

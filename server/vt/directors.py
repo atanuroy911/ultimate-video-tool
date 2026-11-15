@@ -21,6 +21,7 @@ from .util import now_iso, read_json, write_json
 
 DEFAULT_ORDER = ["claude-client", "codex-client", "claude-server", "local"]
 DEFAULT_MODEL = "sonnet"                       # what Claude on the person's computer runs, unless Settings says otherwise
+WORK_LIMIT = 1800                              # a director that has started is working, not busy: it gets this long to finish the whole video
 ASK_EXTRA_WAIT = 60                            # a question may wait behind another one at the helper before its own time starts
 MAX_ANSWER = 2_000_000
 GRACE_SECONDS = 90                             # how long a task waits for its computer to come back after the connection drops
@@ -87,6 +88,7 @@ class PendingRun:
     message: dict[str, Any] = field(default_factory=dict, repr=False)          # what was sent, to send again when the computer comes back
     resend: bool = False
     mcp_token: str = field(default="", repr=False)
+    started: float = 0.0                       # when the assistant began this task on its computer (its first line of progress); 0 while it still waits there
 
 
 class DirectorBroker:
@@ -216,7 +218,7 @@ class DirectorBroker:
             if not device or not device.logged_in or device.send is None:
                 return {"ok": False, "reason": "Claude on that device is not connected and logged in."}
             run = PendingRun(uuid.uuid4().hex[:12], device_id, project, "direct", assistant)
-            run.mcp_token = issue(project, ttl=86400 if timeout is None else timeout + ASK_EXTRA_WAIT + self.grace)
+            run.mcp_token = issue(project, ttl=86400 if timeout is None else timeout + WORK_LIMIT + ASK_EXTRA_WAIT + self.grace)
             run.message = {"type": "direct", "request": run.id, "project": project, "task": "plan", "prompt": prompt, 'assistant': assistant,
                            "model": task_model(assistant), "director_token": run.mcp_token}
             self._runs[run.id] = run
@@ -233,18 +235,36 @@ class DirectorBroker:
         folder = paths.PROJECTS / project
         who = who_asked(assistant)
         talk.record(who, "", prompt=prompt, kind="sent", folder=folder)
+        # `timeout` is how long the person waits for a computer that is busy with something else (Settings, Directors). Once the assistant has
+        # begun this video it is not busy, it is directing: reading the task, writing the script and looking at its frames takes minutes.
+        answered = False
         try:
-            answered = run.event.wait(timeout)
+            while not answered:
+                now = time.time()
+                left = (run.started + WORK_LIMIT - now) if run.started else (None if timeout is None else began + timeout - now)
+                if left is not None and left <= 0:
+                    break
+                answered = run.event.wait(1.0 if left is None else min(1.0, left))
         finally:
             revoke(run.mcp_token)
         with self._lock:
             self._runs.pop(run.id, None)
         if not answered:
             self._cancel(device_id, assistant, run.id)
-            talk.record(who, "", kind="finished", seconds=time.time() - began, error="It did not answer in time.", folder=folder)
-            return {"ok": False, "timeout": True, "reason": "Claude on the client PC did not answer in time."}
+            name = assistant.capitalize()
+            why = (f"{name} on the client PC worked for {WORK_LIMIT // 60} minutes without finishing." if run.started
+                   else f"{name} on the client PC did not answer in time.")
+            talk.record(who, "", kind="finished", seconds=time.time() - began, error="It did not finish in time." if run.started else "It did not answer in time.", folder=folder)
+            return {"ok": False, "timeout": True, "reason": why}
         talk.record(who, "", kind="finished", answer=run.result, seconds=time.time() - began, error=str(run.result.get("error") or ""), folder=folder)
         return run.result
+
+    def working(self, request_id: str) -> None:
+        """The assistant's computer reported progress on this task: it has begun, so the wait for a busy computer is over."""
+        with self._lock:
+            run = self._runs.get(request_id)
+            if run is not None and run.kind == "direct" and not run.started:
+                run.started = time.time()
 
     def ask(self, device_id: str, assistant: str, *, system: str, prompt: str, schema: dict, images: list[bytes], model: str, timeout: float) -> dict[str, Any]:
         """One question to Claude or Codex on the person's computer, answered as JSON text. Blocks like `request`. The conversation row is written by

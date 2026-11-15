@@ -47,6 +47,7 @@ If it is right, say so and change nothing. If not, change whatever you need. Eac
 - On a cartoon, set `cast` to the whole list again with new x values to move the characters across the set.
 - On a story element, add `item` (its number) and set that item's fields; its x and y are in design units, 0-540 across and 0-960 down.
 To take an element away, give it "remove": true; never set a field to "none".
+You cannot add an element here, and an element keeps its `type`. To show something better in an element's place, change its fields (another emoji or icon from the choices, a shorter text): do not remove it first. Remove an element only when the frame is better without it. The elements are what the viewer watches: a scene with nothing left but the caption has lost its picture, so never remove everything a scene shows. Change only elements you can see in this frame; one you cannot see belongs to another moment of the scene and is not wrong for being absent here.
 The captions always sit near the bottom of the frame.
 
 Look before you decide. In `people`, write one line for each person or character: can you see their eyes, nose and mouth, or does something sit in front of them, and what? In `what_i_see`, say what sits on top of what, and what a viewer reads first. Only then answer `looks_right` and give your changes. Return only the JSON.
@@ -55,17 +56,21 @@ Look before you decide. In `people`, write one line for each person or character
 
 
 def _frame_times(comp_dir: Path, sf) -> list[tuple[str, float]]:
-    """One moment per scene, once what it shows has arrived."""
+    """One moment per scene, once what it shows has arrived. A scene laid out as several pages (compose/composer.py) is looked at on the page that shows
+    the most: a second look at the same scene would be judged on a frame taken before the first look changed it, and its changes would land on top."""
     data = read_json(comp_dir / "data.json", {}) or {}
     planned = {s.id for s in sf.scenes}
-    out = []
+    best: dict[str, tuple[int, float]] = {}                                     # scene -> (how many elements its page shows, the moment)
     for s in data.get("scenes", []):
         sid = s.get("src") or s.get("id")
         if sid not in planned or s.get("end", 0) <= s.get("start", 0):
             continue
-        arrived = max([float(e.get("at", s["start"])) for e in s.get("elements", [])] or [s["start"]])
-        out.append((sid, round(min(s["end"] - 0.15, max(arrived + 0.8, (s["start"] + s["end"]) / 2)), 3)))
-    return out[:MAX_SCENES]
+        shown = s.get("elements", [])
+        arrived = max([float(e.get("at", s["start"])) for e in shown] or [s["start"]])
+        at = round(min(s["end"] - 0.15, max(arrived + 0.8, (s["start"] + s["end"]) / 2)), 3)
+        if sid not in best or len(shown) > best[sid][0]:
+            best[sid] = (len(shown), at)
+    return sorted(((sid, at) for sid, (_, at) in best.items()), key=lambda x: x[1])[:MAX_SCENES]
 
 
 def problems(facts: Optional[list[str]]) -> list[str]:
@@ -88,21 +93,24 @@ def _png(path: Path, side: int = 768) -> bytes:
 def _scene_prompt(sc: Scene, words: str, facts: Optional[list[str]] = None) -> str:
     from .visuals.choices import prompt as visual_choices
 
-    els = [{"element": i, **e.model_dump(exclude_none=True, exclude_defaults=True, exclude={"edited", "id"})} for i, e in enumerate(sc.elements)]
+    els = [{"element": i, "type": e.type, **e.model_dump(exclude_none=True, exclude_defaults=True, exclude={"edited", "id", "type"})} for i, e in enumerate(sc.elements)]
     measured = "Measured on this exact frame (exact numbers; your eyes can miss these):\n" + "\n".join("- " + f for f in facts) + "\nFor each problem fact, give one change to the element it names. Change only what those facts name; leave correct parts alone. This is your one revision.\n\n" if facts else ""
     choices = visual_choices([(sc.id, words)])
-    return f'{measured}The narrator is saying: "{words}"\n\nWhat is on screen in this frame, by number:\n{json.dumps(els, ensure_ascii=False, indent=1)}' + ("\n\n" + choices if choices else "")
+    return f'{measured}The narrator is saying: "{words}"\n\nThe elements of this scene, by number (each appears at its `at_word`; one that is not in this frame is shown at another moment of the scene):\n{json.dumps(els, ensure_ascii=False, indent=1)}' + ("\n\n" + choices if choices else "")
 
 
 def apply_changes(sc: Scene, changes: list[dict]) -> tuple[Scene, list[str]]:
     """The director's changes, one at a time: one the schema refuses is reported and the others stay."""
     current, skipped, gone = sc, [], set()
+    replaced = {ch.get("element") for ch in changes or [] if isinstance(ch, dict) and ch.get("set") and not ch.get("remove")}
     for ch in changes or []:
         i = ch.get("element")
         if not isinstance(i, int) or not 0 <= i < len(sc.elements):
             skipped.append(f"there is no element {i}")
             continue
         if ch.get("remove"):
+            if i in replaced:                               # "remove it, then set it" in one answer means put this in its place: the new fields decide, and
+                continue                                    # a replacement the schema refuses leaves the element as it was, not a hole
             gone.add(i)
             continue
         fields = ch.get("set") or {}
@@ -126,6 +134,9 @@ def apply_changes(sc: Scene, changes: list[dict]) -> tuple[Scene, list[str]]:
             else:
                 details = str(e)
             skipped.append(f"element {i}: {details[:400]}")
+    if gone and len(gone) >= len(sc.elements):             # a revision is a change to the picture, not its removal: a scene with nothing left but the caption is an invalid
+        skipped.append("removing every element would leave the scene with only its caption, so nothing was removed; change the elements instead")
+        gone = set()                                        # result, refused like any other and reported, and the director's other changes to the scene stand
     if gone:
         d = current.model_dump(exclude_none=True)
         d["elements"] = [e for i, e in enumerate(d["elements"]) if i not in gone]

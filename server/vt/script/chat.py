@@ -78,6 +78,34 @@ def restore_director_state(p: Project, raw: dict) -> None:
         p.update_meta(status=status)
 
 
+EDITS_SHOWN = 8            # scenes edited on the timeline that are spelled out for the director; the rest are only named
+EDITS_CHARS = 6000
+
+
+def _timeline_edits(p: Project) -> str:
+    """What was changed on the timeline since the script was written, for the director's prompt: it must know what is really on screen, and that those
+    scenes stay as they are unless its new script changes them."""
+    from .service import edits_since_script
+
+    try:
+        edits = edits_since_script(p)
+    except Exception:                                              # noqa: BLE001  a missing record never stops a request
+        edits = []
+    if not edits:
+        return ""
+    shown, size = [], 0
+    for e in edits[:EDITS_SHOWN]:
+        text = json.dumps(e, ensure_ascii=False)
+        if size + len(text) > EDITS_CHARS:
+            text = json.dumps({"scene": e["scene"], "change": e["change"]}, ensure_ascii=False)
+        size += len(text)
+        shown.append(text)
+    more = [e["scene"] for e in edits[EDITS_SHOWN:]]
+    return ("\n\nEDITED ON THE TIMELINE since this script was written (by the person, or by your own last look at the frames). These scenes are on screen as "
+            "shown here, not as the script says. They stay exactly like this unless your new script changes that scene; when you do change such a scene, "
+            "carry over what was fixed in it:\n" + "\n".join(shown) + (f"\nAlso edited: {', '.join(more)}." if more else ""))
+
+
 def _current(p: Project, kind: str) -> VideoScript:
     from .rules_stick import rules_script
     from .service import current_script
@@ -168,6 +196,7 @@ def talk(p: Project, message: str, provider: Optional[ai.Provider] = None, say: 
     past = "\n".join(f"- {m['text']}" for m in history(p)[-6:] if m["from"] == "person")
     user += ("\n\nCURRENT SCRIPT (it is on screen now; change only what the request needs, keep the rest exactly):\n"
              + json.dumps(cur.model_dump(by_alias=True, exclude_none=True), ensure_ascii=False)
+             + _timeline_edits(p)
              + (f"\n\nEARLIER REQUESTS (already done, keep them):\n{past}" if past else "")
              + f"\n\nREQUEST FROM THE PERSON: {message}\n"
              "Return the whole script as JSON. Never change the words, beats or word ids; you direct what is seen.")
@@ -192,7 +221,8 @@ def talk(p: Project, message: str, provider: Optional[ai.Provider] = None, say: 
         new = toonify(new)
     who = (provider or ai.current_provider()).name
     res = apply_script(p, new.model_dump(by_alias=True, exclude_none=True), planner="claude" if who in ("anthropic", "claude_cli") else "llm",
-                       expected_plan=previous_plan.model_dump(exclude_none=True) if previous_plan else None)
+                       expected_plan=previous_plan.model_dump(exclude_none=True) if previous_plan else None,
+                       previous=cur.model_dump(by_alias=True, exclude_none=True))       # a revision: only the scenes it changes are replaced, the timeline's other edits stay
     touched: list[str] = []
     removed: list[str] = []
     if not res.get("ok"):
@@ -207,6 +237,10 @@ def talk(p: Project, message: str, provider: Optional[ai.Provider] = None, say: 
         applied = ScenesFile.model_validate(res["plan"])
         touched, removed = changed_plan_scenes(previous_plan, applied)
         reply = changes(cur, new, touched, removed)
+        lost = res.get("replaced_edits") or []
+        if lost:                                                   # said plainly: the person can undo, or ask for it back
+            names = ", ".join(f"Scene {sid[1:] if sid[1:].isdigit() else sid}" for sid in lost[:6])
+            reply += f" {names} had your own edits on the timeline; my new version replaced them there (Undo brings them back)."
         save_report(p, new, tr, beats, f"chat: {message[:60]}")
         ok = True
     if author == "person":
@@ -223,5 +257,6 @@ def talk(p: Project, message: str, provider: Optional[ai.Provider] = None, say: 
         "previous_plan": previous_plan.model_dump(exclude_none=True) if ok and previous_plan else None,
         "previous_state": previous_state if ok and previous_plan else None,
         "changed_scenes": touched if ok else [],
+        "replaced_edits": (res.get("replaced_edits") or []) if ok else [],
         "removed_scenes": removed if ok else [],
     }

@@ -74,6 +74,7 @@ class Pipeline:
         self._stage, self._frac, self._msg = "", 0.0, ""
         self._reported, self._reported_frac = time.time(), 0.0
         self._failed: dict[str, str] = {}                            # directors that did not finish this video, and why: the next one takes it (a plan is never left half made)
+        self.keep_plan = False                                       # set by run(): the stages before the plan are being redone, and the plan that exists is kept and repaired
 
     def _say(self, stage: str, frac: float, msg: str = "") -> None:
         """A stage's progress never runs backward, whichever step inside it reports."""
@@ -142,6 +143,9 @@ class Pipeline:
             if from_stage not in ORDER:
                 raise ValueError(f"unknown stage '{from_stage}', choose from {ORDER}")
             stages = [x for x in stages if ORDER.index(x) >= ORDER.index(from_stage)]
+            # Re-running from an earlier stage (a new pace, retakes put back, a stopped job continued) redoes that work, and the plan follows it: it is
+            # repaired onto the new words, never thrown away. A new direction is asked for by name: from the plan stage, or with force.
+            self.keep_plan = from_stage != "plan" and not force
             force = True
         if to_stage:
             stages = [x for x in stages if ORDER.index(x) <= ORDER.index(to_stage)]
@@ -398,11 +402,39 @@ class Pipeline:
             removed.extend((a, b) for a, b in d.get("src", []))
         write_json(p.dir / "retakes.json", {"cuts": [{k: v for k, v in r.items() if k != "words"} for r in retakes]})   # shown as "what the editor cut"
         cuts = A.cuts_from_removed(base.source_duration, removed)
+        before = p.cuts()
         write_json(p.cuts_path, cuts.model_dump())
         dur = A.apply_cuts(p.master, cuts, p.cut_audio)
         AE.apply_to_cut_audio(p.cut_audio, cuts, edits)
         p.ensure_preview_audio()
+        self._follow_cuts(before, cuts)
         p.mark_stage("cuts", h, output_seconds=round(dur, 2), retakes=len(retakes))
+
+    def _follow_cuts(self, old: Optional[Cuts], new: Cuts) -> None:
+        """Everything placed by hand on the video's clock (a scene edge that was dragged, a picture given its own start and end, a motion point, a clip on an extra
+        track) stays on the moment of the recording it was put on, whoever re-cut the voice: a hand cut, a new pace, retakes put back, sentences dropped for length.
+        Never stops the cut: these are the person's times, and a failure here leaves them where they were."""
+        p = self.p
+        if old is None or old.keep == new.keep:
+            return
+        try:
+            from . import layers as LY
+            from .editor_timing import retime_manual
+
+            clock_path = p.dir / "editor_clock.json"
+            clock = read_json(clock_path, {}) or {}
+            with p.scenes_lock():
+                plan = p.scenes()
+                if plan is not None:
+                    moved, clock_now = retime_manual(plan, old, new, clock)
+                    if moved != plan:
+                        p.save_scenes(moved)
+                else:
+                    clock_now = {}
+            clock_now.update(LY.follow_cuts(p, old, new, clock))
+            write_json(clock_path, clock_now)
+        except Exception as e:                                       # noqa: BLE001
+            log.warning("the hand-set times of %s could not follow the new cut: %s", p.id, e, exc_info=True)
 
     def stage_words(self, force: bool = False, preserve_structure: bool = False) -> None:
         p = self.p
@@ -531,6 +563,8 @@ class Pipeline:
             available = {d["id"]: d for d in directors.listing()["directors"]}
             for who in directors.candidates(requested):
                 status = available.get(who, {"available": False})
+                if who in self._failed:                              # it already failed on this video: the later steps do not go back to it either
+                    continue
                 if who.startswith(("claude@", "codex@")) and status.get("available"):
                     plan = PD.build(p, use_ai=False)
                     PD.save(p.dir, plan)
@@ -542,6 +576,7 @@ class Pipeline:
                         directors.record(p, who, requested=requested, fallback_reason=fallback_reason)
                         break
                     fallback_reason = result.get("reason") or result.get("error") or "The client director did not complete the plan."
+                    self._failed[who] = fallback_reason
                     self._say("plan", 0.12, f"{fallback_reason} Falling back.")
                     plan = None
                     (p.dir / PD.PLAN).unlink(missing_ok=True)
@@ -556,6 +591,7 @@ class Pipeline:
                         break
                     except Exception as e:  # a CLI that disappears or loses login must not stop the video
                         fallback_reason = f"Claude on the server failed ({type(e).__name__}: {str(e)[:120]})."
+                        self._failed[who] = fallback_reason
                         self._say("plan", 0.12, f"{fallback_reason} Falling back.")
                         (p.dir / PD.PLAN).unlink(missing_ok=True)
                         (p.dir / "reel_reading.json").unlink(missing_ok=True)
@@ -570,6 +606,7 @@ class Pipeline:
                         break
                     except Exception as e:  # the rules below are the engine-free final fallback
                         fallback_reason = f"The local AI failed ({type(e).__name__}: {str(e)[:120]})."
+                        self._failed[who] = fallback_reason
                         (p.dir / PD.PLAN).unlink(missing_ok=True)
                         (p.dir / "reel_reading.json").unlink(missing_ok=True)
                         plan = None
@@ -599,7 +636,7 @@ class Pipeline:
         p = self.p
         requested = meta.options.director or "best"
         available = {d["id"]: d for d in directors.listing()["directors"]}
-        chosen = next((d for d in directors.candidates(requested) if available.get(d, {}).get("available")), "local")
+        chosen = self.director()                                      # the same one as every other step of this video, never one that already failed on it
         provider = None
         if chosen == "claude-server":
             provider = AIP.ClaudeCLIProvider()
@@ -621,6 +658,10 @@ class Pipeline:
                 directors.record(p, chosen, requested=requested)
             else:
                 reason = result.get("reason") or result.get("error") or "The director on your computer did not submit a story."
+                self._failed[chosen] = directors.failure_line(chosen, result, available[chosen].get("label") or chosen)
+                if self.director() != chosen:                        # the next director in the person's order takes the story, as in every other kind of video
+                    self._say("plan", 0.1, f"{reason} Falling back.")
+                    return self._plan_story(meta)
                 directors.record(p, actual, requested=requested, fallback_reason=reason)
                 notice = notice or reason
         else:
@@ -647,9 +688,14 @@ class Pipeline:
                 meta = p.update_meta(theme='minimal')
             recording_plan=base_plan(p)
             if meta.options.recording_edit=='screen':
-                try:recording_plan=supporting_graphics(p,recording_plan)
-                except Exception as error:
-                    write_json(p.dir/'ai_notice.json',{'at':now_iso(),'message':f'The supporting graphics could not be planned. Your original screen and captions were kept. {type(error).__name__}'})
+                from .ai import providers as AIP
+                provider = self._director_provider(self.director())          # this video's one director plans its graphics too, not the default AI
+                try:
+                    with (AIP.use_provider(provider) if provider is not None else nullcontext()):
+                        recording_plan=supporting_graphics(p,recording_plan)
+                except Exception as error:                               # the person reads why: a usage limit, an AI that does not answer
+                    why = str(error).strip()[:200] or type(error).__name__
+                    write_json(p.dir/'ai_notice.json',{'at':now_iso(),'message':f'The supporting graphics could not be planned ({why}). Your original screen and captions were kept.'})
             p.save_scenes(recording_plan)
             write_json(p.dir / 'plan_basis.json',self._word_basis())
             p.mark_stage('plan','protected-recording',scenes=1)
@@ -667,7 +713,7 @@ class Pipeline:
             for f in ("video_script.json", "director.json"):
                 (p.dir / f).unlink(missing_ok=True)
             existing = None
-        if existing and (not force or existing.planner in ("claude", "manual")):
+        if existing and (not force or self.keep_plan or existing.planner in ("claude", "manual")):
             old_beats = read_json(p.dir / "beats.prev.json")
             repaired = repair_scenes(existing, tr, beats, icons, Beats.model_validate(old_beats) if old_beats else None)
             if repaired is not None:
@@ -681,6 +727,16 @@ class Pipeline:
                 "at": now_iso(), "planner": existing.planner,
                 "message": "The sentences changed so much that your previous scene plan no longer fits. A fresh automatic draft was made; "
                            "your previous plan is saved as scenes.invalid.json."})
+        from .script import service as script_files
+
+        if existing is not None:                                    # the plan being replaced stays one undo away, together with its script (scenes/undo)
+            script_files.remember_for_undo(p, existing)
+        script_files.forget_script(p)                               # a new direction starts here: the script of the plan before it is not what will be on screen
+        if meta.options.look in ("reel", "story") and meta.theme == "auto":   # these paths never reach draw() below, where "auto" becomes a designed theme:
+            from . import context as CX                                       # without this their plan names a theme "auto" that does not exist and composing fails
+
+            have = CX.load(p)
+            meta = self._resolve_auto_theme(meta, tr, have.mood if have else None)
         if meta.options.look == "reel":                              # one picture drawn for each stretch of speech (vt/reel/)
             from .direction import plan_doc as PD
             from .reel.plan import build_reel_plan
@@ -862,6 +918,7 @@ class Pipeline:
         if errs:
             raise RuntimeError("rule planner produced an invalid plan: " + "; ".join(errs[:5]))
         p.save_scenes(sf)
+        script_service.record_baseline(p, sf)                        # the plan as it was made: what is changed on the timeline afterwards is told apart from it
         write_json(p.dir / "plan_basis.json", self._word_basis())
         try:
             from . import craft as CR
@@ -928,14 +985,16 @@ class Pipeline:
 
 
 @contextmanager
-def directing(project: Project):
+def directing(project: Project, failed: Optional[dict] = None):
     """Inside the block, every AI step belongs to this video's director and is written on the video's record (Details): the pipeline's own stages, and
-    every later job on the video (checking its frames, writing its title, ...). One mind directs the whole video."""
+    every later job on the video (checking its frames, writing its title, ...). One mind directs the whole video. `failed` names the directors that
+    did not finish this video in the run that is still going (Pipeline._failed): its last steps go to the one that took over, not back to them."""
     from .ai import providers as AIP, talk
 
     provider = None
     try:
         pipeline = Pipeline(project)
+        pipeline._failed.update(failed or {})
         provider = pipeline._director_provider(pipeline.director())
     except Exception as e:                                           # a director that cannot be worked out never stops a job: the AI setting in Settings applies
         log.warning("could not work out the director of %s: %s", project.id, e)
@@ -1001,6 +1060,7 @@ def repair_scenes(sf: ScenesFile, tr: Transcript, beats: Beats, icons: set[str],
         if sf is None:
             return None
     beat_by = {b.id: b for b in beats.beats}
+    words = tr.by_id()
     data = sf.model_dump()
     for sc in data["scenes"]:
         wids = [w for b in sc["beats"] if b in beat_by for w in beat_by[b].word_ids]
@@ -1008,8 +1068,10 @@ def repair_scenes(sf: ScenesFile, tr: Transcript, beats: Beats, icons: set[str],
         if not wids and sc.get("start") is None:
             return None
         for el in sc["elements"]:
-            if el["at_word"] not in tr.by_id() or (el["at_word"] not in wset and sc.get("start") is None and el.get("start") is None):
-                el["at_word"] = (wids or [w.id for w in tr.kept()])[0]
+            if el["at_word"] not in words or (el["at_word"] not in wset and sc.get("start") is None and el.get("start") is None):
+                pool = wids or [w.id for w in tr.kept()]
+                gone = words.get(el["at_word"])                  # a word hidden from the captions still has its moment: the picture stays as near to it as it can
+                el["at_word"] = min(pool, key=lambda i: abs(words[i].start - gone.start)) if gone is not None else pool[0]
         sc["caption"]["highlight_words"] = [w for w in sc["caption"]["highlight_words"] if w in wset]
     try:
         fixed = ScenesFile.model_validate(data)
@@ -1030,12 +1092,22 @@ def export(project: Project, aspect: Optional[str] = None, *, quality: str = "lo
     aspect = aspect or meta.aspect
     fmt = FORMATS[aspect]
     progress("compose", 0.0, "composing")
-    index = compose_project(project, aspect, captions=captions)
-    comp_dir = index.parent
+    # The export is made from a page, a voice and a sound list of its own, taken now. Rendering takes minutes and the editor stays open: an edit made
+    # meanwhile changes the preview and the next export, never half of this one's frames or its sound.
+    comp_dir = project.dir / "export_source" / fmt["tag"]
+    compose_project(project, aspect, captions=captions, out=comp_dir)
     data = read_json(comp_dir / "data.json")
     stamp = time.strftime("%Y%m%d-%H%M%S")
     out_dir = project.exports_dir
     out_dir.mkdir(parents=True, exist_ok=True)
+    live_voice = project.cut_audio if project.cut_audio.exists() else project.master
+    voice = comp_dir.parent / f"voice-{fmt['tag']}{live_voice.suffix}"            # beside the page, not in it: the renderer reads the page's folder
+    import shutil
+
+    shutil.copyfile(live_voice, voice)
+    from . import layers as LY
+
+    layer_audio = LY.audio_clips(project)
     silent = out_dir / f".render-{fmt['tag']}.mp4"
     from .render.hyperframes import check as hf_check
 
@@ -1048,13 +1120,9 @@ def export(project: Project, aspect: Optional[str] = None, *, quality: str = "lo
     render_silent(comp_dir, silent, fps=fps or fmt["fps"], quality=quality, gpu=gpu,
                   on_progress=lambda f, c: progress("render", f, c))
     progress("mux", 0.0, "mixing audio")
-    voice = project.cut_audio if project.cut_audio.exists() else project.master
     track = None if music is None else (meta.options.music if music == "__project__" else music)
     music_path = resolve_music(track)
-    sfx = build_sfx_track(data["cues"], data["duration"], project.dir / "audio.sfx.wav", sfx_level(meta.options), seed=project.id)
-    from . import layers as LY
-
-    layer_audio = LY.audio_clips(project)
+    sfx = build_sfx_track(data["cues"], data["duration"], comp_dir.parent / f"sfx-{fmt['tag']}.wav", sfx_level(meta.options), seed=project.id)
     final = out_dir / f"{project.id}-{fmt['tag']}-{stamp}.mp4"
     mix_and_mux(silent, voice, final, duration=data["duration"], music=music_path,
                 music_volume=meta.options.music_volume, sfx=sfx, short_side=short_side, gpu=gpu, layer_audio=layer_audio, clean_voice=clean_voice,
@@ -1073,10 +1141,10 @@ def export(project: Project, aspect: Optional[str] = None, *, quality: str = "lo
     try:                                                      # the retention scorecard of what was just made (vt/retention.py); never stops an export
         from . import retention as RT
 
-        RT.save(final.with_suffix(".retention.json"), RT.scorecard(final, aspect, data, project.cut_audio if project.cut_audio.exists() else None))
+        RT.save(final.with_suffix(".retention.json"), RT.scorecard(final, aspect, data, voice))
     except Exception:
         pass
-    compose_project(project, aspect)  # restore the preview composition (captions on) after a no-captions export
+    voice.unlink(missing_ok=True)
     project.update_meta(status="rendered")
     progress("mux", 1.0, "done")
     return {"video": str(final), "srt": str(srt), "seconds": round(time.time() - t0, 1), "duration": data["duration"]}

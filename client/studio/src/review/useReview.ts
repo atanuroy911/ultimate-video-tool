@@ -46,15 +46,32 @@ export function useReview(id: string) {
   const busy = useRef(false);
   const mutationQueue = useRef(Promise.resolve());
 
-  const reloadAll = useCallback(async () => {
-    await Promise.all([project.refetch(), tr.refetch(), sc.refetch(), rq.refetch(), aud.refetch()]);
+  const planRef = useRef<Plan | null>(null);                     // the last plan this editor knows about: an edit made while the plan is reloading must still be undoable
+  const inflight = useRef(0);                                    // this editor's own changes in flight: the plan they bring is theirs
+  /** Load everything again. `mine` (exactly true) says the reload follows one of this editor's own changes, so the plan it brings is already in the undo history. */
+  const reloadAll = useCallback(async (mine?: unknown) => {
+    const [, , scenes] = await Promise.all([project.refetch(), tr.refetch(), sc.refetch(), rq.refetch(), aud.refetch()]);
+    if (mine === true && scenes?.plan) planRef.current = scenes.plan;
     setRev((r) => r + 1);
   }, [project.refetch, tr.refetch, sc.refetch, rq.refetch, aud.refetch]); // eslint-disable-line react-hooks/exhaustive-deps
   useChanged(id, reloadAll);
+  const own = async <T,>(fn: () => Promise<T>): Promise<T> => { inflight.current++; try { return await fn(); } finally { inflight.current--; } };
 
   const plan = sc.data?.plan ?? null;
-  const planRef = useRef(plan);                                  // the last plan that was on screen: an edit made while the plan is reloading must still be undoable
-  useEffect(()=>{if(plan) planRef.current=plan;},[plan]);
+  // The plan can change without this editor's own edit calls: a picture drawn again, the frame check's fixes, an assistant working over MCP. Such a change
+  // becomes an undo step of its own. Without it the history would not know about it, and the next Ctrl+Z (which puts a whole earlier plan back) would wipe it silently.
+  useEffect(() => {
+    if (!plan) return;
+    const known = planRef.current;
+    if (known && known !== plan && inflight.current === 0 && directorPending.current === null && JSON.stringify(known) !== JSON.stringify(plan)) {
+      setPast((p) => [...p.slice(-49), known]);
+      setFuture([]);
+      setDirectorFuture([]);
+      setOrder((o) => [...o.slice(-99), "plan"]);
+      setOfut([]);
+    }
+    planRef.current = plan;
+  }, [plan]); // eslint-disable-line react-hooks/exhaustive-deps
   const timing = sc.data?.timing ?? { scenes: [], duration: project.data?.duration ?? 0 };
   const words: Word[] = tr.data?.transcript.words ?? [];
   const beats: Beat[] = tr.data?.beats.beats ?? [];
@@ -79,6 +96,7 @@ export function useReview(id: string) {
       const previous = mutationQueue.current;
       let release!:()=>void;
       mutationQueue.current = new Promise<void>(resolve=>{release=resolve;});
+      inflight.current++;
       await previous;
       const before = planRef.current;
       try {
@@ -91,12 +109,12 @@ export function useReview(id: string) {
           setOfut([]);
         }
         if((res as any)?.plan) planRef.current=(res as any).plan;
-        await reloadAll();
+        await reloadAll(true);
         return res;
       } catch (e: any) {
         toast(e.errors?.length ? e.errors.slice(0, 3).join(" · ") : e.message, "err", 7000);
         return null;
-      } finally { release(); }
+      } finally { inflight.current--; release(); }
     },
     [plan, reloadAll]
   );
@@ -160,7 +178,7 @@ export function useReview(id: string) {
       await put(`/api/projects/${id}/scenes`, prev);
       setPast((p) => p.slice(0, -1));
       setFuture((f) => [...f, plan]);
-      await reloadAll();
+      await reloadAll(true);
       return true;
     } catch (e: any) {
       toast(e.message, "err");
@@ -174,7 +192,7 @@ export function useReview(id: string) {
       await put(`/api/projects/${id}/scenes`, next);
       setFuture((f) => f.slice(0, -1));
       setPast((p) => [...p, plan]);
-      await reloadAll();
+      await reloadAll(true);
       return true;
     } catch (e: any) {
       toast(e.message, "err");
@@ -195,7 +213,7 @@ export function useReview(id: string) {
         setDirectorFuture((f) => f.slice(0, -1));
         setDirectorPast((p) => [...p, swapped.state]);
       }
-      await reloadAll();
+      await reloadAll(true);
       return true;
     } catch (e: any) {
       toast(e.message, "err");
@@ -208,7 +226,7 @@ export function useReview(id: string) {
     if (audioBusy.current) { toast("Finishing your previous voice edit. Try again when Saving disappears."); return Promise.resolve(null); }
     return audioEditNow(what, body);
   };
-  const audioEditNow = async (what: "cut" | "mute" | "gain" | "split" | "restore", body: Record<string, any>) => {
+  const audioEditNow = (what: "cut" | "mute" | "gain" | "split" | "restore", body: Record<string, any>) => own(async () => {
     audioBusy.current = true;
     setAudioSaving(true);
     try {
@@ -216,7 +234,7 @@ export function useReview(id: string) {
       if (what !== "split") setAudioRev((n) => n + 1);
       setOrder((o) => [...o.slice(-99), "audio"]);
       setOfut([]);
-      await reloadAll();
+      await reloadAll(true);
       return res;
     } catch (e: any) {
       toast(e.errors?.length ? e.errors.slice(0, 2).join(" · ") : e.message, "err", 5000);
@@ -225,14 +243,14 @@ export function useReview(id: string) {
       audioBusy.current = false;
       setAudioSaving(false);
     }
-  };
+  });
   const audioHistory = async (dir: "undo" | "redo") => {
     audioBusy.current = true;
     setAudioSaving(true);
     try {
       await post(`/api/projects/${id}/audio/${dir}`);
       setAudioRev((n) => n + 1);
-      await reloadAll();
+      await reloadAll(true);
       return true;
     } catch (e: any) {
       toast(e.message, "err");
@@ -240,7 +258,7 @@ export function useReview(id: string) {
     } finally { audioBusy.current = false; setAudioSaving(false); }
   };
   const wordHistory = async (dir:"undo"|"redo")=>{
-    try {await post(`/api/projects/${id}/words/history/${dir}`);await reloadAll();return true;}
+    try {await post(`/api/projects/${id}/words/history/${dir}`);await reloadAll(true);return true;}
     catch(e:any) {toast(e.message,"err");return false;}
   };
   const undo = async () => {
@@ -248,24 +266,26 @@ export function useReview(id: string) {
     if (!k || busy.current || audioBusy.current) return;
     if (k === "director-pending") { toast("The Director is still working. You can undo edits made after it finishes."); return; }
     busy.current = true;
+    inflight.current++;
     try {
       const ok = k === "words" ? await wordHistory("undo") : k === "director" ? await directorStep("undo") : k === "plan" ? await planUndo() : k === "layers" ? await layerUndo.current?.undo() : await audioHistory("undo");
       if (!ok) return;
       setOrder((o) => o.slice(0, -1));
       setOfut((f) => [...f, k]);
-    } finally { busy.current = false; }
+    } finally { inflight.current--; busy.current = false; }
   };
   const redo = async () => {
     const k = ofut[ofut.length - 1];
     if (!k || busy.current || audioBusy.current) return;
     if (k === "director-pending") return;
     busy.current = true;
+    inflight.current++;
     try {
       const ok = k === "words" ? await wordHistory("redo") : k === "director" ? await directorStep("redo") : k === "plan" ? await planRedo() : k === "layers" ? await layerUndo.current?.redo() : await audioHistory("redo");
       if (!ok) return;
       setOfut((f) => f.slice(0, -1));
       setOrder((o) => [...o, k]);
-    } finally { busy.current = false; }
+    } finally { inflight.current--; busy.current = false; }
   };
 
   return {

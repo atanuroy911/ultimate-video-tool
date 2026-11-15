@@ -11,8 +11,8 @@ export function useFetch<T>(url: string | null, deps: unknown[] = []) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(!!url);
   const seq = useRef(0);
-  const refetch = useCallback(async () => {
-    if (!url) return;
+  const refetch = useCallback(async (): Promise<T | undefined> => {
+    if (!url) return undefined;
     const my = ++seq.current;
     try {
       const d = await get<T>(url);
@@ -20,6 +20,7 @@ export function useFetch<T>(url: string | null, deps: unknown[] = []) {
         dataUrl.current = url;
         setData(d);
         setError(null);
+        return d;                                                      // what is now shown, for a caller that must know it before the next render
       }
     } catch (e: any) {
       if (my === seq.current) setError(e.message || "Failed to load");

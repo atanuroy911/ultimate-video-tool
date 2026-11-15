@@ -42,8 +42,10 @@ class LLMUnavailable(RuntimeError):
 # --------------------------------------------------------------------------- settings
 def settings() -> dict[str, Any]:
     s = read_json(paths.SETTINGS, {}) or {}
-    return {
-        "llm_mode": s.get("llm_mode", "auto"),
+    engine = ((s.get("engines") or {}).get("ollama") or {})
+    off = engine.get("mode") == "off"                         # the person turned the local AI's engine off (Engines page, `vt server --ollama off`): the old
+    return {                                                  # address in ollama_url is not used, and the Local AI is not offered as a director
+        "llm_mode": "off" if off else s.get("llm_mode", "auto"),
         "ollama_url": (s.get("ollama_url") or DEFAULT_URL).rstrip("/"),
         "ollama_model": s.get("ollama_model") or "",
         "llm_auto_download": bool(s.get("llm_auto_download", True)),

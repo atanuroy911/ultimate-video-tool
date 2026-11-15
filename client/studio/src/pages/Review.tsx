@@ -485,10 +485,10 @@ function ReviewEditor() {
                 onStarted={r.beginDirectorChange}
                 onRunningChange={setDirectorRunning}
                 onChanged={async (result, token) => {
+                  await r.reloadAll(true);                             // while the Director's slot is still reserved: its plan is its own undo step, not an outside change
                   r.finishDirectorChange(token, result?.ok ? result.previous_state as unknown as DirectorState | null | undefined : null);
                   setDirectorChangedScenes(result?.ok ? result.changed_scenes ?? [] : []);
                   setDirectorRemovedScenes(result?.ok ? result.removed_scenes ?? [] : []);
-                  await r.reloadAll();
                 }}
                 director={p.director?.who} historyAction={r.directorHistory} onHistoryAction={r.toggleDirectorChange}
                 changedScenes={directorChangedScenes} removedScenes={directorRemovedScenes} /></Suspense></div>}

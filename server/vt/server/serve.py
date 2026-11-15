@@ -61,7 +61,7 @@ STATE["exposed"] = False                         # True once `vt server` listens
 
 
 def configure(*, key: str, name: str = "", services: Optional[dict[str, str]] = None, exposed: bool = False, argv: Optional[list[str]] = None) -> None:
-    STATE.update(key=key, exposed=exposed, argv=argv)
+    STATE.update(key=key, exposed=exposed, argv=argv, served=True)        # served: started by `vt server`, on any address
     if name:
         STATE["name"] = name
     STATE["services"].clear()
@@ -285,8 +285,8 @@ def install_mcp(app) -> None:
 
     @app.on_event("startup")
     async def _mcp_up() -> None:
-        if not STATE["exposed"]:
-            return
+        if not (STATE["exposed"] or STATE.get("served")):       # a server that listens on this computer only still has directors: the helper on this
+            return                                              # computer is listed as one, and it reaches its tools here (/mcp/director, with its task token)
         from mcp.server.transport_security import TransportSecuritySettings
 
         from ..mcp.server import server as mcp_server

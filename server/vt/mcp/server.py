@@ -434,7 +434,7 @@ def update_scene(project: str, scene_id: str, patch: dict[str, Any]) -> dict:
     sf = p.scenes()
     if not sf:
         raise ValueError("no plan yet")
-    new = scene_ops.patch_scene(sf, scene_id, patch)
+    new = scene_ops.patch_scene(sf, scene_id, patch, p.transcript(), p.beats())
     errs = validate_scenes(new, p.transcript(), p.beats(), None)
     if errs:
         return {"ok": False, "errors": errs[:10]}
@@ -641,12 +641,15 @@ def submit_script(project: str, script: dict[str, Any]) -> dict:
     """Submit the Video Script (the JSON object from get_script_task). It is validated and compiled into the plan.
     Returns {ok, errors, repairs}. Nothing is changed behind your back: whatever the app would have had to change in what you wrote (a word id moved, a text cut short, a value it does not
     know left out, scenes restructured) comes back as an error to fix, and the small things it filled in (a synonym, a default side) come back in `repairs`. If there are errors,
-    fix exactly those and submit again."""
+    fix exactly those and submit again.
+    When the video already has a script, yours is a revision of it: only the scenes you changed are replaced, and every other scene keeps what is on the timeline now (the person's
+    edits, your own update_scene fixes). `replaced_edits` names the scenes you changed that had such edits; to drop an edit in a scene, change that scene."""
     from ..script import service
 
     p = _proj(project)
     script = {k: v for k, v in script.items() if k != "edits_since_this_script"}     # get_current_script's note, not part of a script
-    res = service.apply_script(p, script, planner="assistant" if os.environ.get("VT_MCP_CLIENT") == "codex" else "claude", strict=True)
+    res = service.apply_script(p, script, planner="assistant" if os.environ.get("VT_MCP_CLIENT") == "codex" else "claude", strict=True,
+                               previous=service.current_script(p))
     if res.get("ok"):                                          # the editor's verdict comes back with every accepted script
         res["director_notes"] = get_director_notes(project)
     return res
@@ -679,7 +682,8 @@ def submit_story(project: str, story: dict[str, Any]) -> dict:
 @tool
 def get_current_script(project: str) -> dict:
     """Return the current Video Script so an assistant can revise and resubmit it. `edits_since_this_script` lists the scenes changed afterwards (update_scene, the
-    frame check, the person's own edits) with what they are now: submitting a new script replaces them, so carry over the ones you want to keep."""
+    frame check, the person's own edits) with what they are now. Those scenes are on screen as listed, not as the script says. Submitting a revised script keeps them
+    in every scene you leave unchanged, and replaces them in a scene you change: carry over there what you want to keep."""
     from ..script.service import current_script, edits_since_script
 
     p = _proj(project)

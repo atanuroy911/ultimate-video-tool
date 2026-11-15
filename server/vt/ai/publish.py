@@ -212,8 +212,7 @@ def render_hook(bg: Path, hook: str, out: Path, aspect: str, theme, workdir: Pat
 
 
 def make_cover(project, hook: str, progress: ProgressFn = noop_progress, provider=None) -> Path:
-    from ..compose import FORMATS, scene_timing
-    from ..pipeline import compose_all
+    from ..compose import scene_timing
     from ..render.hyperframes import snapshot
 
     meta = project.meta()
@@ -222,13 +221,13 @@ def make_cover(project, hook: str, progress: ProgressFn = noop_progress, provide
         raise ValueError("no plan yet")
     from ..compose import compose_project
 
-    compose_project(project, meta.aspect, captions=False)           # candidate frames without captions
+    page = compose_project(project, meta.aspect, captions=False, out=project.dir / "cover_source").parent     # candidate frames without captions, on a page of their own: the editor's preview keeps its captions
     cuts = project.cuts()
     dur = cuts.output_duration if cuts else max((w.end for w in project.transcript().kept()), default=1.0) + 0.5
     timing = scene_timing(sf, beats, dur)
     times = [round(t["start"] + min(2.4, 0.7 * (t["end"] - t["start"])), 2) for t in timing][:8]
     progress("cover", 0.2, "Capturing candidate frames")
-    frames = snapshot(project.comp_dir / FORMATS[meta.aspect]["tag"], project.dir / "cover_frames", times)
+    frames = snapshot(page, project.dir / "cover_frames", times)
     progress("cover", 0.6, "Choosing the best frame")
     best = frames[pick_frame(frames, provider)]
     out_dir = project.dir / "exports"
@@ -240,7 +239,6 @@ def make_cover(project, hook: str, progress: ProgressFn = noop_progress, provide
         render_hook(best, hook, out, meta.aspect, load_theme(sf.theme or meta.theme), project.dir / "cover_comp")
     except Exception:                                   # no browser: Latin-only fallback drawn with Pillow
         draw_hook(Image.open(best), hook).save(out, quality=92)
-    compose_all(project)                                 # the preview composition gets its captions back
     progress("cover", 1.0, "Cover ready")
     return out
 

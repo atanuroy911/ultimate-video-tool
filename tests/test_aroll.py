@@ -218,3 +218,17 @@ def test_camera_cuts_are_found_and_each_shot_gets_a_target(tmp_path, monkeypatch
     shots = aroll.shot_track(tmp_path / "cuts.mp4", 8.0)
     assert [(s[0], s[1]) for s in shots] == [(0.0, 3.0), (3.0, 6.0), (6.0, 8.0)]
     assert [s[2] for s in shots] == [0.3, 0.7, 0.3] and len(calls) == 3
+
+
+def test_a_scene_the_director_left_empty_shows_the_speaker(ref):
+    """2026-11-15, a 4.5 min interview: the director left most scenes empty for the speaker, and the two-in-a-row rule left every third one with only the
+    captions on a plain background."""
+    from vt.schema import MediaItem
+
+    sf = _plan(ref)
+    for s in sf.scenes:
+        s.elements, s.backdrop = [], None
+    item = MediaItem(id="aroll", file="media/aroll.mp4", kind="video", role="a_roll", width=320, height=180, duration=18.0, fx=0.5, fy=0.4, faces=[[0.4, 0.2, 0.2, 0.3]])
+    ref.update_meta(media=[item])
+    n = AR.apply_speaker(sf, ref, ref.beats(), "9:16", item)
+    assert n == len(sf.scenes) and all(s.backdrop is not None and s.backdrop.media == "aroll" for s in sf.scenes)

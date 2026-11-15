@@ -2,7 +2,7 @@
 Elements stay attached to the scene that contains their anchor word; ids stay unique."""
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 from .schema import Beats, Scene, ScenesFile, Transcript
 
@@ -91,7 +91,10 @@ def split_scene(sf: ScenesFile, beats: Beats, sid: str, at_beat: str) -> ScenesF
         raise OpError("choose a beat inside the scene, other than its first, to split at")
     k = s.beats.index(at_beat)
     first = s.model_copy(update={"beats": s.beats[:k]})
-    second = Scene(id=_next_id(sf), beats=s.beats[k:], layout="stack", transition_in="fade", elements=[])
+    # The second half keeps the look of the scene it was cut from: its picture (a reel or a speaker scene would otherwise go blank) and its colour tone.
+    # With the same picture behind both halves the change is a plain cut: a fade between two identical pictures only flickers.
+    second = Scene(id=_next_id(sf), beats=s.beats[k:], layout=s.layout if s.backdrop else "stack", transition_in="cut" if s.backdrop else "fade", elements=[],
+                   backdrop=s.backdrop.model_copy() if s.backdrop else None, tone=s.tone)
     scenes = sf.scenes[:i] + [first, second] + sf.scenes[i + 1:]
     return _redistribute(sf.model_copy(update={"scenes": scenes}), beats)
 
@@ -165,15 +168,29 @@ def boundary_choices(sf: ScenesFile, beats: Beats, duration: float) -> dict[str,
     return result
 
 
-def patch_scene(sf: ScenesFile, sid: str, patch: dict[str, Any]) -> ScenesFile:
+def patch_scene(sf: ScenesFile, sid: str, patch: dict[str, Any], tr: Optional[Transcript] = None, beats: Optional[Beats] = None) -> ScenesFile:
     """Change anything about a scene except where it sits in the narration (validated by pydantic). Beats and the exact start have their own
-    operations (split / merge / move), because they must stay in order across scenes."""
+    operations (split / merge / move), because they must stay in order across scenes. A `stick` patch changes the stick block, it does not replace it
+    (the cast, set and camera stay unless named), and actions written as in the script (at_word, no times) are timed here when `tr` is given."""
     i = _find(sf, sid)
     allowed = {"layout", "transition_in", "transition_effect", "camera_move", "elements", "caption", "backdrop", "tone", "archetype", "role", "stick", "sfx"}
+    patch = dict(patch)
+    data = sf.scenes[i].model_dump()
+    if "camera" in patch and data.get("stick"):          # the Video Script writes a scene's camera at the scene level; on the timeline it lives with the stick figures
+        data["stick"]["camera"] = {**(data["stick"].get("camera") or {}), **(patch.pop("camera") or {})}
+    if isinstance(patch.get("stick"), dict) and data.get("stick"):
+        block = {**data["stick"], **patch["stick"]}
+        acts = block.get("actions")
+        if isinstance(acts, list) and any(isinstance(a, dict) and ("start" not in a or "end" not in a) for a in acts):
+            if tr is None or beats is None:
+                raise OpError("these actions have no times yet; add them with the action operations, which time them from their words")
+            scene_end = max((b.end for b in beats.beats if b.id in sf.scenes[i].beats), default=0.0)
+            block["actions"] = _requeue([dict(a) for a in acts], tr, scene_end)
+        patch["stick"] = block
     bad = set(patch) - allowed
     if bad:
-        raise OpError(f"cannot change {sorted(bad)}; use split/merge/move for beats")
-    data = sf.scenes[i].model_dump()
+        raise OpError(f"cannot change {sorted(bad)} here: a scene's beats and start move with split, merge and move; its actions and cast have their own "
+                      f"operations; a scene patch may set {sorted(allowed)}")
     data.update(patch)
     try:
         new = Scene.model_validate(data)

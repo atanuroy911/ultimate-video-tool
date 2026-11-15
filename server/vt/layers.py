@@ -192,6 +192,86 @@ def step(project, direction: str) -> Optional[dict]:
     return doc
 
 
+PARKED = "layers.parked.json"        # clips whose whole time was cut out of the voice: kept here with their place in the recording, back when the cut is undone
+
+
+def follow_cuts(project, old_cuts, new_cuts, clock: dict) -> dict:
+    """The voice was cut differently (a piece removed or put back, a new pace): every clip on the extra tracks stays on the moment of the recording it was put on.
+    A clip is a stretch of the recording's time: what is cut before it moves it earlier, what is cut inside it shortens it, and a clip whose whole stretch is gone is
+    parked until that time comes back. `clock` (the editor's record of where each time sits in the recording) makes putting a cut back land on the exact old times.
+    Nothing is added to the layers' own undo history: undoing the voice edit moves the clips back. Returns the clock entries to remember."""
+    from .audio_edit import out_to_src
+
+    doc = load(project)
+    parked = read_json(project.dir / PARKED, []) or []
+    if not doc["clips"] and not parked:
+        return {}
+    updated: dict[str, dict] = {}
+
+    def source_of(value: float, key: str) -> float:
+        known = clock.get(key, {})
+        source = known.get("source") if known.get("output") == value else out_to_src(old_cuts, value)
+        return old_cuts.source_duration + max(0.0, value - old_cuts.output_duration) if source is None else source
+
+    def place(clip: dict, s0: float, s1: float) -> Optional[dict]:
+        start, end = round(new_cuts.map_time_nearest(s0), 3), round(new_cuts.map_time_nearest(s1), 3)
+        if end - start < MIN_DUR:
+            return None
+        updated[f"layer:{clip['id']}:start"] = {"output": start, "source": s0}
+        updated[f"layer:{clip['id']}:end"] = {"output": end, "source": s1}
+        out = {**clip, "start": start, "dur": round(end - start, 3)}
+        if "in" in clip:                                                  # a media clip plays its file from `in`: what a cut takes from the clip's head is skipped in the file too,
+            key = f"layer:{clip['id']}:in"                                # so the sound stays on the words it was put under; putting the cut back brings the old in-point back
+            known = clock.get(key, {})
+            base = known["source"] if known.get("output") == clip["in"] else clip["in"]      # the in-point before any cut moved it
+            kept_from = min([max(s0, ks) for ks, ke in new_cuts.keep if ke > s0] or [s0])      # where the clip's kept stretch now begins in the recording
+            new_in = round(max(0.0, base + kept_from - s0), 3)
+            updated[key] = {"output": new_in, "source": base}
+            out["in"] = new_in
+        last = -36001.0
+        points = []
+        for j, point in enumerate(clip.get("keyframes") or []):          # motion points are on the video's clock too
+            key = f"layer:{clip['id']}:motion:{j}"
+            t = point["time"]
+            if t >= 0:
+                src = source_of(t, key)
+                t = round(new_cuts.map_time_nearest(src), 3)
+                t = round(max(t, last + .001), 3)                        # points pushed onto one edge keep their order
+                updated[key] = {"output": t, "source": src}
+            last = t
+            points.append({**point, "time": t})
+        if points:
+            out["keyframes"] = points
+        return out
+
+    clips, still_parked = [], []
+    for clip in doc["clips"]:
+        end = round(clip["start"] + clip["dur"], 3)
+        s0, s1 = source_of(clip["start"], f"layer:{clip['id']}:start"), source_of(end, f"layer:{clip['id']}:end")
+        moved = place(clip, s0, s1)
+        if moved is None:
+            still_parked.append({"clip": clip, "src": [s0, s1]})
+        else:
+            clips.append(moved)
+    tracks = {t["id"] for t in doc["tracks"]}
+    for entry in parked:
+        clip, (s0, s1) = entry["clip"], entry["src"]
+        moved = place(clip, s0, s1) if clip.get("track") in tracks else None
+        clash = moved is not None and any(c["track"] == moved["track"] and moved["start"] < c["start"] + c["dur"] - .001 and c["start"] < moved["start"] + moved["dur"] - .001
+                                          for c in clips)
+        if moved is None or clash:                                       # still cut out, or something else took its place meanwhile
+            still_parked.append(entry)
+        else:
+            clips.append(moved)
+    if clips != doc["clips"]:
+        write_json(project.dir / "layers.json", {**doc, "clips": clips})
+    if still_parked:
+        write_json(project.dir / PARKED, still_parked)
+    else:
+        (project.dir / PARKED).unlink(missing_ok=True)
+    return updated
+
+
 def audio_clips(project, doc: Optional[dict] = None) -> list[dict]:
     """What the final mix needs: [{path, start, dur, in, volume, fade_in, fade_out}] for every audible audio clip and every video clip that keeps its sound."""
     doc = doc or load(project)

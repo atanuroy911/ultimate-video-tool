@@ -59,6 +59,11 @@ _DIRECTOR_TASK_GUIDANCE = {
 }
 
 
+# Claude Code saves a tool result above about 50,000 characters to a file and tells the model to read it. A planning session has no file tools, so the model
+# never saw the task (the script task is about 49,000 characters before the transcript words: found 2026-11-20). A tool may ask for more, up to 500,000.
+RESULT_SIZE = {"anthropic/maxResultSizeChars": 500000}
+
+
 def tool(fn):
     """Register a tool and record a heartbeat for the assistant using it."""
 
@@ -96,7 +101,7 @@ def tool(fn):
         talk.record(who, "", kind="tool", prompt=asked, answer=out, seconds=time.time() - began, folder=folder)
         return out
 
-    server.tool(name=fn.__name__.removesuffix("_tool"))(wrapper)
+    server.tool(name=fn.__name__.removesuffix("_tool"), meta=RESULT_SIZE)(wrapper)
     return wrapper
 
 

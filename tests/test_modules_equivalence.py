@@ -103,6 +103,7 @@ def test_reference_is_byte_identical(ref, tmp_path, monkeypatch):
     _compare(ref, tmp_path, from_stage="plan")
 
 
+@pytest.mark.models
 @pytest.mark.slow
 @pytest.mark.parametrize("sample,language", [
     ("samples/audio/bn_plain.mp3", "bn"),

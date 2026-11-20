@@ -6,7 +6,7 @@ import pytest
 
 from vt import ingest
 
-pytestmark = pytest.mark.slow
+pytestmark = [pytest.mark.slow, pytest.mark.network]
 
 
 def online() -> bool:

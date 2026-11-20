@@ -5,7 +5,16 @@ import pytest
 
 from vt import gpu
 
-pytestmark = pytest.mark.skipif(shutil.which("nvidia-smi") is None, reason="no NVIDIA GPU")
+def _cuda_torch() -> bool:
+    try:
+        import torch
+        return bool(torch.cuda.is_available())
+    except Exception:  # noqa: BLE001 - no torch, or one that cannot start: no CUDA either
+        return False
+
+
+pytestmark = [pytest.mark.gpu, pytest.mark.skipif(shutil.which("nvidia-smi") is None, reason="no NVIDIA GPU"),
+              pytest.mark.skipif(not _cuda_torch(), reason="this install has the CPU build of torch (uv sync --extra cpu)")]
 
 
 def test_onnx_runtime_has_cuda_and_never_tensorrt():

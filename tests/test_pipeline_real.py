@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 import soundfile as sf
 
-pytestmark = pytest.mark.slow
+pytestmark = [pytest.mark.slow, pytest.mark.models]
 SAMPLES = Path(__file__).resolve().parents[1] / "samples" / "audio"
 
 

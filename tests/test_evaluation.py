@@ -10,7 +10,7 @@ from PIL import Image
 from test_director import BN_STORY, EDU, PRODUCT, STORY, make
 from test_phase2_render import foreground_mask, stage_region
 
-pytestmark = pytest.mark.slow
+pytestmark = [pytest.mark.slow, pytest.mark.browser]
 
 BN_PRODUCT = ["ধীর ভিডিও এডিটিংয়ে ক্লান্ত?", "পরিচয় করিয়ে দিই ভিডিওপ্রো, সবচেয়ে দ্রুত ভিডিও মেকার।", "এতে আছে টেমপ্লেট, অটো ক্যাপশন আর মিউজিক।",
               "১০০০০ এর বেশি গ্রাহক এটা ব্যবহার করেন।", "মাত্র ৫০০ টাকায় আজই অর্ডার করুন।"]

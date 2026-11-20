@@ -19,6 +19,7 @@ Progress is kept in this file's tick boxes. A session resumes at the first untic
 - Commit messages: one plain-English line saying what changed for the person, then a blank line and details. Never add `Co-Authored-By` lines.
 
 0.3 **Setting up to run things.**
+- **Video tests: no "yield" sample.** The old `samples/build_reference.py` project (a Bangla finance script with synthetic timings and silent audio) is not a real test. Make real videos with `scripts/lab/local_matrix.py` (W3.7): different kinds, formats and languages, real voices, **Claude on this PC as the director** (Sonnet), then gemma. Judge them by looking at them.
 - **Everything is tested on this laptop, with all data on E:. Never use the GPU server (192.168.123.47)** for this plan: no SSH, no engines there, no tests there (the owner, 2026-11-20). Scratch servers, scratch projects, models, nightly reports and evidence all go under `E:\UltimateVideoTool\` (scratch servers in `E:\UltimateVideoTool\scratch\<step-id>\`). Before a test, check that the server settings and `VT_*` environment variables point the engines (Ollama, ComfyUI) at this PC (`127.0.0.1`), not at 192.168.123.47. If an engine is missing here, install it through the server window onto E:, or skip that test and say so. Never fall back to the GPU server.
 - **Already set up on this laptop (W0):** uv is at `E:\UltimateVideoTool\.tools\uv.exe`, the Python environment at `E:\UltimateVideoTool\venv-workbench`, scratch data under `E:\UltimateVideoTool\scratch\`. The exact commands (environment variables, scratch server, Studio dev server, screenshots) are at the end of `docs/dev/baseline-2026-11.md`: use them as written. In Git Bash, put `MSYS_NO_PATHCONV=1` before any command with a URL path starting with `/`. The one known fast-suite failure is `test_gpu` (needs the CUDA build of torch; W3.2 marks it).
 - Python: never install into the system Python. Use `uv`: `uv sync --project server --frozen --extra dev --extra cpu --python 3.11`, then `uv run --project server pytest -m "not slow"`. If `uv` is not on PATH, look for `.tools/uv.exe` in the repo, then `where.exe uv`, then `E:\UltimateVideoTool\` and `E:\UVT-Server\`. If none is found, stop and ask the owner. Do not run `pip install`.
@@ -37,7 +38,7 @@ Progress is kept in this file's tick boxes. A session resumes at the first untic
 
 0.6 **Standing rules from the owner (all still in force).**
 - *UI wraps everything.* Every capability is one function in `server/vt/` exposed three ways: an `/api` route the Studio uses, a `vt` command, and (where useful) an MCP tool. The person never has to type a command.
-- *Windows and Linux* must both work (macOS later). Test paths, process spawning and shortcuts on both.
+- *Windows only for testing* (the owner, 2026-11-20). Everything is tested on this Windows laptop. Write paths, process spawning and shortcuts so Linux would still work (the release workflow still builds Linux installers on GitHub), but never test on Linux and never install WSL. Say "Linux not tested" in reports.
 - *AI directs; no static rules.* One director per video. Teach the AI through its prompts (visible in **Details → AI conversations**). Never override its choices with code.
 - *Human in the loop.* One AI revision, then the person fixes things by hand. A hand edit is never undone by a rule or a recompose.
 - *UI is English only.* Bangla is a video language, not a UI language.
@@ -180,7 +181,7 @@ W1 and W2 come first because they fix what is wrong today. W9 must be done befor
 - [x] **W1.5 Prove that installing 0.5.0 over 1.0.0 works.** (2026-11-20; results in `docs/dev/baseline-2026-11.md`; Linux .deb not tested: the owner chose no WSL) Build the Windows client and server installers locally (`scripts/build_client_windows.sh <out>`, `scripts/build_server_windows.sh <out>`). Install each over the existing 1.0.0 install on this PC (`/S /currentuser`, no `/D=`, no uninstall). Then open the client, connect to the installed server (port 8790), open an existing project, and render a 10-second preview.
   - If the NSIS installer refuses to downgrade: set `nsis.allowDowngrade`-style behaviour in electron-builder config (check the electron-builder docs for the exact key in the installed version) and rebuild.
   - Also check the server's bootstrap: it re-installs its Python environment when the version stamp differs (`server/desktop/bootstrap.js`, `s.version === L.version`). Expect one re-install on first start and note how long it takes.
-  - Linux (`.deb`): test it on this laptop inside WSL (set up in W15.4) once WSL exists. Until then, write the `--allow-downgrades` note (W1.4) and say in the report that Linux was not tested yet. Never use the GPU server.
+  - Linux (`.deb`): not tested (Windows only, owner decision). The `--allow-downgrades` note (W1.4) is written from the apt documentation.
   Check: write the outcome, with times, into `docs/dev/baseline-2026-11.md` under "0.5.0 over 1.0.0".
 
 - [ ] **W1.6 Publish 0.5.0 and retire 1.0.0. This step needs the owner.** It ships together with W2 (security). So do W2 first, then come back here.
@@ -261,7 +262,7 @@ Background: `server/vt/server/serve.py`. Today `allowed()` returns `True` for ev
 - [ ] **W3.3 Nightly on GitHub (CPU).** Add `.github/workflows/nightly.yml`:
   - Triggers: `schedule: cron "30 1 * * *"` and `workflow_dispatch`. **Never** `pull_request` (the repo is public).
   - Steps: the same setup as `ci.yml`'s python job (uv sync, generated assets, Studio build), then `pytest -m "slow and not gpu"`. Cache models with `actions/cache`, keyed on the model name.
-  - Then one real end-to-end video with the **rules-only** director (no AI needed): a 20-second English script from `samples/` → plan → render 9:16. Upload the mp4, the contact sheet and the log as artifacts (`retention-days: 14`).
+  - Then one real end-to-end video with the **rules-only** director (no AI needed) from a short English script of its own (not the "yield" sample): plan → voice → render 9:16. Upload the mp4, the contact sheet and the log as artifacts (`retention-days: 14`).
   - On failure: open or update one GitHub issue titled "Nightly check failing" with a link to the run (`gh issue` through `GITHUB_TOKEN` with `issues: write`). On success, close that issue if it is open.
   Check: trigger it once with `gh workflow run nightly.yml --ref workbench` and watch it with `gh run watch`. It must pass. Fix what fails: test bugs are fixed in the test, product bugs in the product. Never skip a test to get green.
 
@@ -271,7 +272,7 @@ Background: `server/vt/server/serve.py`. Today `allowed()` returns `True` for ev
   3. Runs `pytest -m "slow and gpu"` with `VT_PROJECTS` pointing to a fresh scratch folder.
   4. Runs `scripts/lab/vt_lab.py` on its standard cases with the **Claude** director (`--model sonnet`), then the **gemma** director.
   5. Writes `E:\UltimateVideoTool\nightly\<yyyy-mm-dd>\report.md` (pass/fail per test, lab scores, links to mp4s).
-  Then register a Windows scheduled task at 03:00 **only after the owner says yes**. Ask: "Shall I set this PC to run the full video check every night at 3 am? It uses the graphics card for about an hour." Without a yes, leave the script in place and document how to run it by hand.
+  The owner chose **no scheduled task** (2026-11-20): leave the script in place and document, in the script's header, how to run it by hand.
   Check: run it once by hand. The report exists and is readable.
 
 - [ ] **W3.5 Triage the browser suites.** `client/studio/package.json` has 24 `e2e:*` scripts. The last recorded run (`docs/STATUS.md`, 2026-10-26) was 13 passed, 11 failed. Run each against a scratch server on a free port. For each failure, decide one of three outcomes and record it in `docs/dev/e2e-triage.md` (suite | failure | cause | outcome | commit):
@@ -283,6 +284,11 @@ Background: `server/vt/server/serve.py`. Today `allowed()` returns `True` for ev
 
 - [ ] **W3.6 A rule for new tests.** Add to `CONTRIBUTING.md` and `tests/README.md` (create it if missing): "Test what the code does, not the words of a prompt. Assert on the parsed result, the chosen scene type, the file written, or the request sent; not on whether a sentence appears in a prompt. A prompt test is allowed only for the safety lines that must never disappear, and then it names the line in a constant." Do not mass-rewrite the 85 existing prompt-substring test files. When a step in this plan touches one of them, convert the touched test.
   Check: docs check passes.
+
+- [ ] **W3.7 A real video matrix (replaces the "yield" sample).** Write `scripts/lab/local_matrix.py`: it drives the **installed server on this PC** (`http://127.0.0.1:8790`, key not needed from this computer) through the API only: `POST /api/projects/from-script`, poll the job, export, then write a report and contact sheets to `E:\UltimateVideoTool\matrix\<date>\`. No SSH, no GPU server. Claude on this PC directs through the client helper (the same as `vt_lab.py helper start`, but with the app's own helper or a lab helper folder on E:).
+  The matrix covers different kinds of videos, not one topic. Each row is (kind, format, language, voice engine, script). Scripts live in `scripts/lab/matrix/*.txt`, written fresh, 60 to 150 words each: a product explainer, a how-to with steps, a numbers-heavy finance story (fresh, not "yield"), a short story with characters, a health tip, a history fact, a motivational reel, a news-style summary, a comparison, a Banglish casual talk, a Bangla explainer. Kinds: explainer, reel, story, stick, cartoon, emoji, infographic, mixed, auto. Formats: 9:16, 16:9, 1:1. Languages: English, Bangla, Banglish. Pick about 18 rows so that every kind, every format and every language appears at least twice, and no row repeats another's script and kind.
+  For each video, the report holds who directed (must say Claude on this PC), the AI conversations, the retention and layout checks, the render time, and a contact sheet. Then **look at the frames**: note captions cut off, empty screens, wrong pictures, text over faces. Run the whole matrix with Claude, then the same 6 rows with gemma.
+  Check: the report exists, every row has a status (made, failed with the reason, or skipped with the reason), and the failures are written up as bugs in `docs/dev/matrix-findings.md` with the project id and what was wrong. Fix what is a plain bug; teach the director (prompts, house rules) for what is a quality problem; never override the director with code (standing rule).
 
 ---
 
@@ -519,10 +525,8 @@ Target look: the openfilm screenshot the owner liked. Quiet cool greys, panels s
 - [ ] **W9.2 Breaking changes.** Read Electron's "Breaking Changes" document for every major from 34 to 44. For each item, `git grep` our desktop code (`client/desktop/*.js`, `server/desktop/*.js`) for the API named, and fix what is used. Usual suspects: `protocol.registerFileProtocol` and friends (replaced by `protocol.handle`), `session` APIs, `webContents` events renamed, `nativeImage`, `BrowserView` (deprecated in favour of `WebContentsView`), and preload sandbox defaults (`sandbox: true` is the default; check that `preload.js` and `main-preload.js` only use `contextBridge`/`ipcRenderer`). Also check `ELECTRON_RUN_AS_NODE` use (the helper, `mcp-bridge.js`): it still works, and under it `process.versions.node` is now ≥ 22.
   Check: all node tests in CI's `studio` job pass. `npm --prefix client/desktop start` and `npm --prefix server/desktop start` open their windows. Build both Windows installers, install over this PC's copies, connect the client to the server, open a project, play, render a 10-second preview, and run the helper (Claude on this PC) through one planning task with `--model sonnet`.
 
-- [ ] **W9.3 Linux.** Run the CI `engine-package` job, and build the Linux `.deb` and AppImage through the Release workflow **manually on the `workbench` branch with publishing off** (`workflow_dispatch`, version `0.5.99-test`, publish `false`, if the workflow's inputs allow it; otherwise add a `publish` input that defaults to false). Download the artifacts and check that they exist and have sensible sizes.
-  Check: the run is green. Record the installer sizes before and after in the baseline file.
+- [x] **W9.3 Linux.** Skipped by the owner's decision (Windows only). Only the Windows installers are built and tested here; GitHub still builds the Linux ones in the Release workflow, untested.
 
----
 
 ### W10 — The Assistant pane
 
@@ -714,12 +718,9 @@ Before starting, read `E:\openfilm-a1b8d75\apps\desktop\src\agents.mjs` lines 1�
 
 - [ ] **W15.2 Suites.** Rewrite the e2e suites marked in W3.5 for the new layout. Every suite passes. Add `e2e:workbench` and `e2e:assistant` to the nightly browser job. `npm run e2e:a11y` and `e2e:contrast` pass in both themes.
 
-- [ ] **W15.3 Real end-to-end, twice.** On this PC's installed client and server (rebuilt):
-  1. A new 30-second video from a typed script with the **Claude** director (Sonnet). Then, in the Assistant with **Claude Code** (Sonnet), point at one scene's picture and ask for a better one, and point at a region and ask for the caption to move out of it. Then fix one thing by hand on the timeline, then export.
-  2. The same with the **gemma** director and the Director backend in the Assistant.
-  Record the steps, times and the final mp4 paths in WORKLOG, and watch both videos.
+- [ ] **W15.3 Real videos, a matrix, with Claude directing.** On this PC's installed client and server (rebuilt), run `scripts/lab/local_matrix.py` (W3.7) over its whole matrix with the **Claude** director (Sonnet), then the same smaller set with **gemma**. Then, in the Assistant with **Claude Code** (Sonnet), on two of the videos: point at one scene's picture and ask for a better one, point at a region and ask for the caption to move out of it, fix one thing by hand on the timeline, export. Record the matrix table (kind, format, language, director, time, verdict) and the mp4 paths in WORKLOG, and watch the videos (contact sheets are not enough for motion).
 
-- [ ] **W15.4 Linux check, on this laptop.** WSL is not installed (checked 2026-11-20). Ask the owner: "To test the Linux version on this laptop, I need to install Linux inside Windows (WSL, Ubuntu), stored on E:. It needs one restart and about 10 GB. Go ahead?" On yes: `wsl --install --no-distribution`, restart, then install Ubuntu 24.04 and move it to E: (`wsl --install -d Ubuntu-24.04`, then `wsl --export` / `wsl --import Ubuntu-24.04 E:\UltimateVideoTool\wsl\ubuntu E:\…\ubuntu.tar`, or `wsl --manage Ubuntu-24.04 --move E:\UltimateVideoTool\wsl\ubuntu` if the installed WSL supports it). In it (Windows 11 shows Linux windows through WSLg): install the client `.deb` and the AppImage from a manual Release-workflow run (publish off), connect to the **Windows** server on this laptop (the WSL address of the host, with the key, since WSL counts as another computer: W2), open the editor, and use the Assistant with the Director. Use Claude Code too, if `claude` is installed inside WSL. Also run the W1.5 `.deb` downgrade check here. On no: say in the report that Linux was not tested; do not claim it. Never use the GPU server.
+- [x] **W15.4 Linux check.** Skipped by the owner's decision (Windows only, no WSL). Say "Linux not tested" in the release notes.
 
 - [ ] **W15.5 Docs.** Update `README.md` (the "Use it from your AI assistant" section: Claude Code and Codex now work inside the app; the MCP setup remains for outside use), `docs/STATUS.md`, `CHANGELOG` notes in the release body, and `THIRD-PARTY.md` (OpenFilm, the ACP packages, Lexical, Inter).
 
@@ -733,8 +734,8 @@ Before starting, read `E:\openfilm-a1b8d75\apps\desktop\src\agents.mjs` lines 1�
 |---|---|---|
 | W1.6 | "Ready to publish 0.5.0 and delete the 1.0.0 release? People who downloaded 1.0.0 keep their files." | Yes. |
 | W1.6 | "Also remove the 1.0.0 Docker image tag of the server package? Someone may be pulling it." | Leave it. |
-| W3.4 | "Shall I set this PC to run the full video check every night at 3 am? It uses the graphics card for about an hour." | Yes. |
-| W15.4 (or W1.5) | "To test the Linux version on this laptop, I need to install Linux inside Windows (WSL, Ubuntu), stored on E:. It needs one restart and about 10 GB. Go ahead?" | Yes. |
+| W3.4 | (answered 2026-11-20: no scheduled task, run by hand) | Run by hand. |
+| W15.4 | (answered 2026-11-20: no WSL, Windows only) | Skip Linux. |
 | W11.1 | Only if a Classic-timeline feature would be dropped: "The old timeline could <feature>. The new one cannot yet. Drop it, or port it first?" | Port it. |
 | W12.1 | Only if Codex adds more than 60 MB: "Codex makes the installer N MB bigger. Download it on first use instead?" (already decided as yes; just inform the owner) | Download on first use. |
 

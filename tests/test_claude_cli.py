@@ -119,6 +119,7 @@ def test_the_provider_choices(cli, tmp_path, monkeypatch):
     assert P.vision_provider().name == "ollama"                                               # pictures always go to the local vision model
 
 
+@pytest.mark.assistant
 @pytest.mark.slow
 def test_a_real_call_through_the_logged_in_claude_code(tmp_path, monkeypatch):
     """Uses the real program and the real login on this machine; skipped when Claude Code is missing or logged out."""

@@ -30,6 +30,7 @@ def test_composition_carries_the_stick_timeline(ref):
     assert (ref.comp_dir / "9x16" / "runtime" / "vt-stick.js").exists()
 
 
+@pytest.mark.browser
 @pytest.mark.slow
 @pytest.mark.parametrize("aspect", ["9:16", "1:1", "16:9"])
 def test_figure_is_drawn_in_every_shape(ref, aspect, tmp_path):

@@ -6,7 +6,7 @@ from PIL import Image
 
 from test_render_golden import CREATED, _compare  # noqa: F401  (shared golden comparison)
 
-pytestmark = pytest.mark.slow
+pytestmark = [pytest.mark.slow, pytest.mark.browser]
 
 
 @pytest.fixture(scope="module")

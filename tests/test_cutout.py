@@ -89,6 +89,7 @@ def test_the_api_refuses_what_it_cannot_cut_and_cuts_in_a_job(client, ref, tmp_p
     assert j["status"] == "error" and "no clear subject" in j["error"]
 
 
+@pytest.mark.models
 @pytest.mark.slow
 def test_the_real_model_keeps_the_subject_and_removes_the_background(tmp_path):
     src = subject_picture(tmp_path / "ball.png")

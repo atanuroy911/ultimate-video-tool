@@ -152,6 +152,8 @@ def test_a_half_downloaded_kokoro_file_is_refused_and_removed(tmp_path, monkeypa
     assert not list((paths.MODELS / "kokoro").glob("*.part")) and not tts.kokoro_ready()
 
 
+@pytest.mark.models
+@pytest.mark.network
 @pytest.mark.slow
 def test_kokoro_really_speaks_english_offline(tmp_path):
     """Downloads the real model (about 120 MB) and checks the audio is speech-length, audible, and not clipped."""

@@ -25,3 +25,20 @@ Found by `scripts/lab/local_matrix.py` on the installed 0.5.0 server on this lap
 
 ### F4. Installed client could not start (fixed)
 - A file added to the client (`server-keys.js`) was not in the installer's whitelist (`package.json` `build.files`), so the packaged app silently failed to start. New test `client/desktop/test-packaging.js` checks every loaded file is listed. Found only because the installed app was actually launched.
+
+## First real video: `explainer-watch` (English, 9:16, explainer, Claude on this PC / Sonnet directing)
+Made in 884 s (planning, with 56 AI conversations) + 64 s render; 30.1 s, 720x1280, with audio; no AI errors; `director_used` says `claude@a22c9b52`. Contact sheet: `E:\UltimateVideoTool\matrix\2026-11-20-claude\explainer-watch.png`. Good: on topic, one idea per scene, numbers shown big ("1/3", "2 days"), captions follow the voice. What a viewer would notice:
+
+### F5. Empty screens
+- "1. Always-on display" is a title at the top and a caption at the bottom with nothing between them for about 5 s (frames 4 to 6); the same for "3. App notifications" before its icon appears. Retention measured: see `results.json` (`empty_longest_s`).
+
+### F6. Text printed over other text
+- The "2. Heart rate checks" title, a "Constant checks" label and the "Every minute is enough" callout overlap in the middle of the screen (frames 8 to 10). The director's own look-and-revise step did not catch it (the one revision the plan allows). Per the owner's rule, the person fixes what is left by hand: this is a case for the timeline's per-element editing, and for the layout check to list it.
+
+### F7. Unreadable colours and a meaningless picture
+- "4. Bright screen outdoors" switches to a pale grey background and keeps the yellow label, which is nearly invisible (frame 13); the next frame is a blue and yellow checkerboard standing for "bright screen". The label colour does not follow the background the director picked.
+
+### F8. Fifteen minutes for a 30-second video
+- 884 s of planning on this laptop, most of it the director looking at frames (each `preview_frames` call renders in Chrome on the laptop and took 80 s or more). Worth measuring where the time goes before adding more AI steps.
+
+These four are quality problems, not crashes: they belong to `docs/plans/PLAN-PERFECT.MD` (teach the director; never override it with code).

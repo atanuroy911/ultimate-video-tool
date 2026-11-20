@@ -20,6 +20,7 @@ Progress is kept in this file's tick boxes. A session resumes at the first untic
 
 0.3 **Setting up to run things.**
 - **Everything is tested on this laptop, with all data on E:. Never use the GPU server (192.168.123.47)** for this plan: no SSH, no engines there, no tests there (the owner, 2026-11-20). Scratch servers, scratch projects, models, nightly reports and evidence all go under `E:\UltimateVideoTool\` (scratch servers in `E:\UltimateVideoTool\scratch\<step-id>\`). Before a test, check that the server settings and `VT_*` environment variables point the engines (Ollama, ComfyUI) at this PC (`127.0.0.1`), not at 192.168.123.47. If an engine is missing here, install it through the server window onto E:, or skip that test and say so. Never fall back to the GPU server.
+- **Already set up on this laptop (W0):** uv is at `E:\UltimateVideoTool\.tools\uv.exe`, the Python environment at `E:\UltimateVideoTool\venv-workbench`, scratch data under `E:\UltimateVideoTool\scratch\`. The exact commands (environment variables, scratch server, Studio dev server, screenshots) are at the end of `docs/dev/baseline-2026-11.md`: use them as written. In Git Bash, put `MSYS_NO_PATHCONV=1` before any command with a URL path starting with `/`. The one known fast-suite failure is `test_gpu` (needs the CUDA build of torch; W3.2 marks it).
 - Python: never install into the system Python. Use `uv`: `uv sync --project server --frozen --extra dev --extra cpu --python 3.11`, then `uv run --project server pytest -m "not slow"`. If `uv` is not on PATH, look for `.tools/uv.exe` in the repo, then `where.exe uv`, then `E:\UltimateVideoTool\` and `E:\UVT-Server\`. If none is found, stop and ask the owner. Do not run `pip install`.
 - Node: `npm ci` inside `client/studio`, `client/desktop`, `server/desktop`, `server/renderer` as needed.
 - **Ports:** the installed server on this PC uses port **8790**. Before starting any scratch server, check that its port is free (`Get-NetTCPConnection -LocalPort <port> -ErrorAction SilentlyContinue`) and that its data folder is yours (`VT_PROJECTS=<a new scratch folder>`). Never point a scratch server at `E:\UltimateVideoTool\ServerData`.
@@ -135,10 +136,10 @@ W1 and W2 come first because they fix what is wrong today. W9 must be done befor
 
 ### W0 — Ground
 
-- [ ] **W0.1 Branch.** `git fetch origin && git checkout -b workbench origin/main && git push -u origin workbench`.
+- [x] **W0.1 Branch.** (2026-11-20) `git fetch origin && git checkout -b workbench origin/main && git push -u origin workbench`.
   Check: `git branch --show-current` prints `workbench`.
 
-- [ ] **W0.2 Reference copy of OpenFilm.** `git clone https://github.com/openfilm/openfilm E:\openfilm-a1b8d75`, then `git -C E:\openfilm-a1b8d75 checkout a1b8d751f8979f0175902ddf113e5e14c5ea71c8`. Never run its install scripts, never run `pnpm install` in it, and never import from it at build time. It is read-only reference.
+- [x] **W0.2 Reference copy of OpenFilm.** (2026-11-20, a15e6c7) `git clone https://github.com/openfilm/openfilm E:\openfilm-a1b8d75`, then `git -C E:\openfilm-a1b8d75 checkout a1b8d751f8979f0175902ddf113e5e14c5ea71c8`. Never run its install scripts, never run `pnpm install` in it, and never import from it at build time. It is read-only reference.
   Every file you port from it starts with this header (adjust the path):
   ```
   // Ported from OpenFilm (MIT, github.com/openfilm/openfilm) packages/openfilm/studio/ui/src/lib/workspace-dock.ts @ a1b8d75.
@@ -147,7 +148,7 @@ W1 and W2 come first because they fix what is wrong today. W9 must be done befor
   Add an OpenFilm section to `THIRD-PARTY.md` with the full MIT licence text from `E:\openfilm-a1b8d75\LICENSE`.
   Check: `git -C E:\openfilm-a1b8d75 rev-parse HEAD` prints `a1b8d75…`. Commit the THIRD-PARTY.md change.
 
-- [ ] **W0.3 Baseline.** Record, in a new file `docs/dev/baseline-2026-11.md`:
+- [x] **W0.3 Baseline.** (2026-11-20; numbers in `docs/dev/baseline-2026-11.md`) Record, in a new file `docs/dev/baseline-2026-11.md`:
   - The fast-suite result (pass/skip/fail counts and time).
   - `npm run build` time and the size of `client/studio/dist`.
   - Installer sizes from the v1.0.0 release (`gh release view v1.0.0 --json assets`).

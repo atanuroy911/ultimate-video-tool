@@ -46,6 +46,15 @@
     <button class="main" id="go" type="submit">Connect</button>
   </form>
   <div id="msg" role="status"></div>
+
+  <section id="keybox" hidden>
+    <h2><span id="keytitle">This server asks for its key</span></h2>
+    <div class="group"><div class="note">Open the server window on that computer, choose <b>Copy key</b>, and paste it here. You only need to do this once.</div></div>
+    <form class="row" id="keyform" style="margin-top:10px">
+      <input id="key" type="password" placeholder="Paste the key" spellcheck="false" autocomplete="off" aria-label="The server's key">
+      <button class="main" id="keygo" type="submit">Connect</button>
+    </form>
+  </section>
 </main>
 <script>
   const $ = (i) => document.getElementById(i);
@@ -57,7 +66,7 @@
     b.innerHTML = "<span><b></b><small></small></span><span class='go' aria-hidden='true'>›</span>";
     b.querySelector("b").textContent = s.name;
     b.querySelector("small").textContent = s.url.replace(/^https?:\/\//, "");
-    b.onclick = () => D.connect(s.url);
+    b.onclick = () => attempt(s.url, "");
     return b;
   }
   async function look() {
@@ -68,14 +77,36 @@
     for (const s of list) $("found").appendChild(row(s));
   }
   $("again").onclick = look;
+  // One attempt to connect. A server that asks for its key answers {needsKey, name, url}: the key box opens for that server.
+  let asking = "";
+  async function attempt(address, key) {
+    $("msg").className = "";
+    $("msg").textContent = "Connecting…";
+    const r = await D.connect(address, key);
+    if (r && r.needsKey) {
+      asking = r.url;
+      $("keybox").hidden = false;
+      $("keytitle").textContent = (r.name ? r.name + " asks" : "This server asks") + " for its key";
+      $("msg").className = r.wrong ? "err" : "";
+      $("msg").textContent = r.wrong ? "That key was not accepted. Copy it again from the server window." : "";
+      $("key").value = "";
+      $("key").focus();
+    } else if (r && r.error) { $("msg").className = "err"; $("msg").textContent = r.error; } else $("msg").textContent = "";
+    return r;
+  }
   $("typed").onsubmit = async (e) => {
     e.preventDefault();
     $("go").disabled = true;
-    $("msg").className = "";
-    $("msg").textContent = "Connecting…";
-    const r = await D.connect($("addr").value);
+    $("keybox").hidden = true;
+    await attempt($("addr").value, "");
     $("go").disabled = false;
-    if (r && r.error) { $("msg").className = "err"; $("msg").textContent = r.error; } else $("msg").textContent = "";
+  };
+  $("keyform").onsubmit = async (e) => {
+    e.preventDefault();
+    if (!asking || !$("key").value.trim()) return;
+    $("keygo").disabled = true;
+    await attempt(asking, $("key").value);
+    $("keygo").disabled = false;
   };
   look();
 </script>

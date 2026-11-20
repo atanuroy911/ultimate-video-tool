@@ -50,7 +50,7 @@ def test_a_computer_on_the_same_network_needs_nothing(exposed, address):
 def test_an_address_on_the_internet_needs_the_servers_key(exposed, address):
     c = TestClient(app, client=(address, 50000))
     r = c.get("/api/health")
-    assert r.status_code == 401 and "own network" in r.json()["detail"]["errors"][0] and "pairing" not in r.text.lower()
+    assert r.status_code == 401 and "Copy key" in r.json()["detail"]["errors"][0] and "pairing" not in r.text.lower()
     assert c.get("/media/anything/x.mp3").status_code == 401
     assert c.post("/mcp", json={}).status_code == 401
     assert c.get("/api/health", headers={"Authorization": "Bearer wrong"}).status_code == 401

@@ -46,7 +46,7 @@ function find(ms = 2000, targets = broadcasts(), port = UDP_PORT) {
   });
 }
 
-/** What a typed address says about itself, or null when no Video Tool server answers there. Adds http:// and the usual port when missing. */
+/** What a typed address says about itself ({name, url, needsKey}: whether this computer must bring the server's key), or null when no Video Tool server answers there. Adds http:// and the usual port when missing. */
 function probe(address, ms = 4000) {
   let url = String(address || "").trim().replace(/\/+$/, "");
   if (!url) return Promise.resolve(null);
@@ -64,7 +64,7 @@ function probe(address, ms = 4000) {
       res.on("end", () => {
         try {
           const c = JSON.parse(body);
-          resolve(c.app === "video-tool" ? { name: c.name || url, url } : null);
+          resolve(c.app === "video-tool" ? { name: c.name || url, url, needsKey: c.needs_key === true } : null);
         } catch { resolve(null); }
       });
     });

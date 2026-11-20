@@ -209,7 +209,9 @@ class Guard:
             return
         why = ("This director task has finished or expired. Start the task again."
                if scope.get("path") == "/mcp/director" else
-               "This Video Tool server only accepts computers on its own network. Connect from a computer on the same network, using the server's address.")
+               "This Video Tool server does not accept requests from web pages. Use the Video Tool app."
+               if not browser_safe(scope) else
+               "This Video Tool server needs its key from this computer. Open the server window on that computer, choose Copy key, and paste it where the app asks.")
         body = json.dumps({"detail": {"errors": [why]}}).encode()
         await send({"type": "http.response.start", "status": 401, "headers": [(b"content-type", b"application/json"), (b"www-authenticate", b"Bearer")]})
         await send({"type": "http.response.body", "body": body})

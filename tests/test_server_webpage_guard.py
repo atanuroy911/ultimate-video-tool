@@ -8,8 +8,8 @@ import pytest
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
-from vt.server import jobs, serve, uploads
-from vt.server.app import app
+from vt.server import serve, uploads
+from vt.server.app import app, jobs
 
 KEY = "k" * 43
 HOME = ("192.168.1.20", 50000)            # another computer on the same Wi-Fi
@@ -43,11 +43,8 @@ def submitted(monkeypatch):
     return calls
 
 
-FIXED = pytest.mark.xfail(strict=True, reason="fixed in W2.2")
-
 
 # 1 ------------------------------------------------------------------------------------------------------------------------------------------
-@FIXED
 def test_a_page_from_another_site_cannot_start_work_on_a_local_server(server, submitted):
     server(exposed=False)
     c = TestClient(app, client=HERE, raise_server_exceptions=False)
@@ -57,7 +54,6 @@ def test_a_page_from_another_site_cannot_start_work_on_a_local_server(server, su
 
 
 # 2 ------------------------------------------------------------------------------------------------------------------------------------------
-@FIXED
 def test_a_name_pointed_at_this_computer_is_refused_on_a_local_server(server):
     server(exposed=False)
     c = TestClient(app, client=HERE)
@@ -66,7 +62,6 @@ def test_a_name_pointed_at_this_computer_is_refused_on_a_local_server(server):
 
 
 # 3 ------------------------------------------------------------------------------------------------------------------------------------------
-@FIXED
 def test_a_page_cannot_open_the_live_connection_of_a_local_server(server):
     server(exposed=False)
     with pytest.raises(WebSocketDisconnect) as e:
@@ -86,14 +81,12 @@ def test_the_desktop_app_and_curl_still_work_on_a_local_server(server):
 
 
 # 5 ------------------------------------------------------------------------------------------------------------------------------------------
-@FIXED
 def test_a_sandboxed_page_is_refused_on_a_local_server(server):
     server(exposed=False)
     assert TestClient(app, client=HERE).get("/api/health", headers={"Origin": "null"}).status_code in (401, 403)
 
 
 # 6 ------------------------------------------------------------------------------------------------------------------------------------------
-@FIXED
 def test_a_page_the_server_serves_itself_is_allowed(server):
     server(exposed=False)
     c = TestClient(app, client=HERE)
@@ -103,7 +96,6 @@ def test_a_page_the_server_serves_itself_is_allowed(server):
 
 
 # 7 ------------------------------------------------------------------------------------------------------------------------------------------
-@FIXED
 def test_another_computer_needs_the_key_by_default(server):
     server(exposed=True)
     c = TestClient(app, client=HOME)
@@ -131,7 +123,6 @@ def test_this_computer_never_needs_the_key(server):
 
 
 # 10 -----------------------------------------------------------------------------------------------------------------------------------------
-@FIXED
 def test_a_tailscale_address_needs_the_key_unless_trust_is_on(server):
     server(exposed=True)
     assert TestClient(app, client=TAILNET).get("/api/health").status_code == 401
@@ -140,7 +131,6 @@ def test_a_tailscale_address_needs_the_key_unless_trust_is_on(server):
 
 
 # 11 -----------------------------------------------------------------------------------------------------------------------------------------
-@FIXED
 def test_discovery_is_read_only_for_everyone(server):
     """A page may read who this server is (nothing private is in it); it may not change anything through the open paths."""
     server(exposed=False)
@@ -154,7 +144,6 @@ def test_discovery_is_read_only_for_everyone(server):
 
 
 # 12 -----------------------------------------------------------------------------------------------------------------------------------------
-@FIXED
 def test_an_assistant_elsewhere_can_still_send_a_file_with_its_ticket(server):
     server(exposed=True)
     made = uploads.new_ticketed("clip.mp3", 5)

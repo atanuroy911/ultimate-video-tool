@@ -41,6 +41,39 @@ The full lists are `server/pyproject.toml` with `server/uv.lock`, and the `packa
 
 Before you publish videos commercially, check the licence of every model you choose in setup.
 
+## Code adapted from other projects
+
+| Project | Used for | Licence |
+|---|---|---|
+| [OpenFilm](https://github.com/openfilm/openfilm) (commit a1b8d75) | the docked editor layout and the assistant pane (files carry a header naming their source) | MIT, text below |
+| [OpenChatCut](https://github.com/0xsline/OpenChatCut) (commit 9242a95) | the multitrack timeline and chat components in `client/studio/src/occ/` | AGPL-3.0-or-later. See `client/studio/src/occ/NOTICE.md`. |
+
+OpenFilm's licence text:
+
+```text
+MIT License
+
+Copyright (c) 2026 OpenFilm contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
 ## Media
 
 | Asset | Licence |

@@ -253,10 +253,10 @@ Background: `server/vt/server/serve.py`. Today `allowed()` returns `True` for ev
 
 ### W3 — Proof that the video gets made (tests that matter)
 
-- [ ] **W3.1 Classify the slow tests.** Run `uv run --project server pytest -m slow --collect-only -q`. For each of the 68 tests, find out what it needs: headless Chrome only, ffmpeg only, the speech model (which size? can the tiny/base model run on CPU in under 2 minutes?), a voice model, a GPU, ComfyUI or Ollama. Write `docs/dev/slow-tests.md` as a table: test id | needs | CPU-feasible (yes/no) | measured time on this PC.
+- [x] **W3.1 Classify the slow tests.** (2026-11-20, `docs/dev/slow-tests.md`: 60 passed, 8 skipped) Run `uv run --project server pytest -m slow --collect-only -q`. For each of the 68 tests, find out what it needs: headless Chrome only, ffmpeg only, the speech model (which size? can the tiny/base model run on CPU in under 2 minutes?), a voice model, a GPU, ComfyUI or Ollama. Write `docs/dev/slow-tests.md` as a table: test id | needs | CPU-feasible (yes/no) | measured time on this PC.
   Check: the table has 68 rows (or the current count).
 
-- [ ] **W3.2 Mark them.** Add pytest markers in `server/pyproject.toml` (`[tool.pytest.ini_options] markers`): `gpu` (needs a graphics card or a model too big for CPU), `models` (downloads a model), `browser` (headless Chrome). Mark each slow test from the table. Do not change any test's logic.
+- [x] **W3.2 Mark them.** (2026-11-20; also `network` and `assistant`; `test_gpu` skips on the CPU build of torch) Add pytest markers in `server/pyproject.toml` (`[tool.pytest.ini_options] markers`): `gpu` (needs a graphics card or a model too big for CPU), `models` (downloads a model), `browser` (headless Chrome). Mark each slow test from the table. Do not change any test's logic.
   Check: `pytest -m "slow and not gpu" --collect-only -q` lists exactly the CPU-feasible ones.
 
 - [ ] **W3.3 Nightly on GitHub (CPU).** Add `.github/workflows/nightly.yml`:
@@ -282,7 +282,7 @@ Background: `server/vt/server/serve.py`. Today `allowed()` returns `True` for ev
   The suites that W8–W11 will rewrite (anything about the left-panel tabs, the Classic timeline or the top bar) may be marked "rewrite in W15.2" instead of fixed now.
   Check: every suite is passing, deleted, or marked for W15.2. Add the passing ones to `nightly.yml` (a second job, `browser`, using Playwright's Chromium).
 
-- [ ] **W3.6 A rule for new tests.** Add to `CONTRIBUTING.md` and `tests/README.md` (create it if missing): "Test what the code does, not the words of a prompt. Assert on the parsed result, the chosen scene type, the file written, or the request sent; not on whether a sentence appears in a prompt. A prompt test is allowed only for the safety lines that must never disappear, and then it names the line in a constant." Do not mass-rewrite the 85 existing prompt-substring test files. When a step in this plan touches one of them, convert the touched test.
+- [x] **W3.6 A rule for new tests.** (2026-11-20) Add to `CONTRIBUTING.md` and `tests/README.md` (create it if missing): "Test what the code does, not the words of a prompt. Assert on the parsed result, the chosen scene type, the file written, or the request sent; not on whether a sentence appears in a prompt. A prompt test is allowed only for the safety lines that must never disappear, and then it names the line in a constant." Do not mass-rewrite the 85 existing prompt-substring test files. When a step in this plan touches one of them, convert the touched test.
   Check: docs check passes.
 
 - [ ] **W3.7 A real video matrix (replaces the "yield" sample).** Write `scripts/lab/local_matrix.py`: it drives the **installed server on this PC** (`http://127.0.0.1:8790`, key not needed from this computer) through the API only: `POST /api/projects/from-script`, poll the job, export, then write a report and contact sheets to `E:\UltimateVideoTool\matrix\<date>\`. No SSH, no GPU server. Claude on this PC directs through the client helper (the same as `vt_lab.py helper start`, but with the app's own helper or a lab helper folder on E:).

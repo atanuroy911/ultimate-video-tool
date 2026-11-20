@@ -1,4 +1,4 @@
-"""Put one version number everywhere it is written: pyproject.toml, the lock file's own entry, and the desktop installer's package.json.
+"""Put one version number everywhere it is written: pyproject.toml, the lock file's own entry, and the package.json (with its lock file) of both desktop apps, the Studio and the renderer.
 
     python scripts/set_version.py 1.2.0          # also accepts v1.2.0
     python scripts/set_version.py --show
@@ -49,14 +49,24 @@ def apply(version: str) -> list[str]:
         if new != t:
             _write(lock, new)
             changed.append("server/uv.lock")
-    for role in ('client','server'):
-        pj = ROOT / role / "desktop" / "package.json"
+    # every package.json that carries our version, and the first entries of its lock file (the project itself)
+    for rel in ("client/desktop", "server/desktop", "client/studio", "server/renderer"):
+        pj = ROOT / rel / "package.json"
         if pj.exists():
             t = _read(pj)
             new = re.sub(r'^(\s*"version"\s*:\s*)"[^"]+"', rf'\g<1>"{version}"', t, count=1, flags=re.M)
             if new != t:
                 _write(pj, new)
-                changed.append(f"{role}/desktop/package.json")
+                changed.append(f"{rel}/package.json")
+            json.loads(new)
+        pl = ROOT / rel / "package-lock.json"
+        if pl.exists():
+            t = _read(pl)
+            new = re.sub(r'^(  "version"\s*:\s*)"[^"]+"', rf'\g<1>"{version}"', t, count=1, flags=re.M)
+            new = re.sub(r'(^    ""\s*:\s*\{\r?\n\s*"name"\s*:\s*"[^"]+",\r?\n\s*"version"\s*:\s*)"[^"]+"', rf'\g<1>"{version}"', new, count=1, flags=re.M)
+            if new != t:
+                _write(pl, new)
+                changed.append(f"{rel}/package-lock.json")
             json.loads(new)
     return changed
 

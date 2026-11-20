@@ -161,18 +161,18 @@ W1 and W2 come first because they fix what is wrong today. W9 must be done befor
 
 ### W1 — Renumber to 0.x
 
-- [ ] **W1.1 Find every "1.0.0".** Run `git grep -n "1\.0\.0" -- ':!docs/evidence' ':!**/package-lock.json'`. For each hit, decide: is it *our* version (change it) or a third-party version (leave it)? Expected hits include `server/pyproject.toml`, `client/desktop/package.json`, `server/desktop/package.json`, `server/renderer/package.json`, `tests/test_packaging.py`, `tests/test_product_split.py`, `tests/test_server_auth.py`, `scripts/lab/install_*.py`, `server/desktop/test-bootstrap-update.js` and `server/desktop/test-log-view.js`. List them in the commit message.
+- [x] **W1.1 Find every "1.0.0".** (2026-11-20; ours: the 4 package manifests and pyproject; the rest are test fixtures that pass a version in, or history) Run `git grep -n "1\.0\.0" -- ':!docs/evidence' ':!**/package-lock.json'`. For each hit, decide: is it *our* version (change it) or a third-party version (leave it)? Expected hits include `server/pyproject.toml`, `client/desktop/package.json`, `server/desktop/package.json`, `server/renderer/package.json`, `tests/test_packaging.py`, `tests/test_product_split.py`, `tests/test_server_auth.py`, `scripts/lab/install_*.py`, `server/desktop/test-bootstrap-update.js` and `server/desktop/test-log-view.js`. List them in the commit message.
 
-- [ ] **W1.2 Set the version.** Run `python scripts/set_version.py 0.5.0` (through `uv run --project server python …`). Then fix the tests and scripts from W1.1 that hard-code `1.0.0`: make them read the version from `scripts/set_version.py --show`, or use a neutral sample version like `9.9.9` where the test only needs *a* version. Also update `client/studio/package.json` (`0.1.0` → `0.5.0`), so every package says the same number, and extend `set_version.py` to write it too.
+- [x] **W1.2 Set the version.** (2026-11-20; also extended `set_version.py` to the Studio and renderer manifests and lock files) Run `python scripts/set_version.py 0.5.0` (through `uv run --project server python …`). Then fix the tests and scripts from W1.1 that hard-code `1.0.0`: make them read the version from `scripts/set_version.py --show`, or use a neutral sample version like `9.9.9` where the test only needs *a* version. Also update `client/studio/package.json` (`0.1.0` → `0.5.0`), so every package says the same number, and extend `set_version.py` to write it too.
   Check: `uv run --project server python scripts/set_version.py --show` prints `0.5.0`. `git grep -n '"version": "1.0.0"'` finds nothing of ours. Fast suite passes.
 
-- [ ] **W1.3 Make the release workflow refuse to go back to 1.x by accident.** In `.github/workflows/release.yml`, in the `version` job:
+- [x] **W1.3 Make the release workflow refuse to go back to 1.x by accident.** (2026-11-20; done as `scripts/next_version.py` + `tests/test_release_version.py`, called from the workflow) In `.github/workflows/release.yml`, in the `version` job:
   - When the version is computed automatically (a push to `main` or a manual run with no version given), and the newest tag's major number is ≥ 1 while `server/pyproject.toml` says 0.x, use the files' version (`set_version.py --show`) as the base instead of the tag.
   - Add a guard: an automatically computed version whose major number differs from `set_version.py --show`'s major fails with `::error::Version mismatch: files say X, tags say Y. Push a tag to choose.`
   - Update the comment at the top of the file: "every push to main publishes the next patch (v0.5.0 -> v0.5.1 …)".
   Check: dry-run the `next_patch` bash logic locally in Git Bash with fake tag lists (`v1.0.0` alone → `0.5.0`; `v0.5.0,v1.0.0` → `0.5.1`; `v0.5.3` → `0.5.4`). Paste the three outputs into the commit message.
 
-- [ ] **W1.4 Words.** In `README.md`:
+- [x] **W1.4 Words.** (2026-11-20) In `README.md`:
   - Add a line under the title: "**Status: beta (0.x).** It works end to end, but video quality and installs on new machines are still being proven. See the status page." (make "status page" a Markdown link to `docs/STATUS.md`)
   - Release notes text in `release.yml` (`body:`): add "This is a beta. Coming from 1.0.0? Install over it; on Linux use `sudo apt install --allow-downgrades ./<file>.deb`."
   Check: `uv run --project server python scripts/check_docs.py --structural-only` passes.

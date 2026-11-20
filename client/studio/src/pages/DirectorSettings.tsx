@@ -54,6 +54,7 @@ export default function DirectorSettings({ settings, directors, loading, onSave 
         <option value="30">30 seconds</option><option value="120">2 minutes</option><option value="300">5 minutes</option><option value="wait">Until it is free</option>
       </select></Field>
     </div>
+    <p className="small muted">This wait is for a computer that is busy with another task. A director that is working on your video is never stopped before 30 minutes.</p>
     <p className="small muted">Choose a different director for one video on Make a video or Direct again.</p>
     <HouseRules />
   </section>;

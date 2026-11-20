@@ -146,3 +146,10 @@ def test_api_lists_directors(monkeypatch):
     body = get_directors()
     assert body["directors"][0]["id"] == "best"
     assert {d["id"] for d in body["directors"]} >= {"best", "local", "claude-server"}
+
+
+def test_a_planning_session_is_never_cut_short_by_the_busy_wait(monkeypatch):
+    """The setting "When that computer is busy, wait" defaults to 120 s; a Claude session that is working takes minutes (found 2026-11-20)."""
+    for wait, expected in ((120, 1800.0), (30, 1800.0), (3600, 3600.0), (None, None)):
+        monkeypatch.setattr(directors, "settings", lambda wait=wait: {"order": ["claude-client"], "wait_seconds": wait})
+        assert directors.direct_timeout() == expected

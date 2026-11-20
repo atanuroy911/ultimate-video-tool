@@ -55,11 +55,11 @@ The settled totals were **801 fast passed**, 1 opt-in skip and **67 slow passed*
 | MCP tools / prompts | 43, 4 |
 | REST API | api routes: 269, methods: 273 |
 | downloadable models (vt/models.py) | 3 |
-| python source | files: 256, lines: 48571 |
+| python source | files: 256, lines: 48587 |
 | renderer runtime (js+css) lines | 4578 |
-| studio source | files: 335, lines: 43760, pages: AIAssistants, ComfySettings, DesignStudio, DirectorSettings, Engines, Export, LocalAI, MyVoices, New, NewOptions, Progress, Projects, Result, Review, ScriptReview, Server, Settings, ShortsExtractor, SocialHub, StockKeys, StyleThumbnails, Themes |
+| studio source | files: 335, lines: 43761, pages: AIAssistants, ComfySettings, DesignStudio, DirectorSettings, Engines, Export, LocalAI, MyVoices, New, NewOptions, Progress, Projects, Result, Review, ScriptReview, Server, Settings, ShortsExtractor, SocialHub, StockKeys, StyleThumbnails, Themes |
 | browser suites (studio/e2e, not helpers) | 75 |
-| pytest files | 190 |
+| pytest files | 192 |
 <!-- facts:end -->
 
 ## 2. The ledger

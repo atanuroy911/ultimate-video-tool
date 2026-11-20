@@ -1,6 +1,0 @@
-/* Layers: the owner's own text, pictures and video clips drawn above the generated scenes and below the captions. */
-.layers-layer { position: absolute; inset: 0; pointer-events: none; z-index: 20; overflow: hidden; }
-.lyr { position: absolute; opacity: 0; transform: translate(-50%, -50%); will-change: opacity; }
-.lyr-media { display: block; width: 100%; height: 100%; }
-.lyr-text { display: inline-block; max-width: 100%; font-family: var(--font-head); line-height: 1.25; white-space: pre-wrap; overflow-wrap: anywhere; text-shadow: 0 0 .12em rgb(0 0 0 / .35); }
-.lyr-text.plate { padding: .25em .5em; border-radius: .35em; text-shadow: none; }

@@ -1,1 +1,0 @@
-3 passed, 0 failures/errors (contained-product-boundary.xml). The test process lingered after producing the complete JUnit report and was stopped. Retained broader acceptance: product-split-final.xml (54), product-split-boundaries.xml (12 overlapping), product-split-storage.xml (9). Latest contained-manager action/UI-state Node test passed.

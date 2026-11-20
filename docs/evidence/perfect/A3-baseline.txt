@@ -1,54 +1,0 @@
-..........s............................................................. [  3%]
-........................................................................ [  7%]
-........s............................................................... [ 11%]
-.......................................................s................ [ 15%]
-.ss................................s.................................... [ 19%]
-........................................................................ [ 22%]
-........................................................................ [ 26%]
-........................................................................ [ 30%]
-........................................................................ [ 34%]
-........................................................................ [ 38%]
-........................................................................ [ 41%]
-........................................................................ [ 45%]
-........................................................................ [ 49%]
-....................s................................................... [ 53%]
-........................................................................ [ 57%]
-........................................................................ [ 60%]
-..............................................Fs........................ [ 64%]
-........................................................................ [ 68%]
-.............F..F..F.................................................... [ 72%]
-........................................................................ [ 76%]
-........................................................................ [ 79%]
-........................................................................ [ 83%]
-........................................................................ [ 87%]
-...............s........................................................ [ 91%]
-........................................................................ [ 95%]
-........................................................................ [ 98%]
-...................                                                      [100%]
-=================================== FAILURES ===================================
-E   AssertionError: assert {'project.jso...00af62c', ...} == {'project.jso...00af62c', ...}
-      
-      Omitting 196 identical items, use -vv to show
-      Differing items:
-      {'project.json': 'd58ab9d875bf436668da30817c7af90f2f5b5f77b030fe1e20fa5b2906d1688b'} != {'project.json': '95595be406dec8de094bc6403a4d8d0e43ed303103a59923bb30b36d4a5bb584'}
-      Use -v to get more diff
------------------------------ Captured stderr call -----------------------------
-Loading weights:   0%|          | 0/947 [00:00<?, ?it/s]Loading weights:   0%|          | 2/947 [00:00<04:21,  3.62it/s]Loading weights:   2%|▏         | 15/947 [00:01<01:18, 11.86it/s]Loading weights:   7%|▋         | 63/947 [00:02<00:22, 38.48it/s]Loading weights:   8%|▊         | 74/947 [00:02<00:23, 36.59it/s]Loading weights:  10%|█         | 98/947 [00:03<00:22, 36.93it/s]Loading weights:  14%|█▍        | 132/947 [00:03<00:13, 60.18it/s]Loading weights:  15%|█▌        | 146/947 [00:03<00:12, 64.71it/s]Loading weights:  21%|██        | 199/947 [00:03<00:06, 119.27it/s]Loading weights:  23%|██▎       | 222/947 [00:03<00:05, 125.23it/s]Loading weights:  26%|██▌       | 243/947 [00:04<00:08, 87.00it/s] Loading weights:  31%|███▏      | 297/947 [00:04<00:04, 137.89it/s]Loading weights:  34%|███▍      | 320/947 [00:04<00:04, 141.48it/s]Loading weights:  36%|███▌      | 341/947 [00:04<00:06, 89.45it/s] Loading weights:  38%|███▊      | 357/947 [00:05<00:08, 66.86it/s]Loading weights:  39%|███▉      | 369/947 [00:05<00:11, 48.88it/s]Loading weights:  42%|████▏     | 399/947 [00:06<00:07, 71.56it/s]Loading weights:  44%|████▎     | 414/947 [00:06<00:06, 76.95it/s]Loading weights:  45%|████▌     | 428/947 [00:06<00:06, 81.09it/s]Loading weights:  47%|████▋     | 441/947 [00:06<00:09, 52.49it/s]Loading weights:  48%|████▊     | 454/947 [00:06<00:08, 61.17it/s]Loading weights:  51%|█████▏    | 487/947 [00:07<00:04, 96.51it/s]Loading weights:  53%|█████▎    | 503/947 [00:07<00:04, 99.12it/s]Loading weights:  56%|█████▋    | 535/947 [00:07<00:02, 138.55it/s]Loading weights:  62%|██████▏   | 584/947 [00:07<00:01, 203.04it/s]Loading weights:  65%|██████▍   | 611/947 [00:08<00:04, 76.56it/s] Loading weights:  67%|██████▋   | 631/947 [00:10<00:09, 34.52it/s]Loading weights:  68%|██████▊   | 645/947 [00:10<00:10, 28.86it/s]Loading weights:  70%|███████   | 664/947 [00:11<00:11, 25.33it/s]Loading weights:  74%|███████▍  | 703/947 [00:12<00:05, 41.10it/s]Loading weights:  76%|███████▋  | 724/947 [00:12<00:04, 50.72it/s]Loading weights:  78%|███████▊  | 739/947 [00:13<00:06, 31.45it/s]Loading weights:  81%|████████▏ | 771/947 [00:13<00:04, 43.88it/s]Loading weights:  83%|████████▎ | 786/947 [00:14<00:04, 40.10it/s]Loading weights:  87%|████████▋ | 825/947 [00:14<00:02, 43.88it/s]Loading weights:  91%|█████████ | 859/947 [00:15<00:01, 46.71it/s]Loading weights:  97%|█████████▋| 919/947 [00:15<00:00, 80.97it/s]Loading weights: 100%|██████████| 947/947 [00:15<00:00, 59.96it/s]
-Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Loading weights:   0%|          | 0/203 [00:00<?, ?it/s]Loading weights:  14%|█▍        | 28/203 [00:00<00:01, 93.03it/s]Loading weights:  25%|██▍       | 50/203 [00:00<00:01, 97.50it/s]Loading weights:  44%|████▍     | 90/203 [00:00<00:00, 132.84it/s]Loading weights:  53%|█████▎    | 107/203 [00:00<00:00, 138.82it/s]Loading weights: 100%|██████████| 203/203 [00:00<00:00, 224.13it/s]
------------------------------- Captured log call -------------------------------
-WARNING  huggingface_hub.utils._http:_http.py:1023 Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-/home/roy/vt-tests/repo/tests/test_modules_equivalence.py:52: AssertionError: assert {'project.jso...00af62c', ...} == {'project.jso...00af62c', ...}
-E   Failed: phase2-9x16-b: mean pixel difference 11.58 > 1.5 (see /tmp/pytest-of-roy/pytest-0/p29x160/phase2-9x16-b.actual.png)
-/home/roy/vt-tests/repo/tests/test_render_golden.py:37: Failed: phase2-9x16-b: mean pixel difference 11.58 > 1.5 (see /tmp/pytest-of-roy/pytest-0/p29x160/phase2-9x16-b.actual.png)
-E   Failed: phase2-1x1-b: mean pixel difference 15.08 > 1.5 (see /tmp/pytest-of-roy/pytest-0/p21x10/phase2-1x1-b.actual.png)
-/home/roy/vt-tests/repo/tests/test_render_golden.py:37: Failed: phase2-1x1-b: mean pixel difference 15.08 > 1.5 (see /tmp/pytest-of-roy/pytest-0/p21x10/phase2-1x1-b.actual.png)
-E   Failed: phase2-16x9-b: mean pixel difference 9.47 > 1.5 (see /tmp/pytest-of-roy/pytest-0/p216x90/phase2-16x9-b.actual.png)
-/home/roy/vt-tests/repo/tests/test_render_golden.py:37: Failed: phase2-16x9-b: mean pixel difference 9.47 > 1.5 (see /tmp/pytest-of-roy/pytest-0/p216x90/phase2-16x9-b.actual.png)
-=========================== short test summary info ============================
-FAILED ../tests/test_modules_equivalence.py::test_recordings_are_byte_identical[samples/audio/bn_plain.mp3-bn]
-FAILED ../tests/test_phase2_render.py::test_contact_sheet_matches_the_golden[9:16]
-FAILED ../tests/test_phase2_render.py::test_contact_sheet_matches_the_golden[1:1]
-FAILED ../tests/test_phase2_render.py::test_contact_sheet_matches_the_golden[16:9]
-4 failed, 1878 passed, 9 skipped in 735.55s (0:12:15)
-

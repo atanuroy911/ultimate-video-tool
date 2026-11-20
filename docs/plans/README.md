@@ -1,6 +1,6 @@
 # Plan implementation audit
 
-**Current cross-check (2026-11-03):** [Vision-to-product audit](../AUDIT-2026-11-03.md) records the live capability inventory, repaired UI/Director gaps and outstanding acceptance work. Older measurements below remain dated evidence, not current pass claims.
+**Current cross-check (2026-11-03):** [Vision-to-product audit](../history/AUDIT-2026-11-03.md) records the live capability inventory, repaired UI/Director gaps and outstanding acceptance work. Older measurements below remain dated evidence, not current pass claims.
 
 Checked against the source and focused tests on 2026-10-26, with the director-module row refreshed on 2026-10-27. The detailed plans describe the intended product; this page records what has actually been verified.
 

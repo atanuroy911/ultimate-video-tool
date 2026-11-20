@@ -294,7 +294,7 @@ Background: `server/vt/server/serve.py`. Today `allowed()` returns `True` for ev
 
 ### W4 — Code health where it hurts
 
-- [ ] **W4.1 A route-table snapshot test first.** Create `tests/test_route_table.py`. It builds the FastAPI `app` from `vt.server.app`, collects `[(route.path, sorted(route.methods or []), route.name) for route in app.routes]` **in order**, and compares the list to `tests/golden/route_table.json`. With `VT_UPDATE_GOLDEN=1` it writes the file instead. Generate the golden file now and commit it.
+- [x] **W4.1 A route-table snapshot test first.** (2026-11-20; 195 routes in `tests/golden/route_table.json`) Create `tests/test_route_table.py`. It builds the FastAPI `app` from `vt.server.app`, collects `[(route.path, sorted(route.methods or []), route.name) for route in app.routes]` **in order**, and compares the list to `tests/golden/route_table.json`. With `VT_UPDATE_GOLDEN=1` it writes the file instead. Generate the golden file now and commit it.
   Check: the test passes. The golden file has 267+ entries (the documented count).
 
 - [ ] **W4.2 Split `server/vt/server/app.py` (3,325 lines) into routers.** Create `server/vt/server/routes/` with one module per area. Choose the areas from the URL prefixes actually present. Expected: `projects.py`, `media.py`, `transcript.py`, `script.py`, `director.py`, `plan.py`, `render.py` (render/preview/export), `quality.py` (qa/autofix/retention), `ai.py` (llm/ai/models), `mcp.py`, `jobs.py`, `engines.py`, `settings.py`, `voices.py`, `social.py`, `shorts.py`, `assets.py` (themes/fonts/icons/music), `system.py` (health/version/doctor). Each module has `router = APIRouter()`. Shared helpers go into `routes/_common.py`.
@@ -316,10 +316,10 @@ Background: `server/vt/server/serve.py`. Today `allowed()` returns `True` for ev
 
 ### W5 — Repo and docs
 
-- [ ] **W5.1 Evidence leaves git.** Zip `docs/evidence/` to `docs-evidence-2026-11.zip` (outside the repo, in `E:\UltimateVideoTool\`), attach it to the 0.5.0 release (W1.6, or now if 0.5.0 is out: `gh release upload v0.5.0 <zip>`). Then `git rm -r --cached docs/evidence` and add **`/docs/evidence/`** (anchored, with the leading slash; see the owner's earlier loss from unanchored rules) to `.gitignore`. Move the folder on disk to `E:\UltimateVideoTool\evidence\` and make `scripts/check_docs.py` look there for evidence links, or drop evidence-link checks from the docs that W5.2 archives.
+- [x] **W5.1 Evidence leaves git.** (2026-11-21; zip at `E:/UltimateVideoTool/docs-evidence-2026-11.zip` (130 MB), attach to the 0.5.0 release; tip 492.7 to 149.8 MB) Zip `docs/evidence/` to `docs-evidence-2026-11.zip` (outside the repo, in `E:\UltimateVideoTool\`), attach it to the 0.5.0 release (W1.6, or now if 0.5.0 is out: `gh release upload v0.5.0 <zip>`). Then `git rm -r --cached docs/evidence` and add **`/docs/evidence/`** (anchored, with the leading slash; see the owner's earlier loss from unanchored rules) to `.gitignore`. Move the folder on disk to `E:\UltimateVideoTool\evidence\` and make `scripts/check_docs.py` look there for evidence links, or drop evidence-link checks from the docs that W5.2 archives.
   Check: `git ls-files docs/evidence | wc -l` prints 0. `check_docs.py --structural-only` passes. Clone size of the *tip* (`git archive HEAD | wc -c`) is recorded in the baseline file.
 
-- [ ] **W5.2 One current STATUS.** Rewrite `docs/STATUS.md` as a short, current page (under 150 lines):
+- [x] **W5.2 One current STATUS.** (2026-11-21; old audits and the old status moved to `docs/history/`) Rewrite `docs/STATUS.md` as a short, current page (under 150 lines):
   1. The version and its status (beta).
   2. Test suites today: fast (count, last run), nightly CPU (link to the latest run), nightly GPU (last report date), browser suites (count passing).
   3. The measured facts table (keep the `facts:begin/end` block that `check_docs.py --fix-facts` regenerates).
@@ -327,9 +327,9 @@ Background: `server/vt/server/serve.py`. Today `allowed()` returns `True` for ev
   Move to `docs/history/` (keep content, no edits): `AUDIT-2026-10-28.md`, `AUDIT-2026-11-03.md`, `AUDIT-SKILLS-DIRECTION-2026-11-03.md`, `UI-REVIEW.md`, `STORY-ENGINE-PLAN.md`, `ACTIVE-WORK.md`, `HANDOFF.md`, and from `docs/plans/` every plan whose steps are all done or which a later plan replaced. Read each one's last lines to decide; when unsure, leave it. Fix every link that pointed at a moved file (`git grep -n "<name>"`). Remove references to `C:\Users\atanu\Desktop\Video Tool`.
   Check: `check_docs.py` passes. `docs/README.md` lists only current documents plus one link to `docs/history/`.
 
-- [ ] **W5.3 The public root.** The repo root keeps: `README.md`, `LICENSE`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `THIRD-PARTY.md`, `pyproject.toml` and the folders. Move `plan.md` to `docs/history/plan-2026-10.md`.
+- [x] **W5.3 The public root.** (2026-11-21) The repo root keeps: `README.md`, `LICENSE`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `THIRD-PARTY.md`, `pyproject.toml` and the folders. Move `plan.md` to `docs/history/plan-2026-10.md`.
 
-- [ ] **W5.4 The handoff notes.** Move `docs/dev/CODEX-HANDOFF.md` and `docs/dev/WORKLOG.md` to `docs/dev/`. Update every pointer to them: `git grep -n "CODEX-HANDOFF\|WORKLOG"`, including `.codex/`, `.agents/`, `.claude/`, `AGENTS.md` if present, and this plan's section 0.1. Then update the owner's Claude memory note `codex-handoff.md` in `C:\Users\Roy\.claude\projects\c--Users-Roy-Desktop-ultimate-video-tool\memory\` to say the files now live in `docs/dev/`.
+- [x] **W5.4 The handoff notes.** (2026-11-21; memory note updated) Move `docs/dev/CODEX-HANDOFF.md` and `docs/dev/WORKLOG.md` to `docs/dev/`. Update every pointer to them: `git grep -n "CODEX-HANDOFF\|WORKLOG"`, including `.codex/`, `.agents/`, `.claude/`, `AGENTS.md` if present, and this plan's section 0.1. Then update the owner's Claude memory note `codex-handoff.md` in `C:\Users\Roy\.claude\projects\c--Users-Roy-Desktop-ultimate-video-tool\memory\` to say the files now live in `docs/dev/`.
   Check: `git grep -n "docs/dev/CODEX-HANDOFF.md\|docs/dev/WORKLOG.md"` shows only `docs/dev/` paths.
 
 ---

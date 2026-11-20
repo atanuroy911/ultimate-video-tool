@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-STRICT = ["docs/STATUS.md", "docs/HANDOFF.md", "docs/README.md"]
+STRICT = ["docs/STATUS.md", "docs/README.md"]
 SKIP_LINK_DIRS = ("docs/history", "docs/evidence", "third_party", "node_modules", ".venv")
 PATH_ROOTS = ("vt/", "tests/", "studio/", "renderer/", "scripts/", "docs/", "assets/", "design/", "samples/", "third_party/", "desktop/", "build/", "projects/", "models/")
 EXT = r"(?:py|ts|tsx|js|mjs|json|md|MD|ps1|css|html|yaml|yml|txt|log|xml|svg|toml|png|mp4|wav|mp3|jsonl)"

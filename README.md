@@ -190,7 +190,7 @@ docs/          documentation and this project's website
 
 - [docs/README.md](docs/README.md): where to start in the docs
 - [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/STATUS.md](docs/STATUS.md): the plan, and what is built, with evidence
-- [docs/HANDOFF.md](docs/HANDOFF.md): how to work in this repository
+- [docs/HANDOFF.md](docs/dev/CODEX-HANDOFF.md): how to work in this repository
 - [docs/GLOSSARY.md](docs/GLOSSARY.md): what every word in the app means
 - [docs/plans/](docs/plans/): detailed designs
 

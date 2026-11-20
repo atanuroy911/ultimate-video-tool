@@ -7,10 +7,10 @@ For an AI agent (Claude Sonnet) working in this repository with no memory of ear
 1. At the start of every session, read sections 0 to 3 in full.
 2. Find your place: `grep -n -m1 "^- \[ \]" docs/plans/PLAN-PERFECT.MD`.
 3. Do that one step, in the way section 0.3 describes.
-4. Tick it (`- [x]`) only when its **Check** passed after your last edit. Add one line under it: `Evidence: <file, command result or what you saw>`. Add one line to `WORKLOG.md`.
+4. Tick it (`- [x]`) only when its **Check** passed after your last edit. Add one line under it: `Evidence: <file, command result or what you saw>`. Add one line to `docs/dev/WORKLOG.md`.
 5. If the check still fails after three real attempts at the cause, mark it `- [!]`, write what you tried and what you found, and go on to the next step that does not depend on it. **Owner, 2026-11-06: "list all the breaking stuff and finish rest of the implementation and then come back to it later."** Everything that is broken, blocked or risky is in `docs/evidence/perfect/BREAKING.md`. Add to it whenever you park something, keep working on what is not blocked, and come back to that list when the rest is done.
 6. Do the phases in the order they appear: A, M, K, B, C, D, E, F, G, H, I. Phase A makes every later check trustworthy. Phases M and K change how directors and graphics cards work, and everything after them tests on top of that.
-7. At the end of each phase, update `CLAUDE-HANDOFF.md` and `CODEX-HANDOFF.md`, and tell the owner in a few plain sentences what now works and what does not.
+7. At the end of each phase, update `CLAUDE-HANDOFF.md` and `docs/dev/CODEX-HANDOFF.md`, and tell the owner in a few plain sentences what now works and what does not.
 
 Short paths such as `vt/...`, `ai/...`, `script/...` and `compose/...` are under `server/vt/`. Line numbers in this plan drift, so steps name functions and search terms. Read the code before you change it. If the code disagrees with this plan, the code is the truth: note the difference and do what the step is for.
 

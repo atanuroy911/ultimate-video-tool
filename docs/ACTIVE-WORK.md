@@ -1,6 +1,6 @@
 # Historical work queue — STOPPED
 
-**History (2026-11-03).** This queue is finished or superseded. The current plan is [docs/plans/PLAN-PERFECT.MD](plans/PLAN-PERFECT.MD); the newest state is at the top of `WORKLOG.md`. The old Claude handoff is [history/CLAUDE-HANDOFF-2026-11-03.md](history/CLAUDE-HANDOFF-2026-11-03.md).
+**History (2026-11-03).** This queue is finished or superseded. The current plan is [docs/plans/PLAN-PERFECT.MD](plans/PLAN-PERFECT.MD); the newest state is at the top of `docs/dev/WORKLOG.md`. The old Claude handoff is [history/CLAUDE-HANDOFF-2026-11-03.md](history/CLAUDE-HANDOFF-2026-11-03.md).
 
 Updated 2026-11-03. The owner explicitly asked to stack new requests and finish one item before switching. This file records the active order; it does not label earlier feature work complete.
 

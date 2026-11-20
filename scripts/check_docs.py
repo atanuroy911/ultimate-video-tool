@@ -24,7 +24,7 @@ PATH_TOKEN = re.compile(rf"^(?:[\w.\-]+/)+[\w.\-]*\.{EXT}$|^(?:{'|'.join(re.esca
 
 
 def md_files() -> list[Path]:
-    out = [ROOT / "README.md", ROOT / "plan.md"]
+    out = [ROOT / "README.md"]
     out += [p for p in (ROOT / "docs").rglob("*") if p.suffix.lower() == ".md"]
     return [p for p in out if p.exists() and not any(part in str(p.relative_to(ROOT)).replace("\\", "/") for part in SKIP_LINK_DIRS)]
 

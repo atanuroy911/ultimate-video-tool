@@ -9,7 +9,7 @@ Progress is kept in this file's tick boxes. A session resumes at the first untic
 
 0.1 **Start of every session.**
 1. Read this section 0 and section 1 (decisions). Do not re-decide anything in section 1.
-2. Read the newest entry of `WORKLOG.md` (or `docs/dev/WORKLOG.md` once step W5.4 has moved it). Codex may have changed things since the last tick.
+2. Read the newest entry of `docs/dev/WORKLOG.md` (or `docs/dev/WORKLOG.md` once step W5.4 has moved it). Codex may have changed things since the last tick.
 3. Run `git status` and `git log --oneline -5`. Check out the branch `workbench` (step W0.1). Never work on `main`.
 4. Find the first unticked `- [ ]` step below and do it. Do the steps in order unless a step says otherwise.
 
@@ -32,7 +32,7 @@ Progress is kept in this file's tick boxes. A session resumes at the first untic
 2. Run the fast suite: `uv run --project server pytest -m "not slow" -q` (about 7 minutes). For client-only steps, run `cd client/studio && npm run build && npm run test:timeline` instead, plus the node tests named in the step.
 3. Tick the step's box in this file, with the date and the commit's short hash: `- [x] W2.1 … (2026-11-21, a1b2c3d)`.
 4. Commit and push to `workbench`.
-5. At the end of each **phase** (W1, W2, …), add a `WORKLOG.md` entry (newest first: done / verified how / left over) and refresh `CODEX-HANDOFF.md` if a rule or path changed.
+5. At the end of each **phase** (W1, W2, …), add a `docs/dev/WORKLOG.md` entry (newest first: done / verified how / left over) and refresh `docs/dev/CODEX-HANDOFF.md` if a rule or path changed.
 
 0.5 **When a step is wrong.** If the code no longer matches what a step says (a file moved, a function was renamed), adapt the step to the code as it is now. Say so in the commit message. Do not invent a different goal. If a step cannot be done without changing a decision in section 1, stop and ask the owner. Ask in plain words, with no jargon, and offer a recommended answer.
 
@@ -329,8 +329,8 @@ Background: `server/vt/server/serve.py`. Today `allowed()` returns `True` for ev
 
 - [ ] **W5.3 The public root.** The repo root keeps: `README.md`, `LICENSE`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `THIRD-PARTY.md`, `pyproject.toml` and the folders. Move `plan.md` to `docs/history/plan-2026-10.md`.
 
-- [ ] **W5.4 The handoff notes.** Move `CODEX-HANDOFF.md` and `WORKLOG.md` to `docs/dev/`. Update every pointer to them: `git grep -n "CODEX-HANDOFF\|WORKLOG"`, including `.codex/`, `.agents/`, `.claude/`, `AGENTS.md` if present, and this plan's section 0.1. Then update the owner's Claude memory note `codex-handoff.md` in `C:\Users\Roy\.claude\projects\c--Users-Roy-Desktop-ultimate-video-tool\memory\` to say the files now live in `docs/dev/`.
-  Check: `git grep -n "CODEX-HANDOFF.md\|WORKLOG.md"` shows only `docs/dev/` paths.
+- [ ] **W5.4 The handoff notes.** Move `docs/dev/CODEX-HANDOFF.md` and `docs/dev/WORKLOG.md` to `docs/dev/`. Update every pointer to them: `git grep -n "CODEX-HANDOFF\|WORKLOG"`, including `.codex/`, `.agents/`, `.claude/`, `AGENTS.md` if present, and this plan's section 0.1. Then update the owner's Claude memory note `codex-handoff.md` in `C:\Users\Roy\.claude\projects\c--Users-Roy-Desktop-ultimate-video-tool\memory\` to say the files now live in `docs/dev/`.
+  Check: `git grep -n "docs/dev/CODEX-HANDOFF.md\|docs/dev/WORKLOG.md"` shows only `docs/dev/` paths.
 
 ---
 

@@ -1,6 +1,6 @@
 # Codex: what to do next, and what to check (written 2026-11-07 ~13:50 by Claude, who is near its usage limit)
 
-Read first: `docs/plans/PLAN-PERFECT.MD` (the step list; 66 ticked, 41 open), `WORKLOG.md` (newest at the bottom), `docs/evidence/perfect/BREAKING.md` (what is parked and why).
+Read first: `docs/plans/PLAN-PERFECT.MD` (the step list; 66 ticked, 41 open), `docs/dev/WORKLOG.md` (newest at the bottom), `docs/evidence/perfect/BREAKING.md` (what is parked and why).
 Tick a step only when its **Check** passed after the last edit, add an `Evidence:` line and a WORKLOG line. Use `scratchpad`-style temp files outside the repo.
 
 2026-11-07 continuation — Done by codex. Item 2.1 has a verified local follow-up: scoped directors get a concise script brief, submit before review, receive immediate guidance if a module would delegate their work, and have module calls recorded in AI conversations. The existing Sonnet run still shows a 120-second timeout and an Ollama fallback. The new changes await real acceptance. Evidence: `docs/evidence/perfect/M10-codex-handoff-check.md`.

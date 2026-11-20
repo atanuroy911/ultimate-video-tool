@@ -1,0 +1,200 @@
+/* Ultimate Video Tool: the design tokens. The ONLY place in the Studio's chrome that holds raw colour values (scripts/dev/check_raw_colors.mjs).
+   Everything else uses these names. A light and a dark value for each; the theme is <html data-theme="light|dark"> (set by Shell.tsx).
+
+   The principles follow OpenFilm's editor (MIT, github.com/openfilm/openfilm, packages/openfilm/studio/ui/src/globals.css, commit a1b8d75): cool-grey layers,
+   colour kept for meaning, translucent fills that read the same on every layer. The accent is our own: the brand orange.
+
+   Layers, bottom to top:   --bg-app (the window, the top bar, the seams between panes)  ->  --bg-panel (a pane's inside)  ->  --bg-raised (cards, menus, dialogs).
+   On any layer:            --bg-field (inputs, wells), --bg-hover, --bg-pressed, --bg-selected (translucent).
+   Text:                    --text, --text-muted, --text-faint (hints, idle icons).
+   The main action is ink (near black in light, near white in dark). One accent (--accent) is kept for "selected, current, focused". ok / warn / err are states. */
+
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg-app: #e6e6ea;
+  --bg-titlebar: var(--bg-app);
+  --bg-panel: #fbfbfc;
+  --bg-raised: #ffffff;
+  --bg-viewer: #f3f3f5;
+  --dock-line: #d4d4da;
+  --bg-field: rgb(16 16 24 / 0.055);
+  --bg-hover: rgb(16 16 24 / 0.05);
+  --bg-pressed: rgb(16 16 24 / 0.09);
+  --bg-selected: color-mix(in srgb, var(--accent) 13%, transparent);
+
+  --text: #161619;
+  --text-muted: #5d5d63;
+  --text-faint: #75757c;
+
+  --border: rgb(16 16 24 / 0.085);
+  --border-strong: rgb(16 16 24 / 0.16);
+
+  --primary: #161619;
+  --primary-hover: #2e2e33;
+  --on-primary: #ffffff;
+
+  --accent: #c2480a;
+  --accent-text: #a83d06;
+  --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
+  --on-accent: #ffffff;
+  --focus-ring: 0 0 0 2px var(--accent);
+
+  --ok: #1f8a4c;
+  --warn: #9a5200;
+  --err: #d1342f;
+  --ok-soft: rgb(31 138 76 / 0.13);
+  --warn-soft: rgb(154 82 0 / 0.14);
+  --err-soft: rgb(209 52 47 / 0.12);
+
+  --shadow-sm: 0 1px 2px rgb(16 16 24 / 0.05), 0 1px 3px rgb(16 16 24 / 0.05);
+  --shadow-lg: 0 12px 32px rgb(16 16 24 / 0.1), 0 4px 8px rgb(16 16 24 / 0.05);
+  --glass: rgb(251 251 252 / 0.78);
+  --glass-border: rgb(255 255 255 / 0.7);
+
+  /* clips on the timeline, by kind: one quiet colour each at one lightness, under white words */
+  --clip-scene: #54789d;
+  --clip-picture: #497c93;
+  --clip-video: #4f6d8f;
+  --clip-element: #7968a8;
+  --clip-caption: #a8632f;
+  --clip-sticker: #357c53;
+  --clip-narration: #2d7c7c;
+  --clip-music: #5b6aa6;
+  --clip-sfx: #8d5a86;
+  --tl-lane: #f1f1f3;
+  --tl-row: #f7f7f8;
+  --tl-head: var(--tl-row);
+  --tl-gap: var(--bg-panel);
+  --tl-playhead: #161619;
+  --tl-select: #161619;
+  --tl-wave: rgb(255 255 255 / 0.5);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg-app: #141414;
+  --bg-titlebar: #1c1c1c;
+  --bg-panel: #191919;
+  --bg-raised: #202020;
+  --bg-viewer: #191919;
+  --dock-line: #000000;
+  --bg-field: rgb(255 255 255 / 0.08);
+  --bg-hover: rgb(255 255 255 / 0.06);
+  --bg-pressed: rgb(255 255 255 / 0.12);
+  --bg-selected: color-mix(in srgb, var(--accent) 16%, transparent);
+
+  --text: #f0f0f0;
+  --text-muted: #a3a3a3;
+  --text-faint: #8a8a90;
+
+  --border: rgb(240 240 255 / 0.075);
+  --border-strong: rgb(240 240 255 / 0.15);
+
+  --primary: #ebebed;
+  --primary-hover: #ffffff;
+  --on-primary: #0a0a0c;
+
+  --accent: #ff7a33;
+  --accent-text: #ff9a5c;
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  --on-accent: #1f0d00;
+  --focus-ring: 0 0 0 2px var(--accent);
+
+  --ok: #4cc27a;
+  --warn: #f0b03c;
+  --err: #f2665f;
+  --ok-soft: rgb(76 194 122 / 0.16);
+  --warn-soft: rgb(240 176 60 / 0.18);
+  --err-soft: rgb(242 102 95 / 0.16);
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3), 0 1px 3px rgb(0 0 0 / 0.3);
+  --shadow-lg: 0 16px 40px rgb(0 0 0 / 0.5), 0 4px 10px rgb(0 0 0 / 0.3);
+  --glass: rgb(32 32 32 / 0.78);
+  --glass-border: rgb(255 255 255 / 0.1);
+
+  --clip-scene: #354f6a;
+  --clip-picture: #2e5363;
+  --clip-video: #33495f;
+  --clip-element: #504472;
+  --clip-caption: #7f4d28;
+  --clip-sticker: #24603e;
+  --clip-narration: #1c5757;
+  --clip-music: #3a4673;
+  --clip-sfx: #5e3a59;
+  --tl-lane: #151518;
+  --tl-row: #1d1d1d;
+  --tl-head: #1e1e1e;
+  --tl-gap: var(--bg-panel);
+  --tl-playhead: #ffffff;
+  --tl-select: #ffffff;
+  --tl-wave: rgb(255 255 255 / 0.4);
+}
+
+/* Type, size, motion: the same in both themes */
+:root {
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Hind Siliguri", "Noto Sans Bengali", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  --fs-11: 11px;
+  --fs-12: 12px;
+  --fs-13: 13px;
+  --fs-15: 15px;
+  --fs-20: 20px;
+
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+
+  --h-control: 28px;
+  --h-topbar: 40px;
+  --h-pane-header: 36px;
+
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --t-fast: 120ms;
+  --t-pane: 200ms;
+
+  /* The names the Studio used before this file. They point at the new tokens so nothing breaks while pages move over (W6.3). */
+  --bg: var(--bg-app);
+  --panel: var(--bg-panel);
+  --panel-2: var(--bg-field);
+  --panel-hover: var(--bg-hover);
+  --fill: var(--bg-field);
+  --fill-2: var(--bg-pressed);
+  --muted: var(--text-muted);
+  --line: var(--border);
+  --ink: var(--text);
+  --bg-elev: var(--bg-raised);
+  --bg-2: var(--bg-field);
+  --accent-strong: var(--accent);
+  --accent-ink: var(--on-accent);
+  --card-bg: var(--bg-raised);
+  --input-bg: var(--bg-field);
+  --fg: var(--text);
+  --font: var(--font-sans);
+  --mono: var(--font-mono);
+  --radius: var(--r-md);
+  --radius-lg: var(--r-lg);
+  --shadow: var(--shadow-sm);
+  --shadow-pop: var(--shadow-lg);
+  --switch-on: var(--accent);
+  --ease-ios: var(--ease);
+  --ease-spring: var(--ease);
+  --grad: linear-gradient(110deg, var(--accent), var(--accent-text));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t-fast: 0ms;
+    --t-pane: 0ms;
+  }
+}

@@ -46,6 +46,7 @@ jobs:
         with: { node-version: "22", cache: npm, cache-dependency-path: client/studio/package-lock.json }
       - run: cd client/studio && npm ci --no-audit --no-fund && npm run build
       - run: cd client/studio && npm run test:timeline
+      - run: node scripts/dev/check_contrast.mjs
       - run: npm --prefix client/desktop ci --no-audit --no-fund
       - run: npm --prefix server/desktop ci --ignore-scripts --no-audit --no-fund
       - run: node client/desktop/test-director-runner.js

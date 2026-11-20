@@ -26,6 +26,7 @@ The full lists are `server/pyproject.toml` with `server/uv.lock`, and the `packa
 | [OpenCV](https://opencv.org) | face detection, so text stays off faces | Apache-2.0 |
 | [React](https://react.dev), [Vite](https://vite.dev), [Electron](https://www.electronjs.org) | editor and desktop apps | MIT |
 | [Lucide](https://lucide.dev) | icons | ISC |
+| [Inter](https://rsms.me/inter/) (`@fontsource-variable/inter`) | the editor's type, bundled so it works offline | SIL Open Font License 1.1 |
 | [FFmpeg](https://ffmpeg.org) | audio and video processing (not bundled; used from the system or downloaded) | LGPL/GPL |
 
 ## Engines and models (downloaded by setup, not in this repository)

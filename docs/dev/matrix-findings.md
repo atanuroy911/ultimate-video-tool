@@ -14,7 +14,8 @@ Found by `scripts/lab/local_matrix.py` on the installed 0.5.0 server on this lap
 ### F2. Claude's planning task was too big to arrive, so Claude never planned (fixed)
 - `explainer-watch` with Claude: Claude called `get_script_task`, then tried `Bash`, `PowerShell` and `Read` (all refused: the planning session has no built-in tools), and finished "successfully" with no plan. The server then silently fell back to the local AI and started downloading it.
 - Cause: Claude Code saves an MCP tool result above its size limit to a file and tells Claude to read it. The task (rules, schema, every timed word) is that large.
-- Fix: the runner sets `MAX_MCP_OUTPUT_TOKENS=200000` for the planning session unless the person set it (`client/desktop/director-runner.js`, tested in `test-director-runner.js`). With it, Claude submits the script.
+- First attempt: the runner sets `MAX_MCP_OUTPUT_TOKENS=200000` (`client/desktop/director-runner.js`). Not enough: the task is about 49,000 characters (about 12,000 tokens), well under that limit, and Claude still got a saved-file message sometimes. Claude Code saves any result above about 50,000 characters, a separate limit.
+- Fix: every MCP tool now asks for the largest allowed result (`_meta["anthropic/maxResultSizeChars"] = 500000`, `RESULT_SIZE` in `server/vt/mcp/server.py`, tested in `tests/test_mcp_result_size.py`). Verified on the installed server: Claude read the task and submitted the script on the first try.
 - Still open: when the chosen director finishes without a plan, the server falls back to another director without saying so loudly. That is by design ("best available") but for an explicitly chosen director the person should be asked first. Raise with the owner.
 
 ### F3. Every real Claude session was cut off after 120 seconds (fixed)

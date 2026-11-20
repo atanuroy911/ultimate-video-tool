@@ -152,3 +152,35 @@ def test_an_assistant_elsewhere_can_still_send_a_file_with_its_ticket(server):
     assert good.status_code not in (401, 403)
     assert c.put(f"/api/uploads/{made['id']}/file?ticket=wrong", content=b"abcde").status_code == 401
     assert c.put(f"/api/uploads/{made['id']}/file", content=b"abcde").status_code == 401
+
+
+# the setting itself ---------------------------------------------------------------------------------------------------------------------------
+def test_only_this_computer_can_change_the_setting_and_it_is_kept(server, monkeypatch, tmp_path):
+    from vt import paths
+    from vt.util import read_json
+
+    monkeypatch.setattr(paths, "SETTINGS", tmp_path / "settings.json")
+    server(exposed=True, trust=True)                      # even when the setting is on, a trusted computer cannot widen it
+    assert TestClient(app, client=HOME).post("/api/server/trust-network", json={"on": False}).status_code == 403
+    assert TestClient(app, client=HOME).get("/api/server/key").status_code == 403
+    server(exposed=True)
+    here = TestClient(app, client=HERE)
+    assert here.get("/api/server").json()["trust_network"] is False
+    assert here.post("/api/server/trust-network", json={"on": True}).json() == {"trust_network": True}
+    assert read_json(paths.SETTINGS)["trust_network"] is True and serve.saved_trust_network() is True
+    assert TestClient(app, client=HOME).get("/api/health").status_code == 200           # applied at once, no restart
+    assert here.get("/api/server").json()["trust_network"] is True
+    assert here.post("/api/server/trust-network", json={"on": False}).json() == {"trust_network": False}
+    assert serve.saved_trust_network() is False
+    assert TestClient(app, client=HOME).get("/api/health").status_code == 401
+
+
+def test_the_key_is_given_only_to_this_computer(server):
+    from vt.engines import hub
+
+    server(exposed=True)
+    r = TestClient(app, client=HERE).get("/api/server/key")
+    assert r.status_code == 200 and r.json()["key"] == hub.identity()["key"] and len(r.json()["key"]) > 20
+    assert TestClient(app, client=HERE).get("/api/server/key", headers={"X-Forwarded-For": "203.0.113.9"}).status_code == 401
+    assert TestClient(app, client=HOME).get("/api/server/key").status_code == 401           # no key, and not this computer
+    assert TestClient(app, client=HERE).get("/api/server/key", headers=EVIL).status_code == 401

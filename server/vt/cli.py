@@ -331,7 +331,8 @@ def server(host: str = typer.Option("0.0.0.0", help="0.0.0.0 = other computers o
            comfy_url: str = typer.Option("", help="ComfyUI address(es), comma-separated: the first is the main server, the rest are workers"),
            gpus: str = typer.Option("", "--gpus", help="the graphics cards Video Tool may use: numbers separated by commas, all, or none. Saved: the Server page shows and changes it too"),
            open_ui: bool = typer.Option(False, "--open", help="open the Studio in this computer's browser"),
-           start_at_login: bool = typer.Option(False, "--start-at-login", help="also start this server by itself from now on, the same way (Engines page: This server)")) -> None:
+           start_at_login: bool = typer.Option(False, "--start-at-login", help="also start this server by itself from now on, the same way (Engines page: This server)"),
+           trust_network: Optional[bool] = typer.Option(None, "--trust-network/--no-trust-network", help="let computers on this network connect without the key (saved; off unless you turn it on). Without it, other computers send the key shown by `vt key`")) -> None:
     """Run Video Tool: the Studio, the pipeline and the engines on one port. A computer on this network connects by typing the address printed below; no code is needed.
 
     Engines already installed on this computer are used as they are (nothing of them is started, stopped or changed); our own copies use their own ports and folders.
@@ -356,7 +357,7 @@ def server(host: str = typer.Option("0.0.0.0", help="0.0.0.0 = other computers o
     again = ["server", "--host", host] + (["--name", name] if name else [])        # how to start this same server by itself later
     for e, p in placed.items():
         again += [f"--{e}", p.source] + ([f"--{e}-url", ",".join(p.urls())] if p.source == "existing" else [])
-    _serve(host, port, name, {e: p.url for e, p in placed.items() if p.source != "off"}, open_ui, again, start_at_login)
+    _serve(host, port, name, {e: p.url for e, p in placed.items() if p.source != "off"}, open_ui, again, start_at_login, trust_network)
 
 
 _fenced = False
@@ -399,7 +400,7 @@ def _free_port(port: Optional[int], host: str) -> int:
 
 
 def _serve(host: str, port: Optional[int], name: str, services: dict[str, str], open_ui: bool, again: Optional[list[str]] = None,
-           start_at_login: bool = False) -> None:
+           start_at_login: bool = False, trust_network: Optional[bool] = None) -> None:
     import socket
     import threading
     import webbrowser
@@ -414,8 +415,10 @@ def _serve(host: str, port: Optional[int], name: str, services: dict[str, str], 
     port = _free_port(port, host)
     exposed = host not in serve.LOOPBACK
     ident = hub.identity()
+    if trust_network is not None:
+        serve.set_trust_network(trust_network)                       # saved, so the next start keeps it
     serve.configure(key=ident["key"], name=name or ident.get("name", "") or socket.gethostname() or "Video Tool", services=services, exposed=exposed,
-                    argv=again + ["--port", str(port)] if again else None)
+                    argv=again + ["--port", str(port)] if again else None, trust_network=serve.saved_trust_network())
     serve.STATE["port"] = port                                       # for addresses handed to assistants on other computers (prepare_upload)
     if start_at_login:
         for line in serve.autostart(True)["done"]:
@@ -424,7 +427,10 @@ def _serve(host: str, port: Optional[int], name: str, services: dict[str, str], 
     if exposed:
         for a in hub.address_hints(port):
             console.print(f"  Address: {a}")
-        console.print("  Other computers on this network connect with one of these addresses. Nothing else is needed.")
+        if serve.STATE["trust_network"]:
+            console.print("  Other computers on this network connect with one of these addresses. No key is needed ([yellow]trust for this network is on[/yellow]).")
+        else:
+            console.print("  Other computers connect with one of these addresses and this server's key: `vt key` prints it, and the server window copies it.")
     else:
         console.print(f"  This computer only: http://127.0.0.1:{port}")
     announcer = None
@@ -494,6 +500,14 @@ def styles(slug: str = typer.Argument("", help="a style to show in full"), use: 
         return
     for s in S.listing(use=use):
         console.print(f"  [bold]{s['slug']:24}[/bold] {s['category']:22} {s['summary'][:90]}")
+
+
+@app.command()
+def key() -> None:
+    """Print this computer's server key: another computer sends it to connect (unless trust for the network is on: `vt server --trust-network`)."""
+    from .engines import hub
+
+    print(hub.identity()["key"])
 
 
 @app.command()

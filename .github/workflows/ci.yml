@@ -54,6 +54,7 @@ jobs:
       - run: node client/desktop/test-transport.js
       - run: node server/desktop/test-server-control.js
       - run: node server/desktop/test-server-port.js
+      - run: node server/desktop/test-server-trust.js
       - run: node server/desktop/test-contained-manager.js
       - run: node server/desktop/test-bootstrap-update.js
       - run: node scripts/test-dev-install.mjs

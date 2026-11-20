@@ -57,6 +57,9 @@ button:hover{filter:brightness(.97)}button:focus-visible{outline:3px solid color
 <h2>Use it from another computer</h2>
 <div class="group">
   <div class="item"><div class="grow"><span>Open Ultimate Video Tool on your other computer. It finds this server by itself, or type:</span><span id="address" class="address">Start the server to see its address.</span></div><button id="copy">Copy</button></div>
+  <div class="item"><div class="grow"><span>The first time, that computer asks for this server's key.</span><span class="small">The key keeps other people on the same Wi-Fi out.</span></div><button id="copy-key">Copy key</button></div>
+  <div class="item"><div class="grow"><label for="trust">Computers on my network can connect without the key</label><span id="trust-note" class="small">Off. Recommended.</span></div><span class="switch"><input id="trust" type="checkbox" role="switch"></span></div>
+  <div class="item" id="trust-confirm" hidden><div class="grow"><span>Anyone on this Wi-Fi or network could then use this server, including on public networks. Leave this off unless this is your own home or office network.</span></div><button id="trust-yes">Turn on</button><button id="trust-no" class="plain">Cancel</button></div>
 </div>
 
 <section id="gpu-card" hidden><h2>Graphics cards</h2>

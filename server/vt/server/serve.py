@@ -242,6 +242,7 @@ def server_info(request: Request) -> dict[str, Any]:
     out: dict[str, Any] = {"name": STATE["name"], "exposed": bool(STATE["exposed"])}
     if STATE["exposed"] and is_local(request.scope):
         out["addresses"] = hub.address_hints(request.url.port or 8765)
+        out["trust_network"] = bool(STATE.get("trust_network"))
         if STATE.get("argv"):
             out["autostart"] = Path(_service()["installed"]).exists()
     return out
@@ -284,6 +285,46 @@ def server_autostart(body: AutostartBody, request: Request) -> dict[str, Any]:
 def _only_here(request: Request) -> None:
     if not is_local(request.scope):
         raise HTTPException(403, "This can only be changed on the server computer itself.")
+
+
+def saved_trust_network() -> bool:
+    """The person's choice, as kept in settings.json (off unless they turned it on)."""
+    from .. import paths
+    from ..util import read_json
+
+    return bool((read_json(paths.SETTINGS, {}) or {}).get("trust_network"))
+
+
+def set_trust_network(on: bool) -> dict[str, Any]:
+    """Let computers on the server's own network connect without the key (or stop doing that): kept in settings.json and applied at once."""
+    from .. import paths
+    from ..util import read_json, write_json
+
+    raw = read_json(paths.SETTINGS, {}) or {}
+    raw["trust_network"] = bool(on)
+    write_json(paths.SETTINGS, raw)
+    STATE["trust_network"] = bool(on)
+    return {"trust_network": bool(on)}
+
+
+class TrustBody(BaseModel):
+    on: bool
+
+
+@router.post("/api/server/trust-network")
+def server_trust_network(body: TrustBody, request: Request) -> dict[str, Any]:
+    """Only on the server computer itself: a computer that is let in by this setting cannot widen it."""
+    _only_here(request)
+    return set_trust_network(body.on)
+
+
+@router.get("/api/server/key")
+def server_key(request: Request) -> dict[str, str]:
+    """The key other computers send when they connect (the server window copies it; `vt key` prints it). Only to this computer."""
+    from ..engines import hub
+
+    _only_here(request)
+    return {"key": hub.identity()["key"]}
 
 
 # ----------------------------------------------------------------------------- the MCP tools on the same port (CS6)

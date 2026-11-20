@@ -10,7 +10,9 @@ async function refresh(){
     $('status').textContent=current.operation? current.operation+'…' : (running?'Running':'Stopped');$('status').classList.toggle('on',running&&!current.operation);if($('dot'))$('dot').classList.toggle('on',running&&!current.operation);
     $('description').textContent=running?'Ready to make videos.':'Start it to make videos. Connected computers reconnect by themselves.';
     const lan=(current.addresses||[]).filter(a=>!/\/\/(127\.|localhost|\[::1\])/.test(a)).map(a=>a.replace(/^https?:\/\//,''));$('address').textContent=!running?'Start the server to see its address.':lan.length?lan.join('\n'):'Other computers can\'t reach it yet. Check that this computer is on your network.';
-    for(const id of ['workspace','copy','stop','restart'])$(id).disabled=pending||!!current.operation||!running;
+    for(const id of ['workspace','copy','copy-key','stop','restart'])$(id).disabled=pending||!!current.operation||!running;
+    $('trust').checked=!!current.trust;$('trust').disabled=pending||!running;if(current.trust)$('trust-confirm').hidden=true;
+    $('trust-note').textContent=current.trust?'On. Anyone on this network can use this server.':'Off. Recommended.';
     const many=!!(running&&current.gpu&&current.gpu.cards>=2);$('gpu-card').hidden=!many;
     if(many){$('gpu-text').textContent=current.gpu.needs_choice?'Choose which cards Video Tool may use. Until then it uses one.':'Video Tool uses '+(current.gpu.allowed.join(', ')||'no card, only the processor')+'.';$('gpu-choose').disabled=pending||!!current.operation;
       if(current.askGpu&&!asked){asked=true;act('gpu-settings');}}
@@ -31,7 +33,9 @@ async function act(action){
   catch(e){showError(e.message.replace(/^Error invoking remote method '[^']+': (?:Error: )?/,''));}
   finally{pending=false;for(const b of document.querySelectorAll('button'))b.disabled=false;await refresh();}
 }
-for(const [id,action] of Object.entries({workspace:'engine-settings','gpu-choose':'gpu-settings',start:'start',stop:'stop',restart:'restart',copy:'copy-address',log:'open-log',quit:'quit'}))$(id).onclick=()=>act(action);
+for(const [id,action] of Object.entries({workspace:'engine-settings','gpu-choose':'gpu-settings',start:'start',stop:'stop',restart:'restart',copy:'copy-address','copy-key':'copy-key','trust-yes':'trust-on',log:'open-log',quit:'quit'}))$(id).onclick=()=>act(action);
+$('trust').onchange=()=>{if($('trust').checked){$('trust-confirm').hidden=false;$('trust').checked=false;}else act('trust-off');};
+$('trust-no').onclick=()=>{$('trust-confirm').hidden=true;};
 $('refresh').onclick=refresh;
 $('autostart').onchange=()=>act($('autostart').checked?'autostart-on':'autostart-off');
 $('engine-back').onclick=overview;$('log-back').onclick=overview;

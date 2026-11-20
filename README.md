@@ -124,7 +124,7 @@ Get the installers from [Releases](https://github.com/atanuroy911/ultimate-video
 | **Ultimate Video Tool Server**: `.exe` · `.AppImage` · `.deb` | The processing server, with a management window |
 | **Video Tool Engine**: `.zip` · `.tar.gz` · Docker image | A headless server for a GPU machine |
 
-Install the server, open it, and follow the setup screen. It finds your graphics card, offers models that fit it, and downloads what it needs into its own folder. No administrator rights are needed. Then open the client and connect: on the same computer it finds the server by itself, and across a network it needs only the server's address.
+Install the server, open it, and follow the setup screen. It finds your graphics card, offers models that fit it, and downloads what it needs into its own folder. No administrator rights are needed. Then open the client and connect: on the same computer it finds the server by itself. From another computer, give it the server's address, and paste the server's key once (the server window has a **Copy key** button).
 
 > The installers are not code-signed yet. Windows SmartScreen shows a one-time warning: choose **More info → Run anyway**.
 >

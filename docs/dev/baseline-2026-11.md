@@ -47,3 +47,14 @@ cd client/studio && VT_SERVER_URL=http://127.0.0.1:8771 npm run dev -- --port 51
 MSYS_NO_PATHCONV=1 VT_URL=http://localhost:5173 node scripts/dev/shot.mjs /p/reference <outPrefix> 1440x900   # screenshots
 ```
 ffmpeg must be on PATH (the winget copy: `C:\Users\Roy\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-9.0.2-full_build\bin`). In Git Bash, put `MSYS_NO_PATHCONV=1` before any command that takes a URL path starting with `/`.
+
+## 0.5.0 over 1.0.0 (W1.5, 2026-11-20)
+Done on this laptop, both apps installed on E: (`E:\UVT-Client\Ultimate Video Tool`, `E:\UVT-Server\Ultimate Video Tool Server`; server data junction to `E:\UltimateVideoTool\ServerData`).
+1. Installed the published **1.0.0** Windows installers (checksums verified against SHA256SUMS.txt), `/S /currentuser`, no `/D=`.
+2. Built the 0.5.0 installers (`scripts/build_*_windows.sh`) and ran them over it with no uninstall: **client exit 0 in 8 s, server exit 0 in 55 s**. The installer did not refuse the lower number (no downgrade setting was needed). Both still on E:; Add/Remove Programs shows 0.5.0 only.
+3. First start of the 0.5.0 server rebuilt its runtime from scratch (the 1.0.0 server had never been started here, so this is a first-run time, not an upgrade time): about 22 minutes to answer on port 8790, 6.2 GB under `ServerData`.
+4. The 0.5.0 server installer is 205.2 MB (1.0.0: 225.9 MB), the client 78.5 MB (1.0.0: 78.5 MB). The server is smaller here than in the release, probably because the release build adds FFmpeg (see the release workflow); check when the next release is built.
+5. Linux `.deb` was not tested (no WSL yet): W15.4.
+
+## Gotcha on this laptop
+The shell that runs Claude Code has `ELECTRON_RUN_AS_NODE=1`. An Electron app started from it behaves as plain Node ("bad option" and exits). Clear it first: `Remove-Item Env:ELECTRON_RUN_AS_NODE`.

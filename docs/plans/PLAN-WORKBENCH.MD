@@ -177,7 +177,7 @@ W1 and W2 come first because they fix what is wrong today. W9 must be done befor
   - Release notes text in `release.yml` (`body:`): add "This is a beta. Coming from 1.0.0? Install over it; on Linux use `sudo apt install --allow-downgrades ./<file>.deb`."
   Check: `uv run --project server python scripts/check_docs.py --structural-only` passes.
 
-- [ ] **W1.5 Prove that installing 0.5.0 over 1.0.0 works.** Build the Windows client and server installers locally (`scripts/build_client_windows.sh <out>`, `scripts/build_server_windows.sh <out>`). Install each over the existing 1.0.0 install on this PC (`/S /currentuser`, no `/D=`, no uninstall). Then open the client, connect to the installed server (port 8790), open an existing project, and render a 10-second preview.
+- [x] **W1.5 Prove that installing 0.5.0 over 1.0.0 works.** (2026-11-20; results in `docs/dev/baseline-2026-11.md`; Linux .deb not tested: the owner chose no WSL) Build the Windows client and server installers locally (`scripts/build_client_windows.sh <out>`, `scripts/build_server_windows.sh <out>`). Install each over the existing 1.0.0 install on this PC (`/S /currentuser`, no `/D=`, no uninstall). Then open the client, connect to the installed server (port 8790), open an existing project, and render a 10-second preview.
   - If the NSIS installer refuses to downgrade: set `nsis.allowDowngrade`-style behaviour in electron-builder config (check the electron-builder docs for the exact key in the installed version) and rebuild.
   - Also check the server's bootstrap: it re-installs its Python environment when the version stamp differs (`server/desktop/bootstrap.js`, `s.version === L.version`). Expect one re-install on first start and note how long it takes.
   - Linux (`.deb`): test it on this laptop inside WSL (set up in W15.4) once WSL exists. Until then, write the `--allow-downgrades` note (W1.4) and say in the report that Linux was not tested yet. Never use the GPU server.
@@ -196,7 +196,7 @@ W1 and W2 come first because they fix what is wrong today. W9 must be done befor
 
 Background: `server/vt/server/serve.py`. Today `allowed()` returns `True` for every request when `STATE["exposed"]` is false (local mode), without running `browser_safe()`. In exposed mode, `trusted()` lets any private, link-local or Tailscale address in without the key.
 
-- [ ] **W2.1 Tests first (they must fail before the fix).** Extend `tests/test_server_auth.py`, using the same ASGI test style the file already uses. Cases:
+- [x] **W2.1 Tests first (they must fail before the fix).** (2026-11-20, `tests/test_server_webpage_guard.py`; 9 of 12 failed before the fix) Extend `tests/test_server_auth.py`, using the same ASGI test style the file already uses. Cases:
   1. Local mode, `POST /api/llm/setup` with `Origin: https://evil.example` → **403/401**, and nothing starts (assert no job was submitted).
   2. Local mode, `GET /api/projects` with `Host: evil.example:8790` (DNS rebinding) → refused.
   3. Local mode, websocket `/ws` with `Origin: https://evil.example` → closed with 4401.
@@ -211,7 +211,7 @@ Background: `server/vt/server/serve.py`. Today `allowed()` returns `True` for ev
   12. The upload ticket path (`PUT …/file?ticket=…`) still works from another computer with a valid ticket.
   Run them and confirm 1, 2, 3, 5, 7 and 10 fail today. Paste the failing list into the commit message, then commit the tests marked `xfail(strict=True)` with reason "fixed in W2.2".
 
-- [ ] **W2.2 The fix.** In `serve.py`:
+- [x] **W2.2 The fix.** (2026-11-20) In `serve.py`:
   ```python
   def allowed(scope: dict) -> bool:
       path = scope.get("path", "")
@@ -232,14 +232,14 @@ Background: `server/vt/server/serve.py`. Today `allowed()` returns `True` for ev
   - Grep the clients that call the server directly and confirm they send no Origin: `client/desktop/transport.js` (it deletes `origin`), `client/studio/vite.config.ts` (its proxy removes it), `client/desktop/helper.js`, `client/desktop/mcp-bridge.js`, `server/desktop/*.js` (the server manager's own window — check whether it loads a page *from* the server; if so its Origin equals the Host, case 6) and `scripts/lab/*.py`. Fix any that would now be refused.
   Check: fast suite green. `node client/desktop/test-transport.js` and `node server/desktop/test-server-control.js` green.
 
-- [ ] **W2.3 The setting in the server window.** In the server manager UI (`server/desktop/server-manager.html` / `server-manager-ui.js`), in its connection section, add a switch: **"Computers on my network can connect without the key"**, off by default. Turning it on shows: "Anyone on this Wi-Fi or network can then use this server, including on public networks. Leave this off unless this is your own home or office network." It writes the setting (the same file W2.2 reads) and restarts the listener the way other settings do. Show the key and a **Copy key** button next to it, if they are not there already.
+- [x] **W2.3 The setting in the server window.** (2026-11-20; also `vt key`, `GET /api/server/key`) In the server manager UI (`server/desktop/server-manager.html` / `server-manager-ui.js`), in its connection section, add a switch: **"Computers on my network can connect without the key"**, off by default. Turning it on shows: "Anyone on this Wi-Fi or network can then use this server, including on public networks. Leave this off unless this is your own home or office network." It writes the setting (the same file W2.2 reads) and restarts the listener the way other settings do. Show the key and a **Copy key** button next to it, if they are not there already.
   Also expose it the three ways (rule 0.6): `vt server --trust-network/--no-trust-network`, and `GET/PUT /api/server/settings` if such a route exists (otherwise add the field to whatever route the manager uses).
   Check: `node server/desktop/test-server-control.js` extended with the switch; fast suite green.
 
-- [ ] **W2.4 The client asks for the key in plain words.** When a client (desktop app or helper) gets the "needs key" refusal from a server on its own network that used to work, the connect page (`client/desktop/connect.html` and the Studio's Server page) says: "This server now asks for its key. Open the server window on that computer, then Connection → Copy key, and paste it here." Check that the helper (`client/desktop/helper.js`) stores and sends the key for such a server, as it already does for servers outside the network.
+- [x] **W2.4 The client asks for the key in plain words.** (2026-11-20; `client/desktop/server-keys.js`) When a client (desktop app or helper) gets the "needs key" refusal from a server on its own network that used to work, the connect page (`client/desktop/connect.html` and the Studio's Server page) says: "This server now asks for its key. Open the server window on that computer, then Connection → Copy key, and paste it here." Check that the helper (`client/desktop/helper.js`) stores and sends the key for such a server, as it already does for servers outside the network.
   Check: `node client/desktop/test-helper.js`, `test-helper-control.js` and `test-transport.js` extended with the case and green.
 
-- [ ] **W2.5 Manual proof on this PC.** With the installed server (or a scratch server if you have not reinstalled yet), use Git Bash to:
+- [x] **W2.5 Manual proof on this PC.** (2026-11-20; three curls plus a real export on the installed server) With the installed server (or a scratch server if you have not reinstalled yet), use Git Bash to:
   ```bash
   curl -s -o /dev/null -w "%{http_code}\n" -X POST http://127.0.0.1:8790/api/jobs/x/cancel -H "Origin: https://evil.example"   # expect 401/403
   curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8790/api/projects -H "Host: evil.example"                      # expect 401/403

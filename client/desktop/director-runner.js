@@ -28,6 +28,10 @@ function kindOf(text, apiStatus) {
 function cleanEnv(extra) {
   const env = { ...process.env, ...extra };
   for (const k of ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX"]) delete env[k];
+  // The planning task (get_script_task: the rules, the schema, every timed word) is large. Past Claude Code's default limit for one tool result, it saves the
+  // result to a file and tells Claude to read it, which a session with no file tools cannot do (found 2026-11-20: Claude tried Bash, PowerShell and Read, then
+  // finished without a plan). A higher limit keeps the whole task in the conversation.
+  if (!env.MAX_MCP_OUTPUT_TOKENS) env.MAX_MCP_OUTPUT_TOKENS = "200000";
   return env;
 }
 

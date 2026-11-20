@@ -53,6 +53,7 @@ jobs:
       - run: node client/desktop/test-helper-control.js
       - run: node client/desktop/test-transport.js
       - run: node client/desktop/test-server-keys.js
+      - run: node client/desktop/test-packaging.js
       - run: node server/desktop/test-server-control.js
       - run: node server/desktop/test-server-port.js
       - run: node server/desktop/test-server-trust.js

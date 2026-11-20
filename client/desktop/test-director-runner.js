@@ -37,6 +37,8 @@ assert.strictEqual(runner.kindOf("overloaded, try again"), "other");
 process.env.ANTHROPIC_API_KEY = "sk-test"; process.env.CLAUDE_CODE_USE_BEDROCK = "1";
 const env = runner.cleanEnv({ EXTRA: "1" });
 assert(!("ANTHROPIC_API_KEY" in env) && !("CLAUDE_CODE_USE_BEDROCK" in env) && env.EXTRA === "1");
+assert.strictEqual(env.MAX_MCP_OUTPUT_TOKENS, "200000", "a large planning task must reach Claude whole, not saved to a file it cannot read");
+process.env.MAX_MCP_OUTPUT_TOKENS = "5000"; assert.strictEqual(runner.cleanEnv({}).MAX_MCP_OUTPUT_TOKENS, "5000", "the person's own setting wins"); delete process.env.MAX_MCP_OUTPUT_TOKENS;
 delete process.env.ANTHROPIC_API_KEY; delete process.env.CLAUDE_CODE_USE_BEDROCK;
 
 const fake = (exe, args) => args[0] === "--version"

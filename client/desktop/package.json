@@ -33,6 +33,7 @@
     "files": [
       "main.js",
       "transport.js",
+      "server-keys.js",
       "discover.js",
       "assistants.js",
       "director-runner.js",

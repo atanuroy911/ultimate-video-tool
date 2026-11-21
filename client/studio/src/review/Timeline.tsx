@@ -575,7 +575,7 @@ export default function Timeline({ r, duration, seek, selected, onSelect, select
               const th = thumbs[s.id];
               const w = (t.end - t.start) * pps;
               return (
-                <div key={s.id} role="button" tabIndex={0} aria-label={`Scene ${i + 1}`} aria-pressed={selected === s.id} className={`tl-clip ${selected === s.id ? "sel" : ""} ${edge && edge.land == null ? "live" : ""}`}
+                <div key={s.id} data-scene-clip={s.id} role="button" tabIndex={0} aria-label={`Scene ${i + 1}`} aria-pressed={selected === s.id} className={`tl-clip ${selected === s.id ? "sel" : ""} ${edge && edge.land == null ? "live" : ""}`}
                   style={{ left: x(t.start), width: Math.max(8, w - 2) }}
                   onClick={(e) => { if (tool === "blade") return bladeScene(s.id, e.clientX, e.clientY); onSelect(s.id); seek(t.start); }}
                   onKeyDown={(e) => e.key === "Enter" && (onSelect(s.id), seek(t.start))}>

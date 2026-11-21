@@ -40,3 +40,8 @@
 @media (max-width: 799px) {
   .tl-chip.tl-element { font-size: 12px; }
 }
+
+/* W14.2: a scene an agent or the Director just changed glows for a moment (Classic timeline and scene list). */
+.vt-changed { outline: 2px solid var(--ok); outline-offset: -2px; animation: vt-changed 900ms ease-in-out 3; }
+@keyframes vt-changed { 50% { outline-color: color-mix(in srgb, var(--ok) 40%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .vt-changed { animation: none; } }

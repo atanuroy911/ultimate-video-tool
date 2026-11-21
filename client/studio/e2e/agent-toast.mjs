@@ -17,6 +17,23 @@ const toast = page.getByText(/changed scene|changed \d+ scenes|changed the video
 await toast.waitFor({ timeout: 15000 }).catch(() => {});
 const text = await toast.textContent().catch(() => "");
 check("the person is told who changed what", /^Claude changed scene s?\d/i.test(text || "") || /Claude changed/.test(text || ""), text);
+const glow = () => page.evaluate(() => document.querySelectorAll(".is-director-changed, .vt-changed").length);
+check("the changed scene's clip glows on the timeline", await page.waitForFunction(() => document.querySelectorAll(".is-director-changed, .vt-changed").length > 0, null, { timeout: 8000 }).then(() => true, () => false));
+await page.waitForFunction(() => document.querySelectorAll(".is-director-changed, .vt-changed").length === 0, null, { timeout: 12000 }).catch(() => {});
+// While the person types in a field, the change waits; it comes in when they leave the field.
+await page.evaluate(() => { const i = document.createElement("input"); i.id = "vt-test-field"; i.style.cssText = "position:fixed;top:0;left:0;z-index:99999"; document.body.appendChild(i); i.focus(); });
+execSync(process.env.VT_CHANGE, { stdio: "inherit", shell: process.env.VT_SHELL || true });
+await page.waitForTimeout(4000);
+check("a change waits while the person is typing", (await glow()) === 0);
+await page.evaluate(() => document.getElementById("vt-test-field").blur());
+check("and comes in when they leave the field", await page.waitForFunction(() => document.querySelectorAll(".is-director-changed, .vt-changed").length > 0, null, { timeout: 8000 }).then(() => true, () => false));
+await page.evaluate(() => window.dispatchEvent(new CustomEvent("vt-select-scene", { detail: "s2" })));
+await page.waitForTimeout(500);
+const sel = () => page.evaluate(() => document.querySelector('[data-scene-clip][aria-pressed="true"]')?.getAttribute("data-scene-clip") || "");
+const before = await sel();
+execSync(process.env.VT_CHANGE, { stdio: "inherit", shell: process.env.VT_SHELL || true });
+await page.waitForFunction(() => document.querySelectorAll(".vt-changed, .is-director-changed").length > 0, null, { timeout: 8000 }).catch(() => {});
+check("the person's selection stays the same after the agent's change", before === "s2" && (await sel()) === "s2", `${before} -> ${await sel()}`);
 check("no page errors", errors.length === 0, errors.join(" | "));
 await browser.close();
 console.log(`${pass} passed, ${fail} failed`);

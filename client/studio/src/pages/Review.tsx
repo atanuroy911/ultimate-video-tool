@@ -10,7 +10,7 @@ import { Button, MenuItem, MenuSep, Popover, Sheet, Splitter, Tooltip, useSize }
 import Workbench from "../workbench/Workbench";
 import { paneAction } from "../workbench/shortcuts";
 import { useCatalogue, useFetch, useIconPack } from "../hooks";
-import { toast, useChanged } from "../store";
+import { onChangeDetail, toast, useChanged } from "../store";
 import AIPanel from "../review/AIPanel";
 import ChatAssistant from "../review/ChatAssistant";
 import CommandPalette, { SHORTCUTS, type Command } from "../review/CommandPalette";
@@ -168,6 +168,14 @@ function ReviewEditor() {
   const [playing, setPlaying] = useState(false);
   const [directorRunning, setDirectorRunning] = useState(false);
   const [directorChangedScenes, setDirectorChangedScenes] = useState<string[]>([]);
+  useEffect(() => onChangeDetail((d) => { if (d.project === id && d.by.startsWith("mcp:") && d.scenes.length) setDirectorChangedScenes(d.scenes); }), [id]);
+  useEffect(() => {                                    // the Classic timeline and the scene list glow too (the new timeline does it itself)
+    if (!directorChangedScenes.length) return;
+    const els = directorChangedScenes.flatMap((s) => [...document.querySelectorAll<HTMLElement>(`[data-scene-clip="${CSS.escape(s)}"], [data-scene="${CSS.escape(s)}"]`)]);
+    els.forEach((e) => e.classList.add("vt-changed"));
+    const t = window.setTimeout(() => els.forEach((e) => e.classList.remove("vt-changed")), 7000);
+    return () => { window.clearTimeout(t); els.forEach((e) => e.classList.remove("vt-changed")); };
+  }, [directorChangedScenes, r.rev]);   // W14.2: an agent's change glows like the Director's
   const [directorRemovedScenes, setDirectorRemovedScenes] = useState<string[]>([]);
   const [newTimeline, setNewTimeline] = useState(() => { try { return localStorage.getItem("vt-timeline") === "new"; } catch { return false; } });
   // edits made on the new timeline, as our own edit calls (src/occ/bridge/toProject.ts); one after the other, then the page reloads

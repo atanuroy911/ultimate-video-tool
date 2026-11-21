@@ -355,3 +355,51 @@ def test_the_local_ai_loses_a_bad_shot_not_its_whole_script(ref):
     assert validate_script(fixed, ref.transcript(), ref.beats(), None, None, None, (1080, 1920)) == []
     good = repair_script(_script_with_shot(ref, _shot_html()), ref.transcript(), ref.beats(), "explainer", frame=(1080, 1920))
     assert [x["id"] for x in good["shots"]] == ["opener"] and good["scenes"][0]["shot"] == "opener", "a good shot is untouched"
+
+
+# ---- agents can read, write and edit shots through the MCP tools ----------------------------------------------------------------------------------
+
+
+def test_the_agent_writes_shows_edits_and_looks_at_a_shot_through_mcp(ref, monkeypatch):
+    from vt.mcp import server as M
+
+    monkeypatch.setattr(shots, "cached_render", lambda d, **k: _fake_render(d))
+    html = _shot_html()
+    assert M.list_shots("reference") == []
+    bad = M.write_shot("reference", "hook", html.replace("runtime/gsap.min.js", "https://cdn.example/g.js"))
+    assert bad["ok"] is False and any("network" in e for e in bad["errors"])
+    wrong = M.write_shot("reference", "hook", _shot_html(1920, 1080))
+    assert wrong["ok"] is False and any("1080x1920" in e for e in wrong["errors"])
+    ok = M.write_shot("reference", "hook", html, title="Opening", knobs=[{"name": "--accent", "label": "Ring", "kind": "colour"}])
+    assert ok["ok"] and ok["ids"] == ["orb", "title", "sub", "bar"]
+    assert M.write_shot("reference", "hook", html, knobs=[{"name": "accent"}])["ok"] is False, "a knob must be a CSS variable"
+    got = M.get_shot("reference", "hook")
+    assert got["title"] == "Opening" and got["knobs"][0]["label"] == "Ring" and got["overrides"] == {"knobs": {}, "elements": {}}
+    first = ref.scenes().scenes[0].id
+    assert M.set_scene_shot("reference", first, "hook") == {"ok": True}
+    assert ref.scenes().scenes[0].shot == "hook"
+    assert M.set_shot_edits("reference", "hook", {"elements": {"title": {"text": "Mine"}}})["ok"]
+    assert M.set_shot_edits("reference", "hook", {"knobs": {"--x": "a;}"}})["ok"] is False
+    assert M.get_shot("reference", "hook")["overrides"]["elements"]["title"]["text"] == "Mine"
+    with pytest.raises(ValueError, match="write_shot first"):
+        M.set_scene_shot("reference", first, "nowhere")
+    with pytest.raises(ValueError, match="no scene"):
+        M.set_scene_shot("reference", "zz", "hook")
+    assert M.set_scene_shot("reference", first, None) == {"ok": True} and ref.scenes().scenes[0].shot is None
+
+
+def _fake_render(d):
+    out = d / "render" / "x.mp4"
+    out.parent.mkdir(exist_ok=True)
+    out.write_bytes(b"x")
+    return out
+
+
+@pytest.mark.slow
+@pytest.mark.browser
+def test_the_agent_can_look_at_one_frame_of_a_shot(ref):
+    from vt.mcp import server as M
+
+    assert M.write_shot("reference", "hook", _shot_html())["ok"]
+    img = M.get_shot_frame("reference", "hook", 2.0)
+    assert Path(img.path).stat().st_size > 1000

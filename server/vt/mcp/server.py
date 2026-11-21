@@ -748,6 +748,115 @@ def preview_frames(project: str, times: list[float], aspect: Optional[str] = Non
     return [Image(path=str(f)) for f in files]
 
 
+# ------------------------------------------------------------------ code-native shots (PLAN-CODE-NATIVE-EDITOR C2 to C5)
+def _frame_of(p: Project) -> Optional[tuple[int, int]]:
+    f = FORMATS.get(p.meta().aspect)
+    return (f["width"], f["height"]) if f else None
+
+
+@tool
+def list_shots(project: str) -> list[dict]:
+    """The video's code-native shots: id, title, size, duration, and the knobs the person can change. A shot is an HTML page with its own animation, drawn behind one scene."""
+    from .. import shots as SH
+
+    return SH.list_shots(_proj(project))
+
+
+@tool
+def get_shot(project: str, shot_id: str) -> dict:
+    """One shot: its HTML (html), the ids a person can select (ids), the knobs (knobs) and the person's visual edits (overrides: text, position, colour ... kept apart from the code)."""
+    from .. import shots as SH
+
+    d = SH.shot_dir(_proj(project), shot_id)
+    if not (d / "index.html").exists():
+        raise ValueError(f"no shot '{shot_id}'; list_shots shows what the video has")
+    html = (d / "index.html").read_text(encoding="utf-8")
+    return {**SH.info(d), "html": html, "ids": SH.ids_in(html), "overrides": SH.check_overrides(SH.read_json(d / "overrides.json", {}))}
+
+
+@tool
+def write_shot(project: str, shot_id: str, html: str, title: str = "", knobs: Optional[list[dict]] = None) -> dict:
+    """Create or replace a shot's HTML. Follow the SHOTS rules in get_script_task: a root with data-composition-id/data-start/data-duration/data-width/data-height matching this video's frame,
+    data-vt-id on every text and main shape, motion only on a paused GSAP timeline in window.__timelines, no network. knobs: [{name: '--accent', label: 'Ring', kind: 'colour'}].
+    Returns {ok, errors}; fix exactly those and write again. The person's visual edits are kept. Then use set_scene_shot to show it behind a scene."""
+    from .. import shots as SH
+    from ..script.models import ShotKnob
+
+    p = _proj(project)
+    errs = SH.problems(shot_id, html, aspect_size=_frame_of(p))
+    try:
+        ks = [ShotKnob.model_validate(k).model_dump() for k in (knobs or [])]
+    except Exception as e:                                          # noqa: BLE001  a validation error is the answer
+        errs.append(f"knobs: {str(e)[:200]}")
+        ks = []
+    if errs:
+        return {"ok": False, "errors": errs}
+    d = SH.shot_dir(p, shot_id)
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "index.html").write_text(html, encoding="utf-8")
+    meta = SH.read_json(d / "shot.json", {})
+    meta.update(title=title or meta.get("title") or shot_id, knobs=ks if knobs is not None else meta.get("knobs", []), made_by=os.environ.get("VT_MCP_CLIENT", "assistant"))
+    write_json(d / "shot.json", meta)
+    if any(s.shot == shot_id for s in (p.scenes().scenes if p.scenes() else [])):
+        compose_all(p)
+    return {"ok": True, "ids": SH.ids_in(html)}
+
+
+@tool
+def set_scene_shot(project: str, scene_id: str, shot_id: Optional[str] = None) -> dict:
+    """Show a shot full-frame behind a scene (the scene's captions stay on top), or pass no shot_id to draw the scene the usual way again."""
+    from .. import shots as SH
+
+    p = _proj(project)
+    sf = p.scenes()
+    if not sf:
+        raise ValueError("no plan yet")
+    if scene_id not in {s.id for s in sf.scenes}:
+        raise ValueError(f"no scene '{scene_id}'")
+    if shot_id and not (SH.shot_dir(p, shot_id) / "index.html").exists():
+        raise ValueError(f"no shot '{shot_id}'; write_shot first")
+    write_json(p.dir / "scenes.prev.json", sf.model_dump(exclude_none=True))
+    p.save_scenes(sf.model_copy(update={"scenes": [s.model_copy(update={"shot": shot_id or None}) if s.id == scene_id else s for s in sf.scenes],
+                                         "planner": "manual" if sf.planner == "rules" else sf.planner}))
+    compose_all(p)
+    return {"ok": True}
+
+
+@tool
+def set_shot_edits(project: str, shot_id: str, overrides: dict) -> dict:
+    """Change a shot the way the person does in the editor, without touching its code: {knobs: {'--accent': '#22c55e'}, elements: {'title': {text, x, y, scale, rotate, hidden, style: {color, fontSize,
+    fontWeight, opacity}}}}. Replaces all of the shot's edits (read them with get_shot first to keep the person's)."""
+    from .. import shots as SH
+
+    p = _proj(project)
+    d = SH.shot_dir(p, shot_id)
+    if not (d / "index.html").exists():
+        raise ValueError(f"no shot '{shot_id}'")
+    try:
+        saved = SH.save_overrides(d, overrides)
+    except SH.ShotError as e:
+        return {"ok": False, "errors": [str(e)]}
+    if any(s.shot == shot_id for s in (p.scenes().scenes if p.scenes() else [])):
+        compose_all(p)
+    return {"ok": True, "overrides": saved}
+
+
+@tool
+def get_shot_frame(project: str, shot_id: str, time_seconds: float = 0.0) -> Image:
+    """A PNG of one shot on its own at a moment (seconds from the shot's start), with the person's edits. Look at it after write_shot."""
+    from .. import shots as SH
+
+    p = _proj(project)
+    d = SH.shot_dir(p, shot_id)
+    if not (d / "index.html").exists():
+        raise ValueError(f"no shot '{shot_id}'")
+    dur = SH.info(d)["duration"]
+    got = SH.frames(d, d / "frames", [min(max(0.0, float(time_seconds)), max(0.0, dur - 0.001))], theme=SH.theme_vars(p))
+    if not got:
+        raise RuntimeError("could not capture a frame")
+    return Image(path=str(got[0]))
+
+
 @server.prompt(name="plan_this_video", description="Plan every pending video request")
 def plan_this_video() -> str:
     return ("Plan all pending Video Tool requests: call list_pending_requests; for each, get_planning_task, then submit_scenes (fix returned errors "

@@ -101,3 +101,19 @@ def test_captions_also_as_webvtt():
     chunks = [{"start": 1.5, "end": 3.25, "words": [{"text": "Hello"}, {"text": "there"}]}, {"start": 3661.0, "end": 3662.0, "words": [{"text": "Bye"}]}]
     assert to_vtt(chunks) == "WEBVTT\n\n00:00:01.500 --> 00:00:03.250\nHello there\n\n01:01:01.000 --> 01:01:02.000\nBye\n"
     assert "00:00:01,500 --> 00:00:03,250" in to_srt(chunks)
+
+
+def test_scenes_outside_examples_and_the_close_stay_on_the_speaker():
+    class B:
+        def __init__(self, id, start, end): self.id, self.start, self.end = id, start, end
+
+    class S:
+        def __init__(self, id, beats): self.id, self.beats = id, beats
+
+    class F:
+        scenes = [S("s1", ["b1"]), S("s2", ["b2"]), S("s3", ["b3"]), S("s4", ["b4"])]
+
+    beats = [B("b1", 0, 5), B("b2", 5, 10), B("b3", 10, 15), B("b4", 15, 20)]
+    outline = {"examples": [{"start": 5.0, "end": 20.0}]}
+    assert T.speaker_scenes(outline, F(), beats) == {"s1", "s4"}           # s2 and s3 are inside the example; s4 is the close
+    assert T.speaker_scenes(None, F(), beats) is None

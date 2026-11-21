@@ -363,3 +363,7 @@ VOICE_SPEED = {
 # on 6 GB, but slowly: a 2 s clip at 640x352 (49 frames, 20 steps) took 1357 s while speech recognition used every processor core. Recognisable motion, some
 # stray objects (docs/dev/spikes/html-shot/c7-wan-clip.png). Not for a whole video on such a card; CLIPS_CARD_GB stays the rule for offering clips by default.
 CLIP_SPEED = {"wan2.2-ti2v-5b-q4": {"card_gb": 6, "seconds": 1357, "clip_s": 2.0, "size": "640x352", "steps": 20, "note": "machine busy; re-time on a quiet machine"}}
+
+# Reading a long talk ahead (vt/talk_outline.py, C10) needs judgement more than speed: measured 2026-11-22 on the owner's 14-minute talk, gemma4:e2b found
+# 2 to 13 examples from run to run and misnumbered them, gemma4:e4b found 17 good ones in 114 s (part of it on the processor). The first one installed is used.
+READING_MODELS = ("gemma4:e4b", "qwen3.5:4b")

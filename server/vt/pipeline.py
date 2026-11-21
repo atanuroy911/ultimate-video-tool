@@ -345,6 +345,7 @@ class Pipeline:
             return
         try:
             AR.build(p, lambda f, m: self._say("aroll", f, m), force=force)
+            (p.dir / "aroll.error.json").unlink(missing_ok=True)          # an earlier failure is no longer true
         except Exception as e:
             write_json(p.dir / "aroll.error.json", {"at": now_iso(), "error": f"{type(e).__name__}: {str(e)[:200]}"})
 
@@ -829,7 +830,9 @@ class Pipeline:
 
             speaker = next((m for m in p.meta().media if m.id == "aroll" and m.role == "a_roll"), None) if meta.options.aroll != "off" else None
             if speaker is not None:
-                AR.apply_speaker(sf, p, beats, meta.aspect, speaker)          # the speaker where nothing better illustrates the words
+                from . import talk_outline as TO
+                outline = TO.ensure(p, progress=lambda f, m: self._say("plan", 0.96, m))       # a long talk: its examples, read ahead, get the B-roll (C10)
+                AR.apply_speaker(sf, p, beats, meta.aspect, speaker, force=TO.speaker_scenes(outline, sf, beats))          # the speaker where nothing better illustrates the words
             raw = read_json(p.raw_transcript_path) or {}
             if raw.get("model") == "sounds":                           # nobody speaks: the sounds are the story
                 sf, _ = SN.plan_from_sounds(sf, (doc or {}).get("events", []), tr, beats)

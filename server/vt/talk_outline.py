@@ -196,6 +196,30 @@ def load(project) -> Optional[dict]:
     return read_json(project.dir / OUTLINE_FILE)
 
 
+def reading_provider():
+    """When the local AI directs, read with the better local model if one is installed (engines/fit.py READING_MODELS); otherwise the chosen AI."""
+    try:
+        from . import ai, llm
+        from .engines.fit import READING_MODELS
+
+        if isinstance(ai.current_provider(), ai.OllamaProvider):
+            have = set(llm.installed_models())
+            for name in READING_MODELS:
+                if name in have:
+                    return ai.OllamaProvider(name)
+    except Exception:                                                                       # noqa: BLE001
+        pass
+    return None
+
+
+def words_key(project) -> str:
+    import hashlib
+
+    tr = project.transcript()
+    words = [w for w in (tr.words if tr else []) if not getattr(w, "cut", False)]
+    return hashlib.sha1("|".join(f"{w.text}:{float(w.start):.2f}" for w in words).encode("utf-8")).hexdigest()[:16]
+
+
 def is_long_talk(project) -> bool:
     meta = project.meta()
     has_speaker = any(getattr(m, "role", "") == "a_roll" for m in meta.media)
@@ -209,11 +233,14 @@ def ensure(project, *, provider=None, progress: Callable[[float, str], None] = l
     if not is_long_talk(project):
         return None
     have = load(project)
-    tr_file = project.dir / "transcript.json"
-    if have and tr_file.exists() and (project.dir / OUTLINE_FILE).stat().st_mtime >= tr_file.stat().st_mtime:
+    key = words_key(project)
+    if have and have.get("words_key") == key:                     # the same words: read once (transcript.json is rewritten on every run, so its date says nothing)
         return have
     try:
-        return build(project, provider=provider, progress=progress)
+        out = build(project, provider=provider or reading_provider(), progress=progress)
+        out["words_key"] = key
+        write_json(project.dir / OUTLINE_FILE, out)
+        return out
     except Exception:                                                                       # noqa: BLE001  (no outline is not a reason to stop planning)
         return have
 
@@ -235,3 +262,22 @@ def look_ahead_text(outline: Optional[dict], beats) -> str:
     if keep:
         lines.append("KEEP ON THE SPEAKER: " + "; ".join(f"beats {beat_ids(k['start'], k['end'])} ({k['why']})" for k in keep[:30]))
     return "\n".join(lines)
+
+
+def speaker_scenes(outline: Optional[dict], sf, beats) -> Optional[set]:
+    """The scenes that stay on the speaker in a long talk: every scene that does not overlap an example the reader found, and the last scene
+    (the close). None when there is no outline (then the usual speaker choice applies). The AI's reading decides; this only maps it to scenes."""
+    if not outline or not outline.get("examples") or not getattr(sf, "scenes", None):
+        return None
+    bmap = {b.id: b for b in getattr(beats, "beats", beats)}
+    ex = [(float(e["start"]), float(e["end"])) for e in outline["examples"]]
+    out = set()
+    for i, sc in enumerate(sf.scenes):
+        bs = [bmap[b] for b in sc.beats if b in bmap]
+        if not bs:
+            continue
+        a, b = float(bs[0].start), float(bs[-1].end)
+        overlap = max((min(b, e1) - max(a, e0) for e0, e1 in ex), default=0.0)
+        if overlap < 0.5 * (b - a) or i == len(sf.scenes) - 1:
+            out.add(sc.id)
+    return out

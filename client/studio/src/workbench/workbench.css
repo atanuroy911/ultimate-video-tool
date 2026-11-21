@@ -34,3 +34,7 @@
 .wb-assistant-scroll { flex: 1 1 auto; min-height: 0; overflow: hidden; }
 
 @media (prefers-reduced-motion: reduce) { .wb-seam::before { transition: none; } }
+
+/* the viewer's "Edit shot" button (ShotEditor.tsx opens) */
+.ed-canvas { position: relative; }
+.shot-open { position: absolute; top: 10px; right: 10px; z-index: 5; }

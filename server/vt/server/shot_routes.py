@@ -88,8 +88,10 @@ SAFE_PATH = re.compile(r"^(index\.html|(runtime|fonts|assets)/[A-Za-z0-9._/-]{1,
 
 
 @router.get("/api/projects/{pid}/shots/{sid}/page/{path:path}")
-def page(pid: str, sid: str, path: str = "index.html"):
-    """The page the renderer draws (code + edits + runtime), for the viewer's sandboxed frame. index.html is built fresh each time."""
+def page(pid: str, sid: str, path: str = "index.html", editor: bool = False):
+    """The page the renderer draws (code + edits + runtime), for the viewer's sandboxed frame. index.html is built fresh each time.
+    ?editor=1: the visual editor's page (no saved edits, the bridge added). The frame has no origin of its own (sandbox without same-origin),
+    so its fonts, scripts and pictures are fetched cross-origin: they are sent with Access-Control-Allow-Origin."""
     d = _shot(pid, sid)
     path = path or "index.html"
     if not SAFE_PATH.match(path) or ".." in path.split("/"):
@@ -97,14 +99,14 @@ def page(pid: str, sid: str, path: str = "index.html"):
     out = d / "preview"
     if path == "index.html":
         try:
-            SH.build(d, out)
+            SH.build(d, out, editor=editor)
         except SH.ShotError as e:
             raise HTTPException(422, str(e))
         return HTMLResponse((out / "index.html").read_text(encoding="utf-8"), headers={"Content-Security-Policy": SH.CSP, "Cache-Control": "no-store"})
     f = (out / path).resolve()
     if not f.is_file() or out.resolve() not in f.parents:
         raise HTTPException(404, "not part of the shot")
-    return FileResponse(f)
+    return FileResponse(f, headers={"Access-Control-Allow-Origin": "*", "Cache-Control": "no-store"})
 
 
 @router.get("/api/projects/{pid}/shots/{sid}/frame")

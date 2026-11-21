@@ -1,0 +1,24 @@
+/* The shot editor (ShotEditor.tsx). Colours and sizes come from tokens.css. */
+.shot-editor { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--bg-viewer); color: var(--fg); outline: none; }
+.shot-editor.loading { align-items: center; justify-content: center; }
+.shot-bar { display: flex; align-items: center; gap: 8px; height: var(--h-pane-header); padding: 0 10px; border-bottom: 1px solid var(--border); background: var(--bg-panel); }
+.shot-bar .grow { flex: 1; }
+.shot-body { display: flex; flex: 1; min-height: 0; }
+.shot-stage { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 12px; overflow: hidden; }
+.shot-canvas { position: relative; flex: none; overflow: hidden; box-shadow: 0 0 0 1px var(--border); cursor: crosshair; touch-action: none; }
+.shot-canvas iframe { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; pointer-events: none; background: var(--bg); }
+.shot-sel { position: absolute; outline: 2px solid var(--accent); outline-offset: 2px; cursor: move; }
+.shot-handle { position: absolute; width: 12px; height: 12px; border-radius: 50%; background: var(--bg-elev); border: 2px solid var(--accent); }
+.shot-handle.scale { right: -9px; bottom: -9px; cursor: nwse-resize; }
+.shot-handle.rotate { left: calc(50% - 6px); top: -28px; cursor: grab; }
+.shot-tag { position: absolute; left: -2px; top: -24px; padding: 1px 6px; border-radius: 4px; background: var(--accent); color: var(--accent-ink); font: 600 var(--fs-11)/1.5 var(--font-sans); white-space: nowrap; pointer-events: none; }
+.shot-time { display: flex; align-items: center; gap: 8px; width: min(640px, 100%); }
+.shot-time input[type="range"] { flex: 1; }
+.shot-side { width: 280px; flex: none; overflow: auto; padding: 12px; border-left: 1px solid var(--border); background: var(--bg-panel); display: flex; flex-direction: column; gap: 14px; }
+.shot-side h3 { display: flex; align-items: center; gap: 4px; margin: 0 0 8px; font-size: var(--fs-13); }
+.shot-side h3 .btn:first-of-type { margin-left: auto; }
+.shot-side label { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-12); color: var(--muted); }
+.shot-side textarea, .shot-side input[type="text"], .shot-side input[type="number"], .shot-side select { width: 100%; box-sizing: border-box; }
+.shot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.shot-knob { flex-direction: row !important; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.shot-knob input[type="text"] { width: 110px; }

@@ -181,9 +181,12 @@ def ids_in(html: str) -> list[str]:
     return list(dict.fromkeys(re.findall(r"data-vt-id=\"([A-Za-z0-9_-]+)\"", html)))
 
 
-def build(shot_dir: Path, out_dir: Path, overrides: Optional[dict] = None) -> Path:
-    """A render-ready copy of the shot in out_dir: index.html with the CSP, the overrides and the runtime. Returns out_dir."""
+def build(shot_dir: Path, out_dir: Path, overrides: Optional[dict] = None, *, editor: bool = False) -> Path:
+    """A render-ready copy of the shot in out_dir: index.html with the CSP, the overrides and the runtime. Returns out_dir.
+    editor=True: the page for the visual editor, without the saved edits (the editor sends them live) and with the bridge it talks to."""
     html = (shot_dir / "index.html").read_text(encoding="utf-8")
+    if editor:
+        overrides = {}
     info(shot_dir)                                                           # refuse a shot the renderer cannot time
     o = check_overrides(overrides if overrides is not None else read_json(shot_dir / "overrides.json", {}))
     head = f'<meta http-equiv="Content-Security-Policy" content="{CSP}">\n<style id="vt-overrides">\n{overrides_css(o)}\n</style>\n'
@@ -212,8 +215,55 @@ def build(shot_dir: Path, out_dir: Path, overrides: Optional[dict] = None) -> Pa
     fonts = paths.FONTS
     if fonts.is_dir():
         shutil.copytree(fonts, out_dir / "fonts", dirs_exist_ok=True)
+    if editor:
+        html = self_contained(html, shot_dir)
     (out_dir / "index.html").write_text(html, encoding="utf-8")
     return out_dir
+
+
+INLINE_MAX = 8_000_000            # a picture larger than this stays a file in the editor's page (it would make the page too big to send)
+
+
+def _data_uri(p: Path) -> str:
+    import base64
+    import mimetypes
+
+    kind = mimetypes.guess_type(p.name)[0] or ("font/woff2" if p.suffix == ".woff2" else "application/octet-stream")
+    return f"data:{kind};base64," + base64.b64encode(p.read_bytes()).decode("ascii")
+
+
+def _script(js: str) -> str:
+    return "<script>" + re.sub(r"</script", r"<\/script", js, flags=re.I) + "</script>"
+
+
+def self_contained(html: str, shot_dir: Path) -> str:
+    """The visual editor's page asks the network for nothing: it runs in a sandboxed frame with no origin, which our local proxy would refuse.
+    GSAP and the bridge go in as scripts, only the fonts the shot names go in as data, and its pictures too (up to INLINE_MAX each)."""
+    gsap = paths.RENDERER / "node_modules" / "gsap" / "dist" / "gsap.min.js"
+    if gsap.exists():
+        html = re.sub(r'<script\s+src="runtime/gsap\.min\.js"\s*>\s*</script>', lambda m: _script(gsap.read_text(encoding="utf-8")), html, flags=re.I)
+    css_path = paths.FONTS / "fonts.css"
+    if css_path.exists():
+        css = css_path.read_text(encoding="utf-8")
+        named = {n.strip().strip("'\"").lower() for decl in re.findall(r"font-family\s*:\s*([^;}\n]+)", html, re.I) for n in decl.split(",")}
+        faces = []
+        for block in re.findall(r"@font-face\s*\{[^}]*\}", css):
+            fam = re.search(r"font-family:\s*'([^']+)'", block)
+            src = re.search(r"url\(\./([^)]+)\)", block)
+            if fam and src and fam.group(1).lower() in named and (paths.FONTS / src.group(1)).is_file():
+                faces.append(block.replace(src.group(0), "url(" + _data_uri(paths.FONTS / src.group(1)) + ")"))
+        html = re.sub(r'<link[^>]+href="fonts/fonts\.css"[^>]*>', lambda m: "<style>" + "\n".join(faces) + "</style>", html, flags=re.I)
+    assets = shot_dir / "assets"
+
+    def inline_asset(m):
+        f = (assets / m.group(2)).resolve()
+        if assets.is_dir() and assets.resolve() in f.parents and f.is_file() and f.stat().st_size <= INLINE_MAX:
+            return m.group(1) + _data_uri(f)
+        return m.group(0)
+    html = re.sub(r"""((?:src|href)=["']|url\(["']?)assets/([A-Za-z0-9._/-]{1,200})""", inline_asset, html)
+    bridge = _script((paths.RUNTIME / "vt-shot-bridge.js").read_text(encoding="utf-8"))
+    end = re.search(r"</body>", html, re.I)
+    return html[:end.start()] + bridge + "\n" + html[end.start():] if end else html + bridge
 
 
 def render(shot_dir: Path, out: Path, *, fps: int = 30, gpu: bool = True) -> Path:

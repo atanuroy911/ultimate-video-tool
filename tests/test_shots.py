@@ -230,3 +230,50 @@ def test_no_scene_move_or_decoration_is_added_on_top_of_a_shot():
     MO.apply(data, "auto", seed="x")
     assert not data["scenes"][0].get("moves") and not data["scenes"][3].get("moves")
     assert data["scenes"][8].get("moves"), "other scenes still get theirs"
+
+
+# ---- C3: the visual editor's page and its bridge ---------------------------------------------------------------------------------------------------
+
+
+def test_the_editor_page_asks_the_network_for_nothing_and_shows_the_code_without_saved_edits(shot, tmp_path):
+    (shot / "assets").mkdir()
+    (shot / "assets" / "dot.png").write_bytes(bytes.fromhex("89504e470d0a1a0a0000000d4948445200000001000000010806000000"))
+    html = (shot / "index.html").read_text(encoding="utf-8").replace('<div id="bar" data-vt-id="bar"></div>', '<img data-vt-id="pic" src="assets/dot.png"><div id="bar" data-vt-id="bar"></div>')
+    (shot / "index.html").write_text(html, encoding="utf-8")
+    shots.save_overrides(shot, {"elements": {"title": {"text": "Saved edit"}}})
+    page = (shots.build(shot, tmp_path / "ed", editor=True) / "index.html").read_text(encoding="utf-8")
+    assert "Saved edit" not in page and "vt-overrides" in page, "the editor sends the edits itself"
+    assert 'src="runtime/' not in page and 'href="fonts/' not in page and 'src="assets/' not in page, "nothing is fetched"
+    assert "data:image/png;base64," in page and "font/woff2;base64," in page and "shot-ready" in page
+    assert "'Inter'" in page and "'Fraunces'" not in page, "only the fonts the shot names"
+    rendered = (shots.build(shot, tmp_path / "r") / "index.html").read_text(encoding="utf-8")
+    assert "Saved edit" in rendered and "shot-ready" not in rendered, "a render has the edits and never the bridge"
+
+
+@pytest.mark.slow
+@pytest.mark.browser
+def test_the_bridge_picks_moves_and_edits_live_inside_a_sandboxed_frame(shot, tmp_path):
+    import json
+
+    from vt.render.hyperframes import _browser
+    from vt.util import find_tool, run
+
+    page = shots.build(shot, tmp_path / "ed", editor=True) / "index.html"
+    msgs = [{"vt": "shot-seek", "t": 2.5},
+            {"vt": "shot-pick", "x": 300, "y": 440, "wait": True},
+            {"vt": "shot-overrides", "overrides": {"elements": {"title": {"x": 100, "y": 50, "text": "Moved"}}, "knobs": {"--title-size": "60px"}}},
+            {"vt": "shot-rect", "id": "title", "wait": True},
+            {"vt": "shot-overrides", "overrides": {}},
+            {"vt": "shot-rect", "id": "title", "wait": True},
+            {"vt": "shot-pick", "x": 5, "y": 5, "wait": True}]
+    script = Path(shots.paths.RENDERER) / "scripts" / "shot-bridge-check.mjs"
+    out = json.loads(run([find_tool("node"), str(script), _browser(), str(page), json.dumps(msgs)]).strip().splitlines()[-1])
+    assert out["failed"] == [], out["failed"]
+    ready = out["ready"]
+    assert ready["ids"] == ["orb", "title", "sub", "bar"] and ready["texts"]["title"] == "Sleep is a skill" and ready["colours"]["title"] == "#f5f3ff" and (ready["width"], ready["height"]) == (1920, 1080)
+    picked, moved, back, nothing = out["answers"]
+    assert picked["id"] == "title"
+    assert abs(moved["rect"][0] - (picked["rect"][0] + 100)) < 2 and abs(moved["rect"][1] - picked["rect"][1] - 50) < 25, (picked, moved)
+    assert moved["rect"][3] < picked["rect"][3], "the title-size knob made it smaller"
+    assert [round(v) for v in back["rect"]] == [round(v) for v in picked["rect"]], "clearing the edits restores the shot as written"
+    assert nothing["id"] is None

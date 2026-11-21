@@ -43,6 +43,7 @@ import { Modal, Spinner, StatusChip } from "../ui";
 import PictureTools from "../editor/PictureTools";
 import SoundPanel from "../editor/SoundPanel";
 import HookCard from "../editor/HookCard";
+const ShotEditor = lazy(() => import("../review/ShotEditor"));
 
 type LeftTab = "chat" | "scenes" | "elements" | "direction" | "script" | "words" | "media" | "sound";
 
@@ -60,6 +61,7 @@ function ReviewEditor() {
   const icons = useIconPack();
   const player = useRef<PlayerHandle>(null);
   const [time, setTime] = useState(0);
+  const [shotEdit, setShotEdit] = useState<string | null>(null);   // a code-native shot open in the visual editor (PLAN-CODE-NATIVE-EDITOR C3)
   const lastT = useRef(0);
   const [tool, setTool] = useState<Tool>("select");
   const [snap, setSnap] = useState(true);
@@ -527,6 +529,12 @@ function ReviewEditor() {
           </aside>),
 
           viewer: (<section className="ed-canvas" aria-label="Canvas">
+            {shotEdit ? (
+              <Suspense fallback={<Spinner />}>
+                <ShotEditor projectId={id} shotId={shotEdit} onClose={() => { setShotEdit(null); r.reloadAll(); }} />
+              </Suspense>
+            ) : <>
+            {scene?.shot && <button className="btn sm shot-open" onClick={() => setShotEdit(scene.shot!)} title="Change this shot's text, colours, sizes and positions without touching its code">Edit shot</button>}
             <Preview
               ref={player}
               projectId={id}
@@ -559,6 +567,7 @@ function ReviewEditor() {
                 }
               }}
             />
+            </>}
           </section>),
 
           inspector: (<aside className="ed-right" aria-label="Selection details">

@@ -1,0 +1,22 @@
+{
+  "name": "video-tool",
+  "displayName": "Video Tool",
+  "description": "Preview the shots of a Video Tool video next to your code.",
+  "version": "0.1.0",
+  "publisher": "video-tool",
+  "license": "MIT",
+  "engines": { "vscode": "^1.85.0" },
+  "main": "./extension.js",
+  "activationEvents": [],
+  "categories": ["Other"],
+  "contributes": {
+    "commands": [{ "command": "videoTool.previewShot", "title": "Video Tool: Preview a shot" }],
+    "configuration": {
+      "title": "Video Tool",
+      "properties": {
+        "videoTool.server": { "type": "string", "default": "http://127.0.0.1:8790", "description": "Address of the Video Tool server on this computer or network." },
+        "videoTool.project": { "type": "string", "default": "", "description": "The video's id. Empty uses the name of the open folder." }
+      }
+    }
+  }
+}

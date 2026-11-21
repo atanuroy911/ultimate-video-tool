@@ -591,3 +591,4 @@ W14 first part: change event carries rev/scenes/removed/by/what (tested); Studio
 W14 toast seen in a real browser (e2e/agent-toast.mjs): "Claude changed scene s1 (update scene)".
 Model chooser in the Claude Code tab (Default, Sonnet, Opus, Haiku); e2e 16/16.
 C7: ask_local tool (small model on this computer); tried: 12.9 s.
+C8: small VS Code extension (preview a shot beside the code), helper test only.

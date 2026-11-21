@@ -18,3 +18,5 @@ Newest first. Each line: what is wrong, where it was seen, how bad.
 
 ## 2026-11-22 (C8)
 - **"Open in VS Code" opens the agent folder only.** Claude Code inside VS Code has no Video Tool tools there, because giving it the server key means writing the key to a file. Needs the small VS Code extension (C8 rest) so the key stays in the app.
+- **Chatterbox Turbo is far too slow here:** about 17 s of work for each second of speech (56 s for 3.2 s) on this laptop, on the card or the processor alike. A 1-minute video would take ~17 minutes. Look at whether the ONNX run really uses the card (probably the CPU build of onnxruntime), or use it only for short lines. (C7)
+- **Qwen3-TTS, OmniVoice, Bangla voices** are not installed or measured; each needs a model download and an engine recipe that does not exist yet. (C7)

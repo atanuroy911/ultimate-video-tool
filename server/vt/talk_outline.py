@@ -283,6 +283,17 @@ def speaker_scenes(outline: Optional[dict], sf, beats) -> Optional[set]:
     return out
 
 
+def _is_broll(sc) -> bool:
+    """A scene that shows something other than the speaker: a picture or clip behind it, a shot, or more than words and stickers."""
+    from .aroll import WEAK
+
+    if sc.backdrop is not None and sc.backdrop.media != "aroll":
+        return True
+    if getattr(sc, "shot", None):
+        return True
+    return any(getattr(e, "type", "") not in WEAK for e in (getattr(sc, "elements", None) or []))
+
+
 def fill_examples(project, sf, beats, outline: Optional[dict], progress: Callable[[float, str], None] = lambda f, m: None) -> list[str]:
     """An example that ended up with no B-roll (its scenes only had words, so they show the speaker) gets one picture, drawn on this computer's
     picture engine from what the reader said to show (`show`), behind the scene that covers most of it. Returns the scene ids it changed.
@@ -301,7 +312,7 @@ def fill_examples(project, sf, beats, outline: Optional[dict], progress: Callabl
     for e in outline["examples"]:
         e0, e1 = float(e["start"]), float(e["end"])
         over = [(min(s[1], e1) - max(s[0], e0), sc) for sc in sf.scenes if (s := span(sc)) and min(s[1], e1) > max(s[0], e0)]
-        if not over or any(sc.backdrop is None or sc.backdrop.media != "aroll" for _, sc in over):
+        if not over or any(_is_broll(sc) for _, sc in over):
             continue                                                   # already has B-roll (or no scene there)
         todo.append((e, max(over, key=lambda x: x[0])[1]))
     if not todo:

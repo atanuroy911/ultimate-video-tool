@@ -311,6 +311,8 @@ def ensure_ready(progress: ProgressFn = noop_progress, allow_download: Optional[
     model = model or model_name()
     program_dir=Path(storage.get('install_dir') or paths.DATA/'engines')/'ollama' if storage else None
     model_dir=Path(storage.get('models_dir') or paths.DATA/'models')/'ollama' if storage else None
+    if reachable(url):
+        _retune_if_ours(url)                                           # an idle copy of ours from an older version comes back with OLLAMA_TUNING
     if not reachable(url):
         if not is_local(url):
             raise LLMUnavailable(f"The Ollama server at {url} does not answer.")

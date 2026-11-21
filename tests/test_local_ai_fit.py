@@ -86,3 +86,13 @@ def test_a_model_partly_off_the_card_is_said_in_the_ai_conversations(monkeypatch
     assert bool(said) is noted
     if noted:
         assert "processor" in said[0]["answer"] and "78%" in said[0]["answer"] and share < 1
+
+
+def test_getting_the_local_ai_ready_retunes_an_old_copy_first(monkeypatch):
+    seen = []
+    monkeypatch.setattr(llm, "settings", lambda: {"llm_mode": "auto", "llm_auto_download": False, "ollama_url": "http://127.0.0.1:11434", "ollama_model": "gemma3:4b"})
+    monkeypatch.setattr(llm, "reachable", lambda url=None: True)
+    monkeypatch.setattr(llm, "_retune_if_ours", lambda url: seen.append(url))
+    monkeypatch.setattr(llm, "has_model", lambda m, url=None: True)
+    assert llm.ensure_ready(model="gemma3:4b") == "gemma3:4b"
+    assert seen == ["http://127.0.0.1:11434"]

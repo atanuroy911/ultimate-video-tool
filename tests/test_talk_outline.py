@@ -53,3 +53,22 @@ def test_merge_keeps_the_longer_description():
                             {"first": 6, "last": 12, "kind": "story", "about": "long", "show": "b"},
                             {"first": 20, "last": 22, "kind": "list", "about": "other", "show": "c"}])
     assert [(e["first"], e["last"], e["about"]) for e in got] == [(5, 12, "long"), (20, 22, "other")]
+
+
+def test_speech_recognition_asks_the_local_engines_to_free_the_card(monkeypatch):
+    """ComfyUI and Ollama on this computer are asked to let go of the card before the speech model loads there (ISSUES 2026-11-22)."""
+    import httpx
+
+    from vt import llm
+    from vt.server import comfy_routes
+    from vt.stages import asr
+
+    posted = []
+    monkeypatch.setattr(comfy_routes, "comfy_url", lambda: "http://127.0.0.1:8188")
+    monkeypatch.setattr(httpx, "post", lambda url, **kw: posted.append(url))
+    monkeypatch.setattr(llm, "release", lambda url=None: ["gemma4:e2b"])
+    monkeypatch.setattr(llm, "settings", lambda: {"ollama_url": "http://127.0.0.1:11434"})
+    assert asr.free_card() == ["comfyui", "ollama"] and posted == ["http://127.0.0.1:8188/free"]
+    monkeypatch.setattr(comfy_routes, "comfy_url", lambda: "http://10.0.0.5:8188")       # another computer's engine is left alone
+    posted.clear()
+    assert asr.free_card() == ["ollama"] and posted == []

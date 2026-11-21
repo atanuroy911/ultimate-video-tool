@@ -80,3 +80,16 @@ def test_touching_examples_stay_two_and_a_too_long_example_is_sent_back():
     assert [(e["first"], e["last"]) for e in got] == [(10, 20), (21, 30)]
     errs = T.problems({"examples": [{"first": 60, "last": 112}, {"first": 5, "last": 6}]}, 53, 112)
     assert any("53 sentences" in e for e in errs) and any("between 53 and 112" in e for e in errs)
+
+
+def test_look_ahead_names_each_example_by_its_beats():
+    class B:
+        def __init__(self, id, start, end): self.id, self.start, self.end = id, start, end
+
+    beats = [B("b1", 0, 5), B("b2", 5, 10), B("b3", 10, 15), B("b4", 15, 20)]
+    outline = {"summary": "A talk.", "examples": [{"start": 5.0, "end": 14.9, "kind": "analogy", "about": "a warehouse", "show": "robots between shelves"}],
+               "keep_on_speaker": [{"start": 0, "end": 4.9, "why": "opening"}]}
+    text = T.look_ahead_text(outline, beats)
+    assert "E1 beats b2..b3 (5.0-14.9s) analogy: a warehouse | show: robots between shelves" in text
+    assert "beats b1..b1 (opening)" in text and "aroll" in text
+    assert T.look_ahead_text(None, beats) == "" and T.look_ahead_text({"examples": []}, beats) == ""

@@ -30,7 +30,7 @@ def script_task(p: Project, kind: Optional[str] = None, hint: str = "", *, compa
     tr, beats = p.transcript(), p.beats()
     sf = p.scenes()
     system, user = build_prompt(tr, beats, kind=kind, language=meta.language, aspect=meta.aspect, hint=hint,
-                                draft=None, schema=None, with_examples=not compact, compact=compact)
+                                draft=None, schema=None, with_examples=not compact, compact=compact, look_ahead=_look_ahead(p, beats))
     return {
         "instructions": system, "task": user, "schema": to_json_schema(), "kind": kind,
         "project": {"id": p.id, "title": meta.title, "language": meta.language, "aspect": meta.aspect, "theme": load_theme(meta.theme).name},
@@ -40,6 +40,13 @@ def script_task(p: Project, kind: Optional[str] = None, hint: str = "", *, compa
         **_craft_and_style(p, meta.theme, include_draft_report=not compact),
         "submit": "Call submit_script(project, script=<the JSON object>). If it returns errors, fix exactly those and call it again until ok is true.",
     }
+
+
+def _look_ahead(p: Project, beats, say=lambda f, m: None) -> str:
+    """A long talk with the speaker's picture is read ahead first (C10, vt/talk_outline.py); its examples go into the director's task."""
+    from .. import talk_outline
+
+    return talk_outline.look_ahead_text(talk_outline.ensure(p, progress=say), beats)
 
 
 def _craft_and_style(p: Project, theme: str, *, include_draft_report: bool = True) -> dict[str, Any]:
@@ -187,7 +194,8 @@ def direct(p: Project, sf: ScenesFile, say=None, want_ai: bool = False) -> tuple
 
     notes: list[dict] = []                                                                  # what repairing the AI's script changed in it (script/repairs.py)
     script, how = plan_script(tr, beats, draft=sf, use_ai=use_ai, kind=kind if kind != "explainer" else "explainer", language=meta.language, aspect=meta.aspect, hint=taste.director_hint(),
-                              media_ids={m.id for m in meta.planner_media()}, progress=say, ctx=CX.load(p), notes=notes)
+                              media_ids={m.id for m in meta.planner_media()}, progress=say, ctx=CX.load(p), notes=notes,
+                              look_ahead=_look_ahead(p, beats, say))
     if how.startswith("rules") and kind not in ("stick", "emoji", "cartoon"):           # the AI could not write it: an explainer keeps its rule draft as it is
         return sf, how
     out = compile_script(script, tr, beats, sf.theme)

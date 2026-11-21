@@ -115,8 +115,8 @@ def examples_text() -> str:
 
 def build_prompt(tr: Transcript, beats: Beats, *, kind: str = "stick", language: str = "en", audience: str = "", tone: str = "", aspect: str = "9:16",
                  draft: Optional[dict] = None, hint: str = "", schema: Optional[dict] = None, with_examples: bool = True,
-                 compact: bool = False) -> tuple[str, str]:
-    """(system, user) for complete_json."""
+                 compact: bool = False, look_ahead: str = "") -> tuple[str, str]:
+    """(system, user) for complete_json. `look_ahead`: the outline of a long talk (vt/talk_outline.py), when there is one."""
     system = ROLE.format(kind_text=KIND_TEXT.get(kind, "explainer")) + "\n\n" + CRAFT_RULES
     from ..visuals.choices import prompt as visual_choices
 
@@ -144,6 +144,8 @@ def build_prompt(tr: Transcript, beats: Beats, *, kind: str = "stick", language:
         user.append("\n" + SHOT_RULES.format(w=w, h=h))
     if draft:
         user.append("\nDRAFT from the rule planner (improve it, keep what is good):\n" + json.dumps(draft, ensure_ascii=False)[:6000])
+    if look_ahead:
+        user.append("\n" + look_ahead)
     if hint:
         user.append(f"\nUSER HINT: {hint}")
     if with_examples:

@@ -16,7 +16,7 @@ from .validate import validate_script
 
 def ai_script(tr: Transcript, beats: Beats, *, kind: str = "stick", language: str = "en", aspect: str = "9:16", audience: str = "", tone: str = "",
               draft: Optional[ScenesFile] = None, hint: str = "", media_ids: Optional[set[str]] = None, provider: Optional[ai.Provider] = None,
-              progress: Optional[Callable[[float, str], None]] = None, notes: Optional[list[dict]] = None) -> VideoScript:
+              progress: Optional[Callable[[float, str], None]] = None, notes: Optional[list[dict]] = None, look_ahead: str = "") -> VideoScript:
     """The AI's script, repaired. Raises ai.AIUnavailable when no valid script comes back (the caller then uses `rules_script`).
     `notes` (when given) receives what the repair changed in the script that is used (script/repairs.py), so the caller can show it."""
     say = progress or (lambda f, m: None)
@@ -27,7 +27,8 @@ def ai_script(tr: Transcript, beats: Beats, *, kind: str = "stick", language: st
 
     frame = (FORMATS[aspect]['width'], FORMATS[aspect]['height']) if aspect in FORMATS else None
     base = rules_script(tr, beats, draft, kind=kind, language=language, aspect=aspect).model_dump(by_alias=True, exclude_none=True) if draft else None
-    system, user = build_prompt(tr, beats, kind=kind, language=language, audience=audience, tone=tone, aspect=aspect, draft=base, hint=hint, schema=schema)
+    system, user = build_prompt(tr, beats, kind=kind, language=language, audience=audience, tone=tone, aspect=aspect, draft=base, hint=hint, schema=schema,
+                                look_ahead=look_ahead)
     say(0.1, "Asking the AI to direct the video")
     data = ai.complete_json(user, schema, system=system, provider=provider, max_tokens=8000, timeout=600, cache=True, retries=1,
                             repair=repairer(tr, beats, kind, notes, frame),
@@ -112,9 +113,10 @@ def plan_script(tr: Transcript, beats: Beats, *, draft: ScenesFile, use_ai: bool
 
 def _plan_script(tr: Transcript, beats: Beats, *, draft: ScenesFile, use_ai: bool = True, **kw) -> tuple[VideoScript, str]:
     ctx_kw = {k: kw.pop(k) for k in ("ctx",) if k in kw}
+    look = kw.pop("look_ahead", "")
     if use_ai:
         try:
-            return ai_script(tr, beats, draft=draft, **kw), "ai"
+            return ai_script(tr, beats, draft=draft, look_ahead=look, **kw), "ai"
         except ai.AIUnavailable as e:
             why = str(e)
     else:

@@ -18,7 +18,7 @@ const cl = { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' } as const;
 const FONT: Record<string, string> = new Proxy({} as Record<string, string>, { get: (_, k: string) => ({ serif: STORE.fonts.head, hind: STORE.fonts.body, sans: STORE.fonts.body, latin: STORE.fonts.head } as Record<string, string>)[k] });
 /** text with {red} highlights; '\n' line breaks */
 export const RichText: React.FC<{ text: string; size?: number; color?: string; hl?: string; font?: string; anchor?: 'start' | 'middle' | 'end'; weight?: number; lh?: number }> = ({ text, size = 36, color = C.ink, hl = C.red, font = 'serif', anchor = 'middle', weight, lh = 1.3 }) => {
-  const lines = text.split('\n');
+  const lines = String(text ?? '').split('\n');                 // a number or nothing must never stop a render (a plan once had steps 3, 6, 9)
   const y0 = -((lines.length - 1) * size * lh) / 2 + size * 0.35;
   return (
     <text textAnchor={anchor} fontFamily={FONT[font] ?? font} fontWeight={weight ?? (font === 'serif' ? 800 : 700)} fontSize={size} fill={color}>
@@ -30,7 +30,7 @@ export const RichText: React.FC<{ text: string; size?: number; color?: string; h
     </text>
   );
 };
-const textW = (s: string, size: number) => Math.max(...s.split('\n').map((l) => l.replace(/[{}]/g, '').length)) * size * 0.55;
+const textW = (s: string, size: number) => Math.max(...String(s ?? '').split('\n').map((l) => l.replace(/[{}]/g, '').length)) * size * 0.55;
 const local = (c: Ctx, sec: number) => (c.t - sec) * FPS;
 
 export const mouthOpen = (who: string, t: number) => {

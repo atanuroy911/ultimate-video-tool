@@ -249,6 +249,22 @@ def render(project: str,
         console.print(f"[green]{a}[/green] {res['video']}  ({res['seconds']}s to render {res['duration']}s of video)")
 
 
+@app.command("outline")
+def outline_talk(project: str, local: bool = typer.Option(False, "--local", help="use the local AI (Ollama) even when another is chosen")) -> None:
+    """Read a long talk ahead and mark its example stretches (for B-roll) and the parts that stay on the speaker (C10)."""
+    from . import talk_outline
+
+    p = Project(project)
+    provider = None
+    if local:
+        from .ai import OllamaProvider
+        provider = OllamaProvider()
+    out = talk_outline.build(p, provider=provider, progress=lambda f, m: console.print(f"[dim]{m}[/dim]"))
+    console.print(f"{len(out['sentences'])} sentences, {len(out['sections'])} sections, {len(out['examples'])} examples")
+    for e in out["examples"]:
+        console.print(f"  {e['start']:7.1f}-{e['end']:7.1f}s  {e['kind']:<13} {e['about']}")
+
+
 @app.command("list")
 def list_projects() -> None:
     """List projects."""

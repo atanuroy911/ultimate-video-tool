@@ -590,3 +590,4 @@ C7 voices: Kokoro 1.5 s per second of speech; Chatterbox Turbo 17 s per second (
 W14 first part: change event carries rev/scenes/removed/by/what (tested); Studio toast.
 W14 toast seen in a real browser (e2e/agent-toast.mjs): "Claude changed scene s1 (update scene)".
 Model chooser in the Claude Code tab (Default, Sonnet, Opus, Haiku); e2e 16/16.
+C7: ask_local tool (small model on this computer); tried: 12.9 s.

@@ -896,6 +896,21 @@ def speak(project: str, text: str, voice: str = "af_heart", engine: str = "kokor
     return {"ok": True, "file": str(out.relative_to(p.dir)), "duration": res.get("duration"), "engine": res.get("engine"), "voice": res.get("voice")}
 
 
+@tool
+def ask_local(question: str, context: str = "") -> dict:
+    """Ask the small language model on this computer (Ollama) a short question: rewrite a line, shorten a caption, name something, translate a sentence.
+    Free and private, but small: do not ask it to write shots or plan a video. Fails in words when Ollama is not running."""
+    from .. import llm
+
+    try:
+        out = llm.chat_json([{"role": "system", "content": "Answer briefly and plainly. Reply as JSON with one field, answer."},
+                             {"role": "user", "content": (context.strip()[:4000] + chr(10) * 2 if context.strip() else "") + question.strip()[:2000]}],
+                            {"type": "object", "properties": {"answer": {"type": "string"}}, "required": ["answer"]}, num_ctx=4096, max_tokens=600, timeout=180)
+    except llm.LLMUnavailable as e:
+        return {"ok": False, "error": str(e)[:300]}
+    return {"ok": True, "answer": str(out.get("answer", ""))[:2000], "model": llm.model_name()}
+
+
 @server.prompt(name="plan_this_video", description="Plan every pending video request")
 def plan_this_video() -> str:
     return ("Plan all pending Video Tool requests: call list_pending_requests; for each, get_planning_task, then submit_scenes (fix returned errors "

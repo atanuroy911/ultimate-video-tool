@@ -16,7 +16,7 @@ _lock = threading.RLock()
 _tokens: dict[str, tuple[str, float]] = {}
 _current: ContextVar[tuple[str, str] | None] = ContextVar("vt_mcp_project", default=None)
 _READ_SHARED = {"module_catalog", "module_describe", "house_rules", "search_icons", "list_components",
-                "list_themes", "get_theme", "list_projects", "list_pending_requests", "job_status"}
+                "list_themes", "get_theme", "list_projects", "list_pending_requests", "job_status", "ask_local"}
 _PROJECT_TOOLS = set("""
 module_call get_planning_task submit_scenes get_reel_plan check_reel_plan run_pipeline project_status get_transcript
 fix_word add_glossary_term get_scenes update_scene list_media list_scene_types show_scene_as request_regenerate

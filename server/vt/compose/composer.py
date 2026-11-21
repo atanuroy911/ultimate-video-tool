@@ -255,6 +255,15 @@ def to_srt(chunks: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def to_vtt(chunks: list[dict]) -> str:
+    """The same captions as WebVTT (web players, YouTube): a header, and a dot before the milliseconds."""
+    lines = ["WEBVTT\n"]
+    for c in chunks:
+        text = " ".join(w["text"] for w in c["words"])
+        lines.append(f"{_srt_time(c['start']).replace(',', '.')} --> {_srt_time(c['end']).replace(',', '.')}\n{text}\n")
+    return "\n".join(lines)
+
+
 # --------------------------------------------------------------------------- resolve
 
 

@@ -1065,6 +1065,8 @@ def export(project: Project, aspect: Optional[str] = None, *, quality: str = "lo
     silent.unlink(missing_ok=True)
     srt = final.with_suffix(".srt")
     srt.write_text(to_srt(data["captions"]), encoding="utf-8")
+    from .compose.composer import to_vtt
+    final.with_suffix(".vtt").write_text(to_vtt(data["captions"]), encoding="utf-8")      # the same captions for web players (C10)
     from . import credits as CR
 
     credits = CR.text(project, track or "")               # stock, catalogue, the music's licence and a link's source, written next to the video

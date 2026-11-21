@@ -1375,7 +1375,7 @@ def watch_and_revise(p: Project, card: dict, first: Path, cb, qa: Optional[dict]
     card2 = RT.scorecard(f2, a, read_json(p.comp_dir / FORMATS[a]["tag"] / "data.json"), p.cut_audio if p.cut_audio.exists() else None)
     if card2["risk"] < card["risk"] or (seen and card2["risk"] <= card["risk"] + 2):      # better, or the flagged frames fixed without losing viewers
         RT.save(f2.with_suffix(".retention.json"), card2)
-        for f in (first, first.with_suffix(".retention.json"), first.with_suffix(".srt")):
+        for f in (first, first.with_suffix(".retention.json"), first.with_suffix(".srt"), first.with_suffix(".vtt")):
             _remove(f)
         write_json(p.dir / "revise.json", {"before": card["risk"], "after": card2["risk"], "notes": notes, "kept": True})
         try:
@@ -1389,7 +1389,7 @@ def watch_and_revise(p: Project, card: dict, first: Path, cb, qa: Optional[dict]
         if d is not None:
             write_json(p.dir / n, d)
     compose_all(p)
-    for f in (f2, f2.with_suffix(".srt")):
+    for f in (f2, f2.with_suffix(".srt"), f2.with_suffix(".vtt")):
         _remove(f)
     write_json(p.dir / "revise.json", {"before": card["risk"], "after": card2["risk"], "notes": notes, "kept": False})
     return False
@@ -2981,7 +2981,7 @@ def list_exports(pid: str) -> list[dict]:
         for f in sorted(p.exports_dir.glob("*.mp4"), key=lambda x: x.stat().st_mtime, reverse=True):
             if f.name.startswith('.'):continue
             out.append({"name": f.name, "size": f.stat().st_size, "url": f"/media/{pid}/exports/{f.name}",
-                        "srt": f"/media/{pid}/exports/{f.stem}.srt" if f.with_suffix(".srt").exists() else None,
+                        "srt": f"/media/{pid}/exports/{f.stem}.srt" if f.with_suffix(".srt").exists() else None, "vtt": f"/media/{pid}/exports/{f.stem}.vtt" if f.with_suffix(".vtt").exists() else None,
                         "credits": f.with_suffix(".credits.txt").read_text("utf-8") if f.with_suffix(".credits.txt").exists() else "",
                         "modified": time.strftime("%Y-%m-%d %H:%M", time.localtime(f.stat().st_mtime)), "path": str(f),
                         "retention": _retention_summary(f), "judges": _judges_summary(f),

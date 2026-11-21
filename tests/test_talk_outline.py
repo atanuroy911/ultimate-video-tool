@@ -93,3 +93,11 @@ def test_look_ahead_names_each_example_by_its_beats():
     assert "E1 beats b2..b3 (5.0-14.9s) analogy: a warehouse | show: robots between shelves" in text
     assert "beats b1..b1 (opening)" in text and "aroll" in text
     assert T.look_ahead_text(None, beats) == "" and T.look_ahead_text({"examples": []}, beats) == ""
+
+
+def test_captions_also_as_webvtt():
+    from vt.compose.composer import to_srt, to_vtt
+
+    chunks = [{"start": 1.5, "end": 3.25, "words": [{"text": "Hello"}, {"text": "there"}]}, {"start": 3661.0, "end": 3662.0, "words": [{"text": "Bye"}]}]
+    assert to_vtt(chunks) == "WEBVTT\n\n00:00:01.500 --> 00:00:03.250\nHello there\n\n01:01:01.000 --> 01:01:02.000\nBye\n"
+    assert "00:00:01,500 --> 00:00:03,250" in to_srt(chunks)

@@ -177,6 +177,7 @@ jobs:
     name: Engine Docker image
     needs: [engine, version]
     runs-on: ubuntu-latest
+    timeout-minutes: 45          # it once hung for 6 hours in the cache export and held back the whole release
     steps:
       - uses: actions/download-artifact@v4
         with: { name: engine-package, path: pkg }
@@ -199,13 +200,12 @@ jobs:
           tags: |
             ${{ steps.meta.outputs.image }}:${{ needs.version.outputs.version }}
             ${{ steps.meta.outputs.image }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
   publish:
     name: Publish the release
     if: needs.version.outputs.publish == 'true'
-    needs: [version, app, engine, engine-smoke, engine-image]
+    # the installers and the engine package are the release; the Docker image is extra and never holds them back
+    needs: [version, app, engine, engine-smoke]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4

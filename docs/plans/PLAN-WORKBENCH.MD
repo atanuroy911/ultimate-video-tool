@@ -259,14 +259,14 @@ Background: `server/vt/server/serve.py`. Today `allowed()` returns `True` for ev
 - [x] **W3.2 Mark them.** (2026-11-20; also `network` and `assistant`; `test_gpu` skips on the CPU build of torch) Add pytest markers in `server/pyproject.toml` (`[tool.pytest.ini_options] markers`): `gpu` (needs a graphics card or a model too big for CPU), `models` (downloads a model), `browser` (headless Chrome). Mark each slow test from the table. Do not change any test's logic.
   Check: `pytest -m "slow and not gpu" --collect-only -q` lists exactly the CPU-feasible ones.
 
-- [ ] **W3.3 Nightly on GitHub (CPU).** Add `.github/workflows/nightly.yml`:
+- [x] (2026-11-22 audit: commit 3c58eeb) **W3.3 Nightly on GitHub (CPU).** Add `.github/workflows/nightly.yml`:
   - Triggers: `schedule: cron "30 1 * * *"` and `workflow_dispatch`. **Never** `pull_request` (the repo is public).
   - Steps: the same setup as `ci.yml`'s python job (uv sync, generated assets, Studio build), then `pytest -m "slow and not gpu"`. Cache models with `actions/cache`, keyed on the model name.
   - Then one real end-to-end video with the **rules-only** director (no AI needed) from a short English script of its own (not the "yield" sample): plan → voice → render 9:16. Upload the mp4, the contact sheet and the log as artifacts (`retention-days: 14`).
   - On failure: open or update one GitHub issue titled "Nightly check failing" with a link to the run (`gh issue` through `GITHUB_TOKEN` with `issues: write`). On success, close that issue if it is open.
   Check: trigger it once with `gh workflow run nightly.yml --ref workbench` and watch it with `gh run watch`. It must pass. Fix what fails: test bugs are fixed in the test, product bugs in the product. Never skip a test to get green.
 
-- [ ] **W3.4 Nightly on this laptop (GPU).** Create `scripts/nightly_local.ps1` (this laptop only; no script for the GPU server). It must refuse to run if any engine address in the server settings points away from `127.0.0.1`/`localhost`. It:
+- [x] (2026-11-22 audit: commit 3c58eeb) **W3.4 Nightly on this laptop (GPU).** Create `scripts/nightly_local.ps1` (this laptop only; no script for the GPU server). It must refuse to run if any engine address in the server settings points away from `127.0.0.1`/`localhost`. It:
   1. Checks that no `pytest` and no render is already running.
   2. Updates a **separate** checkout (`E:\UltimateVideoTool\nightly-src`, a `git worktree` of the repo on `workbench`, later `main`).
   3. Runs `pytest -m "slow and gpu"` with `VT_PROJECTS` pointing to a fresh scratch folder.
@@ -338,7 +338,7 @@ Background: `server/vt/server/serve.py`. Today `allowed()` returns `True` for ev
 
 Target look: the openfilm screenshot the owner liked. Quiet cool greys, panels separated by one-pixel lines, small text, colour only where it means something.
 
-- [ ] **W6.1 The token file.** Create `client/studio/src/tokens.css`, the **only** file in the Studio UI that contains raw colour values. Import it first in `main.tsx`. Contents:
+- [x] (2026-11-22 audit: commit 848adb6) **W6.1 The token file.** Create `client/studio/src/tokens.css`, the **only** file in the Studio UI that contains raw colour values. Import it first in `main.tsx`. Contents:
 
   **Surfaces** (bottom to top). `--bg-app` is the window, the top bar and the seams between panes. `--bg-panel` is a pane's inside. `--bg-raised` is cards, menus, popovers, dialogs and tooltips. `--bg-viewer` is the area around the picture.
 
@@ -402,9 +402,9 @@ Target look: the openfilm screenshot the owner liked. Quiet cool greys, panels s
   **OpenChatCut skins**: in `client/studio/src/occ/occ.css` (or wherever `--cc-*` are defined, see `occ/src/theme.ts` and `skins.ts`), map every `--cc-*` to a new token, e.g. `--cc-bg: var(--tl-lane); --cc-panel: var(--bg-panel); --cc-text: var(--text)`. Keep the skin registry, but make the default skin read the tokens.
   Check: **contrast**. Write `scripts/dev/check_contrast.mjs`. It parses `tokens.css` and checks, in both themes: `--text`, `--text-muted` and `--accent-text` on `--bg-panel` and `--bg-raised` ≥ 4.5:1; `--text-faint` ≥ 3:1; white on every `--clip-*` ≥ 4.5:1; `--on-primary` on `--primary` ≥ 4.5:1; `--on-accent` on `--accent` ≥ 4.5:1 (if not, darken `--accent` in steps of 4% lightness until it passes and note the new value here). Run it in the CI `studio` job. Also run the existing `npm run e2e:contrast`.
 
-- [ ] **W6.2 A guard against new raw colours.** Create `scripts/dev/check_raw_colors.mjs`. It fails when a `.tsx`, `.ts` or `.css` file under `client/studio/src` contains `#rgb`, `#rrggbb`, `rgb(` or `hsl(` outside `tokens.css`. Exemptions are listed in the script with a reason each. Exempt **content colours**, the colours of the *video* rather than the app: the look/palette data (themes, `DesignStudio.tsx` palettes, `review/story/`, caption-look presets) and canvas code that draws the video. The baseline today is 223 distinct values. The script also accepts `--report`, which prints file:line:value with the nearest token by colour distance. Add it to the CI `studio` job in **report-only** mode now. W6.3 switches it to failing mode.
+- [x] (2026-11-22 audit: commit f9f3f9c, a ratchet) **W6.2 A guard against new raw colours.** Create `scripts/dev/check_raw_colors.mjs`. It fails when a `.tsx`, `.ts` or `.css` file under `client/studio/src` contains `#rgb`, `#rrggbb`, `rgb(` or `hsl(` outside `tokens.css`. Exemptions are listed in the script with a reason each. Exempt **content colours**, the colours of the *video* rather than the app: the look/palette data (themes, `DesignStudio.tsx` palettes, `review/story/`, caption-look presets) and canvas code that draws the video. The baseline today is 223 distinct values. The script also accepts `--report`, which prints file:line:value with the nearest token by colour distance. Add it to the CI `studio` job in **report-only** mode now. W6.3 switches it to failing mode.
 
-- [ ] **W6.3 Replace raw colours in the app's chrome.** Using `check_raw_colors.mjs --report`, replace UI colours with tokens, file by file, starting with the shell, editor and timeline files. Rules:
+- [~] (2026-11-22 audit: 76 moved, 233 still allowed by the ratchet; commit f9f3f9c) **W6.3 Replace raw colours in the app's chrome.** Using `check_raw_colors.mjs --report`, replace UI colours with tokens, file by file, starting with the shell, editor and timeline files. Rules:
   - A colour that means "selected / current / focus" → `--accent` family.
   - A success / warning / error colour → `--ok` / `--warn` / `--err`.
   - A grey → the nearest surface, text or border token. Never invent a new grey.
@@ -428,7 +428,7 @@ Target look: the openfilm screenshot the owner liked. Quiet cool greys, panels s
 
 ### W7 — The dock workbench (panes that resize, hide and remember)
 
-- [ ] **W7.1 Port the dock engine.** Copy, with the W0.2 header, into `client/studio/src/workbench/`:
+- [x] (2026-11-22 audit: commit d88b1e4) **W7.1 Port the dock engine.** Copy, with the W0.2 header, into `client/studio/src/workbench/`:
   - `workspace-dock.ts` (from `E:\openfilm-a1b8d75\packages\openfilm\studio\ui\src\lib\workspace-dock.ts`) and its test `workspace-dock.test.ts`.
   - The parts of `lib/workspaces.ts` that `workspace-dock.ts` imports (`centerOf`, `ArrangementSpec`, `BlockSpec`, `WorkspaceLayout`, `defaultWorkspace`, the read/validate functions), into `workspaces.ts`. Drop the plugin/workbench registry and the v1/v2 migration keys.
   - `components/PaneDivider.tsx` → `workbench/PaneDivider.tsx`. Translate any Tailwind classes into a `workbench.css` that uses our tokens: the divider is a 1px `--dock-line` line with a 9px invisible hit area and `cursor: col-resize/row-resize`, and while dragging it shows a 2px `--accent` line.
@@ -437,7 +437,7 @@ Target look: the openfilm screenshot the owner liked. Quiet cool greys, panels s
   Make the test runner see the new tests: they use `node:test`/vitest-style syntax. Check what `npm run test:timeline` uses and wire `workbench/*.test.ts` into the same runner (add a `test:workbench` script and call it from CI's `studio` job).
   Check: `npm run test:workbench` passes, with OpenFilm's dock tests adapted to our block names.
 
-- [ ] **W7.2 The Workbench component.** Create `client/studio/src/workbench/Workbench.tsx`:
+- [x] (2026-11-22 audit: commit 48a3f8f) **W7.2 The Workbench component.** Create `client/studio/src/workbench/Workbench.tsx`:
   - Props: `panes: Record<'viewer'|'library'|'inspector'|'timeline'|'assistant', ReactNode>` and `layoutKey: string`.
   - It renders the dock tree from `defaultDockTree(...)` as nested flex boxes with `PaneDivider`s. Sizes come from the tree (`size` plus `anchor` for fixed-size panes; `ratio` otherwise). The viewer always takes the remaining space.
   - Each pane gets a header (`--h-pane-header`, `--fs-12` weight 500, `--text-muted`, a close ✕ icon button on hideable panes) from `dock-pane-bar.ts`'s rules, except the viewer, which has none.
@@ -450,7 +450,7 @@ Target look: the openfilm screenshot the owner liked. Quiet cool greys, panels s
   - Expose `useWorkbench()`: `{ shown(pane), toggle(pane), show(pane), focus(pane), reset() }`.
   Check: a small Playwright suite, `e2e:workbench` (new), drags each divider, hides and shows each pane, reloads, and finds the same sizes. It also resizes the window to 1000px and 800px and checks the drawers. Add it to the nightly browser job.
 
-- [ ] **W7.3 Shortcuts and the command palette.** Register D14's shortcuts in the existing shortcut system (`client/studio/src/occ/src/shortcuts/`, or wherever `CommandPalette.tsx` reads commands): `View: Toggle Library` (Ctrl+B), `View: Toggle Assistant` (Ctrl+Alt+B), `View: Toggle Timeline` (Ctrl+J), `View: Toggle Inspector` (Ctrl+Alt+I), `View: Reset Layout`, `Assistant: Focus Message Box` (Ctrl+L), and `Command Palette` on Ctrl+Shift+P (keep the palette's existing shortcut too). Shortcuts must not fire while typing in a text field, except Ctrl+L and Ctrl+Shift+P. On macOS use Cmd.
+- [~] (2026-11-22 audit: keys in workbench/shortcuts.ts, commit 48a3f8f; palette entries not checked) **W7.3 Shortcuts and the command palette.** Register D14's shortcuts in the existing shortcut system (`client/studio/src/occ/src/shortcuts/`, or wherever `CommandPalette.tsx` reads commands): `View: Toggle Library` (Ctrl+B), `View: Toggle Assistant` (Ctrl+Alt+B), `View: Toggle Timeline` (Ctrl+J), `View: Toggle Inspector` (Ctrl+Alt+I), `View: Reset Layout`, `Assistant: Focus Message Box` (Ctrl+L), and `Command Palette` on Ctrl+Shift+P (keep the palette's existing shortcut too). Shortcuts must not fire while typing in a text field, except Ctrl+L and Ctrl+Shift+P. On macOS use Cmd.
   Check: unit tests for the key handler (typing in an input does not toggle panes). `e2e:workbench` covers Ctrl+B and Ctrl+J.
 
 ---
@@ -513,16 +513,16 @@ Target look: the openfilm screenshot the owner liked. Quiet cool greys, panels s
   - Remove the big scrubber from under the video: the timeline is the scrubber. Keep a thin 2px progress line at the bottom of the picture in `--accent`, so position is visible when the timeline pane is hidden.
   Check: `e2e:editor` passes. Playback, seeking with the timeline, and fullscreen work.
 
-- [ ] **W8.6 Compose the page.** Rewrite `client/studio/src/pages/Review.tsx` to: `TopBar` + `Workbench` with the five panes. Move state that is shared between panes (`sel`, `selEl`, `selLayer`, `selectedWord`, `videoSel`, the current scene, the `useReview` result) into a small store, `client/studio/src/workbench/selection.ts` (a `useSyncExternalStore` store like the existing `store.ts` ones), so panes do not pass ten props each. Keep every feature that worked; this is a re-layout, not a rewrite of features. `Review.tsx` should end under 250 lines.
+- [~] (2026-11-22 audit: docked layout in commit 48a3f8f; TopBar/LibraryPane/InspectorPane as separate files and editor-map.md not made) **W8.6 Compose the page.** Rewrite `client/studio/src/pages/Review.tsx` to: `TopBar` + `Workbench` with the five panes. Move state that is shared between panes (`sel`, `selEl`, `selLayer`, `selectedWord`, `videoSel`, the current scene, the `useReview` result) into a small store, `client/studio/src/workbench/selection.ts` (a `useSyncExternalStore` store like the existing `store.ts` ones), so panes do not pass ten props each. Keep every feature that worked; this is a re-layout, not a rewrite of features. `Review.tsx` should end under 250 lines.
   Check: **every** e2e suite listed as passing in W3.5 still passes (update selectors only). `npm run build` passes. Fast suite green. Before/after screenshots side by side in `docs/dev/shots/w8-*.png`. Look at them at 1440×900 and 1280×720, in light and dark.
 
 ---
 
 ### W9 — Electron 44 in both desktop apps
 
-- [ ] **W9.1 Find the newest Electron 44.x** that is at least two weeks old (`npm view electron@44 version time --json`). Update `client/desktop/package.json` and `server/desktop/package.json`: `electron` to that exact version, and `electron-builder` to the newest version supporting it (check electron-builder's releases). Run `npm install` in both and commit the lock files.
+- [x] (2026-11-22 audit: 44.10.2, commit 3572bfd) **W9.1 Find the newest Electron 44.x** that is at least two weeks old (`npm view electron@44 version time --json`). Update `client/desktop/package.json` and `server/desktop/package.json`: `electron` to that exact version, and `electron-builder` to the newest version supporting it (check electron-builder's releases). Run `npm install` in both and commit the lock files.
 
-- [ ] **W9.2 Breaking changes.** Read Electron's "Breaking Changes" document for every major from 34 to 44. For each item, `git grep` our desktop code (`client/desktop/*.js`, `server/desktop/*.js`) for the API named, and fix what is used. Usual suspects: `protocol.registerFileProtocol` and friends (replaced by `protocol.handle`), `session` APIs, `webContents` events renamed, `nativeImage`, `BrowserView` (deprecated in favour of `WebContentsView`), and preload sandbox defaults (`sandbox: true` is the default; check that `preload.js` and `main-preload.js` only use `contextBridge`/`ipcRenderer`). Also check `ELECTRON_RUN_AS_NODE` use (the helper, `mcp-bridge.js`): it still works, and under it `process.versions.node` is now ≥ 22.
+- [~] (2026-11-22 audit: apps verified working on 44 (commit 3572bfd); the per-major breaking-change review is not recorded) **W9.2 Breaking changes.** Read Electron's "Breaking Changes" document for every major from 34 to 44. For each item, `git grep` our desktop code (`client/desktop/*.js`, `server/desktop/*.js`) for the API named, and fix what is used. Usual suspects: `protocol.registerFileProtocol` and friends (replaced by `protocol.handle`), `session` APIs, `webContents` events renamed, `nativeImage`, `BrowserView` (deprecated in favour of `WebContentsView`), and preload sandbox defaults (`sandbox: true` is the default; check that `preload.js` and `main-preload.js` only use `contextBridge`/`ipcRenderer`). Also check `ELECTRON_RUN_AS_NODE` use (the helper, `mcp-bridge.js`): it still works, and under it `process.versions.node` is now ≥ 22.
   Check: all node tests in CI's `studio` job pass. `npm --prefix client/desktop start` and `npm --prefix server/desktop start` open their windows. Build both Windows installers, install over this PC's copies, connect the client to the server, open a project, play, render a 10-second preview, and run the helper (Claude on this PC) through one planning task with `--model sonnet`.
 
 - [x] **W9.3 Linux.** Skipped by the owner's decision (Windows only). Only the Windows installers are built and tested here; GitHub still builds the Linux ones in the Release workflow, untested.

@@ -275,7 +275,7 @@ Background: `server/vt/server/serve.py`. Today `allowed()` returns `True` for ev
   The owner chose **no scheduled task** (2026-11-20): leave the script in place and document, in the script's header, how to run it by hand.
   Check: run it once by hand. The report exists and is readable.
 
-- [ ] **W3.5 Triage the browser suites.** `client/studio/package.json` has 24 `e2e:*` scripts. The last recorded run (`docs/STATUS.md`, 2026-10-26) was 13 passed, 11 failed. Run each against a scratch server on a free port. For each failure, decide one of three outcomes and record it in `docs/dev/e2e-triage.md` (suite | failure | cause | outcome | commit):
+- [x] (2026-11-22: docs/dev/e2e-triage.md; 9 pass, 2 pass alone, 8 marked rewrite in W15.2, contrast and timeline3 noted in ISSUES) **W3.5 Triage the browser suites.** `client/studio/package.json` has 24 `e2e:*` scripts. The last recorded run (`docs/STATUS.md`, 2026-10-26) was 13 passed, 11 failed. Run each against a scratch server on a free port. For each failure, decide one of three outcomes and record it in `docs/dev/e2e-triage.md` (suite | failure | cause | outcome | commit):
   - **Stale test**: the UI changed on purpose → update the test.
   - **Real bug** → fix the product, add a fast unit test where possible.
   - **Feature gone** → delete the suite and its script entry.

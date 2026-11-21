@@ -600,3 +600,4 @@ W14.2: agent changes glow on both timelines and the scene list, wait while the p
 W14.3: Ctrl+Z undoes an agent change and says so (7/7).
 W14.4: "Claude just changed this." with Undo in the inspector (9/9).
 W13: Ctrl+L points Claude Code at the selected scene or element (a pill, sent as a numbered reference with times and a vt:// link); assistant-agent e2e 20/20.
+W13.2: the Director chat takes references too; one wire format in JS and Python, byte-identical on a shared fixture (JS toFixed rounding matched). C10 added to PLAN-CODE-NATIVE-EDITOR: long talks get subtitles and look-ahead B-roll (owner recording copied to E:\UltimateVideoTool\scratch\c10). Six more wake-up timers set (every 5 h to Nov 23 22:50).

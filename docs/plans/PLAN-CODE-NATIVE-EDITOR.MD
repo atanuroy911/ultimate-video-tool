@@ -98,6 +98,7 @@ VRAM figures below come from third-party guides that disagree with each other; o
 | C7 (tools done 2026-11-22: `make_picture`, `speak`, `ask_local` work on this laptop; Chatterbox measured too slow; clips, other voices, the real Claude Code run still open, see docs/dev/ISSUES.md) | **Generators as MCP tools.** Measured 2026-11-21 on this laptop (RTX 4050, 6 GB, ComfyUI 0.46.0 installed on E: by the app's own installer, 10.5 GB, download about 3 MB/s): FLUX.2 Klein 4B Q4 draws a 720x1280 picture in 32 s the first time (model load) and 12 to 14 s after, using about 3.4 GB of the card; the picture quality is photographic (`docs/dev/spikes/html-shot/c7-test-picture.png`). Found and fixed: an unset ComfyUI address meant the owner's GPU server (hard-coded in three places); it now means the connected engine, else this computer. Kokoro (processor, int8) measured the same day: 7.4 s to speak 4.8 s of English (about 0.7x real time), after a 20 s first load; fine for a one-minute video (about 90 s of speech work) but not instant. Still to do: clips (FramePack, Wan 2.2 5B), the other voices (Chatterbox, Qwen3-TTS, OmniVoice, the Bangla candidates), an agent asking for a picture end to end (the module chain needs a media bin first), model numbers into `fit.py`. `make_picture`, `make_clip`, `speak`, `ask_local`, choosing models by tier from the measured table; install ComfyUI on E: through the app's own engine installer; measure Kokoro, Chatterbox, Qwen3-TTS, OmniVoice, FramePack, Wan 2.2 5B on this card and record them in `fit.py`. | Each tool works from a Claude Code session on this laptop; the table holds measured numbers. |
 | C8 (first half done 2026-11-22: "Open in VS Code" button; the VS Code extension is still to do) | **"Open in VS Code" + a small VS Code extension.** The menu item opens the project folder in the person's VS Code. The extension (published to Open VSX and the Marketplace) adds a live preview of the shot under the cursor, connected to the running app. | The extension previews the spike shot; edits in VS Code show in our app. |
 | C9 | **Optional: code-server pane.** Only if C4 + C8 leave a real gap. | Decided after C8. |
+| C10 | **Long talks: subtitles and look-ahead B-roll, automatically** (section 7). | The owner's 16.5-minute recording comes out with exact subtitles and B-roll over its example stretches, without anyone asking for it. |
 
 ## 6. Sources
 - Claude Code in VS Code, and its Open VSX listing: https://code.claude.com/docs/en/vs-code
@@ -108,3 +109,30 @@ VRAM figures below come from third-party guides that disagree with each other; o
 - Bangla voice: https://github.com/muhib-karim/bangla-voice-studio, https://huggingface.co/Banglabox/chatterbox-bangla-tts, https://github.com/kawshikbuet17/CosyVoice3-TTS-Bengali-Finetuning
 - Picture and clip models by VRAM: https://vdf.ai/blog/best-local-image-generation-models/, https://vdf.ai/blog/best-local-video-generation-models/, https://www.tutorial3d.it/en/ai-artificial-intelligence/comfyui-image-models-guide/, https://builderai.tools/blog/best-open-source-video-generation-stack-2026
 - OpenFilm (ACP, dock, shots): https://github.com/openfilm/openfilm (reference copy E:\openfilm-a1b8d75)
+
+## 7. Long talks: subtitles and look-ahead B-roll (C10, the owner's request of 2026-11-22)
+
+**The idea.** A person records themselves talking for a long time (a screen or camera recording, 5 to 60 minutes). Video Tool should, on its own:
+1. **Subtitle it**: exact word-timed captions on the video, and an `.srt` / `.vtt` to download.
+2. **Look ahead on the transcript**: read the whole talk before deciding anything, and find the stretches where the speaker gives an **example**: a story, a case, numbers, a comparison, a list, a "for example", "imagine", "let's say". It also finds the stretches that must stay on the speaker: opinions, emotion, direct address, the opening and the close.
+3. **Design those stretches as B-roll scenes**: each example stretch gets its own designed scene (a code-native shot from C1 to C5, a generated picture or clip from C7, stock, a screen card with the numbers). Use full screen with the speaker's voice, or the speaker in a corner (picture in picture). Cut back to the speaker between examples.
+
+No setting needs to be turned on. When a long recording with a person talking is added, this is what the director does by default. The person sees the first cut and can ask for one revision, then fixes the rest by hand (human in the loop, decision 9).
+
+**The test recording.** The owner's own: `2026-11-22 02-59-02.mp4` in the repo root (16.5 minutes, 1920x1080, H.264 + AAC; git ignores it). A copy is in `E:\UltimateVideoTool\scratch\c10\`; test only from there.
+
+**How (build on what exists, do not start over):**
+- *Intake.* The link importer (`vt/ingest.py`, `want_video`) and the shorts splitter (`vt/shorts/splitter.py`, A-roll cuts) already keep the footage. Add the same for a local video file. The speaker's video is the A-roll track; the scenes are B-roll over it.
+- *Subtitles.* Use the existing ASR and word timing. Export SRT/VTT from the same words. Captions follow the theme; they stay readable over B-roll and never cover a face.
+- *Look-ahead, in two passes, so it works for long talks and small local models:* (a) **outline the whole talk**: sections with their time ranges, the point of each, and every example stretch with its start and end words, what it is about, and what to show. A long talk is read in overlapping chunks, and the outline keeps a running summary, so an example that refers back ("like the coffee case earlier") is known. (b) **Plan each example stretch** as one or more B-roll scenes. Reuse earlier visuals when the speaker refers back.
+- *Rules for the director (teach it in the prompt; never override it with code):* no B-roll on the first few seconds or on the close. A B-roll stretch is long enough to read (at least about 3 s) and never runs for minutes without coming back to the speaker. What is shown matches what is said at that moment (word-timed). Numbers are shown as numbers.
+- *Output.* One video in the recording's own format (16:9). Optionally, shorts from the best example stretches through the existing shorts splitter (9:16).
+
+**Done when:**
+- The owner's recording is subtitled, and the captions match the words. Check five random places by ear.
+- Every B-roll stretch lies on an example stretch the outline found.
+- At least half of the clear example stretches got B-roll.
+- None of the opening or closing seconds did.
+- The contact sheet and the video have been watched: nothing covers the speaker's face when they are on screen, no caption is cut, and no picture is wrong.
+- It runs with Claude directing, then with gemma on this laptop. With gemma, the outline pass must still finish for the 16.5 minutes.
+- Findings go into `docs/dev/ISSUES.md`.

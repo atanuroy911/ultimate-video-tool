@@ -670,7 +670,7 @@ Before starting, read `E:\openfilm-a1b8d75\apps\desktop\src\agents.mjs` lines 1â
   ```
   Port OpenFilm's `studio-refs.ts` formatting helpers (`clock`, `span`, `clipped`, `boxText`, `idOf`, `linkOfRef`) with the header, adapted to these kinds.
 
-- [~] (2026-11-22: toPrompt in client/desktop/acp-instructions.js writes [n] lines with times and vt:// links, tested; the Director backend and Python format_refs not done) **W13.2 The wire format** (one function, `toPrompt(text, refs)`, used by every backend):
+- [~] (2026-11-22: one wire format in client/desktop/acp-instructions.js toPrompt and server/vt/assistant_refs.py with_refs, byte-identical on the shared tests/fixtures/refs.json; the Director route takes refs) **W13.2 The wire format** (one function, `toPrompt(text, refs)`, used by every backend):
   ```
   Make [1] bigger and keep it clear of [2].
 

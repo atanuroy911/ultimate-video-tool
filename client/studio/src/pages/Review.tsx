@@ -63,6 +63,8 @@ function ReviewEditor() {
   const player = useRef<PlayerHandle>(null);
   const [time, setTime] = useState(0);
   const [assistantTab, setAssistantTab] = useState<"director" | "claude">("director");   // which conversation the Assistant pane shows
+  const assistantTabRef = useRef(assistantTab);
+  assistantTabRef.current = assistantTab;
   const [shotEdit, setShotEdit] = useState<string | null>(null);   // a code-native shot open in the visual editor (PLAN-CODE-NATIVE-EDITOR C3)
   const lastT = useRef(0);
   const [tool, setTool] = useState<Tool>("select");
@@ -323,9 +325,10 @@ function ReviewEditor() {
       else if (act === "focus-assistant") {
         setShowAssistant(true);
         const ref = askRef.current();                                  // W13.3: Ctrl+L with something selected points Claude Code at it
-        if (ref && (window as any).vtDesktop?.agents) {
-          setAssistantTab("claude");
-          setTimeout(() => window.dispatchEvent(new CustomEvent("vt-ask-about", { detail: ref })), 250);
+        if (ref) {                                                     // Claude Code in the desktop app, else the Director
+          const claude = !!(window as any).vtDesktop?.agents && assistantTabRef.current !== "director";
+          if (claude) setAssistantTab("claude");
+          setTimeout(() => window.dispatchEvent(new CustomEvent(claude ? "vt-ask-about" : "vt-ask-director", { detail: ref })), 250);
         }
         setTimeout(() => document.querySelector<HTMLTextAreaElement>(".wb-assistant textarea")?.focus(), 60);
       }

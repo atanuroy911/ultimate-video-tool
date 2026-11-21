@@ -1492,6 +1492,7 @@ def restore_decisions(pid: str, body: RestoreBody) -> dict:
 
 class DirectorMessage(BaseModel):
     message: str
+    refs: list[dict] = []          # what the person pointed at (W13.2), written in as <video_references>
 
 
 @app.get("/api/projects/{pid}/director")
@@ -1508,6 +1509,7 @@ def director_chat(pid: str, body: DirectorMessage) -> dict:
     """Ask the director for a change in plain words. A job: the AI rewrites the script, the critic checks it, the plan is applied
     (undo keeps the previous one) and, when the video was already rendered, it is rendered again."""
     from .. import ai
+    from ..assistant_refs import with_refs
     from ..script import chat
 
     p = proj(pid)
@@ -1520,7 +1522,7 @@ def director_chat(pid: str, body: DirectorMessage) -> dict:
 
     def work(cb):
         try:
-            res = chat.talk(p, body.message, say=lambda f, m: cb("director", 0.6 * f, m))
+            res = chat.talk(p, with_refs(body.message, body.refs), say=lambda f, m: cb("director", 0.6 * f, m))
         except ai.AIUnavailable as e:
             raise RuntimeError(f"No AI could answer ({e}). Choose one in Settings > AI.") from e
         changed(pid)

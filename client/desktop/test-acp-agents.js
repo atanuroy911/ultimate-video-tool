@@ -150,3 +150,9 @@ assert.equal(humanTitle(""), "Working");
     try { fs.rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }); } catch { /* a stopping agent may still hold its folder; the temp folder is cleared by the system */ }
   }
 })().catch((e) => { console.error(e); process.exit(1); });
+
+// W13.2: the same references read the same in the Director chat (server/vt/assistant_refs.py); shared cases in tests/fixtures/refs.json.
+for (const c of JSON.parse(require("fs").readFileSync(require("path").join(__dirname, "..", "..", "tests", "fixtures", "refs.json"), "utf8"))) {
+  require("assert").equal(require("./acp-instructions").toPrompt(c.text, c.refs), c.expected);
+}
+console.log("References read the same as the Director's (shared fixture).");

@@ -99,7 +99,7 @@ def page(pid: str, sid: str, path: str = "index.html", editor: bool = False):
     out = d / "preview"
     if path == "index.html":
         try:
-            SH.build(d, out, editor=editor)
+            SH.build(d, out, editor=editor, theme=SH.theme_vars(project_or_404(pid)))
         except SH.ShotError as e:
             raise HTTPException(422, str(e))
         return HTMLResponse((out / "index.html").read_text(encoding="utf-8"), headers={"Content-Security-Policy": SH.CSP, "Cache-Control": "no-store"})
@@ -115,7 +115,7 @@ def frame(pid: str, sid: str, t: float = 0.0):
     d = _shot(pid, sid)
     try:
         dur = SH.info(d)["duration"]
-        got = SH.frames(d, d / "frames", [min(max(0.0, t), max(0.0, dur - 0.001))])
+        got = SH.frames(d, d / "frames", [min(max(0.0, t), max(0.0, dur - 0.001))], theme=SH.theme_vars(project_or_404(pid)))
     except SH.ShotError as e:
         raise HTTPException(422, str(e))
     if not got:

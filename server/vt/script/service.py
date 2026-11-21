@@ -74,11 +74,16 @@ def apply_script(p: Project, data: dict, *, planner: str = "claude", compose: bo
     tr, beats = p.transcript(), p.beats()
     media = {m.id for m in meta.media}
     icons = all_icon_names()
-    before = validate_script(data, tr, beats, icons, media) if isinstance(data, dict) else ["the script must be a JSON object"]
+    from .. import shots as SH
+    from ..compose.composer import FORMATS
+
+    have_shots = {s["id"] for s in SH.list_shots(p) if "error" not in s}
+    frame = (FORMATS[meta.aspect]["width"], FORMATS[meta.aspect]["height"]) if meta.aspect in FORMATS else None
+    before = validate_script(data, tr, beats, icons, media, have_shots, frame) if isinstance(data, dict) else ["the script must be a JSON object"]
     dropped: list[str] = []
     notes: list[dict] = []
     fixed = repair_script(data, tr, beats, dropped=dropped, notes=notes) if isinstance(data, dict) else data
-    errs = validate_script(fixed, tr, beats, icons, media) if isinstance(fixed, dict) else before
+    errs = validate_script(fixed, tr, beats, icons, media, have_shots, frame) if isinstance(fixed, dict) else before
     if strict:                                                 # a director that can answer is told, instead of finding its picture gone or its words changed
         errs = REPAIRS.meaning(notes) + errs
     if errs:
@@ -113,6 +118,11 @@ def apply_script(p: Project, data: dict, *, planner: str = "claude", compose: bo
                     "errors": ["The video was edited while the director was working. The newer edits were kept; send the request again."]}
         if cur:
             write_json(p.dir / "scenes.prev.json", cur.model_dump(exclude_none=True))
+        for sh in script.shots:                               # the director's shots; the person's visual edits (overrides.json) are kept
+            d = SH.shot_dir(p, sh.id)
+            d.mkdir(parents=True, exist_ok=True)
+            (d / "index.html").write_text(sh.html, encoding="utf-8")
+            write_json(d / "shot.json", {"title": sh.title or sh.id, "knobs": [k.model_dump() for k in sh.knobs], "made_by": planner})
         write_json(p.dir / "video_script.json", script.model_dump(by_alias=True, exclude_none=True))
         write_json(p.dir / SCRIPT_PLAN, sf.model_dump(exclude_none=True))
         p.save_scenes(sf)

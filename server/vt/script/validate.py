@@ -35,13 +35,25 @@ def _targets(script: dict, sc: dict) -> set[str]:
 
 
 # --------------------------------------------------------------------------- validation
-def validate_script(data: dict, tr: Transcript, beats: Beats, icons: Optional[set[str]] = None, media_ids: Optional[set[str]] = None) -> list[str]:
+def validate_script(data: dict, tr: Transcript, beats: Beats, icons: Optional[set[str]] = None, media_ids: Optional[set[str]] = None,
+                    shot_ids: Optional[set[str]] = None, frame: Optional[tuple[int, int]] = None) -> list[str]:
     """Plain-language problems (empty list = valid). `data` is the raw dict so unknown fields are reported, not hidden."""
     try:
         script = VideoScript.model_validate(data)
     except ValidationError as e:
         return [f"{'.'.join(str(x) for x in err['loc'])}: {err['msg']}" for err in e.errors()][:12]
     errs: list[str] = []
+    from .. import shots as SH
+
+    defined = [sh.id for sh in script.shots]
+    if len(defined) != len(set(defined)):
+        errs.append("two shots share an id")
+    for sh in script.shots:
+        errs += SH.problems(sh.id, sh.html, aspect_size=frame)
+    known = set(defined) | (shot_ids or set())
+    for s in script.scenes:
+        if s.shot and s.shot not in known:
+            errs.append(f"scene {s.id}: shot '{s.shot}' is not in `shots`" + (f" (the video has: {', '.join(sorted(shot_ids))})" if shot_ids else ""))
     words, beats_by = tr.by_id(), {b.id: b for b in beats.beats}
     expected = [b.id for b in beats.beats]
     seen = [b for s in script.scenes for b in s.beats]

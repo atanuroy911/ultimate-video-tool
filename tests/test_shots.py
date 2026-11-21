@@ -277,3 +277,65 @@ def test_the_bridge_picks_moves_and_edits_live_inside_a_sandboxed_frame(shot, tm
     assert moved["rect"][3] < picked["rect"][3], "the title-size knob made it smaller"
     assert [round(v) for v in back["rect"]] == [round(v) for v in picked["rect"]], "clearing the edits restores the shot as written"
     assert nothing["id"] is None
+
+
+# ---- C5: the director writes shots inside its Video Script ----------------------------------------------------------------------------------------
+
+
+def _shot_html(width=1080, height=1920, text="Hello"):
+    return (SPIKE / "index.html").read_text(encoding="utf-8").replace("1920px", f"{width}px", 1).replace("1080px", f"{height}px", 1) \
+        .replace('data-width="1920" data-height="1080"', f'data-width="{width}" data-height="{height}"').replace("Sleep is a skill", text)
+
+
+def _script_with_shot(ref, html, shot_id="opener", scene_shot="opener"):
+    ids = [b.id for b in ref.beats().beats]
+    return {"version": "1.0", "kind": "explainer",
+            "scenes": [{"id": "s1", "beats": ids[:1], "shot": scene_shot}, {"id": "s2", "beats": ids[1:],
+                        "overlays": [{"type": "title", "text": "After", "at_word": ref.beats().beats[1].word_ids[0]}]}],
+            "shots": [{"id": shot_id, "title": "The opener", "html": html, "knobs": [{"name": "--accent", "label": "Accent"}]}]}
+
+
+def test_a_script_with_a_shot_is_applied_and_the_shot_written(ref):
+    from vt.script import service
+
+    res = service.apply_script(ref, _script_with_shot(ref, _shot_html()), planner="claude", strict=True, compose=False)
+    assert res["ok"], res.get("errors")
+    d = ref.dir / "shots" / "opener"
+    assert "Hello" in (d / "index.html").read_text(encoding="utf-8")
+    meta = shots.read_json(d / "shot.json", {})
+    assert meta["title"] == "The opener" and meta["made_by"] == "claude" and meta["knobs"][0]["name"] == "--accent"
+    assert ref.scenes().scenes[0].shot == "opener" and ref.scenes().scenes[1].shot is None
+    shots.save_overrides(d, {"elements": {"title": {"text": "Mine"}}})
+    again = service.apply_script(ref, _script_with_shot(ref, _shot_html(text="Rewritten")), planner="claude", strict=True, compose=False)
+    assert again["ok"] and "Rewritten" in (d / "index.html").read_text(encoding="utf-8")
+    assert shots.read_json(d / "overrides.json", {})["elements"]["title"]["text"] == "Mine", "the person's edits outlive the director's rewrite"
+    from vt.script.compile import script_from_scenes
+
+    assert script_from_scenes(ref.scenes()).scenes[0].shot == "opener", "the plan read back as a script keeps the shot"
+
+
+@pytest.mark.parametrize("spoil,expect", [
+    (lambda s: s["scenes"][0].update(shot="missing"), "not in `shots`"),
+    (lambda s: s["shots"][0].update(html=_shot_html(1920, 1080)), "this video is 1080x1920"),
+    (lambda s: s["shots"][0].update(html=_shot_html().replace("runtime/gsap.min.js", "https://cdn.example/gsap.js")), "network"),
+    (lambda s: s["shots"][0].update(html=_shot_html().replace("ease:", "x: Math.random(), ease:", 1)), "paused timeline only"),
+    (lambda s: s["shots"][0].update(html=_shot_html().replace("data-composition-id", "data-x")), "data-composition-id"),
+    (lambda s: s["shots"].append(dict(s["shots"][0])), "share an id"),
+])
+def test_a_bad_shot_comes_back_as_an_error_the_director_can_fix(ref, spoil, expect):
+    from vt.script import service
+
+    s = _script_with_shot(ref, _shot_html())
+    spoil(s)
+    res = service.apply_script(ref, s, planner="claude", strict=True, compose=False)
+    assert not res["ok"] and any(expect in e for e in res["errors"]), res["errors"]
+    assert not (ref.dir / "shots" / "opener").exists(), "nothing is written from a refused script"
+
+
+def test_a_shot_gets_the_videos_theme_as_css_variables_and_a_theme_change_draws_it_again(ref, shot, tmp_path, monkeypatch):
+    vars_ = shots.theme_vars(ref)
+    assert vars_["--vt-accent"].startswith("#") and "'" in vars_["--vt-font-headline"]
+    html = (shots.build(shot, tmp_path / "b", theme=vars_) / "index.html").read_text(encoding="utf-8")
+    assert f'--vt-accent:{vars_["--vt-accent"]};' in html and html.index('id="vt-theme"') < html.index("</head>")
+    assert "--vt-x" not in (shots.build(shot, tmp_path / "c", theme={"--vt-x": "red;}body{x"}) / "index.html").read_text(encoding="utf-8"), "an unsafe value is dropped"
+    assert shots.fingerprint(shot, 30, vars_) != shots.fingerprint(shot, 30, {**vars_, "--vt-accent": "#000000"})

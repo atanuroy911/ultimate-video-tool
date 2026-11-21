@@ -403,3 +403,19 @@ def test_the_agent_can_look_at_one_frame_of_a_shot(ref):
     assert M.write_shot("reference", "hook", _shot_html())["ok"]
     img = M.get_shot_frame("reference", "hook", 2.0)
     assert Path(img.path).stat().st_size > 1000
+
+
+def test_an_unset_picture_server_is_this_computer_never_somebody_elses(monkeypatch, tmp_path):
+    """Until 2026-11-21 an unset ComfyUI address meant the owner's GPU server (a hard-coded LAN address)."""
+    from vt import paths
+    from vt.server import comfy_routes
+
+    monkeypatch.setattr(paths, "SETTINGS", tmp_path / "settings.json")
+    monkeypatch.setattr(paths, "DATA", tmp_path)
+    url = comfy_routes.comfy_url()
+    assert "192.168" not in url and url.startswith("http://127.0.0.1:"), url
+    (tmp_path / "settings.json").write_text('{"comfy_url": " http://10.0.0.5:8188 "}', encoding="utf-8")
+    assert comfy_routes.comfy_url() == "http://10.0.0.5:8188", "an address the person set is used"
+    import subprocess, sys
+    hits = subprocess.run(["git", "grep", "-l", "192.168.123.47", "--", "server/vt"], capture_output=True, text=True, cwd=paths.ROOT.parent).stdout
+    assert hits == "", f"a hard-coded LAN address is in the code again: {hits}"

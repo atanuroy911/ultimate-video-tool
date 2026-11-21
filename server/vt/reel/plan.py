@@ -126,7 +126,9 @@ def build_reel_plan(project, *, progress: Progress = lambda f, m: None, use_ai: 
 
     client, why_not = (None, "pictures were switched off")
     if generate:
-        url = comfy_url or str((read_json(paths.SETTINGS, {}) or {}).get("comfy_url") or "http://192.168.123.47:8188")
+        from ..server.comfy_routes import comfy_url as _comfy_url
+
+        url = comfy_url or _comfy_url()
         client, why_not = reachable(url)
     workflow = (getattr(client, "workflow", None) or picture_workflow()) if client is not None else None
     if client is not None:

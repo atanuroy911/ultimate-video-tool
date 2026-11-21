@@ -15,12 +15,16 @@ from .jobs import Cancelled, JobBusy
 from ..util import read_json
 
 router = APIRouter(prefix="/api", tags=["comfy"])
-DEFAULT_URL = "http://192.168.123.47:8188"       # this installation's server; any other computer sets its own in Settings
-
-
 def comfy_url() -> str:
+    """The picture server to use: an address set in Settings, else the one the engine page connected, else the ComfyUI on this computer. Never another computer's address
+    that nobody chose (until 2026-11-21 an unset address meant the owner's GPU server, which a test on another machine would have reached)."""
     settings = read_json(paths.SETTINGS, {}) or {}
-    return str(settings.get("comfy_url") or DEFAULT_URL).strip()
+    if str(settings.get("comfy_url") or "").strip():
+        return str(settings["comfy_url"]).strip()
+    from ..engines import registry
+
+    ep = registry.endpoint("comfy")
+    return (ep.url if ep.mode != "off" and ep.url else registry.spec("comfy").default_url).strip()
 
 
 def project_or_404(pid: str) -> Project:

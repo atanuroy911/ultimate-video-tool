@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld("vtDesktop", {
     stop: (id) => ipcRenderer.invoke("vt-agent:stop", id),
     permission: (id, requestId, choice) => ipcRenderer.invoke("vt-agent:permission", id, requestId, choice),
     list: (projectId) => ipcRenderer.invoke("vt-agent:list", projectId),
+    openInCode: (projectId) => ipcRenderer.invoke("vt-agent:open-in-code", projectId),
     signIn: (kind) => ipcRenderer.invoke("vt-agent:signin", kind),
     onEvent: (cb) => { const on = (_e, m) => cb(m); ipcRenderer.on("vt-agent:event", on); return () => ipcRenderer.removeListener("vt-agent:event", on); },
   },

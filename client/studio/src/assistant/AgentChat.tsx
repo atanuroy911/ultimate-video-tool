@@ -13,6 +13,7 @@ export interface AgentBridge {
   permission(id: string, requestId: string, choice: "once" | "chat" | "deny"): Promise<unknown>;
   list(projectId: string): Promise<{ sessionId: string; title: string; at: string }[]>;
   signIn(kind: string): Promise<unknown>;
+  openInCode?(projectId: string): Promise<unknown>;
   onEvent(cb: (m: { conversationId: string; event: AgentEvent }) => void): () => void;
 }
 export type AgentEvent =
@@ -110,6 +111,7 @@ export default function AgentChat({ projectId, title, onChanged, onLink }: { pro
         {!turns.length && <div className="agent-empty"><strong>{WHO}</strong>
           <p>Ask for a change in your own words. It works on this video through Video Tool's own tools, and asks you before it does anything else.</p>
           {earlier && <button className="btn sm" onClick={async () => { setProblem(null); try { await begin(earlier.sessionId); } catch (e: any) { setProblem({ kind: "other", message: String(e?.message || e) }); } }}>Continue “{earlier.title.slice(0, 40)}”</button>}</div>}
+        {bridge.openInCode && <button className="btn sm agent-vscode" title="Open this video's agent folder in your own VS Code" onClick={() => bridge.openInCode?.(projectId).catch((e: any) => setProblem({ kind: "other", message: String(e?.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, "") }))}>Open in VS Code</button>}
         {note && <p className="small muted agent-note">{note}</p>}
         {turns.map((t, i) => (
           <div key={i} className={`agent-turn ${t.role}`}>

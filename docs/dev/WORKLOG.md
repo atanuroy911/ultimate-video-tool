@@ -584,3 +584,5 @@ Tests: tests/test_story_engine.py (8). Do not edit runtime/vt-story.js by hand. 
 
 ## 2026-11-22 (C7)
 Agents got `make_picture` (ComfyUI on this laptop) and `speak` (Kokoro). Tried for real: picture 42 s cold, speech 2.2 s in 8 s. Owner said: skip Codex, finish the rest, note issues for later; they are in docs/dev/ISSUES.md.
+
+C8 first half: "Open in VS Code" button in the Claude Code tab opens the agent folder in the owner's VS Code (launched for real).

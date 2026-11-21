@@ -21,3 +21,4 @@
 .wb-assistant-tabs { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin-left: var(--sp-2); }
 .wb-assistant-tabs button { border: 0; background: transparent; color: var(--text-muted); padding: 2px 10px; font: inherit; font-size: var(--fs-12); cursor: pointer; }
 .wb-assistant-tabs button.on { background: var(--bg-selected); color: var(--fg); }
+.agent-vscode { align-self: flex-start; }

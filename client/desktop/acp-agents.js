@@ -224,6 +224,19 @@ function createAgents(opts) {
       spawn("cmd.exe", ["/c", `start "Sign in to Claude Code" "${file}" auth login`], { windowsVerbatimArguments: true, detached: true, stdio: "ignore" }).unref();
       return { ok: true };
     },
+    openInCode(projectId) {
+      V.id(projectId, "video");
+      const cwd = path.join(opts.home, "agents", projectId);
+      fs.mkdirSync(cwd, { recursive: true });
+      const local = process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, "Programs", "Microsoft VS Code", "bin", "code.cmd") : "";
+      const exe = local && fs.existsSync(local) ? local : "code";
+      try {
+        const p = spawn("cmd.exe", ["/c", `"${exe}" "${cwd}"`], { windowsVerbatimArguments: true, detached: true, stdio: "ignore", windowsHide: true });
+        p.on("error", () => {});
+        p.unref();
+      } catch (e) { throw new Error("VS Code could not be started. Install it from code.visualstudio.com."); }
+      return { ok: true, folder: cwd };
+    },
     list(projectId) { V.id(projectId, "video"); return readList()[projectId] || []; },
     close(id) { const s = sessions.get(id); if (s) { s.close(); sessions.delete(id); } },
     closeAll() { for (const s of sessions.values()) s.close(); sessions.clear(); },

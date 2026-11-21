@@ -103,6 +103,7 @@ ipcMain.handle('vt-agent:send',onlyApp((id,text,refs,images)=>getAgents().send(i
 ipcMain.handle('vt-agent:stop',onlyApp(id=>getAgents().stop(id)));
 ipcMain.handle('vt-agent:permission',onlyApp((id,requestId,choice)=>getAgents().permission(id,requestId,choice)));
 ipcMain.handle('vt-agent:list',onlyApp(projectId=>getAgents().list(projectId)));
+ipcMain.handle('vt-agent:open-in-code',onlyApp(projectId=>getAgents().openInCode(projectId)));
 ipcMain.handle('vt-agent:signin',onlyApp(kind=>getAgents().signIn(kind)));
 ipcMain.handle('helper-status',onlyApp(helperState));
 ipcMain.handle('helper-start',onlyApp(async()=>{await ensureHelper();return helperState();}));

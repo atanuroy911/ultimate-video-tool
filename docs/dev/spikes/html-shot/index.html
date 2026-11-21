@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>spike: one HTML shot</title>
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+  /* Knobs: the only values the editor changes without touching code. */
+  :root { --bg: #0f1226; --ink: #f5f3ff; --accent: #ff7a33; --title-size: 132px; }
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: var(--bg); font-family: Inter, "Hind Siliguri", sans-serif; }
+  #root { position: relative; width: 1920px; height: 1080px; }
+  [data-vt-id] { position: absolute; }
+  #title { left: 160px; top: 380px; color: var(--ink); font-size: var(--title-size); font-weight: 800; letter-spacing: -2px; }
+  #sub { left: 166px; top: 560px; color: var(--ink); opacity: .75; font-size: 48px; font-weight: 500; }
+  #bar { left: 166px; top: 650px; width: 520px; height: 14px; border-radius: 7px; background: var(--accent); transform-origin: left center; }
+  #orb { left: 1380px; top: 300px; width: 380px; height: 380px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff6, transparent 60%), var(--accent); }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="root" data-start="0" data-duration="3" data-width="1920" data-height="1080">
+  <div id="orb" data-vt-id="orb"></div>
+  <div id="title" data-vt-id="title">Sleep is a skill</div>
+  <div id="sub" data-vt-id="sub">Three habits that fix your mornings</div>
+  <div id="bar" data-vt-id="bar"></div>
+</div>
+<!-- Edits made in the editor land here, never in the code above. -->
+<script type="application/json" id="vt-overrides">{}</script>
+<script src="runtime/gsap.min.js"></script>
+<script>
+  // 1. Apply the editor's overrides: text, knobs, and per-element transform.
+  const o = JSON.parse(document.getElementById('vt-overrides').textContent || '{}');
+  for (const [k, v] of Object.entries(o.knobs || {})) document.documentElement.style.setProperty(k, v);
+  for (const [id, e] of Object.entries(o.elements || {})) {
+    const el = document.querySelector(`[data-vt-id="${id}"]`);
+    if (!el) continue;
+    if (e.text != null) el.textContent = e.text;
+    if (e.style) Object.assign(el.style, e.style);
+    if (e.hidden) el.style.display = 'none';
+    // Transform edits wrap the element, so the shot's own animation still plays on top.
+    if (e.x || e.y || e.scale || e.rotate) {
+      el.style.translate = `${e.x || 0}px ${e.y || 0}px`;
+      if (e.scale) el.style.scale = String(e.scale);
+      if (e.rotate) el.style.rotate = `${e.rotate}deg`;
+    }
+  }
+  // 2. The shot's motion, a paused timeline the renderer seeks frame by frame.
+  const tl = gsap.timeline({ paused: true });
+  tl.from('#orb', { scale: 0.2, opacity: 0, duration: 0.9, ease: 'back.out(1.6)' }, 0)
+    .to('#orb', { y: -24, duration: 2.1, ease: 'sine.inOut' }, 0.9)
+    .from('#title', { y: 60, opacity: 0, duration: 0.6, ease: 'power3.out' }, 0.25)
+    .from('#sub', { y: 30, opacity: 0, duration: 0.5, ease: 'power3.out' }, 0.6)
+    .from('#bar', { scaleX: 0, duration: 0.7, ease: 'power2.inOut' }, 0.9);
+  window.__timelines = window.__timelines || {};
+  window.__timelines['root'] = tl;
+</script>
+</body>
+</html>

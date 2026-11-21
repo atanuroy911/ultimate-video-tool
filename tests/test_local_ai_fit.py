@@ -73,3 +73,16 @@ def test_an_old_copy_of_ours_is_restarted_only_when_idle(monkeypatch, tmp_path, 
     monkeypatch.setattr(pids, "stop", lambda engine, wait=15.0: calls.append(engine) or True)
     llm._retune_if_ours("http://127.0.0.1:11434")
     assert bool(calls) is stopped, case
+
+
+@pytest.mark.parametrize("size,vram,noted", [(4e9, 4e9, False), (4e9, 3.1e9, True), (0, 0, False)])
+def test_a_model_partly_off_the_card_is_said_in_the_ai_conversations(monkeypatch, size, vram, noted):
+    from vt.ai import talk
+
+    monkeypatch.setattr(llm.httpx, "get", lambda *a, **k: _PS([{"name": "gemma3:4b", "size": size, "size_vram": vram}]))
+    said = []
+    monkeypatch.setattr(talk, "record", lambda *a, **k: said.append(k))
+    share = llm.note_if_spilled("http://127.0.0.1:11434", "gemma3:4b")
+    assert bool(said) is noted
+    if noted:
+        assert "processor" in said[0]["answer"] and "78%" in said[0]["answer"] and share < 1

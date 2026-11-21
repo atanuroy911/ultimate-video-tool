@@ -126,6 +126,7 @@ class OllamaProvider(Provider):
                 r = httpx.post(s["ollama_url"] + "/api/chat", json=body, timeout=timeout)
                 r.raise_for_status()
                 reply = r.json()
+            llm.note_if_spilled(s["ollama_url"], body["model"])
             return reply["message"]["content"]
         except (httpx.HTTPError, KeyError, ValueError) as e:
             from .failures import service_failure

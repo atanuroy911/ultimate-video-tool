@@ -368,6 +368,30 @@ def release(url: Optional[str] = None) -> list[str]:
         return []
 
 
+def on_card_share(url: str, model: str) -> Optional[float]:
+    """How much of this loaded model Ollama keeps on the graphics card (1.0 = all of it), or None when it does not say."""
+    try:
+        for m in httpx.get(url.rstrip("/") + "/api/ps", timeout=3).json().get("models", []):
+            if m.get("name") == model or m.get("model") == model:
+                size, vram = float(m.get("size") or 0), float(m.get("size_vram") or 0)
+                return vram / size if size else None
+    except (httpx.HTTPError, ValueError, TypeError):
+        return None
+    return None
+
+
+def note_if_spilled(url: str, model: str) -> Optional[float]:
+    """When part of the model ran on the processor, say so in the video's AI conversations: it is slow, and it must never be silent again
+    (docs/plans/PLAN-LOCAL-AI-6GB.MD step 6)."""
+    share = on_card_share(url, model)
+    if share is not None and share < 0.995:
+        from .ai import talk
+
+        talk.record("ollama", model, kind="note", answer=f"Part of the local AI ran on the processor: {round(100 * share)}% of it was on the graphics card. "
+                                                            "That is several times slower. A smaller model, or closing other programs that use the card, keeps it whole.")
+    return share
+
+
 # --------------------------------------------------------------------------- chat
 def chat_json(messages: list[dict], schema: dict, *, model: Optional[str] = None, temperature: float = 0.2, num_ctx: int = 8192,
               timeout: float = 600, max_tokens: int = 2048) -> dict:
@@ -385,6 +409,7 @@ def chat_json(messages: list[dict], schema: dict, *, model: Optional[str] = None
         r = httpx.post(s["ollama_url"] + "/api/chat", json=body, timeout=timeout)
         r.raise_for_status()
         answer = r.json()["message"]["content"]
+        note_if_spilled(s["ollama_url"], body["model"])
         talk.record("ollama", body["model"], system=system, prompt=prompt, schema=schema, answer=answer, seconds=time.time() - began)
         return json.loads(answer)
     except (httpx.HTTPError, KeyError, json.JSONDecodeError) as e:

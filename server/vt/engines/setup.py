@@ -127,7 +127,11 @@ PLAIN = {
     "gemma3:12b": "Best writing. Needs a 12 GB card to be quick.",
     "gemma3:4b": "Good writing, quick on most cards.",
     "gemma3:1b": "Basic writing, for small computers.",
+    "gemma4:e4b": "Newer, reads pictures well; slower on long plans. Fits a 6 GB card.",
+    "gemma4:e2b": "Newer and the fastest; fits small cards, writes less carefully.",
+    "qwen3.5:4b": "Strong writing in English; slower on long plans. Fits a 6 GB card.",
 }
+LABELS = {"gemma3:12b": "Gemma 3 12B", "gemma3:4b": "Gemma 3 4B", "gemma3:1b": "Gemma 3 1B", "gemma4:e4b": "Gemma 4 E4B", "gemma4:e2b": "Gemma 4 E2B", "qwen3.5:4b": "Qwen 3.5 4B"}
 
 
 def model_choices(hw: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
@@ -162,7 +166,7 @@ def model_choices(hw: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
     language = []
     for name, need in fit.LANGUAGE:
         on_card = bool(vram) and need <= fit.usable(c)
-        label = "Gemma 3 " + name.split(":")[1].upper() if name.startswith("gemma3:") else name
+        label = LABELS.get(name, name)
         language.append({"id": name, "label": label, "note": PLAIN.get(name, ""), "download_gb": fit.LANGUAGE_DOWNLOAD_GB.get(name, 0), "fits": True, "speed": "fast" if on_card else "slow",
                          "recommended": name == lang_best, "why": "" if on_card else ("Bigger than the graphics card: part of it runs on the processor, a few times slower." if vram else "Runs on the processor (no graphics card), a few times slower.")})
     return {"card": {"name": card.get("name", ""), "gb": c.size}, "pictures": pictures, "language": language,

@@ -96,3 +96,23 @@ def test_getting_the_local_ai_ready_retunes_an_old_copy_first(monkeypatch):
     monkeypatch.setattr(llm, "has_model", lambda m, url=None: True)
     assert llm.ensure_ready(model="gemma3:4b") == "gemma3:4b"
     assert seen == ["http://127.0.0.1:11434"]
+
+
+def test_the_measured_table_fits_a_6_gb_card_and_ranks_models():
+    from vt.engines import fit
+
+    six = 6.44                                                       # the RTX 4050 Laptop: 6141 MiB
+    assert fit.language_model(six)["model"] == fit.LANGUAGE_MODELS[1].name, "the 12B model is too big; the best that fits is chosen"
+    assert fit.language_model(six)["max_context"] == 32768
+    assert fit.fits_card("gemma3:4b", six) and not fit.fits_card("gemma3:12b", six)
+    assert not fit.fits_card("gemma4:e4b", 4.0), "a 4 GB card cannot hold it with what Windows keeps"
+    assert fit.max_context("gemma3:4b", 24.0) == 65536 and fit.max_context("gemma3:12b", 6.44) == 16384
+    assert all(m.pictures for m in fit.LANGUAGE_MODELS[:-1]), "the director's frame review sends a picture"
+
+
+def test_an_installed_model_is_chosen_only_when_it_fits_the_card():
+    have = ["gemma4:e4b", "gemma3:4b", "nomic-embed-text:latest"]
+    assert llm.choose_installed(have, vram_gb=6.44) in ("gemma4:e4b", "gemma3:4b")
+    assert llm.choose_installed(["gemma4:e4b"], vram_gb=4.0) is None, "too big for this card: it would run partly on the processor"
+    assert llm.choose_installed(["gemma3:12b", "gemma3:4b"], vram_gb=6.44) == "gemma3:4b"
+    assert llm.choose_installed(["llama3:8b"], vram_gb=6.44) == "llama3:8b", "a model we never measured is still usable"

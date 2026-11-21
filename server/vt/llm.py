@@ -87,14 +87,36 @@ _PREFER = [r"^gemma[34]", r"^qwen3", r"^qwen2\.5:(32|14|7)b(-instruct)?$", r"^ll
 _SKIP = re.compile(r"(vl|vision|llava|moondream|smolvlm|coder|embed|nomic|bge|minilm)", re.I)
 
 
-def choose_installed(models: list[str]) -> Optional[str]:
-    """The best general text model already on the server (so nothing needs downloading), by a fixed preference order."""
+def choose_installed(models: list[str], vram_gb: Optional[float] = None) -> Optional[str]:
+    """The best model already on the server (so nothing needs downloading). First the models we measured, in their ranking, that stay whole on this
+    card (vt/engines/fit.py LANGUAGE_MODELS); a measured model that does not fit is never picked by itself (it would run partly on the processor).
+    Then any other general text model, by a fixed preference order."""
+    from .engines import fit
+
     usable = [m for m in models if not _SKIP.search(m)]
+    vram = server_vram_gb() if vram_gb is None else vram_gb
+    for known in fit.LANGUAGE_MODELS:
+        if known.name in usable and fit.fits_card(known.name, vram):
+            return known.name
     for pat in _PREFER:
         for m in usable:
-            if re.search(pat, m):
+            if m not in fit.BY_NAME and re.search(pat, m):
                 return m
     return None
+
+
+_CAP: dict[str, tuple[float, int]] = {}
+
+
+def context_cap(model: str) -> int:
+    """The largest context worth asking this model for on the server's card (fit.max_context), kept for a minute."""
+    from .engines import fit
+
+    at, cap = _CAP.get(model, (0.0, 0))
+    if time.time() - at > 60 or not cap:
+        cap = fit.max_context(model, server_vram_gb())
+        _CAP[model] = (time.time(), cap)
+    return cap
 
 
 def model_name() -> str:

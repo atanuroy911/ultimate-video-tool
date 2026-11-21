@@ -122,7 +122,9 @@ class OllamaProvider(Provider):
             r.raise_for_status()
             reply = r.json()
             if reply.get("done_reason") == "length" and body["options"]["num_ctx"] < MAX_CONTEXT:
-                body["options"]["num_ctx"] = MAX_CONTEXT               # it still ran out of room: once more with all the room there is
+                # it ran out of room: once more with more, but within what this card holds whole (a context the card cannot hold runs partly on the
+                # processor, several times slower); a prompt that by itself needs more still gets it, and note_if_spilled says so
+                body["options"]["num_ctx"] = max(body["options"]["num_ctx"] + 8192, min(MAX_CONTEXT, llm.context_cap(body["model"])))
                 r = httpx.post(s["ollama_url"] + "/api/chat", json=body, timeout=timeout)
                 r.raise_for_status()
                 reply = r.json()

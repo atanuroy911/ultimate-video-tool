@@ -30,3 +30,10 @@
 .shot-code-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--border); }
 .shot-code-editor { flex: 1; min-height: 0; overflow: hidden; }
 .shot-orphans { margin: 0; padding: 8px 10px; border-top: 1px solid var(--border); }
+/* In a narrow pane the settings go under the preview instead of squeezing it */
+.shot-editor { container-type: inline-size; }
+@container (max-width: 700px) {
+  .shot-body { flex-direction: column; }
+  .shot-side { width: auto; border-left: 0; border-top: 1px solid var(--border); max-height: 42%; }
+  .shot-code-pane { border-left: 0; border-top: 1px solid var(--border); }
+}

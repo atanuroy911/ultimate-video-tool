@@ -157,6 +157,8 @@ def make_row(a: httpx.Client, row: tuple, director: str, out: Path, quality: str
     p = a.get(f"/api/projects/{pid}").json()
     talk = a.get(f"/api/projects/{pid}/ai-talk").json().get("rows", [])
     res["director_used"] = p.get("director_used") or p.get("director")
+    used = (res["director_used"] or {}).get("who") if isinstance(res["director_used"], dict) else str(res["director_used"])
+    res["fell_back"] = bool(used) and used != director and director != "best"                  # the server handed the video to another director: not a result for this director
     res["ai_conversations"] = len(talk)
     res["ai_who"] = sorted({f'{x.get("who")}/{x.get("model")}' for x in talk})
     res["ai_errors"] = [f'{x.get("stage")}: {str(x.get("error"))[:160]}' for x in talk if x.get("error")]
@@ -175,7 +177,7 @@ def make_row(a: httpx.Client, row: tuple, director: str, out: Path, quality: str
     if not video:
         return {**res, "status": "export-missing", "error": "no mp4 in the project's exports folder"}
     facts = probe(video)
-    res.update(status="made", video=str(video), **facts)
+    res.update(status="fell-back" if res.get("fell_back") else "made", video=str(video), **facts)
     retention = video.with_suffix(".retention.json")
     if retention.exists():
         try:
@@ -231,6 +233,11 @@ def run(x: argparse.Namespace) -> None:
         file.write_text(json.dumps(results, indent=1, ensure_ascii=False), encoding="utf-8")
         write_report(out)
         print(f"   -> {res['status']}" + (f": {res.get('error')}" if res.get("error") else f" in {res.get('make_seconds')} s + {res.get('export_seconds')} s"), flush=True)
+        if res["status"] == "fell-back" and not x.keep_going:
+            why = str(res.get("ai_notice") or "")
+            print(f"STOPPED: the server gave this video to {res['director_used']} instead of {director} ({why}). Claude's usage limit is the usual reason: a video costs about 60 requests. "
+                  "Run again later; rows already made with this director are kept. (--keep-going keeps making videos with the fallback director.)", flush=True)
+            break
     write_report(out)
     print("report:", out / "report.md")
 
@@ -246,6 +253,7 @@ def main() -> None:
     p.add_argument("--smoke", action="store_true")
     p.add_argument("--gemma-set", action="store_true", help="the six rows used for the comparison with the local AI")
     p.add_argument("--force", action="store_true", help="make rows again even when already made")
+    p.add_argument("--keep-going", action="store_true", help="do not stop when the server falls back to another director")
     p.add_argument("--out")
     p.add_argument("--quality", default="looks", choices=["draft", "looks", "delivery"])
     p.add_argument("--short-side", type=int, default=720)

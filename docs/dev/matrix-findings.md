@@ -42,3 +42,17 @@ Made in 884 s (planning, with 56 AI conversations) + 64 s render; 30.1 s, 720x12
 - 884 s of planning on this laptop, most of it the director looking at frames (each `preview_frames` call renders in Chrome on the laptop and took 80 s or more). Worth measuring where the time goes before adding more AI steps.
 
 These four are quality problems, not crashes: they belong to `docs/plans/PLAN-PERFECT.MD` (teach the director; never override it with code).
+
+## The Claude usage limit, and what the local AI made instead (2026-11-21)
+
+### F9. A video costs about 60 Claude requests, so the subscription limit ends a run after 2 to 3 videos
+- The first run hit "You've hit your 5-hour limit" about 25 minutes in (2 videos made). Each video asks Claude about 30 small questions (pictures and meanings, 5 to 10 s each) plus a planning session of 8 to 56 tool calls. That is the real cost of "Claude directs", and it matters for anyone who uses a subscription.
+- The server then handed every later video to the local AI **and installed it on this PC to do so** (Ollama and gemma downloaded into `ServerData`). The Studio did say so on each project (`ai_notice`: "Claude's usage limit was reached, so Local AI directed this video."), but a person starting a video with Claude chosen got a different director without being asked first. Raised with the owner: for an explicitly chosen director, ask before switching.
+- The bench now stops at the first fall-back instead of producing videos with the wrong director (`local_matrix.py`, `--keep-going` overrides). Those 20 videos are kept as the local AI's results: `E:\UltimateVideoTool\matrix\2026-11-21-local-fallback\`.
+
+### F10. What the local AI (gemma) made: wrong pictures and text over characters
+Sheets in `2026-11-21-local-fallback\`. Examples:
+- `stick-monday` ("snooze once", "jump out", "stop and watch", "your coffee"): the pictures above the figures are a moon cake, a number "8", a blossom and a handshake: words matched to the wrong sense (moon cake for *snooze*, a flower for *stop and watch*, a handshake for *friend* where the sentence is about a friend driving by). The two figures stand on top of each other for 12 of 18 frames.
+- `cartoon-leaves`: a white quote text is printed over the two characters and cannot be read (frames 5 to 7); a repeated emoji "leaf" is a purple flower; one frame is a half-transparent grey panel over the scene.
+- Two rows ended with "no plan yet" and were not exported: `reel-start`, `reel-banglish` (the reel director gave nothing back). Open.
+These match the lab notes from 2026-10-31 (wrong lexicon senses, text over pictures). They belong to `docs/plans/PLAN-PERFECT.MD`.

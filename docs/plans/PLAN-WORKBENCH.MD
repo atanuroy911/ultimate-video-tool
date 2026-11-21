@@ -711,7 +711,7 @@ Before starting, read `E:\openfilm-a1b8d75\apps\desktop\src\agents.mjs` lines 1â
   - Show a small toast in the viewer's top-left: "Claude changed scene 3 (caption style)".
   Check: `e2e:assistant` with the fake agent calling a real MCP tool through a scratch server: the clip flashes; the playhead and selection stay the same.
 
-- [ ] **W14.3 Undo covers the agent.** Make sure MCP and director writes go into the same undo history as hand edits, so Ctrl+Z in the editor undoes the agent's last change and says so ("Undid Claude's change to scene 3"). Find the server's undo mechanism (`undo_transcript` is one; there may be a project-level history) and use it. If writes through MCP bypass it today, route them through it.
+- [x] **W14.3 Undo covers the agent.** (2026-11-22: an agent change is a step in the editor's undo history; Ctrl+Z takes it back with "Undid Claude's change"; e2e/agent-toast.mjs 7/7) Make sure MCP and director writes go into the same undo history as hand edits, so Ctrl+Z in the editor undoes the agent's last change and says so ("Undid Claude's change to scene 3"). Find the server's undo mechanism (`undo_transcript` is one; there may be a project-level history) and use it. If writes through MCP bypass it today, route them through it.
   Check: a test with an MCP write, an undo through the API, and the project back to its previous state.
 
 - [ ] **W14.4 The person and the agent at the same time.** Rule: the person's in-progress edit is never interrupted, and the last saved write wins per element. If the agent changes an element the person has selected, the inspector shows a one-line notice, "Claude just changed this. Undo?", with an Undo link.

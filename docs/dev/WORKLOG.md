@@ -597,3 +597,4 @@ Fast suite: one test needed updating (client may depend on the two ACP packages)
 ## 2026-11-22 (C7 check)
 VT_LOCAL_MCP=1 lets a test server on 127.0.0.1 offer /mcp (same checks; for tests). Real Claude Code in the real app made a picture with ComfyUI and spoke a line with Kokoro through our tools: e2e/desktop-agent-media.mjs 5/5.
 W14.2: agent changes glow on both timelines and the scene list, wait while the person types or drags, keep the selection (e2e/agent-toast.mjs 6/6).
+W14.3: Ctrl+Z undoes an agent change and says so (7/7).

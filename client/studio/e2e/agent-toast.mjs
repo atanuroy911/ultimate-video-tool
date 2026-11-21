@@ -34,6 +34,18 @@ const before = await sel();
 execSync(process.env.VT_CHANGE, { stdio: "inherit", shell: process.env.VT_SHELL || true });
 await page.waitForFunction(() => document.querySelectorAll(".vt-changed, .is-director-changed").length > 0, null, { timeout: 8000 }).catch(() => {});
 check("the person's selection stays the same after the agent's change", before === "s2" && (await sel()) === "s2", `${before} -> ${await sel()}`);
+// W14.3: Ctrl+Z takes the agent's change back and says so.
+const tone = () => page.evaluate(async (p) => { const r = await fetch(`/api/projects/${p}/scenes`); const j = await r.json(); return (j.plan || j).scenes[0].tone ?? null; }, pid);
+const t0 = await tone();
+execSync(process.env.VT_CHANGE, { stdio: "inherit", shell: process.env.VT_SHELL || true });
+await page.waitForFunction(() => document.querySelectorAll(".vt-changed, .is-director-changed").length > 0, null, { timeout: 8000 }).catch(() => {});
+await page.waitForTimeout(1500);
+const t1 = await tone();
+await page.mouse.click(5, 500);
+await page.keyboard.press("Control+z");
+const undone = await page.getByText("Undid Claude's change").waitFor({ timeout: 8000 }).then(() => true, () => false);
+await page.waitForTimeout(1000);
+check("Ctrl+Z undoes the agent's change and says so", undone && t1 !== t0 && (await tone()) === t0, `${t0} -> ${t1} -> ${await tone()}`);
 check("no page errors", errors.length === 0, errors.join(" | "));
 await browser.close();
 console.log(`${pass} passed, ${fail} failed`);

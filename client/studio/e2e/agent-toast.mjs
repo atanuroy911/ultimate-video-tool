@@ -46,6 +46,16 @@ await page.keyboard.press("Control+z");
 const undone = await page.getByText("Undid Claude's change").waitFor({ timeout: 8000 }).then(() => true, () => false);
 await page.waitForTimeout(1000);
 check("Ctrl+Z undoes the agent's change and says so", undone && t1 !== t0 && (await tone()) === t0, `${t0} -> ${t1} -> ${await tone()}`);
+// W14.4: the agent changes the scene the person has open: the inspector says so and offers Undo.
+await page.evaluate(() => window.dispatchEvent(new CustomEvent("vt-select-scene", { detail: "s1" })));
+await page.waitForTimeout(800);
+const u0 = await tone();
+execSync(process.env.VT_CHANGE, { stdio: "inherit", shell: process.env.VT_SHELL || true });
+const notice = page.locator(".vt-agent-touched");
+const shown = await notice.waitFor({ timeout: 10000 }).then(() => true, () => false);
+check("the inspector says Claude just changed the open scene", shown && (await notice.textContent()).includes("Claude just changed this"));
+if (shown) { await notice.getByRole("button", { name: "Undo" }).click(); await page.waitForTimeout(1500); }
+check("its Undo takes the change back", (await tone()) === u0, `${u0} -> ${await tone()}`);
 check("no page errors", errors.length === 0, errors.join(" | "));
 await browser.close();
 console.log(`${pass} passed, ${fail} failed`);

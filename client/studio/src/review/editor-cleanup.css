@@ -45,3 +45,4 @@
 .vt-changed { outline: 2px solid var(--ok); outline-offset: -2px; animation: vt-changed 900ms ease-in-out 3; }
 @keyframes vt-changed { 50% { outline-color: color-mix(in srgb, var(--ok) 40%, transparent); } }
 @media (prefers-reduced-motion: reduce) { .vt-changed { animation: none; } }
+.vt-agent-touched { display: flex; align-items: center; gap: var(--sp-2); margin: var(--sp-2); }

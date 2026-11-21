@@ -169,6 +169,13 @@ function ReviewEditor() {
   const [directorRunning, setDirectorRunning] = useState(false);
   const [directorChangedScenes, setDirectorChangedScenes] = useState<string[]>([]);
   useEffect(() => onChangeDetail((d) => { if (d.project === id && d.by.startsWith("mcp:") && d.scenes.length) setDirectorChangedScenes(d.scenes); }), [id]);
+  const [agentTouched, setAgentTouched] = useState<{ scene: string; who: string } | null>(null);     // W14.4: the agent changed what the person has open
+  const selectedRef = useRef<string | null>(null);
+  useEffect(() => { selectedRef.current = selected; setAgentTouched((a) => (a && a.scene !== selected ? null : a)); }, [selected]);
+  useEffect(() => onChangeDetail((d) => {
+    const s = selectedRef.current;
+    if (d.project === id && d.by.startsWith("mcp:") && s && d.scenes.includes(s)) setAgentTouched({ scene: s, who: d.by === "mcp:claude" ? "Claude" : d.by === "mcp:codex" ? "Codex" : "The assistant" });
+  }), [id]);
   useEffect(() => {                                    // the Classic timeline and the scene list glow too (the new timeline does it itself)
     if (!directorChangedScenes.length) return;
     const els = directorChangedScenes.flatMap((s) => [...document.querySelectorAll<HTMLElement>(`[data-scene-clip="${CSS.escape(s)}"], [data-scene="${CSS.escape(s)}"]`)]);
@@ -620,7 +627,10 @@ function ReviewEditor() {
             ) : videoSel || !scene ? (
               <><div className="ed-project-info"><StatusChip status={p.status}/><ModeSwitch r={r}/><DirectorLogButton pid={p.id}/></div><VideoInspector r={r} p={p} useCases={useCases ?? []} onRedirect={progress} onRepace={(pace, from) => setRepaceAsk({ pace, from })} /></>
             ) : (
-              <Inspector seek={seek} focusAction={selAction?.scene===scene.id?selAction.index:null} ref={inspector} key={scene.id} r={r} scene={scene} index={idx} time={timeOf.get(scene.id)} words={sceneWords.length ? sceneWords : r.words.filter(w=>!w.cut)} playheadWord={curWord?.id ?? null} cat={cat} icons={icons} focusEl={selEl && selEl.scene === scene.id ? selEl.index : null} />
+              <>{agentTouched && agentTouched.scene === scene.id && <div className="banner vt-agent-touched" role="status">{agentTouched.who} just changed this.
+                <button className="btn sm" onClick={async () => { setAgentTouched(null); await r.undo(); }}>Undo</button>
+                <button className="btn sm ghost" aria-label="Dismiss" onClick={() => setAgentTouched(null)}>OK</button></div>}
+              <Inspector seek={seek} focusAction={selAction?.scene===scene.id?selAction.index:null} ref={inspector} key={scene.id} r={r} scene={scene} index={idx} time={timeOf.get(scene.id)} words={sceneWords.length ? sceneWords : r.words.filter(w=>!w.cut)} playheadWord={curWord?.id ?? null} cat={cat} icons={icons} focusEl={selEl && selEl.scene === scene.id ? selEl.index : null} /></>
             )}
           </aside>),
 

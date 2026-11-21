@@ -509,7 +509,7 @@ CARD_TYPES = {"title", "big_number", "value_card", "quote", "question", "cta", "
 def _hand_cards_back(scenes: list[dict]) -> None:
     """A card scene marked `_card_out` borrows the nearest picture (the one before it, else the one after), which fades in at that time
     while the card's parts leave. Only in a video that has pictures: a video made of cards keeps its cards."""
-    pictured = [i for i, s in enumerate(scenes) if s.get("backdrop")]
+    pictured = [i for i, s in enumerate(scenes) if s.get("backdrop") and not str(s["backdrop"].get("media", "")).startswith("shot:")]   # a shot is its own scene's, never borrowed
     for i, s in enumerate(scenes):
         out = s.pop("_card_out", None)
         if out is None or not pictured:
@@ -913,7 +913,13 @@ def compose_project(project, aspect: Optional[str] = None, duration: Optional[fl
     icons = read_json(paths.ICONS / "lucide.json", {})
     from ..director.media import composition_media, speech_envelope
 
-    data = resolve_composition(sf, tr, beats, theme, aspect, duration, icons, media=composition_media(project),
+    media = composition_media(project)
+    if any(sc.shot for sc in sf.scenes):
+        from .. import shots as SH
+
+        sf, shot_media = SH.place_on_scenes(project, sf, aspect)
+        media.update(shot_media)
+    data = resolve_composition(sf, tr, beats, theme, aspect, duration, icons, media=media,
                                envelope=speech_envelope(project.cut_audio) if project.cut_audio.exists() else None, language=meta.language)
     if not captions:
         data["captions_enabled"] = False

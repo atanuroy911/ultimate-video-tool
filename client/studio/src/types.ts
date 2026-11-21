@@ -120,6 +120,7 @@ export interface Scene {
   elements: El[];
   caption: { highlight_words: string[]; y?: number | null };
   stick?: { cast?: StickCast[]; actions?: StickAction[] } | null;
+  shot?: string | null;   // a code-native shot drawn full-frame behind the scene (server/vt/shots.py)
 }
 export interface StickCast { id: string; name?: string; role?: string; kind?: "person" | "toon" | "emoji"; emoji?: string | null; art?: string | null; style?: { color?: string; head?: string; accessory?: string; height?: string; hair?: string; shirt?: string | null; skin?: string | null } }
 export interface StickAction {

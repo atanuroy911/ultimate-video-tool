@@ -37,11 +37,11 @@ Tested only on Windows (the owner's decision). Linux installers are built by the
 | cartoon characters / scenes (assets/cartoon) | 4, 4 |
 | ComfyUI workflow assets | breeze_clone.json, breeze_design.json, breeze_direction.json, klein_t2i.json, ltx23_i2v.json, omnivoice_clone.json, omnivoice_design.json, qwen21_t2i.json, wan22_i2v.json, zimage_t2i.json |
 | MCP tools / prompts | 43, 4 |
-| REST API | api routes: 269, methods: 273 |
+| REST API | api routes: 275, methods: 279 |
 | downloadable models (vt/models.py) | 3 |
-| python source | files: 257, lines: 48969 |
+| python source | files: 258, lines: 49176 |
 | renderer runtime (js+css) lines | 4578 |
-| studio source | files: 338, lines: 44100, pages: AIAssistants, ComfySettings, DesignStudio, DirectorSettings, Engines, Export, LocalAI, MyVoices, New, NewOptions, Progress, Projects, Result, Review, ScriptReview, Server, Settings, ShortsExtractor, SocialHub, StockKeys, StyleThumbnails, Themes |
+| studio source | files: 338, lines: 44101, pages: AIAssistants, ComfySettings, DesignStudio, DirectorSettings, Engines, Export, LocalAI, MyVoices, New, NewOptions, Progress, Projects, Result, Review, ScriptReview, Server, Settings, ShortsExtractor, SocialHub, StockKeys, StyleThumbnails, Themes |
 | browser suites (studio/e2e, not helpers) | 76 |
 | pytest files | 195 |
 <!-- facts:end -->

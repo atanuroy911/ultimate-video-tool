@@ -232,3 +232,78 @@ def frames(shot_dir: Path, out_dir: Path, times: list[float], *, overrides: Opti
     work = out_dir.parent / (out_dir.name + ".build")
     build(shot_dir, work, overrides)
     return snapshot(work, out_dir, times, gpu=gpu)
+
+
+# --------------------------------------------------------------------------- shots in a project (C2)
+
+def shot_dir(project, shot_id: str) -> Path:
+    if not ID.match(shot_id or ""):
+        raise ShotError(f"shot id '{shot_id}' must be letters, digits, - or _")
+    return project.dir / "shots" / shot_id
+
+
+def list_shots(project) -> list[dict]:
+    root = project.dir / "shots"
+    out = []
+    for d in sorted(root.iterdir()) if root.is_dir() else []:
+        if d.is_dir() and ID.match(d.name) and (d / "index.html").exists():
+            try:
+                out.append(info(d))
+            except ShotError as e:
+                out.append({"id": d.name, "error": str(e)})
+    return out
+
+
+def fingerprint(shot_dir_: Path, fps: int = 30) -> str:
+    """Changes whenever anything that affects the picture changes: the code, the edits, shot.json, the assets, the frame rate."""
+    import hashlib
+
+    h = hashlib.sha1(f"v1|{fps}".encode())
+    for name in ("index.html", "overrides.json", "shot.json"):
+        p = shot_dir_ / name
+        h.update(name.encode() + b"\0" + (p.read_bytes() if p.exists() else b"") + b"\0")
+    assets = shot_dir_ / "assets"
+    for p in sorted(assets.rglob("*")) if assets.is_dir() else []:
+        if p.is_file():
+            st = p.stat()
+            h.update(f"{p.relative_to(assets).as_posix()}|{st.st_size}|{st.st_mtime_ns}".encode())
+    return h.hexdigest()[:16]
+
+
+def cached_render(shot_dir_: Path, *, fps: int = 30, gpu: bool = True) -> Path:
+    """The shot's MP4, drawn again only when something in it changed. Older renders of the shot are removed."""
+    out_dir = shot_dir_ / "render"
+    out = out_dir / f"{fingerprint(shot_dir_, fps)}.mp4"
+    if out.exists() and out.stat().st_size > 0:
+        return out
+    render(shot_dir_, out, fps=fps, gpu=gpu)
+    for old in out_dir.iterdir():
+        if old != out and old.suffix in (".mp4", ".json", ".log") and not old.name.startswith(out.stem):
+            old.unlink(missing_ok=True)
+        elif old.is_dir() and old.name.endswith(".build"):
+            shutil.rmtree(old, ignore_errors=True)
+    return out
+
+
+def place_on_scenes(project, sf, aspect: str, *, render_fn=None):
+    """Each scene with a `shot` gets that shot, rendered, as a full-frame video behind it (no camera move, no scrim); returns (scenes, media items).
+    A missing or broken shot fails here with the shot's name, never as a blank scene."""
+    from .schema import Backdrop
+
+    render_fn = render_fn or cached_render
+    media: dict[str, dict] = {}
+    scenes = []
+    for sc in sf.scenes:
+        if sc.shot:
+            key = f"shot:{sc.shot}"
+            if key not in media:
+                d = shot_dir(project, sc.shot)
+                if not (d / "index.html").exists():
+                    raise ShotError(f"scene {sc.id} uses shot '{sc.shot}', which has no index.html in shots/{sc.shot}/")
+                i = info(d)
+                mp4 = render_fn(d)
+                media[key] = {"src": f"media/shot-{sc.shot}-{mp4.stem}.mp4", "kind": "video", "fx": 0.5, "fy": 0.5, "w": i["width"], "h": i["height"],
+                              "role": "shot", "faces": [], "textBand": None, "shots": [], "trim": 0, "loop": False, "_abs": str(mp4)}
+            sc = sc.model_copy(update={"backdrop": Backdrop(media=key, motion="none")})
+        scenes.append(sc)
+    return sf.model_copy(update={"scenes": scenes}), media

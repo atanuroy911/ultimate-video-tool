@@ -3272,6 +3272,8 @@ from .script_review_routes import router as script_review_router
 app.include_router(script_review_router)
 from .story_routes import router as story_router
 app.include_router(story_router)
+from .shot_routes import router as shot_router  # code-native shots (PLAN-CODE-NATIVE-EDITOR C2)
+app.include_router(shot_router)
 from .reel_routes import router as reel_router
 app.include_router(reel_router)
 from .direction_routes import router as direction_router

@@ -8,7 +8,7 @@ const helper=require('./helper-control'),helperPath=path.join(__dirname,'helper.
 const ensureHelper=()=>helper.ensure({home,helperPath,version});
 // "--helper" is what the start-with-the-computer entry runs: make sure the helper runs, then leave, before anything else loads (no window, no server connection).
 if(process.argv.includes('--helper')){app.whenReady().then(ensureHelper).catch(()=>{}).finally(()=>app.quit());return;}
-const discover=require('./discover'),assistants=require('./assistants'),keys=require('./server-keys');
+const discover=require('./discover'),assistants=require('./assistants'),keys=require('./server-keys'),acpAgents=require('./acp-agents');
 const {createTransport,serverURL}=require('./transport');
 let win=null,chooser=null,transport=null,selected='',selectedSession=null,changing=false;
 const connectionFile=path.join(home,'connection.json'),keysFile=path.join(home,'keys.json');
@@ -90,6 +90,20 @@ ipcMain.on('use-this-computer',async()=>{for(const port of [8790,8765,8791,8792]
 ipcMain.handle('choose-processing-server',()=>chooseServer());
 ipcMain.handle('assistants-status',()=>assistants.status());
 ipcMain.handle('assistants-connect',(event,id,remote)=>{if(!win||event.sender!==win.webContents||!remote||!String(remote.url||'').startsWith(selected+'/'))throw new Error('That is not the selected processing server.');return assistants.connect(id,remote,{command:process.execPath,args:[path.join(__dirname,'mcp-bridge.js').replace('app.asar'+path.sep,'app.asar.unpacked'+path.sep)]});});
+// ---- Claude Code (and Codex, when set up) in the Assistant pane, over ACP (acp-agents.js). The window gets events, never a path or a key.
+let agents=null;
+const getAgents=()=>agents||(agents=acpAgents.createAgents({home,version,log,
+  emit:(conversationId,event)=>{if(win&&!win.isDestroyed())win.webContents.send('vt-agent:event',{conversationId,event});},
+  getServer:()=>selected,getKey:server=>keys.keyFor(keysFile,server),
+  bridge:path.join(__dirname,'mcp-bridge.js').replace(/app\.asar([\\/])/,'app.asar.unpacked$1'),
+  fake:(!app.isPackaged&&process.env.VT_ACP_FAKE)||''}));
+ipcMain.handle('vt-agent:status',onlyApp(kind=>getAgents().status(kind)));
+ipcMain.handle('vt-agent:open',onlyApp((kind,projectId,o)=>getAgents().open(kind,projectId,{resume:o&&o.resume,model:o&&o.model,title:o&&typeof o.title==='string'?o.title.slice(0,120):undefined})));
+ipcMain.handle('vt-agent:send',onlyApp((id,text,refs,images)=>getAgents().send(id,text,refs,images)));
+ipcMain.handle('vt-agent:stop',onlyApp(id=>getAgents().stop(id)));
+ipcMain.handle('vt-agent:permission',onlyApp((id,requestId,choice)=>getAgents().permission(id,requestId,choice)));
+ipcMain.handle('vt-agent:list',onlyApp(projectId=>getAgents().list(projectId)));
+ipcMain.handle('vt-agent:signin',onlyApp(kind=>getAgents().signIn(kind)));
 ipcMain.handle('helper-status',onlyApp(helperState));
 ipcMain.handle('helper-start',onlyApp(async()=>{await ensureHelper();return helperState();}));
 ipcMain.handle('helper-stop',onlyApp(async()=>{await helper.request(home,'POST','/stop',{}).catch(()=>{});await stopped();return helperState();}));
@@ -107,5 +121,6 @@ app.whenReady().then(async()=>{
   if(saved&&saved!=='here'){try{const r=await connect(saved);if(!(r&&r.needsKey))return;log('The saved server now asks for its key.');}catch(e){log(e.message);}}
   chooseServer();
 }).catch(e=>{log(e.stack||e);dialog.showErrorBox('Client could not start',e.message);app.quit();});
-app.on('before-quit',()=>{transport?.close();});     // the helper is not stopped: it keeps Claude and Codex ready when the window is closed
+app.on('before-quit',()=>{transport?.close();agents?.closeAll();});     // the helper is not stopped: it keeps Claude and Codex ready when the window is closed
+process.once('exit',()=>{try{agents?.closeAll();}catch{}});
 app.on('window-all-closed',()=>{if(!changing)app.quit();});

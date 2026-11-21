@@ -13,9 +13,11 @@
     "dist": "electron-builder --publish never",
     "dist:client": "electron-builder --publish never",
     "dist:dir": "electron-builder --dir --publish never",
-    "test": "node test-director-runner.js && node test-director-scope.js && node test-helper.js && node test-helper-control.js && node test-transport.js"
+    "test": "node test-director-runner.js && node test-director-scope.js && node test-acp-agents.js && node test-mcp-bridge.js && node test-helper.js && node test-helper-control.js && node test-transport.js"
   },
   "dependencies": {
+    "@agentclientprotocol/claude-agent-acp": "0.81.2",
+    "@agentclientprotocol/sdk": "1.5.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {
@@ -43,13 +45,19 @@
       "device.js",
       "assistant-command.js",
       "mcp-bridge.js",
+      "acp-agents.js",
+      "acp-validate.js",
+      "acp-instructions.js",
       "preload.js",
       "main-preload.js",
       "connect.html",
-      "package.json"
+      "package.json",
+      "!node_modules/@anthropic-ai/claude-agent-sdk-*/**"
     ],
     "asarUnpack": [
-      "mcp-bridge.js"
+      "mcp-bridge.js",
+      "node_modules/@agentclientprotocol/**",
+      "node_modules/@anthropic-ai/claude-agent-sdk/**"
     ],
     "extraResources": [
       {

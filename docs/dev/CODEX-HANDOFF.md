@@ -4,9 +4,9 @@
 
 > **2026-11-09 (Claude):** small cards now get FLUX.2 Klein 4B squeezed to 4 or 3 bits (GGUF: `klein-4b-q4`, `klein-4b-q3` in fit.py) through the ComfyUI-GGUF add-on the installer adds; setup is one answer screen with one Install button and a check that draws a picture. Do not time GPU work while pytest runs: the tests take about 2 GB of the card. Details at the top of WORKLOG.md.
 
-> **2026-11-07, read this first: [docs/plans/CODEX-NEXT-STEPS.md](../plans/CODEX-NEXT-STEPS.md)** is the current hand-over (state of both machines, what Claude changed that is not yet verified, the open plan steps in order, the rules, and the traps found). The older sections below are history.
+> **2026-11-07, read this first: [docs/plans/CODEX-NEXT-STEPS.md](../history/CODEX-NEXT-STEPS.md)** is the current hand-over (state of both machines, what Claude changed that is not yet verified, the open plan steps in order, the rules, and the traps found). The older sections below are history.
 
-**2026-11-07 Codex continuation — Done by codex.** The next-steps file records the implementation and evidence added after Claude's handoff. The latest server reads showed an incomplete setup state and a timed-out Sonnet attempt with fallback. The workspace fixes, local judge and selected scratch browser checks are recorded separately from live acceptance. See [CODEX-NEXT-STEPS.md](../plans/CODEX-NEXT-STEPS.md).
+**2026-11-07 Codex continuation — Done by codex.** The next-steps file records the implementation and evidence added after Claude's handoff. The latest server reads showed an incomplete setup state and a timed-out Sonnet attempt with fallback. The workspace fixes, local judge and selected scratch browser checks are recorded separately from live acceptance. See [CODEX-NEXT-STEPS.md](../history/CODEX-NEXT-STEPS.md).
 
 The owner works with Claude Code and Codex interchangeably. Read this file first, then the tail of `WORKLOG.md` (newest entries at the
 bottom) for details of what was done. When you stop, update both: what you did, what you verified, what is left.

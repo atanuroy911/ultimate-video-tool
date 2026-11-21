@@ -76,3 +76,6 @@ third_party/ai-youtube-shorts-generator/
 
 # Evidence logs and screenshots from earlier audits: a zip is attached to the release (docs-evidence-2026-11.zip); anchored so no other folder is hit
 /docs/evidence/
+
+# Browser-test output (screenshots, logs): never committed
+/client/studio/e2e/out/

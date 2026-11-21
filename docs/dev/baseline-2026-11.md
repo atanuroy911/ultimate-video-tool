@@ -58,3 +58,6 @@ Done on this laptop, both apps installed on E: (`E:\UVT-Client\Ultimate Video To
 
 ## Gotcha on this laptop
 The shell that runs Claude Code has `ELECTRON_RUN_AS_NODE=1`. An Electron app started from it behaves as plain Node ("bad option" and exits). Clear it first: `Remove-Item Env:ELECTRON_RUN_AS_NODE`.
+
+## Electron 44.10.2 (W9, 2026-11-21)
+Both desktop apps upgraded from Electron 33.4.11 (the Claude adapter needs Node 22 or newer). No removed API was in use; all 11 desktop node tests pass; the installed apps start, the client connects to the server, and the helper makes Claude on this PC ready. Windows installers: client 78.5 -> 109.8 MB, server 205.2 -> 236.3 MB (+31 MB each, Electron's own growth). Linux not tested (Windows only).

@@ -48,6 +48,7 @@ jobs:
       - run: cd client/studio && npm run test:timeline
       - run: cd client/studio && npm run test:workbench
       - run: node scripts/dev/check_contrast.mjs
+      - run: node scripts/dev/check_raw_colors.mjs
       - run: npm --prefix client/desktop ci --no-audit --no-fund
       - run: npm --prefix server/desktop ci --ignore-scripts --no-audit --no-fund
       - run: node client/desktop/test-director-runner.js

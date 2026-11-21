@@ -587,3 +587,4 @@ Agents got `make_picture` (ComfyUI on this laptop) and `speak` (Kokoro). Tried f
 
 C8 first half: "Open in VS Code" button in the Claude Code tab opens the agent folder in the owner's VS Code (launched for real).
 C7 voices: Kokoro 1.5 s per second of speech; Chatterbox Turbo 17 s per second (too slow here). Numbers are in engines/fit.py VOICE_SPEED.
+W14 first part: change event carries rev/scenes/removed/by/what (tested); Studio toast.

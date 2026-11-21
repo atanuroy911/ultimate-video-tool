@@ -109,7 +109,14 @@ export function startRealtime() {
         const j = m.job as JobInfo;
         jobsStore.set((p) => ({ ...p, [j.id]: j }));
         if ((j.status === "done" || j.status === "error") && j.project && j.kind !== "thumbs") emitChanged(j.project);
-      } else if (m.type === "changed") emitChanged(m.project);
+      } else if (m.type === "changed") {
+        emitChanged(m.project);
+        if (typeof m.by === "string" && m.by.startsWith("mcp:") && Array.isArray(m.scenes)) {          // W14: say who changed what, in words
+          const who = m.by === "mcp:claude" ? "Claude" : m.by === "mcp:codex" ? "Codex" : "An assistant";
+          const n = m.scenes.length + (m.removed?.length || 0);
+          toast(`${who} changed ${n === 1 ? `scene ${m.scenes[0] || m.removed[0]}` : n > 1 ? `${n} scenes` : "the video"}${m.what ? ` (${m.what})` : ""}`, "ok");
+        }
+      }
       else if (m.type === "call" || m.type === "ticket" || m.type === "call_started") callHandlers.forEach((h) => h(m));
     };
   };

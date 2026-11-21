@@ -99,9 +99,45 @@ async def _startup() -> None:
 
 
 
+def scene_hashes(p: Project) -> dict[str, str]:
+    import hashlib
+    import json as _json
+    sf = p.scenes()
+    return {s.id: hashlib.sha1(_json.dumps(s.model_dump(exclude_none=True), sort_keys=True, default=str).encode()).hexdigest()[:12] for s in (sf.scenes if sf else [])}
+
+
+def change_event(p: Project, state: dict[str, dict]) -> dict:
+    """One 'changed' event: which scenes changed or went away, a number that grows with each change, and who did it when the MCP server just did
+    (W14.1). `state` is the watcher's memory of each project's scenes."""
+    import time as _time
+
+    from .. import paths
+    from ..util import read_json
+    now = scene_hashes(p)
+    before = state.get(p.id)
+    state[p.id] = now
+    rev = state.setdefault("_rev", {})
+    rev[p.id] = rev.get(p.id, 0) + 1
+    ev: dict = {"type": "changed", "project": p.id, "rev": rev[p.id], "scenes": [], "removed": [], "by": "", "what": ""}
+    if before is not None:
+        ev["scenes"] = sorted(i for i, h in now.items() if before.get(i) != h)
+        ev["removed"] = sorted(i for i in before if i not in now)
+    seen = read_json(paths.mcp_seen_path(), {}) or {}
+    try:
+        from datetime import datetime
+        age = _time.time() - datetime.fromisoformat(str(seen.get("at", ""))).timestamp()
+    except Exception:
+        age = 999.0
+    if age < 4:
+        ev["by"] = f"mcp:{seen.get('client', 'assistant')}"
+        ev["what"] = str(seen.get("tool", "")).replace("_", " ")
+    return ev
+
+
 async def _watch_files() -> None:
     """Tell the browser when something outside it (Claude via MCP, the CLI) changed a project."""
     seen: dict[str, tuple] = {}
+    scene_state: dict[str, dict] = {}
     while True:
         try:
             for p in Project.list_all():
@@ -111,8 +147,10 @@ async def _watch_files() -> None:
                     ((p.dir / "plan_doc.json").stat().st_mtime if (p.dir / "plan_doc.json").exists() else 0),
                     tuple(sorted((f.name, f.stat().st_mtime) for f in p.requests_dir.glob("*.json"))) if p.requests_dir.exists() else (),
                 )
+                if p.id not in seen:
+                    scene_state[p.id] = scene_hashes(p)
                 if p.id in seen and seen[p.id] != sig:
-                    hub.emit({"type": "changed", "project": p.id})
+                    hub.emit(change_event(p, scene_state))
                 seen[p.id] = sig
         except Exception:
             pass

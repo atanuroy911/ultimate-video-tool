@@ -426,3 +426,32 @@ def test_agent_generator_tools_are_registered_and_scoped():
     from vt.mcp import scope, server as S
     assert callable(S.make_picture) and callable(S.speak)
     assert {"make_picture", "speak"} <= scope._PROJECT_TOOLS
+
+
+def test_change_event_names_the_scenes_and_who_did_it(tmp_path, monkeypatch):
+    """W14.1: a change event lists changed and removed scenes, counts up, and says who when the MCP server just acted."""
+    from vt import paths
+    from vt.server import app as A
+    from vt.util import now_iso, write_json
+
+    class S:
+        def __init__(self, id, text): self.id, self.text = id, text
+        def model_dump(self, **k): return {"id": self.id, "text": self.text}
+
+    class F:
+        def __init__(self, scenes): self.scenes = scenes
+
+    class P:
+        id = "p1"
+        cur = F([S("s1", "a"), S("s2", "b")])
+        def scenes(self): return self.cur
+
+    p, state = P(), {}
+    state["p1"] = A.scene_hashes(p)
+    p.cur = F([S("s1", "a changed")])
+    monkeypatch.setattr(paths, "PROJECTS", tmp_path)
+    write_json(paths.mcp_seen_path(), {"at": now_iso(), "tool": "update_scene", "client": "claude"})
+    ev = A.change_event(p, state)
+    assert ev["scenes"] == ["s1"] and ev["removed"] == ["s2"] and ev["rev"] == 1
+    assert ev["by"] == "mcp:claude" and ev["what"] == "update scene"
+    assert A.change_event(p, state)["rev"] == 2 and A.change_event(p, state)["scenes"] == []

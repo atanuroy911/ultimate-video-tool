@@ -281,3 +281,52 @@ def speaker_scenes(outline: Optional[dict], sf, beats) -> Optional[set]:
         if overlap < 0.5 * (b - a) or i == len(sf.scenes) - 1:
             out.add(sc.id)
     return out
+
+
+def fill_examples(project, sf, beats, outline: Optional[dict], progress: Callable[[float, str], None] = lambda f, m: None) -> list[str]:
+    """An example that ended up with no B-roll (its scenes only had words, so they show the speaker) gets one picture, drawn on this computer's
+    picture engine from what the reader said to show (`show`), behind the scene that covers most of it. Returns the scene ids it changed.
+    No picture engine, or a picture that fails: the scene stays on the speaker. The picture is the reader's choice of what to show; code only draws it."""
+    if not outline or not outline.get("examples") or not getattr(sf, "scenes", None):
+        return []
+    from .schema import Backdrop
+
+    bmap = {b.id: b for b in getattr(beats, "beats", beats)}
+
+    def span(sc):
+        bs = [bmap[b] for b in sc.beats if b in bmap]
+        return (float(bs[0].start), float(bs[-1].end)) if bs else None
+
+    todo = []
+    for e in outline["examples"]:
+        e0, e1 = float(e["start"]), float(e["end"])
+        over = [(min(s[1], e1) - max(s[0], e0), sc) for sc in sf.scenes if (s := span(sc)) and min(s[1], e1) > max(s[0], e0)]
+        if not over or any(sc.backdrop is None or sc.backdrop.media != "aroll" for _, sc in over):
+            continue                                                   # already has B-roll (or no scene there)
+        todo.append((e, max(over, key=lambda x: x[0])[1]))
+    if not todo:
+        return []
+    try:
+        from .comfy import ComfyClient, ComfyError, generate_still, picture_workflow
+        from .server.comfy_routes import comfy_url
+
+        client = ComfyClient(comfy_url())
+        flow = picture_workflow(object_info=client.object_info())
+    except Exception:                                                  # noqa: BLE001  no picture engine: the speaker stays
+        return []
+    changed = []
+    try:
+        aspect = project.meta().aspect
+        for i, (e, sc) in enumerate(todo):
+            progress(i / len(todo), f"Drawing B-roll for: {e['about'][:60]}")
+            prompt = f"{e['show']}. Clear, simple illustration, no text, no letters, no watermark."
+            try:
+                item, _ = generate_still(project, client, flow, prompt[:600], aspect=aspect, seed=1 + i, caption=e["about"][:80], scene=sc.id, checked=True)
+            except ComfyError:
+                continue
+            sc.backdrop = Backdrop(media=item.id, motion="kenburns")
+            sc.archetype = "broll"
+            changed.append(sc.id)
+    finally:
+        client.close()
+    return changed

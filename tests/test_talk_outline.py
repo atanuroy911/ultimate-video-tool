@@ -117,3 +117,24 @@ def test_scenes_outside_examples_and_the_close_stay_on_the_speaker():
     outline = {"examples": [{"start": 5.0, "end": 20.0}]}
     assert T.speaker_scenes(outline, F(), beats) == {"s1", "s4"}           # s2 and s3 are inside the example; s4 is the close
     assert T.speaker_scenes(None, F(), beats) is None
+
+
+def test_fill_examples_leaves_covered_examples_and_needs_a_picture_engine(monkeypatch):
+    from vt.schema import Backdrop
+    from vt.server import comfy_routes
+
+    class B:
+        def __init__(self, id, start, end): self.id, self.start, self.end = id, start, end
+
+    class S:
+        def __init__(self, id, beats, media): self.id, self.beats, self.backdrop, self.archetype = id, beats, Backdrop(media=media), None
+
+    class F:
+        scenes = [S("s1", ["b1"], "aroll"), S("s2", ["b2"], "pic1"), S("s3", ["b3"], "aroll")]
+
+    beats = [B("b1", 0, 5), B("b2", 5, 10), B("b3", 10, 15)]
+    covered = {"examples": [{"start": 5, "end": 10, "show": "x", "about": "x"}]}
+    assert T.fill_examples(None, F(), beats, covered) == []              # s2 already shows a picture
+    monkeypatch.setattr(comfy_routes, "comfy_url", lambda: "http://127.0.0.1:1")   # nothing answers there
+    bare = {"examples": [{"start": 10, "end": 15, "show": "a beetle", "about": "beetle"}]}
+    assert T.fill_examples(None, F(), beats, bare) == [] and F.scenes[2].backdrop.media == "aroll"

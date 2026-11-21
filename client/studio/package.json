@@ -5,7 +5,7 @@
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {
-    "test:workbench": "node --test tests/workbench-dock.test.mjs",
+    "test:workbench": "node --test tests/workbench-dock.test.mjs tests/workbench-shortcuts.test.mjs",
     "test:timeline": "node --test tests/timeline-editing.test.mjs tests/layer-saving.test.mjs tests/free-editing.test.mjs tests/direction-recovery.test.mjs tests/media-runtime.test.mjs tests/element-transform.test.mjs tests/occ-bridge.test.mjs",
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -20,6 +20,7 @@
     "e2e:stick": "node e2e/stick.mjs",
     "e2e:dashboard": "node e2e/dashboard.mjs",
     "e2e:a11y": "node e2e/a11y.mjs",
+    "e2e:workbench": "node e2e/workbench.mjs",
     "e2e:timeline": "node e2e/timeline2.mjs",
     "e2e:timeline2": "node e2e/timeline2.mjs",
     "e2e:timeline3": "node e2e/timeline3.mjs",

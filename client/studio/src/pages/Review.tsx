@@ -1,12 +1,14 @@
 import VideoTools from "../review/VideoTools";
 import CaptionInspector from "../review/CaptionInspector";
-import { MessageSquareText, ChevronLeft, Download, Image as ImageIcon, Pause, Play, Redo2, Scissors, Sparkles, Undo2, Wand2, Menu, PanelLeftClose, PanelRightClose, Maximize2, X } from "lucide-react";
+import { MessageSquareText, ChevronLeft, Download, Image as ImageIcon, Pause, Play, Redo2, Scissors, Sparkles, Undo2, Wand2, Menu, PanelLeftClose, PanelRightClose, Maximize2, MessageSquare, PanelBottomClose, X } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { del, get, post } from "../api";
 import { fmtTime } from "../api";
 import { DirectorLogButton } from "../log/DirectorLog";
 import { Button, MenuItem, MenuSep, Popover, Sheet, Splitter, Tooltip, useSize } from "../ds";
+import Workbench from "../workbench/Workbench";
+import { paneAction } from "../workbench/shortcuts";
 import { useCatalogue, useFetch, useIconPack } from "../hooks";
 import { toast, useChanged } from "../store";
 import AIPanel from "../review/AIPanel";
@@ -155,7 +157,9 @@ function ReviewEditor() {
   const [keys, setKeys] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const [tab, setTab] = useState<LeftTab>(() => { const q = new URLSearchParams(location.search).get("tab"); return q === "words" || q === "script" || q === "media" ? q : "scenes"; });
-  const [directorMounted, setDirectorMounted] = useState(tab === "chat"); // once opened, keep its job poll alive while another tool tab is used
+  const [directorMounted, setDirectorMounted] = useState(true);          // the assistant pane keeps the director conversation and its job poll alive
+  const [showAssistant, setShowAssistant] = useState(() => window.innerWidth >= 1180);
+  const [showTimeline, setShowTimeline] = useState(true);
   const { data: useCases } = useFetch<UseCase[]>("/api/usecases");
   const [playing, setPlaying] = useState(false);
   const [directorRunning, setDirectorRunning] = useState(false);
@@ -270,6 +274,29 @@ function ReviewEditor() {
   };
 
   // keyboard shortcuts
+  useEffect(() => {
+    // the panes' own keys work everywhere in the editor, also while the director works or the new timeline has the keyboard
+    const onPaneKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement;
+      if (e.defaultPrevented || el?.closest('[role="dialog"], [role="menu"]')) return;
+      const typing = !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable);
+      const act = paneAction(e, typing);
+      if (!act) return;
+      e.preventDefault();
+      if (act === "library") setShowBrowser(!showBrowser);
+      else if (act === "inspector") setShowInspector(!showInspector);
+      else if (act === "timeline") setShowTimeline(!showTimeline);
+      else if (act === "assistant") setShowAssistant(!showAssistant);
+      else if (act === "palette") setPalette(true);
+      else if (act === "focus-assistant") {
+        setShowAssistant(true);
+        setTimeout(() => document.querySelector<HTMLTextAreaElement>(".wb-assistant textarea")?.focus(), 60);
+      }
+    };
+    window.addEventListener("keydown", onPaneKey);
+    return () => window.removeEventListener("keydown", onPaneKey);
+  }, [showBrowser, showInspector, showTimeline, showAssistant]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (directorRunning) return;                              // the gradient shield owns the timeline until the Director commits or fails
@@ -447,6 +474,8 @@ function ReviewEditor() {
         <div className="ed-panel-actions">
           <button className={`btn sm ${showBrowser ? "selected" : ""}`} aria-pressed={showBrowser} onClick={() => setShowBrowser(!showBrowser)}><PanelLeftClose size={15}/> Tools</button>
           <button className={`btn sm ${showInspector ? "selected" : ""}`} aria-pressed={showInspector} onClick={() => { if(videoSel) { setVideoSel(false); setShowInspector(true); } else setShowInspector(!showInspector); }}><PanelRightClose size={15}/> Details</button>
+          <button className={`btn sm ${showAssistant ? "selected" : ""}`} aria-pressed={showAssistant} title="Assistant (Ctrl+Alt+B)" onClick={() => setShowAssistant(!showAssistant)}><MessageSquare size={15}/> Assistant</button>
+          <button className={`btn sm ${showTimeline ? "selected" : ""}`} aria-pressed={showTimeline} title="Timeline (Ctrl+J)" onClick={() => setShowTimeline(!showTimeline)}><PanelBottomClose size={15}/> Timeline</button>
           <button className="btn ghost sm" title="Give the video all the available space" onClick={() => { const show = !showBrowser && !showInspector; setShowBrowser(show); if(!compact || !show) setShowInspector(show); }}><Maximize2 size={15}/> {!showBrowser && !showInspector ? "Show panels" : "Focus"}</button>
         </div>
         <span className="ed-save-status small muted" role="status">{r.audioSaving || layers.saving ? "Saving…" : "Preview updates as you edit"}</span>
@@ -468,11 +497,11 @@ function ReviewEditor() {
       <Requests r={r} sceneIndexById={sceneIndexById} />
 
       <div className="ed-body">
-        <div className="ed-cols">
-          <aside className="ed-left" style={{ width: left, display: showBrowser ? undefined : "none" }} aria-label="Editing tools panel">
+        <Workbench layoutKey="editor" shown={{ library: showBrowser, inspector: showInspector, timeline: showTimeline, assistant: showAssistant }} panes={{
+          library: (<aside className="ed-left" aria-label="Editing tools panel">
             <div className="ed-panel-heading"><strong>Build your video</strong><button className="btn ghost icon sm" aria-label="Close tools panel" onClick={() => setShowBrowser(false)}><X size={16}/></button></div>
             <nav className="ed-tool-grid" aria-label="Editing tools">
-              {([ ["chat", "Director", "Talk to the director: it edits the video while you edit the timeline"], ["scenes", "Scenes", "Arrange the story"], ["direction", "Direction", "Edit instructions and regenerate a scene"], ["elements", "Elements", "Add text, shapes and diagrams"], ["script", "Script", "Read and correct lines"], ["words", "Captions", "Fix individual words"], ["media", "Pictures", "Add or replace pictures and clips"], ["sound", "Sound", "Voice, music and effects"] ] as const).map(([value, label, hint]) => <button key={value} title={hint} aria-pressed={tab === value} className={tab === value ? "on" : ""} onClick={() => { setTab(value); if(value === "chat") setDirectorMounted(true); if(value === "elements") { setSelectedWord(null); setSel(null); setSelLayer(null); setVideoSel(false); } }}>{label}</button>)}
+              {([ ["scenes", "Scenes", "Arrange the story"], ["direction", "Direction", "Edit instructions and regenerate a scene"], ["elements", "Elements", "Add text, shapes and diagrams"], ["script", "Script", "Read and correct lines"], ["words", "Captions", "Fix individual words"], ["media", "Pictures", "Add or replace pictures and clips"], ["sound", "Sound", "Voice, music and effects"] ] as const).map(([value, label, hint]) => <button key={value} title={hint} aria-pressed={tab === value} className={tab === value ? "on" : ""} onClick={() => { setTab(value); if(value === "elements") { setSelectedWord(null); setSel(null); setSelLayer(null); setVideoSel(false); } }}>{label}</button>)}
             </nav>
             <div className={`scroll ${tab === "words" || tab === "script" || tab === "chat" ? "fill" : ""}`}>
               {tab === "elements" && <ComponentLibrary catalogue={cat} disabled={!scene}
@@ -481,17 +510,6 @@ function ReviewEditor() {
                   const added = inspector.current?.add(spec);
                   if(added != null && scene) { setSelectedWord(null); setSelEl({scene:scene.id,index:added}); setShowInspector(true); }
                 }}/>}
-              {directorMounted && <div hidden={tab !== "chat"} style={{ height: "100%" }}><Suspense fallback={<div className="row muted" style={{ padding: 12 }}><Spinner /> Opening the chat…</div>}><DirectorChat projectId={id}
-                onStarted={r.beginDirectorChange}
-                onRunningChange={setDirectorRunning}
-                onChanged={async (result, token) => {
-                  r.finishDirectorChange(token, result?.ok ? result.previous_state as unknown as DirectorState | null | undefined : null);
-                  setDirectorChangedScenes(result?.ok ? result.changed_scenes ?? [] : []);
-                  setDirectorRemovedScenes(result?.ok ? result.removed_scenes ?? [] : []);
-                  await r.reloadAll();
-                }}
-                director={p.director?.who} historyAction={r.directorHistory} onHistoryAction={r.toggleDirectorChange}
-                changedScenes={directorChangedScenes} removedScenes={directorRemovedScenes} /></Suspense></div>}
               {tab === "scenes" && <ScenesPanel r={r} selected={selected} onSelect={pickScene} seek={seek} />}
               {tab === "direction" && (scene?<DirectionPanel key={scene.id} r={r} sid={scene.id} onElement={index=>{setSelectedWord(null);setSel(null);setSelLayer(null);setVideoSel(false);setSelEl({scene:scene.id,index});setShowInspector(true);if(compact)setShowBrowser(false);}}/>:<p className="small muted" style={{padding:16}}>Select a scene in the timeline.</p>)}
               {tab === "script" && <><HookCard pid={id} onApplied={progress} /><ScriptPanel r={r} time={time} playing={playing} seek={seek} /></>}
@@ -506,10 +524,9 @@ function ReviewEditor() {
                 </div>
               )}
             </div>
-          </aside>
-          {showBrowser && !compact && <Splitter dir="x" size={left} onSize={setLeft} label="Resize the editing tools" />}
+          </aside>),
 
-          <section className="ed-canvas" aria-label="Canvas">
+          viewer: (<section className="ed-canvas" aria-label="Canvas">
             <Preview
               ref={player}
               projectId={id}
@@ -542,10 +559,9 @@ function ReviewEditor() {
                 }
               }}
             />
-          </section>
+          </section>),
 
-          {showInspector && !compact && <Splitter dir="x" size={right} onSize={setRight} invert label="Resize selection details" />}
-          <aside className="ed-right" style={{ width: right, display: showInspector ? undefined : "none" }} aria-label="Selection details">
+          inspector: (<aside className="ed-right" aria-label="Selection details">
             <div className="ed-panel-heading"><div><strong>{videoSel ? "Whole video" : captionWord ? "Selected caption" : sel ? "Selected voice" : layerClip ? "Selected clip" : "Selected scene"}</strong><span>{videoSel ? "Changes here apply to the whole video." : captionWord ? "Edit the word and when it appears." : sel ? "Only this voice range will change." : layerClip ? "Change its content, timing and appearance." : "Choose a scene or a visual in the timeline."}</span></div><button className="btn ghost icon sm" aria-label="Close details panel" onClick={() => setShowInspector(false)}><X size={16}/></button></div>
             {videoSel && <button className="btn ghost sm" onClick={() => setVideoSel(false)}>← Back to selection</button>}
             {!videoSel && sel ? <div className="ed-selection-card">
@@ -587,11 +603,9 @@ function ReviewEditor() {
             ) : (
               <Inspector seek={seek} focusAction={selAction?.scene===scene.id?selAction.index:null} ref={inspector} key={scene.id} r={r} scene={scene} index={idx} time={timeOf.get(scene.id)} words={sceneWords.length ? sceneWords : r.words.filter(w=>!w.cut)} playheadWord={curWord?.id ?? null} cat={cat} icons={icons} focusEl={selEl && selEl.scene === scene.id ? selEl.index : null} />
             )}
-          </aside>
-        </div>
+          </aside>),
 
-        <Splitter dir="y" size={tlH} onSize={setTlH} invert label="Resize the timeline" />
-        <section className="ed-timeline occ-switchable" style={{ height: tlH }} aria-label="Timeline panel" aria-busy={directorRunning}>
+          timeline: (<section className="ed-timeline occ-switchable" aria-label="Timeline panel" aria-busy={directorRunning}>
           <div className="seg occ-switch" role="group" aria-label="Which timeline">
             <button type="button" className={newTimeline ? "" : "on"} aria-pressed={!newTimeline} onClick={() => chooseTimeline(false)}>Classic</button>
             <button type="button" className={newTimeline ? "on" : ""} aria-pressed={newTimeline} onClick={() => chooseTimeline(true)}>New timeline</button>
@@ -613,7 +627,23 @@ function ReviewEditor() {
               <div><strong>Director is updating the video</strong><span>Timeline editing unlocks as soon as it finishes.</span></div>
             </div>
           </div>}
-        </section>
+        </section>),
+
+          assistant: (<div className="wb-assistant-body" aria-label="Assistant">
+            <div className="wb-pane-heading"><strong>Assistant</strong><span className="grow" /><button className="btn ghost icon sm" aria-label="Close the assistant" onClick={() => setShowAssistant(false)}><X size={16} /></button></div>
+            <div className="wb-assistant-scroll">{directorMounted && <div style={{ height: "100%" }}><Suspense fallback={<div className="row muted" style={{ padding: 12 }}><Spinner /> Opening the chat…</div>}><DirectorChat projectId={id}
+                onStarted={r.beginDirectorChange}
+                onRunningChange={setDirectorRunning}
+                onChanged={async (result, token) => {
+                  r.finishDirectorChange(token, result?.ok ? result.previous_state as unknown as DirectorState | null | undefined : null);
+                  setDirectorChangedScenes(result?.ok ? result.changed_scenes ?? [] : []);
+                  setDirectorRemovedScenes(result?.ok ? result.removed_scenes ?? [] : []);
+                  await r.reloadAll();
+                }}
+                director={p.director?.who} historyAction={r.directorHistory} onHistoryAction={r.toggleDirectorChange}
+                changedScenes={directorChangedScenes} removedScenes={directorRemovedScenes} /></Suspense></div>}</div>
+          </div>),
+        }} />
       </div>
 
       {chat && <ChatAssistant id={id} kind={kind} onClose={() => setChat(false)} onApplied={r.reloadAll} />}

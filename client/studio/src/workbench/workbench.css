@@ -1,0 +1,36 @@
+/* The workbench: panes placed by the dock engine. Colours and sizes are tokens (tokens.css). */
+.wb { position: relative; flex: 1 1 auto; min-height: 0; min-width: 0; width: 100%; height: 100%; background: var(--dock-line); overflow: hidden; }
+.wb-pane { position: absolute; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; background: var(--bg-panel); }
+.wb-pane[hidden] { display: none; }
+.wb-viewer { background: var(--bg-viewer); }
+
+/* the panes keep their own content and styles; here they only fill the room the workbench gives them */
+.wb-pane > .ed-left, .wb-pane > .ed-right, .wb-pane > .ed-canvas, .wb-pane > .ed-timeline, .wb-pane > .wb-assistant-body {
+  width: 100% !important; height: 100% !important; max-width: none !important; min-width: 0; min-height: 0; flex: 1 1 auto; border: 0;
+}
+.wb-pane > .ed-timeline { margin: 0; }
+
+/* the dividers: one pixel to the eye, a wider hit area to the pointer; the accent while it is dragged or focused */
+.wb-seam { position: absolute; z-index: 5; background: transparent; touch-action: none; outline: none; }
+.wb-seam::before { content: ""; position: absolute; background: var(--dock-line); }
+.wb-seam-x { cursor: col-resize; }
+.wb-seam-x::before { left: 0; top: 0; bottom: 0; width: 1px; }
+.wb-seam-y { cursor: row-resize; }
+.wb-seam-y::before { left: 0; right: 0; top: 0; height: 1px; }
+.wb-seam::after { content: ""; position: absolute; }
+.wb-seam-x::after { left: -4px; right: -4px; top: 0; bottom: 0; }
+.wb-seam-y::after { top: -4px; bottom: -4px; left: 0; right: 0; }
+.wb-seam:hover::before, .wb-seam.on::before, .wb-seam:focus-visible::before { background: var(--accent); }
+.wb-seam-x:hover::before, .wb-seam-x.on::before, .wb-seam-x:focus-visible::before { left: -1px; width: 3px; }
+.wb-seam-y:hover::before, .wb-seam-y.on::before, .wb-seam-y:focus-visible::before { top: -1px; height: 3px; }
+.wb-dragging { user-select: none; }
+.wb-dragging iframe { pointer-events: none; }
+.wb-dragging, .wb-dragging * { cursor: inherit; }
+
+/* the assistant pane's own frame (a heading like the other panes') */
+.wb-assistant-body { display: flex; flex-direction: column; min-height: 0; background: var(--bg-panel); }
+.wb-pane-heading { display: flex; align-items: center; gap: var(--sp-2); height: var(--h-pane-header); padding: 0 var(--sp-3); flex: 0 0 auto; border-bottom: 1px solid var(--border); }
+.wb-pane-heading strong { font-size: var(--fs-12); font-weight: 500; color: var(--text-muted); }
+.wb-assistant-scroll { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+
+@media (prefers-reduced-motion: reduce) { .wb-seam::before { transition: none; } }

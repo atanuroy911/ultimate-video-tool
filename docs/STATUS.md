@@ -41,7 +41,7 @@ Tested only on Windows (the owner's decision). Linux installers are built by the
 | downloadable models (vt/models.py) | 3 |
 | python source | files: 258, lines: 49369 |
 | renderer runtime (js+css) lines | 4659 |
-| studio source | files: 342, lines: 44673, pages: AIAssistants, ComfySettings, DesignStudio, DirectorSettings, Engines, Export, LocalAI, MyVoices, New, NewOptions, Progress, Projects, Result, Review, ScriptReview, Server, Settings, ShortsExtractor, SocialHub, StockKeys, StyleThumbnails, Themes |
+| studio source | files: 343, lines: 44721, pages: AIAssistants, ComfySettings, DesignStudio, DirectorSettings, Engines, Export, LocalAI, MyVoices, New, NewOptions, Progress, Projects, Result, Review, ScriptReview, Server, Settings, ShortsExtractor, SocialHub, StockKeys, StyleThumbnails, Themes |
 | browser suites (studio/e2e, not helpers) | 79 |
 | pytest files | 195 |
 <!-- facts:end -->

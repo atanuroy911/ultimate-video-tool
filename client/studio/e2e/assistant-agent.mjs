@@ -33,7 +33,7 @@ await page.addInitScript(() => {
       calls.push(["send", text]);
       emit({ type: "step", id: "t1", title: "Set caption style", tool: "mcp__video-tool__set_caption_style", status: "in_progress" });
       emit({ type: "text", text: "Making " });
-      emit({ type: "text", text: "it bigger." });
+      emit({ type: "text", text: "it bigger in [scene 3](vt://scene/s3), see [the end](vt://t/20) and [bad](https://evil.example)." });
       emit({ type: "step", id: "t1", title: "Set caption style", status: "completed" });
       if (/command/.test(text)) emit({ type: "permission", requestId: "r1", tool: "Bash", what: "run a command", title: "Run: dir", detail: JSON.stringify({ command: "dir C:\\Users" }) });
       else if (/limit/.test(text)) emit({ type: "error", kind: "login", message: "Claude Code is not signed in. Sign in, then try again." });
@@ -56,8 +56,12 @@ check("the earlier conversation is offered", await page.getByRole("button", { na
 
 await box.fill("Make the title bigger");
 await page.keyboard.press("Enter");
-await page.getByText("Making it bigger.").waitFor({ timeout: 5000 });
+await page.getByText("Making it bigger in").waitFor({ timeout: 5000 });
 check("the reply streams in and the step shows as finished", await page.locator(".agent-steps li.completed", { hasText: "Set caption style" }).isVisible());
+check("a vt:// link is a button and an outside link is plain text", await page.locator(".agent-link", { hasText: "scene 3" }).isVisible() && await page.locator(".agent-turn a").count() === 0);
+await page.locator(".agent-link", { hasText: "the end" }).click();
+await page.waitForTimeout(400);
+check("clicking a time link moves the playhead", /0:20|0:19|0:2\d/.test(await page.locator(".wb-viewer").textContent()), (await page.locator(".wb-viewer").textContent()).slice(-40));
 check("a new conversation was opened for this video", (await page.evaluate(() => window.__calls)).some((c) => c[0] === "open" && c[2] === "c2-mix" && !c[3]));
 
 await box.fill("run a command please");

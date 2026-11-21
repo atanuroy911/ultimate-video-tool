@@ -691,7 +691,8 @@ Before starting, read `E:\openfilm-a1b8d75\apps\desktop\src\agents.mjs` lines 1�
   Every gesture opens the Assistant pane if it is hidden and focuses the composer.
   Check: `e2e:assistant` extended: right-click a clip → pill; Alt-drag → pill with image; send → the fake agent receives the `<video_references>` block and one image block.
 
-- [ ] **W13.4 Links back.** In the message Markdown renderer, intercept `vt://` links: `vt://scene/<id>` selects that scene (and scrolls the timeline to it), `vt://t/<seconds>` seeks, `vt://element/<scene>/<index>` selects the element on the canvas, and `vt://range/<a>/<b>` selects the range. Render them as `--accent-text` links with a small icon (🎬 scene, ⏱ time, ◻ element). Unknown `vt://` links render as plain text. Never navigate the window.
+- [x] **W13.4 Links back.** In the message Markdown renderer, intercept `vt://` links: `vt://scene/<id>` selects that scene (and scrolls the timeline to it), `vt://t/<seconds>` seeks, `vt://element/<scene>/<index>` selects the element on the canvas, and `vt://range/<a>/<b>` selects the range. Render them as `--accent-text` links with a small icon (🎬 scene, ⏱ time, ◻ element). Unknown `vt://` links render as plain text. Never navigate the window.
+  _Status: done 2026-11-21 for the Claude Code tab (`client/studio/src/assistant/links.ts`, 4 unit tests incl. hostile input; `e2e/assistant-agent.mjs` clicks a time link and the playhead moves). Range links seek to their start; selecting a range is not done._
   Check: unit test of the link parser (valid, invalid, hostile input such as `vt://scene/../../`). `e2e:assistant`: click a link in a reply → the playhead moves.
 
 ---

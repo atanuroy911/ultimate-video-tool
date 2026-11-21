@@ -2,6 +2,7 @@
 // sends what the person types and shows what comes back: the reply, the steps, and a permission card whenever the agent wants to do something that is not a Video Tool action.
 import { Square, Send } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { pieces, type VtLink } from "./links";
 import "./assistant.css";
 
 export interface AgentBridge {
@@ -29,7 +30,14 @@ export const agentBridge = (): AgentBridge | undefined => (window as any).vtDesk
 
 const WHO = "Claude Code";
 
-export default function AgentChat({ projectId, title, onChanged }: { projectId: string; title: string; onChanged: () => void }) {
+/** A reply with its vt:// links as buttons (never as addresses: the window does not navigate). */
+function Reply({ text, onLink }: { text: string; onLink?: (l: VtLink) => void }) {
+  return <p>{pieces(text).map((x, i) => "link" in x
+    ? <button key={i} type="button" className="agent-link" title="Show it in the video" onClick={() => onLink?.(x.link)}>{x.label}</button>
+    : <span key={i}>{x.text}</span>)}</p>;
+}
+
+export default function AgentChat({ projectId, title, onChanged, onLink }: { projectId: string; title: string; onChanged: () => void; onLink?: (l: VtLink) => void }) {
   const bridge = agentBridge();
   const [turns, setTurns] = useState<Turn[]>([]);
   const [draft, setDraft] = useState("");
@@ -106,7 +114,7 @@ export default function AgentChat({ projectId, title, onChanged }: { projectId: 
         {turns.map((t, i) => (
           <div key={i} className={`agent-turn ${t.role}`}>
             {t.steps.length > 0 && <ul className="agent-steps">{t.steps.map((s) => <li key={s.id} className={s.status}><span className="dot" aria-hidden />{s.title}</li>)}</ul>}
-            {t.text && <p>{t.text}</p>}
+            {t.text && (t.role === "agent" ? <Reply text={t.text} onLink={onLink} /> : <p>{t.text}</p>)}
           </div>
         ))}
         {card && (

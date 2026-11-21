@@ -4,6 +4,7 @@
 .agent-empty { padding: var(--sp-4); color: var(--text-muted); display: flex; flex-direction: column; gap: var(--sp-2); align-items: flex-start; }
 .agent-empty p { margin: 0; font-size: var(--fs-13); }
 .agent-note { margin: 0; }
+.agent-link { border: 0; background: transparent; color: var(--accent-text); padding: 0; font: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 .agent-turn p { margin: 0; white-space: pre-wrap; font-size: var(--fs-13); line-height: 1.5; }
 .agent-turn.me { align-self: flex-end; max-width: 88%; background: var(--bg-selected); border-radius: 10px; padding: var(--sp-2) var(--sp-3); }
 .agent-steps { list-style: none; margin: 0 0 var(--sp-2); padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-12); color: var(--text-muted); }

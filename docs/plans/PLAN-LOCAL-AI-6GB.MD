@@ -51,7 +51,21 @@ These replays used free JSON (the recordings had no schema then), so they compar
 
 ### 3.3 The same four videos with each model directing (`compare_local_models.sh`)
 Rows: `explainer-watch` (English explainer 9:16), `story-lighthouse` (English story), `stick-monday` (stick figures), `explainer-bn-payment` (Bangla).
-*(filled in when the run ends)*
+Made on the installed server, the same scripts, voices and settings; only the model changed. Seconds = planning and building (render excluded); score = the server's retention estimate (0 to 100, higher is better).
+
+| model | explainer (EN) | story (EN) | stick figures (EN) | Bangla explainer | look |
+|---|---|---|---|---|---|
+| **gemma4:e2b** | 140 s, 47 | 208 s, 83 | **157 s, 83** | 164 s, 88 | the most sensible pictures: a sunrise for "Monday morning", accurate "brush your teeth / one sock" cards |
+| gemma3:4b | 250 s, 55 | 329 s, 86 | 533 s, 74 | 313 s, 86 | wrong meanings: a moon cake for "snooze", a cable car labelled "curb", "Cold = It is cold" four times |
+| gemma4:e4b | 168 s, 55 | 393 s, 86 | 506 s, 85 | 273 s, **18** | the Bangla video was nearly empty (21.8 s without a picture) |
+| qwen3.5:4b | 164 s, 52 | render failed | fell back | not made | wrote numbers where the story engine expects text (fixed, F11 below); then the server gave a video to another director |
+
+Contact sheets: `E:\UltimateVideoTool\matrix\2026-11-21-local-<model>\<row>.png`. Two things no model fixed, because they come from the pipeline: the English explainer has a 13 s stretch with no picture in every version, and both stick-figure videos stand the two figures on top of each other. Those belong to `docs/plans/PLAN-PERFECT.MD`.
+
+**Decision: gemma4:e2b is first for cards up to 12 GB** (twice as fast, best pictures, as good on Bangla and the story), gemma3:4b second. On 12 GB and up gemma3:12b stays first (not measured here: no such card on this laptop).
+
+### F11. A number in a story text field blocked the render (fixed)
+Qwen 3.5 wrote a "steps" element with items 3, 6, 9, 12 (numbers). The story drawing calls `.split` on each, threw, and the render stopped ("e.split is not a function"). Now the story check writes a number as text and says so (`vt/story/engine_validate.py`, tested in `tests/test_story_text_types.py`), and the drawing never crashes on a non-text value (`server/renderer/story/src/engine/elements.tsx`).
 
 ## 4. Plan and implementation
 
@@ -59,7 +73,8 @@ Rows: `explainer-watch` (English explainer 9:16), `story-lighthouse` (English st
 |---|---|---|
 | 1 | Our Ollama starts with `OLLAMA_FLASH_ATTENTION=1`, `OLLAMA_KV_CACHE_TYPE=q8_0`, one model and one request at a time (`vt/llm.py OLLAMA_TUNING`). The person's own environment wins. An idle older copy of ours is restarted with it; an Ollama the person runs themselves is never touched. | done, tested (`tests/test_local_ai_fit.py`) |
 | 2 | Record each AI call's answer schema, so a replay asks exactly what the app asked. | done |
-| 3 | The model table (`vt/engines/fit.py`) holds what was **measured**: memory at 32k with the 8-bit cache, whether it reads pictures, the largest context that stays on the card; ranked by the video comparison (3.3). | after 3.3 |
-| 4 | An installed model is chosen only if it fits the card (today the first name that matches `gemma3`/`gemma4` wins, even one too big). | after 3.3 |
-| 5 | The context we ask for is capped at what fits the card (today up to 64k on any card). | after 3.3 |
-| 6 | After a call, if Ollama reports part of the model off the card, say so in the AI conversation ("part of the local AI ran on the processor: slower"), so it is never silent again. | after 3.3 |
+| 3 | The model table (`vt/engines/fit.py`) holds what was **measured**: memory at 32k with the 8-bit cache, whether it reads pictures, the largest context that stays on the card; ranked by the video comparison (3.3). | done |
+| 4 | An installed model is chosen only if it fits the card (today the first name that matches `gemma3`/`gemma4` wins, even one too big). | done |
+| 5 | The context we ask for is capped at what fits the card (today up to 64k on any card). | done |
+| 6 | After a call, if Ollama reports part of the model off the card, say so in the AI conversation ("part of the local AI ran on the processor: slower"), so it is never silent again. | done |
+| 7 | Install the update on this laptop and check that the server restarts its Ollama with the new settings and, with no model chosen, picks gemma4:e2b. | done: the old copy was restarted with `fa1-kv-q8_0-p1-m1`, gemma4:e2b was chosen, 100% on the card |

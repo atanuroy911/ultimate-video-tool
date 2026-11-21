@@ -3,6 +3,19 @@
 Newest first. Every agent (Claude Code, Codex) adds an entry when it stops: what it did, what it verified, what is left. Read
 `CODEX-HANDOFF.md` first.
 
+## 2026-11-21 — 0.5.0 published; code-native shots C1 to C5 (Claude)
+
+Branch `workbench`. Plan: `docs/plans/PLAN-CODE-NATIVE-EDITOR.MD` (new; the owner asked for "VS Code as a video editor").
+
+- **Release:** the 0.5.0 release hung in the Docker step; fixed (time limit, publish no longer waits for the image), merged as PR #2 with the owner's approval. v0.5.0 is published with the evidence zip attached; the 1.0.0 release and tag are deleted. `main` merged back into `workbench`.
+- **Decision:** no VS Code fork and no bundled Marketplace extensions (terms; Codex is not on Open VSX). Instead: a shot is a folder of HTML written by an agent, edited visually through `overrides.json` only; Claude Code / Codex via ACP later (C6); "Open in VS Code" for power users (C8).
+- **C1** `server/vt/shots.py`: overrides checked value by value, written as CSS + a text script; CSP; build/render/frames. **C2** `Scene.shot`: the composer renders each shot once (cached by a fingerprint) and shows it full-frame behind its scene with no added decoration; endpoints in `server/vt/server/shot_routes.py`. **C3** `client/studio/src/review/ShotEditor.tsx`: click, drag, scale, rotate, text, colour, knobs, undo, autosave; the shot runs in a sandboxed frame with no origin (self-contained page + `vt-shot-bridge.js`). **C4** a Code tab (CodeMirror 6, loaded on demand). **C5** the Video Script carries `shots` and `scene.shot`; bad shots come back as errors the director can fix; the video's theme reaches shots as `--vt-*` variables; the director's instructions teach the format.
+- **Verified:** `tests/test_shots.py` (35, incl. real frames and the bridge in a sandboxed frame), the script/director suites, Studio unit tests 64/64, `client/studio/e2e/shot-editor.mjs` 17/17 against a dev server on 8791, a real 30 s video mixing two HTML shots with old scenes (`docs/dev/spikes/html-shot/c2-mixed-video.png`).
+- **Gotchas:** Git Bash heredocs mangle `` and `
+` in Python/JS edits (write a script file instead). Test data for the dev server: `VT_PROJECTS=E:/UltimateVideoTool/scratch/c2-projects VT_DATA=E:/UltimateVideoTool/scratch/c2-data` (copy a project's `auto-*` theme into `c2-data/themes`). The vite dev server re-optimises new packages on first use and reloads the page once.
+- **Claude test of C5:** Sonnet over MCP (`claude -p --model sonnet --mcp-config E:/UltimateVideoTool/scratch/c5-mcp.json`) directed the watch explainer with three shots of its own, checked frames and fixed a caption collision; 9 turns, 5.4 min, $0.82; the render is good (`docs/dev/spikes/html-shot/c5-claude-directed.png`). Its first attempt stopped cleanly because the test data lacked the project theme (fixed by copying it).
+- **Left:** C5 with gemma4:e2b (local AI). Catalogue scenes still clip text ("outdoo|") and draw a tiny icon: PLAN-PERFECT work, not shots. Then C6 (Claude Code / Codex panes over ACP), C7 (ComfyUI on E: and the generators as MCP tools, measured per card), C8, and PLAN-WORKBENCH W3.3/W3.5, W10–W15.
+
 ## 2026-11-20 — W0 to W2 of PLAN-WORKBENCH: 0.5.0, and the server stops trusting web pages (Claude, Sonnet)
 
 Branch `workbench` (never `main`: a push to main publishes a release). Plan: `docs/plans/PLAN-WORKBENCH.MD`.

@@ -655,7 +655,7 @@ Before starting, read `E:\openfilm-a1b8d75\apps\desktop\src\agents.mjs` lines 1â
 
 ### W13 â€” Point at anything
 
-- [ ] **W13.1 The reference kinds.** Define them in `client/studio/src/assistant/refs.ts`, extending the OpenChatCut-ported `occ/src/agent/selection-refs.ts` (do not duplicate it; make one of them the source and re-export):
+- [~] (2026-11-22: scene, element, time, range, word, layer, region kinds exist in client/desktop/acp-validate.js and AgentChat; refs.ts as one source not made) **W13.1 The reference kinds.** Define them in `client/studio/src/assistant/refs.ts`, extending the OpenChatCut-ported `occ/src/agent/selection-refs.ts` (do not duplicate it; make one of them the source and re-export):
   ```ts
   export type VideoRef =
     | { kind: 'scene'; scene: string; start: number; end: number; words: string }
@@ -670,7 +670,7 @@ Before starting, read `E:\openfilm-a1b8d75\apps\desktop\src\agents.mjs` lines 1â
   ```
   Port OpenFilm's `studio-refs.ts` formatting helpers (`clock`, `span`, `clipped`, `boxText`, `idOf`, `linkOfRef`) with the header, adapted to these kinds.
 
-- [ ] **W13.2 The wire format** (one function, `toPrompt(text, refs)`, used by every backend):
+- [~] (2026-11-22: toPrompt in client/desktop/acp-instructions.js writes [n] lines with times and vt:// links, tested; the Director backend and Python format_refs not done) **W13.2 The wire format** (one function, `toPrompt(text, refs)`, used by every backend):
   ```
   Make [1] bigger and keep it clear of [2].
 
@@ -682,7 +682,7 @@ Before starting, read `E:\openfilm-a1b8d75\apps\desktop\src\agents.mjs` lines 1â
   The pill in the composer becomes `[n]` in the text, numbered in order of appearance. For the Director backend, also send `refs` as JSON in the `/director/chat` body. Add an optional `refs: list[dict]` field to its request model in the server (`routes/director.py` after W4.2) and pass it into `chat.talk(...)`, which puts the same `<video_references>` block into the director's prompt. This is one implementation in `server/vt/` (rule 0.6): add `vt/assistant_refs.py` with `format_refs(refs, project) -> str`, and use it from both the route and the MCP tool if one takes refs.
   Check: Python unit tests for `format_refs`. TS unit tests for `toPrompt`. Both produce byte-identical output for the same refs: share a fixture file `tests/fixtures/refs.json` and expected text.
 
-- [ ] **W13.3 The gestures that make pills.**
+- [~] (2026-11-22: Ctrl+L with a scene or element selected makes a pill in the Claude Code tab, sent as a reference; e2e/assistant-agent.mjs 20/20. Right-click menu, Alt-drag region with picture, Shift-drag range, drag-in not done) **W13.3 The gestures that make pills.**
   - **Right-click** a scene row, a timeline clip, an element on the canvas, or a caption â†’ the context menu gets **"Ask the assistant about this"** (Ctrl+L with a selection does the same).
   - **Viewer region:** hold **Alt** and drag on the picture â†’ a dashed `--accent` box. On release, a pill "Region at 0:05.2" with a thumbnail. The picture of that frame cropped to the box is fetched from the server's existing frame-preview endpoint (find it: the MCP "preview frames" tool uses one) and attached as an image.
   - **Timeline range:** Shift-drag on the ruler â†’ a range highlight and a floating "Ask about 0:12.6â€“0:17.2" button.

@@ -91,6 +91,7 @@ function ReviewEditor() {
   const [sel, setSel] = useState<Sel | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [selEl, setSelEl] = useState<{ scene: string; index: number } | null>(null);
+  const askRef = useRef<() => Record<string, unknown> | null>(() => null);
   const [selAction,setSelAction]=useState<{scene:string;index:number}|null>(null);
   const [selectedWord,setSelectedWord]=useState<string|null>(null);
   const captionWord=r.words.find(w=>w.id===selectedWord);
@@ -221,6 +222,18 @@ function ReviewEditor() {
     if (!selected || !scenes.some((s) => s.id === selected)) setSelected(scenes[0].id);
   }, [scenes, selected]);
   const timeOf = useMemo(() => new Map(r.timing.scenes.map((s) => [s.id, s])), [r.timing.scenes]);
+  askRef.current = () => {                                   // what Ctrl+L points at: the selected element, else the selected scene
+    const sid = selEl?.scene ?? selected;
+    if (!sid) return null;
+    const t = timeOf.get(sid) as { start?: number; end?: number } | undefined;
+    const span = t && t.start != null && t.end != null ? { from: +t.start.toFixed(2), to: +t.end.toFixed(2) } : {};
+    const n = (r.plan?.scenes ?? []).findIndex((s) => s.id === sid) + 1;
+    if (selEl) {
+      const el = (r.plan?.scenes ?? []).find((s) => s.id === sid)?.elements?.[selEl.index] as { type?: string; text?: string } | undefined;
+      return { kind: "element", scene: sid, index: selEl.index, ...span, label: `${el?.text || ELEMENT_NAME[el?.type ?? ""] || el?.type || "element"} in scene ${n}`.slice(0, 120) };
+    }
+    return { kind: "scene", scene: sid, ...span, label: `Scene ${n}` };
+  };
   useEffect(() => {
     const cur = r.timing.scenes.find((s) => time >= s.start && time < s.end);
     if (playing && !selEl && !selLayer && !selAction && !videoSel && cur && cur.id !== selected) {
@@ -309,6 +322,11 @@ function ReviewEditor() {
       else if (act === "palette") setPalette(true);
       else if (act === "focus-assistant") {
         setShowAssistant(true);
+        const ref = askRef.current();                                  // W13.3: Ctrl+L with something selected points Claude Code at it
+        if (ref && (window as any).vtDesktop?.agents) {
+          setAssistantTab("claude");
+          setTimeout(() => window.dispatchEvent(new CustomEvent("vt-ask-about", { detail: ref })), 250);
+        }
         setTimeout(() => document.querySelector<HTMLTextAreaElement>(".wb-assistant textarea")?.focus(), 60);
       }
     };

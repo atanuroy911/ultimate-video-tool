@@ -29,8 +29,8 @@ await page.addInitScript(() => {
     status: async () => ({ found: true, logged_in: true, version: "2", reason: "", adapter: true }),
     list: async () => [{ sessionId: "old", title: "Make the title bigger", at: "2026-11-20" }],
     open: async (kind, projectId, o) => { calls.push(["open", kind, projectId, o && o.resume, o && o.model]); return { conversationId: "c1", resumed: !!(o && o.resume), note: "" }; },
-    send: async (id, text) => {
-      calls.push(["send", text]);
+    send: async (id, text, refs) => {
+      calls.push(["send", text, refs]);
       emit({ type: "step", id: "t1", title: "Set caption style", tool: "mcp__video-tool__set_caption_style", status: "in_progress" });
       emit({ type: "text", text: "Making " });
       emit({ type: "text", text: "it bigger in [scene 3](vt://scene/s3), see [the end](vt://t/20) and [bad](https://evil.example)." });
@@ -84,6 +84,20 @@ check("a missing sign-in is said in plain words with a Sign in button", await pa
 await page.getByRole("button", { name: "Sign in" }).click();
 check("Sign in asks the app to open the sign-in", (await page.evaluate(() => window.__calls)).some((c) => c[0] === "signIn"));
 
+// W13.3: Ctrl+L with a scene selected points Claude Code at it.
+await page.evaluate(() => window.dispatchEvent(new CustomEvent("vt-select-scene", { detail: "s2" })));
+await page.waitForTimeout(400);
+await page.mouse.click(5, 500);
+await page.keyboard.press("Control+l");
+const pill = page.locator(".agent-pills-draft .agent-pill").first();
+check("Ctrl+L with a scene selected makes a pill", await pill.waitFor({ timeout: 5000 }).then(async () => /Scene 2/.test(await pill.textContent()), () => false), await pill.textContent().catch(() => ""));
+check("and the message box has the keyboard", await page.evaluate(() => document.activeElement?.getAttribute("aria-label") === "Message to Claude Code"));
+await page.keyboard.type("Make [1] calmer");
+await page.keyboard.press("Enter");
+await page.waitForTimeout(600);
+const sent = (await page.evaluate(() => window.__calls)).filter((c) => c[0] === "send").pop();
+check("the reference goes to the agent with the scene and its times", sent && sent[2]?.[0]?.kind === "scene" && sent[2][0].scene === "s2" && sent[2][0].to > sent[2][0].from, JSON.stringify(sent && sent[2]));
+check("the pill is cleared after sending", await page.locator(".agent-pills-draft").count() === 0);
 await page.getByRole("tab", { name: "Director" }).click();
 check("the Director conversation is still there", await page.getByPlaceholder(/Tell the director/i).isVisible().catch(() => false));
 await page.screenshot({ path: process.env.VT_SHOT_PNG || "assistant-agent.png" });

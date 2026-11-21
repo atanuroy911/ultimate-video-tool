@@ -24,7 +24,8 @@ export type AgentEvent =
   | { type: "error"; kind: "limit" | "login" | "other"; message: string };
 
 interface Step { id: string; title: string; status: string }
-interface Turn { role: "me" | "agent"; text: string; steps: Step[] }
+export interface AgentRef { kind: string; scene?: string; index?: number; t?: number; from?: number; to?: number; label?: string }
+interface Turn { role: "me" | "agent"; text: string; steps: Step[]; refs?: AgentRef[] }
 interface Card { requestId: string; what: string; title: string; detail: string }
 
 export const agentBridge = (): AgentBridge | undefined => (window as any).vtDesktop?.agents;
@@ -49,6 +50,18 @@ export default function AgentChat({ projectId, title, onChanged, onLink }: { pro
   const [earlier, setEarlier] = useState<{ sessionId: string; title: string } | null>(null);
   const [note, setNote] = useState("");
   const [model, setModel] = useState("");
+  const [refs, setRefs] = useState<AgentRef[]>([]);                  // what the person pointed at (Ctrl+L), sent as numbered references
+  const box = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const on = (e: Event) => {
+      const r = (e as CustomEvent).detail as AgentRef;
+      if (!r || !r.kind) return;
+      setRefs((all) => (all.some((x) => JSON.stringify(x) === JSON.stringify(r)) ? all : [...all, r].slice(-8)));
+      setTimeout(() => box.current?.focus(), 30);
+    };
+    window.addEventListener("vt-ask-about", on);
+    return () => window.removeEventListener("vt-ask-about", on);
+  }, []);
   const conv = useRef<string>("");
   const end = useRef<HTMLDivElement>(null);
   const denyRef = useRef<HTMLButtonElement>(null);
@@ -91,11 +104,12 @@ export default function AgentChat({ projectId, title, onChanged, onLink }: { pro
   const send = async () => {
     const text = draft.trim();
     if (!text || running) return;
-    setProblem(null); setDraft(""); setRunning(true);
-    setTurns((all) => [...all, { role: "me", text, steps: [] }]);
+    const sent = refs;
+    setProblem(null); setDraft(""); setRunning(true); setRefs([]);
+    setTurns((all) => [...all, { role: "me", text, steps: [], refs: sent }]);
     try {
       const id = conv.current || await begin();
-      await bridge.send(id, text, [], []);
+      await bridge.send(id, text, sent, []);
     } catch (e: any) {
       setRunning(false);
       setProblem({ kind: "other", message: String(e?.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, "") });
@@ -119,6 +133,7 @@ export default function AgentChat({ projectId, title, onChanged, onLink }: { pro
         {turns.map((t, i) => (
           <div key={i} className={`agent-turn ${t.role}`}>
             {t.steps.length > 0 && <ul className="agent-steps">{t.steps.map((s) => <li key={s.id} className={s.status}><span className="dot" aria-hidden />{s.title}</li>)}</ul>}
+            {t.refs && t.refs.length > 0 && <div className="agent-pills">{t.refs.map((r, j) => <span key={j} className="agent-pill">[{j + 1}] {r.label || r.kind}</span>)}</div>}
             {t.text && (t.role === "agent" ? <Reply text={t.text} onLink={onLink} /> : <p>{t.text}</p>)}
           </div>
         ))}
@@ -139,8 +154,10 @@ export default function AgentChat({ projectId, title, onChanged, onLink }: { pro
         )}
         <div ref={end} />
       </div>
+      {refs.length > 0 && <div className="agent-pills agent-pills-draft" aria-label="What you are pointing at">{refs.map((r, j) => (
+        <span key={j} className="agent-pill">[{j + 1}] {r.label || r.kind}<button type="button" aria-label={`Remove ${r.label || r.kind}`} onClick={() => setRefs((all) => all.filter((_, k) => k !== j))}>×</button></span>))}</div>}
       <form className="agent-composer" onSubmit={(e) => { e.preventDefault(); send(); }}>
-        <textarea value={draft} rows={2} placeholder={`Tell ${WHO} what to change`} aria-label={`Message to ${WHO}`} disabled={running && !!card}
+        <textarea ref={box} value={draft} rows={2} placeholder={`Tell ${WHO} what to change`} aria-label={`Message to ${WHO}`} disabled={running && !!card}
           onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} />
         {running
           ? <button type="button" className="btn sm" onClick={() => bridge.stop(conv.current)} aria-label="Stop"><Square size={14} /> Stop</button>

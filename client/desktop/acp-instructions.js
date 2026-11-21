@@ -15,10 +15,14 @@ function instructions({ title, projectId }) {
 /** The person's message followed by what they pointed at, one numbered line each, so "[2]" in the text means the second line. */
 function toPrompt(text, refs) {
   if (!refs || !refs.length) return text;
+  const clock = (t) => { const s = Math.max(0, Number(t) || 0); return `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`; };
+  const span = (r) => (r.from != null && r.to != null ? ` · ${clock(r.from)}–${clock(r.to)}` : "");
   const line = (r, i) => {
-    const where = r.kind === "scene" ? `scene ${r.scene}` : r.kind === "time" ? `time ${r.t}s` : r.kind === "range" ? `time ${r.from}s to ${r.to}s`
-      : r.kind === "element" ? `element ${r.index ?? ""} of scene ${r.scene}` : r.kind === "word" ? `word ${r.word}` : r.kind === "layer" ? `layer ${r.layer}` : `a region of scene ${r.scene}`;
-    return `[${i + 1}] ${where}${r.label ? ` (${r.label})` : ""}`;
+    const where = r.kind === "scene" ? `scene ${r.scene}${span(r)} · vt://scene/${r.scene}` : r.kind === "time" ? `time ${clock(r.t)} · vt://t/${r.t}`
+      : r.kind === "range" ? `time ${clock(r.from)}–${clock(r.to)} · vt://range/${r.from}/${r.to}`
+      : r.kind === "element" ? `element ${r.scene}#${r.index ?? ""}${span(r)} · vt://element/${r.scene}/${r.index ?? 0}` : r.kind === "word" ? `word ${r.word}`
+      : r.kind === "layer" ? `layer ${r.layer}` : `a region of scene ${r.scene}`;
+    return `[${i + 1}] ${where}${r.label ? ` · "${r.label}"` : ""}`;
   };
   return `${text}\n\n<video_references>\n${refs.map(line).join("\n")}\n</video_references>`;
 }

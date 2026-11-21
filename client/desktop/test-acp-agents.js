@@ -36,7 +36,8 @@ assert.throws(() => V.choice("always"), /Choose/);
 assert.match(instructions({ title: "My `video`\nline", projectId: "p1" }), /My video line/);
 assert.match(instructions({ title: "x", projectId: "p1" }), /vt:\/\/scene\/s3/);
 assert.equal(toPrompt("Make it bigger", []), "Make it bigger");
-assert.match(toPrompt("Fix [1]", [{ kind: "scene", scene: "s3", label: "the hook" }]), /<video_references>\n\[1\] scene s3 \(the hook\)\n<\/video_references>/);
+assert.equal(toPrompt("Fix [1]", [{ kind: "scene", scene: "s3", from: 4, to: 6.1, label: "the hook" }]), 'Fix [1]\n\n<video_references>\n[1] scene s3 · 0:04.0–0:06.1 · vt://scene/s3 · "the hook"\n</video_references>');
+assert.match(toPrompt("x", [{ kind: "element", scene: "s3", index: 2, label: "Small habits" }]), /\[1\] element s3#2 · vt:\/\/element\/s3\/2 · "Small habits"/);
 assert.equal(humanTitle("mcp__video-tool__set_caption_style"), "Set caption style");
 assert.equal(humanTitle(""), "Working");
 

@@ -210,7 +210,8 @@ def _truncate_overlay(o: dict) -> dict:
     return o
 
 
-def repair_script(data: dict, tr: Transcript, beats: Beats, kind: Optional[str] = None, dropped: Optional[list[str]] = None, notes: Optional[list[dict]] = None) -> dict:
+def repair_script(data: dict, tr: Transcript, beats: Beats, kind: Optional[str] = None, dropped: Optional[list[str]] = None, notes: Optional[list[dict]] = None,
+                  frame: Optional[tuple[int, int]] = None, known_shots: Optional[set[str]] = None) -> dict:
     """Fix what is safely fixable: synonyms, wrong word ids, over-long text, missing/misordered beats. Never invents content. An overlay it cannot keep is
     left out and, when `dropped` is given, reported there with the reason.
 
@@ -463,4 +464,29 @@ def repair_script(data: dict, tr: Transcript, beats: Beats, kind: Optional[str] 
             note("highlight words that are not in the scene, or more than three, were left out", False, i)
         sc["highlight_words"] = hl[:3]
     s["scenes"] = scenes
+    _repair_shots(s, note, frame, known_shots or set())
     return s
+
+
+def _repair_shots(s: dict, note, frame: Optional[tuple[int, int]], known: set[str]) -> None:
+    """A shot that cannot be used is left out and said so, with its reason, instead of sinking the whole script: the scene is then drawn like any other.
+    A strict director (Claude, Codex) gets the reason back as an error and fixes the shot; the local AI's script is used without it."""
+    from .. import shots as SH
+
+    shots_in = [x for x in (s.get("shots") or []) if isinstance(x, dict)]
+    good, seen = [], set()
+    for x in shots_in:
+        sid = str(x.get("id", ""))
+        why = SH.problems(sid, str(x.get("html", "")), aspect_size=frame) if sid not in seen else [f"shot {sid}: two shots share an id"]
+        if why:
+            note("a shot was left out and its scene drawn without it: " + "; ".join(why)[:400], True)
+        else:
+            good.append(x)
+            seen.add(sid)
+    if "shots" in s or shots_in:
+        s["shots"] = good
+    have = seen | known
+    for n, sc in enumerate(s.get("scenes", []), 1):
+        if isinstance(sc, dict) and sc.get("shot") and sc["shot"] not in have:
+            note(f'the scene names the shot "{sc["shot"]}", which is not in `shots`, so it is drawn without a shot', True, n)
+            sc["shot"] = None

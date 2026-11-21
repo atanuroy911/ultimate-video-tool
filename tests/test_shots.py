@@ -339,3 +339,19 @@ def test_a_shot_gets_the_videos_theme_as_css_variables_and_a_theme_change_draws_
     assert f'--vt-accent:{vars_["--vt-accent"]};' in html and html.index('id="vt-theme"') < html.index("</head>")
     assert "--vt-x" not in (shots.build(shot, tmp_path / "c", theme={"--vt-x": "red;}body{x"}) / "index.html").read_text(encoding="utf-8"), "an unsafe value is dropped"
     assert shots.fingerprint(shot, 30, vars_) != shots.fingerprint(shot, 30, {**vars_, "--vt-accent": "#000000"})
+
+
+def test_the_local_ai_loses_a_bad_shot_not_its_whole_script(ref):
+    """repair_script (what the local AI's answer goes through) leaves an unusable shot out, says why, and draws that scene like any other."""
+    from vt.script.validate import repair_script, validate_script
+
+    s = _script_with_shot(ref, "<div>no root, no timeline</div>" * 3)
+    s["scenes"][1]["shot"] = "invented"
+    notes: list[dict] = []
+    fixed = repair_script(s, ref.transcript(), ref.beats(), "explainer", notes=notes, frame=(1080, 1920))
+    assert fixed["shots"] == [] and fixed["scenes"][0]["shot"] is None and fixed["scenes"][1]["shot"] is None
+    says = " | ".join(n["says"] for n in notes)
+    assert "data-composition-id" in says and "invented" in says and all(n["meaning"] for n in notes if "shot" in n["says"])
+    assert validate_script(fixed, ref.transcript(), ref.beats(), None, None, None, (1080, 1920)) == []
+    good = repair_script(_script_with_shot(ref, _shot_html()), ref.transcript(), ref.beats(), "explainer", frame=(1080, 1920))
+    assert [x["id"] for x in good["shots"]] == ["opener"] and good["scenes"][0]["shot"] == "opener", "a good shot is untouched"

@@ -23,12 +23,15 @@ def ai_script(tr: Transcript, beats: Beats, *, kind: str = "stick", language: st
     notes = notes if notes is not None else []
     icons = all_icon_names()
     schema = to_json_schema()
+    from ..compose.composer import FORMATS
+
+    frame = (FORMATS[aspect]['width'], FORMATS[aspect]['height']) if aspect in FORMATS else None
     base = rules_script(tr, beats, draft, kind=kind, language=language, aspect=aspect).model_dump(by_alias=True, exclude_none=True) if draft else None
     system, user = build_prompt(tr, beats, kind=kind, language=language, audience=audience, tone=tone, aspect=aspect, draft=base, hint=hint, schema=schema)
     say(0.1, "Asking the AI to direct the video")
     data = ai.complete_json(user, schema, system=system, provider=provider, max_tokens=8000, timeout=600, cache=True, retries=1,
-                            repair=repairer(tr, beats, kind, notes),
-                            check=lambda d: validate_script(d, tr, beats, icons, media_ids))
+                            repair=repairer(tr, beats, kind, notes, frame),
+                            check=lambda d: validate_script(d, tr, beats, icons, media_ids, None, frame))
     script = VideoScript.model_validate(data)
     script.kind = kind  # type: ignore[assignment]
     if kind == "emoji" and draft is not None and any(not sc.overlays for sc in script.scenes):          # a scene the model left empty gets the rule director's emoji

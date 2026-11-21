@@ -39,7 +39,7 @@ Tested only on Windows (the owner's decision). Linux installers are built by the
 | MCP tools / prompts | 43, 4 |
 | REST API | api routes: 275, methods: 279 |
 | downloadable models (vt/models.py) | 3 |
-| python source | files: 258, lines: 49340 |
+| python source | files: 258, lines: 49369 |
 | renderer runtime (js+css) lines | 4659 |
 | studio source | files: 341, lines: 44533, pages: AIAssistants, ComfySettings, DesignStudio, DirectorSettings, Engines, Export, LocalAI, MyVoices, New, NewOptions, Progress, Projects, Result, Review, ScriptReview, Server, Settings, ShortsExtractor, SocialHub, StockKeys, StyleThumbnails, Themes |
 | browser suites (studio/e2e, not helpers) | 77 |

@@ -82,7 +82,7 @@ def apply_script(p: Project, data: dict, *, planner: str = "claude", compose: bo
     before = validate_script(data, tr, beats, icons, media, have_shots, frame) if isinstance(data, dict) else ["the script must be a JSON object"]
     dropped: list[str] = []
     notes: list[dict] = []
-    fixed = repair_script(data, tr, beats, dropped=dropped, notes=notes) if isinstance(data, dict) else data
+    fixed = repair_script(data, tr, beats, dropped=dropped, notes=notes, frame=frame, known_shots=have_shots) if isinstance(data, dict) else data
     errs = validate_script(fixed, tr, beats, icons, media, have_shots, frame) if isinstance(fixed, dict) else before
     if strict:                                                 # a director that can answer is told, instead of finding its picture gone or its words changed
         errs = REPAIRS.meaning(notes) + errs

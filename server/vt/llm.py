@@ -163,8 +163,34 @@ def _find(root: Path, name: str) -> Optional[Path]:
     return None
 
 
+# How our own Ollama is started, so a small card holds the model AND the long context our planning calls need (measured on a 6 GB RTX 4050,
+# 2026-11-21, docs/plans/PLAN-LOCAL-AI-6GB.MD): with Ollama's default cache, gemma3:4b and qwen3.5:4b at a 32k context keep only 77-78 % on the
+# card and the rest runs on the processor; with flash attention and an 8-bit context cache both stay 100 % on the card, at no measurable loss.
+# One model and one request at a time: two would each take their own share of a small card. The person's own environment wins over these.
+OLLAMA_TUNING = {"OLLAMA_FLASH_ATTENTION": "1", "OLLAMA_KV_CACHE_TYPE": "q8_0", "OLLAMA_NUM_PARALLEL": "1", "OLLAMA_MAX_LOADED_MODELS": "1"}
+TUNING = "fa1-kv-q8_0-p1-m1"                    # recorded with our copy (engines/pids.py) so an older copy started without it can be restarted
+
+
+def _retune_if_ours(url: str) -> None:
+    """Our own Ollama, started by an older version without OLLAMA_TUNING, is restarted with it, but only while it holds no model (nothing is answering).
+    An Ollama the person runs themselves is never touched (pids.running knows only the one we started)."""
+    from .engines import pids
+
+    info = pids.recorded("ollama")
+    if not info or info.get("tuning") == TUNING or not is_local(url) or pids.running("ollama", fresh=True) is None:
+        return
+    try:
+        if httpx.get(url.rstrip("/") + "/api/ps", timeout=3).json().get("models"):
+            return                                                     # busy or holding a model: next time
+    except (httpx.HTTPError, ValueError):
+        return
+    pids.stop("ollama")
+
+
 def start_server(url: Optional[str] = None, wait: float = 40.0, *, program_dir=None, model_dir=None, gpu=None) -> bool:
     url = url or settings()["ollama_url"]
+    if reachable(url):
+        _retune_if_ours(url)
     if reachable(url):
         return True
     exe = binary(program_dir) if program_dir else binary()
@@ -172,7 +198,7 @@ def start_server(url: Optional[str] = None, wait: float = 40.0, *, program_dir=N
         return False
     host = urllib.parse.urlparse(url)
     chosen=(read_json(paths.SETTINGS,{}) or {}).get('models_dir')
-    env = {**os.environ, "OLLAMA_HOST": f"{host.hostname}:{host.port or 11434}", "OLLAMA_MODELS": str(model_dir or ((Path(chosen) if chosen else paths.DATA/'models') / 'ollama')),
+    env = {**OLLAMA_TUNING, **os.environ, "OLLAMA_HOST": f"{host.hostname}:{host.port or 11434}", "OLLAMA_MODELS": str(model_dir or ((Path(chosen) if chosen else paths.DATA/'models') / 'ollama')),
            "OLLAMA_KEEP_ALIVE": "10m"}
     from . import gpuassign
     env.update(gpuassign.child_env(gpu) if gpu is not None else gpuassign.job_env("ai"))     # only a card Video Tool may use: the one chosen for this job, or a number given
@@ -185,7 +211,7 @@ def start_server(url: Optional[str] = None, wait: float = 40.0, *, program_dir=N
     if getattr(proc, "pid", None):
         from .engines import pids
 
-        pids.remember("ollama", proc.pid, host.port or 11434)                          # so a change of card can restart exactly this program, and nothing else
+        pids.remember("ollama", proc.pid, host.port or 11434, tuning=TUNING)                          # so a change of card can restart exactly this program, and nothing else
     t0 = time.time()
     while time.time() - t0 < wait:
         if reachable(url):
@@ -359,10 +385,10 @@ def chat_json(messages: list[dict], schema: dict, *, model: Optional[str] = None
         r = httpx.post(s["ollama_url"] + "/api/chat", json=body, timeout=timeout)
         r.raise_for_status()
         answer = r.json()["message"]["content"]
-        talk.record("ollama", body["model"], system=system, prompt=prompt, answer=answer, seconds=time.time() - began)
+        talk.record("ollama", body["model"], system=system, prompt=prompt, schema=schema, answer=answer, seconds=time.time() - began)
         return json.loads(answer)
     except (httpx.HTTPError, KeyError, json.JSONDecodeError) as e:
         from .ai.failures import service_failure
 
-        talk.record("ollama", body["model"], system=system, prompt=prompt, seconds=time.time() - began, error=f"{type(e).__name__}: {e}")
+        talk.record("ollama", body["model"], system=system, prompt=prompt, schema=schema, seconds=time.time() - began, error=f"{type(e).__name__}: {e}")
         raise LLMUnavailable(service_failure("The local AI", e, local=True)) from e

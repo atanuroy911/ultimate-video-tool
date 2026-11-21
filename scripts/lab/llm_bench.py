@@ -155,7 +155,7 @@ def recorded_calls(limit: int) -> list[dict]:
             folder = Path(f).parent / "ai-talk-images"                    # the pictures are kept by name in the project's ai-talk-images folder
             images = [str(folder / p) for p in (r.get("image_files") or []) if (folder / p).exists()]
             calls.append({"project": Path(f).parent.name, "stage": r.get("stage"), "system": r.get("system") or "", "prompt": r["prompt"],
-                          "images": images, "recorded_answer": r.get("answer"), "recorded_model": r.get("model"), "recorded_s": r.get("seconds")})
+                          "images": images, "schema": r.get("schema"), "recorded_answer": r.get("answer"), "recorded_model": r.get("model"), "recorded_s": r.get("seconds")})
     random.Random(7).shuffle(calls)
     plans = sorted([c for c in calls if c["stage"] != "compose"], key=lambda c: -len(c["prompt"]))[:max(2, limit // 4)]
     composes = [c for c in calls if c["stage"] == "compose"][:limit - len(plans)]
@@ -175,7 +175,7 @@ def run(models: list[str], kv: str, limit: int) -> list[dict]:
                     msg["images"] = [base64.b64encode(Path(p).read_bytes()).decode() for p in c["images"][:2]]
                 ctx = context_for(len(c["system"]) + len(c["prompt"]))
                 body = {"model": model, "messages": ([{"role": "system", "content": c["system"]}] if c["system"] else []) + [msg], "stream": False,
-                        "format": "json", "think": False, "keep_alive": "5m", "options": {"temperature": 0.2, "num_ctx": ctx, "num_predict": 2048}}
+                        "format": c.get("schema") or "json", "think": False, "keep_alive": "5m", "options": {"temperature": 0.2, "num_ctx": ctx, "num_predict": 2048}}
                 t0 = time.time()
                 try:
                     r = httpx.post(BASE + "/api/chat", json=body, timeout=900)
@@ -214,6 +214,7 @@ def save(name: str, rows: list[dict]) -> None:
 
 
 def report() -> None:
+    OUT.mkdir(parents=True, exist_ok=True)
     lines = [f"# Local AI on this card ({date.today()})", ""]
     if (OUT / "fit.json").exists():
         lines += ["## Does it stay on the card?", "", "| model | cache | context | on the card | model + context GB | card used MB | load s |", "|---|---|---:|---:|---:|---:|---:|"]

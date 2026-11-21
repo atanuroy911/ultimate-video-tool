@@ -296,6 +296,17 @@ def settings() -> dict[str, Any]:
     return {"order": order, "wait_seconds": wait_seconds, "director_model": model_name(raw.get("director_model"))}
 
 
+DIRECT_MIN_SECONDS = 1800                      # a planning session that is working is never cut short before this: it reads, writes the script, looks at frames and revises
+
+
+def direct_timeout() -> Optional[float]:
+    """How long a whole planning session may take. The setting "When that computer is busy, wait" is about queueing behind another task, so it may make
+    this longer ("Until it is free": no limit) but never shorter than DIRECT_MIN_SECONDS. Before, its 120 seconds default cut every real Claude session off
+    (found 2026-11-20: Claude was submitting the script and checking frames when the server gave up)."""
+    wait = settings()["wait_seconds"]
+    return None if wait is None else max(float(wait), float(DIRECT_MIN_SECONDS))
+
+
 def task_model(assistant: str) -> str:
     """The model a task asks for. The setting names a Claude model (Sonnet, Opus): Codex has models of its own, so it is asked for none and uses the one it is set up with."""
     return "" if assistant == "codex" else str(settings().get("director_model") or DEFAULT_MODEL)

@@ -24,9 +24,10 @@ def _file() -> Path:
     return paths.DATA / FILE
 
 
-def remember(engine: str, pid: int, port: int) -> None:
+def remember(engine: str, pid: int, port: int, **extra: str) -> None:
+    """`extra`: what else to know about how it was started (for Ollama, the memory settings it was given: llm.TUNING)."""
     data = read_json(_file(), {}) or {}
-    data[engine] = {"pid": int(pid), "port": int(port), "at": time.strftime("%Y-%m-%dT%H:%M:%S%z")}
+    data[engine] = {"pid": int(pid), "port": int(port), "at": time.strftime("%Y-%m-%dT%H:%M:%S%z"), **{k: str(v) for k, v in extra.items()}}
     _file().parent.mkdir(parents=True, exist_ok=True)
     write_json(_file(), data)
     _seen.pop(engine, None)

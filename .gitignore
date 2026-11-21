@@ -73,3 +73,6 @@ third_party/ai-youtube-shorts-generator/
 /server/design/icons/curated.json
 /server/assets/music/user/
 !server/assets/music/*.mp3
+
+# Evidence logs and screenshots from earlier audits: a zip is attached to the release (docs-evidence-2026-11.zip); anchored so no other folder is hit
+/docs/evidence/

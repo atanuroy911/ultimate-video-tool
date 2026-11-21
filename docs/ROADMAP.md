@@ -1,8 +1,8 @@
 # Roadmap: from what exists to the finished product
 
-**Current cross-check (2026-11-03):** [Vision-to-product audit](AUDIT-2026-11-03.md) records the live capability inventory, repaired UI/Director gaps and outstanding acceptance work. Older measurements below remain dated evidence, not current pass claims.
+**Current cross-check (2026-11-03):** [Vision-to-product audit](history/AUDIT-2026-11-03.md) records the live capability inventory, repaired UI/Director gaps and outstanding acceptance work. Older measurements below remain dated evidence, not current pass claims.
 
-*The master plan, in phases. Phase 0 is what is done; Phase 1 is what to pick up next. Detailed designs live in [plans/](plans/); what exists, where, and the proof for it is in [STATUS.md](STATUS.md). How to work in this repo: [HANDOFF.md](HANDOFF.md).*
+*The master plan, in phases. Phase 0 is what is done; Phase 1 is what to pick up next. Detailed designs live in [plans/](plans/); what exists, where, and the proof for it is in [STATUS.md](STATUS.md). How to work in this repo: [HANDOFF.md](history/HANDOFF.md).*
 
 **Vision (owner).** Give it a voice (Bangla, English, Banglish), a talking-head video, a long podcast or a link. Get back finished, scroll-stopping videos and an editable timeline, with no human step in between. An AI makes every decision a good editor would, says why, and the person steps in only if they want to.
 
@@ -278,7 +278,7 @@ The owner's vision: a **standalone** app whose setup downloads what it needs and
 ---
 
 ## Phase 12: The reel director, the everyday editor, and the test battery
-**Status:** PARTLY DONE (2026-10-28: see [AUDIT-2026-10-28.md](AUDIT-2026-10-28.md) for what is truly done; most tasks here are built only in part) · **Needs:** Phases 3 and 11 · **Size:** L · **Design:** [reel director](plans/PLAN-REEL-DIRECTOR.MD), [editor UI](plans/PLAN-EDITOR-UI.MD), [test plan](TEST-PLAN.md)
+**Status:** PARTLY DONE (2026-10-28: see [AUDIT-2026-10-28.md](history/AUDIT-2026-10-28.md) for what is truly done; most tasks here are built only in part) · **Needs:** Phases 3 and 11 · **Size:** L · **Design:** [reel director](plans/PLAN-REEL-DIRECTOR.MD), [editor UI](plans/PLAN-EDITOR-UI.MD), [test plan](TEST-PLAN.md)
 
 The first version of each runs today (a script becomes a voiced, illustrated, captioned video through the real servers; the Studio has a CapCut-style editor; the Details log is live). This phase finishes them. The task tables are in the three design pages; this page only keeps the order.
 

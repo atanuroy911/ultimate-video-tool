@@ -46,14 +46,19 @@ jobs:
         with: { node-version: "22", cache: npm, cache-dependency-path: client/studio/package-lock.json }
       - run: cd client/studio && npm ci --no-audit --no-fund && npm run build
       - run: cd client/studio && npm run test:timeline
+      - run: cd client/studio && npm run test:workbench
+      - run: node scripts/dev/check_contrast.mjs
       - run: npm --prefix client/desktop ci --no-audit --no-fund
       - run: npm --prefix server/desktop ci --ignore-scripts --no-audit --no-fund
       - run: node client/desktop/test-director-runner.js
       - run: node client/desktop/test-helper.js
       - run: node client/desktop/test-helper-control.js
       - run: node client/desktop/test-transport.js
+      - run: node client/desktop/test-server-keys.js
+      - run: node client/desktop/test-packaging.js
       - run: node server/desktop/test-server-control.js
       - run: node server/desktop/test-server-port.js
+      - run: node server/desktop/test-server-trust.js
       - run: node server/desktop/test-contained-manager.js
       - run: node server/desktop/test-bootstrap-update.js
       - run: node scripts/test-dev-install.mjs

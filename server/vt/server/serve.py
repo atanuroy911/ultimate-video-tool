@@ -3,11 +3,14 @@
     vt server                  # 0.0.0.0:8765, starts Ollama/ComfyUI, prints the addresses
     vt studio                  # the same server, on 127.0.0.1 only
 
-A computer on the server's own network connects with the address alone: no code, no approval, no key (docs/plans/PLAN-PERFECT.MD, decision 7). That means this
-computer, a private or link-local address, or a Tailscale address (100.64.0.0/10), provided nothing forwarded the request and it is not a web page working
-through someone's browser (`trusted`). Anything else must send the server's own key (the hub's, vt/engines/hub.py identity) as `Authorization: Bearer <key>`, the
-`vt_token` cookie, or `?token=`: a connection from the internet through a port forward, or one that a tunnel or proxy on this computer passed on, which is
-why a forwarding header turns a "local" request into an outside one.
+Who may use the server (docs/plans/PLAN-WORKBENCH.MD, W2):
+  1. A web page working through someone's browser never may, in any mode (`browser_safe`: its Host must be an address or a local name, and its Origin, when it
+     has one, must be this same server). Only a program that holds the key and sends it as `Authorization: Bearer <key>` skips this: a page cannot send that header.
+  2. This computer needs nothing, provided nothing forwarded the request (`trusted`).
+  3. Another computer sends the server's own key (the hub's, vt/engines/hub.py identity) as `Authorization: Bearer <key>`, the `vt_token` cookie, or `?token=`.
+     That includes computers on the same Wi-Fi: a private address is also a café's or a hotel's. The person may turn on "Computers on my network can connect
+     without the key" (`STATE["trust_network"]`, settings.json `trust_network`, off by default): then a private, link-local or Tailscale address (100.64.0.0/10)
+     needs no key either. A forwarding header always turns a "local" request into an outside one (a tunnel or proxy on this computer passed it on).
 """
 from __future__ import annotations
 
@@ -58,10 +61,12 @@ class QuietPolling:
 
 STATE: dict[str, Any] = new_state(name=socket.gethostname() or "Video Tool")   # the computer's own name, as people know it ("MSI-LAPTOP"), unless --name says otherwise
 STATE["exposed"] = False                         # True once `vt server` listens beyond this computer
+STATE["trust_network"] = False                   # the person's choice: other computers on the same network may connect without the key
 
 
-def configure(*, key: str, name: str = "", services: Optional[dict[str, str]] = None, exposed: bool = False, argv: Optional[list[str]] = None) -> None:
-    STATE.update(key=key, exposed=exposed, argv=argv)
+def configure(*, key: str, name: str = "", services: Optional[dict[str, str]] = None, exposed: bool = False, argv: Optional[list[str]] = None,
+              trust_network: bool = False) -> None:
+    STATE.update(key=key, exposed=exposed, argv=argv, trust_network=bool(trust_network))
     if name:
         STATE["name"] = name
     STATE["services"].clear()
@@ -93,16 +98,31 @@ def is_local(scope: dict) -> bool:
     return host in LOOPBACK and not any(k in FORWARDED for k, _ in scope.get("headers") or [])
 
 
-def on_own_network(scope: dict) -> bool:
-    """The sender is this computer, or on a private, link-local or Tailscale address."""
+def _client_ip(scope: dict) -> Optional[Any]:
     host = str((scope.get("client") or ("", 0))[0]).split("%")[0]
     try:
         ip = ipaddress.ip_address(host)
     except ValueError:
-        return False
+        return None
     if ip.version == 6 and ip.ipv4_mapped:
         ip = ip.ipv4_mapped
-    return ip.is_loopback or ip.is_private or ip.is_link_local or ip in SHARED_ADDRESSES
+    return ip
+
+
+def _forwarded(scope: dict) -> bool:
+    return any(k in FORWARDED for k, _ in scope.get("headers") or [])
+
+
+def on_own_network(scope: dict) -> bool:
+    """The sender is this computer, or on a private, link-local or Tailscale address."""
+    ip = _client_ip(scope)
+    return ip is not None and (ip.is_loopback or ip.is_private or ip.is_link_local or ip in SHARED_ADDRESSES)
+
+
+def is_this_computer(scope: dict) -> bool:
+    """The sender is this computer, asking directly."""
+    ip = _client_ip(scope)
+    return ip is not None and ip.is_loopback and not _forwarded(scope)
 
 
 def _name_of(host: str) -> str:
@@ -135,8 +155,14 @@ def named_device(scope: dict) -> str:
 
 
 def trusted(scope: dict) -> bool:
-    """Someone on the server's own network, asking for it directly: no key needed."""
-    return on_own_network(scope) and not any(k in FORWARDED for k, _ in scope.get("headers") or []) and browser_safe(scope)
+    """No key needed: this computer, or (when the person turned that on) another on the server's own network, asking directly and not as a web page."""
+    if _forwarded(scope) or not browser_safe(scope):
+        return False
+    return is_this_computer(scope) or (bool(STATE.get("trust_network")) and on_own_network(scope))
+
+
+def _same(a: str, b: str) -> bool:
+    return hmac.compare_digest(a.encode("utf-8", "replace"), b.encode("utf-8", "replace"))        # bytes: a header with an accented letter must not raise
 
 
 def allowed(scope: dict) -> bool:
@@ -148,6 +174,11 @@ def allowed(scope: dict) -> bool:
         from ..mcp.scope import HEADER, project_for
 
         return project_for(_header(scope, HEADER.encode())) is not None
+    bearer = _header(scope, b"authorization")
+    if STATE["key"] and bearer.startswith("Bearer ") and _same(bearer[7:].strip(), STATE["key"]):
+        return True                                      # a program that holds the key: a web page cannot send this header
+    if not (path.startswith(OPEN) and scope.get("method") in ("GET", "HEAD")) and not browser_safe(scope):
+        return False                                     # a web page, in any mode (discovery may be read, nothing else)
     mcp = path == "/mcp" or path.startswith("/mcp/")
     if not mcp and (not STATE["exposed"] or not _guarded(path)):
         return True
@@ -158,7 +189,7 @@ def allowed(scope: dict) -> bool:
 
         if ticket_ok(path, scope.get("query_string", b"").decode("latin-1")):
             return True                                  # an assistant elsewhere sending a file with its one-time upload ticket
-    return bool(STATE["key"]) and hmac.compare_digest(_token(scope), STATE["key"])
+    return bool(STATE["key"]) and _same(_token(scope), STATE["key"])
 
 
 class Guard:
@@ -178,7 +209,9 @@ class Guard:
             return
         why = ("This director task has finished or expired. Start the task again."
                if scope.get("path") == "/mcp/director" else
-               "This Video Tool server only accepts computers on its own network. Connect from a computer on the same network, using the server's address.")
+               "This Video Tool server does not accept requests from web pages. Use the Video Tool app."
+               if not browser_safe(scope) else
+               "This Video Tool server needs its key from this computer. Open the server window on that computer, choose Copy key, and paste it where the app asks.")
         body = json.dumps({"detail": {"errors": [why]}}).encode()
         await send({"type": "http.response.start", "status": 401, "headers": [(b"content-type", b"application/json"), (b"www-authenticate", b"Bearer")]})
         await send({"type": "http.response.body", "body": body})
@@ -211,6 +244,7 @@ def server_info(request: Request) -> dict[str, Any]:
     out: dict[str, Any] = {"name": STATE["name"], "exposed": bool(STATE["exposed"])}
     if STATE["exposed"] and is_local(request.scope):
         out["addresses"] = hub.address_hints(request.url.port or 8765)
+        out["trust_network"] = bool(STATE.get("trust_network"))
         if STATE.get("argv"):
             out["autostart"] = Path(_service()["installed"]).exists()
     return out
@@ -253,6 +287,46 @@ def server_autostart(body: AutostartBody, request: Request) -> dict[str, Any]:
 def _only_here(request: Request) -> None:
     if not is_local(request.scope):
         raise HTTPException(403, "This can only be changed on the server computer itself.")
+
+
+def saved_trust_network() -> bool:
+    """The person's choice, as kept in settings.json (off unless they turned it on)."""
+    from .. import paths
+    from ..util import read_json
+
+    return bool((read_json(paths.SETTINGS, {}) or {}).get("trust_network"))
+
+
+def set_trust_network(on: bool) -> dict[str, Any]:
+    """Let computers on the server's own network connect without the key (or stop doing that): kept in settings.json and applied at once."""
+    from .. import paths
+    from ..util import read_json, write_json
+
+    raw = read_json(paths.SETTINGS, {}) or {}
+    raw["trust_network"] = bool(on)
+    write_json(paths.SETTINGS, raw)
+    STATE["trust_network"] = bool(on)
+    return {"trust_network": bool(on)}
+
+
+class TrustBody(BaseModel):
+    on: bool
+
+
+@router.post("/api/server/trust-network")
+def server_trust_network(body: TrustBody, request: Request) -> dict[str, Any]:
+    """Only on the server computer itself: a computer that is let in by this setting cannot widen it."""
+    _only_here(request)
+    return set_trust_network(body.on)
+
+
+@router.get("/api/server/key")
+def server_key(request: Request) -> dict[str, str]:
+    """The key other computers send when they connect (the server window copies it; `vt key` prints it). Only to this computer."""
+    from ..engines import hub
+
+    _only_here(request)
+    return {"key": hub.identity()["key"]}
 
 
 # ----------------------------------------------------------------------------- the MCP tools on the same port (CS6)

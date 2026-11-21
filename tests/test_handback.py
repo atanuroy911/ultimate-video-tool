@@ -52,6 +52,7 @@ def test_until_word_before_at_word_is_refused():
     assert any("comes before" in e for e in validate_scenes(sf, tr, beats, None))
 
 
+@pytest.mark.browser
 @pytest.mark.slow
 def test_rendered_frame_after_the_exit_shows_the_picture(tmp_path):
     from vt.compose.composer import write_composition

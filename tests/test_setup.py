@@ -168,7 +168,7 @@ def test_the_wizard_marks_every_model_against_the_card(data, monkeypatch):
     """A 6 GB laptop card: the language model that fits is recommended, the bigger one runs on the processor, clips are refused with a reason."""
     hw = {"ram_gb": 42.0, "gpus": [{"index": 0, "name": "NVIDIA GeForce RTX 4050 Laptop GPU", "memory_gb": 6, "compute": 8.9}]}
     m = setup.model_choices(hw, {})
-    assert m["card"]["gb"] == 6 and m["language_default"] == "gemma3:4b"
+    assert m["card"]["gb"] == 6 and m["language_default"] == "gemma4:e2b"
     big = next(x for x in m["language"] if x["id"] == "gemma3:12b")
     assert big["speed"] == "slow" and "processor" in big["why"]
     assert not m["clips"]["fits"] and "12 GB" in m["clips"]["why"]

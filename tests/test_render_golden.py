@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.slow
+pytestmark = [pytest.mark.slow, pytest.mark.browser]
 GOLDEN = Path(__file__).parent / "golden"
 TOLERANCE = 1.5   # mean absolute pixel difference (0-255) allowed between render and golden
 

@@ -1,7 +1,7 @@
 # Hand-off: OpenChatCut's parts in our timeline
 
 Written 2026-11-09 at the end of a session, so the work can be picked up in a new one. Read this first, then
-[PLAN-OPENCHATCUT.MD](PLAN-OPENCHATCUT.MD) (the plan, phases and a dated Status section) and the top entries of `WORKLOG.md`.
+[PLAN-OPENCHATCUT.MD](PLAN-OPENCHATCUT.MD) (the plan, phases and a dated Status section) and the top entries of `docs/dev/WORKLOG.md`.
 
 ## The goal, in the owner's words
 
@@ -26,7 +26,7 @@ naming its source path and commit; `client/studio/src/occ/NOTICE.md` records thi
     `client/studio/e2e/occ_timeline.mjs`, `e2e/occ_timeline_save.mjs`, `e2e/occ_director_chat.mjs`, `docs/plans/PLAN-OPENCHATCUT.MD`,
     this file, `scripts/port_openchatcut.py`, `scripts/openchatcut-timeline-files.txt`
   - changed: `client/studio/src/pages/Review.tsx` (switch, Director tab, saving), `src/styles.css`, `src/busycore.ts` (`?quiet=1`),
-    `tsconfig.json` (ES2022 target, ES2024 lib), `package.json` (unit test list), `WORKLOG.md`
+    `tsconfig.json` (ES2022 target, ES2024 lib), `package.json` (unit test list), `docs/dev/WORKLOG.md`
 - **Installed apps on this PC** (`E:\UVT-Client`, `E:\UVT-Server`) do **not** have this work yet: they were last rebuilt before it.
 - **Reference copy of OpenChatCut:** `E:\OpenChatCut-9242a95` (commit `9242a95`, 2026-11-06), the full source. Port from here. A second,
   disposable clone with a half-done `npm install` is in this session's temp folder; ignore it.

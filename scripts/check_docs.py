@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-STRICT = ["docs/STATUS.md", "docs/HANDOFF.md", "docs/README.md"]
+STRICT = ["docs/STATUS.md", "docs/README.md"]
 SKIP_LINK_DIRS = ("docs/history", "docs/evidence", "third_party", "node_modules", ".venv")
 PATH_ROOTS = ("vt/", "tests/", "studio/", "renderer/", "scripts/", "docs/", "assets/", "design/", "samples/", "third_party/", "desktop/", "build/", "projects/", "models/")
 EXT = r"(?:py|ts|tsx|js|mjs|json|md|MD|ps1|css|html|yaml|yml|txt|log|xml|svg|toml|png|mp4|wav|mp3|jsonl)"
@@ -24,7 +24,7 @@ PATH_TOKEN = re.compile(rf"^(?:[\w.\-]+/)+[\w.\-]*\.{EXT}$|^(?:{'|'.join(re.esca
 
 
 def md_files() -> list[Path]:
-    out = [ROOT / "README.md", ROOT / "plan.md"]
+    out = [ROOT / "README.md"]
     out += [p for p in (ROOT / "docs").rglob("*") if p.suffix.lower() == ".md"]
     return [p for p in out if p.exists() and not any(part in str(p.relative_to(ROOT)).replace("\\", "/") for part in SKIP_LINK_DIRS)]
 
@@ -38,6 +38,8 @@ def check_links(problems: list[str]) -> int:
                 continue
             n += 1
             target = (p.parent / link.split("#")[0]).resolve()
+            if not target.exists() and "docs/evidence" in str(target).replace("\\", "/"):
+                continue                                   # the evidence logs are in a zip on the release, not in the repository (W5.1)
             if not target.exists():
                 problems.append(f"{p.relative_to(ROOT)}: broken link ({link})")
     return n
@@ -72,6 +74,8 @@ def check_paths(problems: list[str]) -> int:
                 continue
             if any(c in tok for c in "*<>{}…$") or tok.startswith(("/", "~", "http")) or " " in tok or not PATH_TOKEN.match(tok):
                 continue
+            if tok.startswith(("docs/evidence/", "evidence/")):
+                continue                                       # in the evidence zip on the release, not in the repository (W5.1)
             n += 1
             if not (ROOT / tok.rstrip("/")).exists():
                 problems.append(f"{rel}: path does not exist ({tok})")

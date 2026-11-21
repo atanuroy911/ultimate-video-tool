@@ -33,7 +33,11 @@ cd client/studio
 npm ci && npm run build && npm run test:timeline     # editor types, build and timeline tests
 ```
 
-Tests marked `slow` need a GPU machine and real models. If your change touches speech, rendering or the director, say in the pull request what you ran and on what hardware.
+Tests marked `slow` run real frames in headless Chrome, real models, or both; the nightly workflow runs the ones that need no graphics card. If your change touches speech, rendering or the director, say in the pull request what you ran and on what hardware.
+
+### Writing tests
+
+Test what the code does, not the words of a prompt. Assert on the parsed result, the chosen scene type, the file written, or the request sent, not on whether a sentence appears in a prompt. A prompt test is allowed only for a safety line that must never disappear, and then the test names that line in a constant. A test that breaks when someone rewords a sentence tells nobody anything. When you change a code path, convert any prompt-wording test you touch.
 
 ## How we build things
 
@@ -56,7 +60,7 @@ These rules keep the product coherent. Pull requests that break them will be ask
 
 ## Releases
 
-Every push to `main` builds the whole tool (both installers for Windows and Linux, the Engine package and its Docker image) and publishes the next patch release, for example `v1.0.4`. The CI checks run first, and a failing check stops the release. Pushes that change only documentation are skipped. To skip one by hand, put `[skip release]` in the commit message. To move to a new minor or major version, push a tag such as `v1.1.0`, and later releases count on from it.
+Every push to `main` builds the whole tool (both installers for Windows and Linux, the Engine package and its Docker image) and publishes the next patch release, for example `v0.5.4`. While the product is 0.x, the number counts on from the version in the files (`scripts/set_version.py --show`; the rule is in `scripts/next_version.py`). The CI checks run first, and a failing check stops the release. Pushes that change only documentation are skipped. To skip one by hand, put `[skip release]` in the commit message. To move to a new minor or major version, push a tag such as `v1.1.0`, and later releases count on from it.
 
 ## Licence of contributions
 

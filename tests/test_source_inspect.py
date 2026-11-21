@@ -31,6 +31,7 @@ def test_a_video_without_a_face_is_video_mode(tmp_path):
     assert found["mode"] == "video" and found["has_picture"] and found["width"] == 320
 
 
+@pytest.mark.models
 @pytest.mark.slow
 def test_the_podcast_sample_is_a_talking_head():
     sample = ROOT / "P_snippet_AMS_2.mp4"

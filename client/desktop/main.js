@@ -8,16 +8,16 @@ const helper=require('./helper-control'),helperPath=path.join(__dirname,'helper.
 const ensureHelper=()=>helper.ensure({home,helperPath,version});
 // "--helper" is what the start-with-the-computer entry runs: make sure the helper runs, then leave, before anything else loads (no window, no server connection).
 if(process.argv.includes('--helper')){app.whenReady().then(ensureHelper).catch(()=>{}).finally(()=>app.quit());return;}
-const discover=require('./discover'),assistants=require('./assistants');
+const discover=require('./discover'),assistants=require('./assistants'),keys=require('./server-keys');
 const {createTransport,serverURL}=require('./transport');
 let win=null,chooser=null,transport=null,selected='',selectedSession=null,changing=false;
-const connectionFile=path.join(home,'connection.json');
+const connectionFile=path.join(home,'connection.json'),keysFile=path.join(home,'keys.json');
 const log=message=>fs.appendFileSync(path.join(home,'desktop.log'),`[${new Date().toISOString()}] ${message}\n`);
 if(!app.requestSingleInstanceLock()){app.quit();process.exit(0);}
 // Command line, the same thing the connect window does:  "Ultimate Video Tool.exe" --server 192.168.1.20
 // (the address is all a server on the person's network needs). Works when the app is already running too: the second launch hands its arguments to the first.
 function cliOptions(argv){const o={};for(let i=0;i<argv.length;i++){const m=/^--(server)(?:=(.*))?$/.exec(argv[i]);if(m)o[m[1]]=m[2]!==undefined?m[2]:argv[i+1];}return o;}
-async function applyCli(argv){const o=cliOptions(argv);if(!o.server)return false;log('Command line: server '+o.server);await connect(o.server);return true;}
+async function applyCli(argv){const o=cliOptions(argv);if(!o.server)return false;log('Command line: server '+o.server);const r=await connect(o.server);if(r&&r.needsKey)chooseServer();return true;}
 app.on('second-instance',(_event,argv)=>{if(cliOptions(argv||[]).server){applyCli(argv).catch(e=>{log(e.message);dialog.showErrorBox('Could not connect',e.message);});return;}const window=win||chooser;if(window){window.show();window.focus();}});
 function chooseServer(){
   if(chooser&&!chooser.isDestroyed()){chooser.show();chooser.focus();return;}
@@ -28,7 +28,7 @@ function appIcon(){const f=app.isPackaged?path.join(process.resourcesPath,'icon.
 // ---- the helper: it calls the server itself, so the app only tells it which servers to reach
 async function attach(){
   if(!selected)return;
-  try{await ensureHelper();await helper.request(home,'POST','/servers',{server:selected});}   // no key: a server accepts the computers on its own network
+  try{await ensureHelper();await helper.request(home,'POST','/servers',{server:selected,token:keys.keyFor(keysFile,selected)});}   // the key only when the server asked for one
   catch(e){log('The helper could not be set up: '+e.message);}
 }
 // ---- start with the computer: the entry runs this app with --helper, which starts the helper and leaves
@@ -47,15 +47,25 @@ function setAutostart(on){
   if(on)fs.rmSync(off,{force:true});else fs.writeFileSync(off,'The person turned off starting the helper with the computer.');
 }
 async function helperState(){const have=await helper.status(home);return {running:!!have,...(have?have.info:{}),autostart:autostartOn(),installed:app.isPackaged};}
-async function connect(address){
+async function connect(address,typedKey){
   const found=await discover.probe(address);if(!found)throw new Error('No server answers at that address. Check the address, and that the server is running.');
   const target=serverURL(found.url);
+  // A server asks another computer for its key by default. The key typed now, or the one kept from before; none is needed when the server does not ask.
+  let key='';
+  if(found.needsKey){
+    key=typedKey?keys.clean(typedKey):keys.keyFor(keysFile,target);
+    const verdict=key?await keys.check(target,key):'refused';
+    if(verdict==='refused'&&!typedKey&&!key)return {needsKey:true,name:found.name,url:target};
+    if(verdict==='refused'){if(key&&!typedKey)keys.saveKey(keysFile,target,'');return {needsKey:true,wrong:!!typedKey||!!key,name:found.name,url:target};}
+    if(verdict==='unreachable')throw new Error('The server did not answer. Check that it is running.');
+    keys.saveKey(keysFile,target,key);
+  }
   const dist=app.isPackaged?path.join(process.resourcesPath,'studio'):path.resolve(__dirname,'../studio/dist');
   if(!fs.existsSync(path.join(dist,'index.html')))throw new Error('Build the client UI first: npm --prefix client/studio run build.');
   changing=true;
   try{
     if(win&&!win.isDestroyed()){win.destroy();win=null;}await transport?.close();
-    selected=target;transport=await createTransport({server:target,dist});
+    selected=target;transport=await createTransport({server:target,dist,key});
     const partition='persist:processing-'+crypto.createHash('sha256').update(target).digest('hex').slice(0,20);
     selectedSession=session.fromPartition(partition);
     await selectedSession.cookies.set({url:transport.origin,name:'uvt_local_session',value:transport.secret,httpOnly:true,sameSite:'strict',path:'/'});
@@ -75,7 +85,7 @@ const fromApp=event=>!!win&&!win.isDestroyed()&&event.sender===win.webContents;
 const onlyApp=handler=>async(event,...args)=>{if(!fromApp(event))throw new Error('Only the app window can use the helper.');return handler(...args);};
 const stopped=async()=>{for(let i=0;i<25&&await helper.status(home);i++)await new Promise(r=>setTimeout(r,120));};
 ipcMain.handle('find-servers',()=>discover.find(2000));
-ipcMain.handle('connect',async(_event,address)=>{try{await connect(address);return {ok:true};}catch(e){return {error:e.message};}});
+ipcMain.handle('connect',async(_event,address,key)=>{try{const r=await connect(address,key);return r&&r.needsKey?r:{ok:true};}catch(e){return {error:e.message};}});
 ipcMain.on('use-this-computer',async()=>{for(const port of [8790,8765,8791,8792]){const found=await discover.probe(`http://127.0.0.1:${port}`,1000);if(found){await connect(found.url);return;}}dialog.showMessageBox(chooser,{type:'info',title:'No server on this computer',message:'Ultimate Video Tool Server isn\'t running on this computer.',detail:'Open it (or install it) on this computer, then choose This computer again. Or choose a server on your network.',buttons:['OK']});});
 ipcMain.handle('choose-processing-server',()=>chooseServer());
 ipcMain.handle('assistants-status',()=>assistants.status());
@@ -94,7 +104,7 @@ app.whenReady().then(async()=>{
   if(app.isPackaged&&!fs.existsSync(decided)){try{setAutostart(true);fs.writeFileSync(decided,'The helper starts with the computer by default; the person can turn it off in Settings.');log('The helper will start with this computer.');}catch(e){log('Could not set the helper to start with the computer: '+e.message);}}
   try{if(await applyCli(process.argv))return;}catch(e){log(e.message);dialog.showErrorBox('Could not connect',e.message);}
   let saved='';try{saved=JSON.parse(fs.readFileSync(connectionFile,'utf8')).server;}catch{}
-  if(saved&&saved!=='here'){try{await connect(saved);return;}catch(e){log(e.message);}}
+  if(saved&&saved!=='here'){try{const r=await connect(saved);if(!(r&&r.needsKey))return;log('The saved server now asks for its key.');}catch(e){log(e.message);}}
   chooseServer();
 }).catch(e=>{log(e.stack||e);dialog.showErrorBox('Client could not start',e.message);app.quit();});
 app.on('before-quit',()=>{transport?.close();});     // the helper is not stopped: it keeps Claude and Codex ready when the window is closed

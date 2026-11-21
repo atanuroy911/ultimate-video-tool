@@ -8,11 +8,11 @@ const {WebSocket,WebSocketServer}=require('ws');
 const ROUTES=/^\/(api|media|bundled|ws|v1|gw|mcp|\.well-known)(\/|\?|$)/;
 function serverURL(value){const u=new URL(value);if(!['http:','https:'].includes(u.protocol)||u.username||u.password||u.pathname!=='/'||u.search||u.hash)throw new Error('Choose the processing server address.');return u.origin;}
 function cookie(headers,name){return (headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith(name+'='))?.slice(name.length+1)||'';}
-async function createTransport({server,dist}){
+async function createTransport({server,dist,key=''}){
   const target=serverURL(server),secret=crypto.randomBytes(32).toString('hex');
   const root=path.resolve(dist),sockets=new Set(),upstreams=new Set();let origin='';
   const authorised=req=>cookie(req.headers,'uvt_local_session')===secret&&(!req.headers.origin||req.headers.origin===origin);
-  const upstreamHeaders=req=>{const headers={...req.headers,host:new URL(target).host};delete headers.origin;delete headers.referer;for(const key of ['forwarded','x-forwarded-for','x-real-ip','cf-connecting-ip'])delete headers[key];headers.cookie=(req.headers.cookie||'').split(';').filter(c=>!c.trim().startsWith('uvt_local_session=')).join(';');return headers;};
+  const upstreamHeaders=req=>{const headers={...req.headers,host:new URL(target).host};delete headers.origin;delete headers.authorization;if(key)headers.authorization='Bearer '+key;delete headers.referer;for(const key of ['forwarded','x-forwarded-for','x-real-ip','cf-connecting-ip'])delete headers[key];headers.cookie=(req.headers.cookie||'').split(';').filter(c=>!c.trim().startsWith('uvt_local_session=')).join(';');return headers;};
   const app=http.createServer((req,res)=>{
     if(!authorised(req)){res.writeHead(403);res.end('Open Ultimate Video Tool to use this client.');return;}
     if(req.url==='/__client/connection'){res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({server:target,role:'client'}));return;}

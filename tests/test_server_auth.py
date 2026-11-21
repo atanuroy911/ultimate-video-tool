@@ -1,5 +1,6 @@
-"""The server's own network needs no key: typing the address is enough (docs/plans/PLAN-PERFECT.MD, decision 7). A request from outside that network, one a proxy
-forwarded, and one that comes through a web page in someone's browser still need the server's key."""
+"""With "Computers on my network can connect without the key" turned on (docs/plans/PLAN-WORKBENCH.MD, decision D4), the server's own network needs no key:
+typing the address is enough. A request from outside that network, one a proxy forwarded, and one that comes through a web page in someone's browser still
+need the server's key. With it off (the default), only this computer is let in without the key: tests/test_server_webpage_guard.py."""
 import time
 
 import pytest
@@ -22,7 +23,7 @@ def exposed(monkeypatch, tmp_path):
 
     monkeypatch.setattr(paths, "DATA", tmp_path)
     saved = {**serve.STATE, "services": dict(serve.STATE["services"])}
-    serve.configure(key=KEY, exposed=True)
+    serve.configure(key=KEY, exposed=True, trust_network=True)               # the person turned the setting on; the default is in test_server_webpage_guard.py
     yield
     services = saved.pop("services")
     serve.configure(**{k: saved[k] for k in ("key", "name", "exposed")}, services=services)
@@ -49,7 +50,7 @@ def test_a_computer_on_the_same_network_needs_nothing(exposed, address):
 def test_an_address_on_the_internet_needs_the_servers_key(exposed, address):
     c = TestClient(app, client=(address, 50000))
     r = c.get("/api/health")
-    assert r.status_code == 401 and "own network" in r.json()["detail"]["errors"][0] and "pairing" not in r.text.lower()
+    assert r.status_code == 401 and "Copy key" in r.json()["detail"]["errors"][0] and "pairing" not in r.text.lower()
     assert c.get("/media/anything/x.mp3").status_code == 401
     assert c.post("/mcp", json={}).status_code == 401
     assert c.get("/api/health", headers={"Authorization": "Bearer wrong"}).status_code == 401

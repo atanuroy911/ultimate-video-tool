@@ -1,6 +1,6 @@
 # Plan: the everyday editor (a CapCut-style Studio for ordinary people)
 
-**2026-11-03 update:** The owner superseded the two-editor design below. There is now one editor at /p/:id; /pro redirects to it. All tracks stay editable. Current implementation and acceptance limits: [responsive editor plan](PLAN-RESPONSIVE-EDITOR.MD) and [current audit](../AUDIT-2026-11-03.md). The original sections below are historical design context, not instructions to restore a second editor.
+**2026-11-03 update:** The owner superseded the two-editor design below. There is now one editor at /p/:id; /pro redirects to it. All tracks stay editable. Current implementation and acceptance limits: [responsive editor plan](PLAN-RESPONSIVE-EDITOR.MD) and [current audit](../history/AUDIT-2026-11-03.md). The original sections below are historical design context, not instructions to restore a second editor.
 
 Owner (2026-10-27): "The UI is not user friendly. It has a lot of options for the regular user. Even the timeline feels cluttering, as if there is a learning curve. You can clone CapCut's UI completely." Built the same day at `/p/:id`; the dense editor stays at `/p/:id/pro`. Evidence: [docs/research/ui-before-editor.png](../research/ui-before-editor.png), [ui-after-editor.png](../research/ui-after-editor.png), `client/studio/e2e/editor_simple.mjs` (19 passed).
 

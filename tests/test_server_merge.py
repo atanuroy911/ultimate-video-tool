@@ -32,7 +32,7 @@ def test_the_studio_port_also_speaks_the_engine_contract(configured):
 def test_the_merged_server_hands_out_no_code(configured):
     c = TestClient(app, client=("10.0.0.7", 50000))
     assert c.post("/v1/pair", json={"code": "ab12-cd34-ef56"}).status_code == 403
-    assert c.post("/api/pair", json={"code": "ab12-cd34-ef56"}).status_code in (404, 405)
+    assert c.post("/api/pair", json={"code": "ab12-cd34-ef56"}, headers={"Authorization": "Bearer " + "k" * 43}).status_code in (404, 405)       # with the key, so the guard lets it reach the (missing) route
 
 
 def test_the_engine_key_opens_the_studio_and_the_engine(configured):

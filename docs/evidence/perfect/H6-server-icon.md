@@ -1,3 +1,0 @@
-# H6 - Windows server installer icon
-
-The installer built on 2026-11-03 carried the old orange icon (the exe was older than `server/desktop/build/icon.ico`, 2026-11-04). `electron-builder` cannot set the icon on this account (it needs symlinks), so a new `scripts/build_server_windows.sh` (same recipe as `build_client_windows.sh`) builds the unpacked app, embeds `build/icon.ico` with rcedit, then packs the installer. Rebuilt 2026-11-07 12:55. The icon extracted from the old program, the new program and the new installer was compared in one picture: old = orange, new program and new installer = the blue play icon that `build/icon.png` shows.

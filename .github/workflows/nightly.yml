@@ -1,0 +1,109 @@
+# Every night: the slow tests that need no graphics card, and one real video made end to end with the built-in rules (no AI needed).
+# It never runs on pull requests (the repository is public). When something fails it opens one issue, "Nightly check failing", and closes it when the
+# next run is green. The checks that need a graphics card, Claude or the local AI run on the owner's laptop by hand: scripts/nightly_local.ps1.
+name: Nightly
+on:
+  schedule:
+    - cron: "30 1 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+jobs:
+  slow:
+    name: Slow tests (no graphics card)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with: { enable-cache: true }
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Packages (the locked set)
+        run: uv sync --project server --frozen --extra dev --extra cpu --python 3.11
+      - name: Generated assets (fonts, icons, texture, sounds)
+        run: |
+          cd server/renderer && npm ci --no-audit --no-fund && node scripts/build-fonts.mjs && node scripts/build-icons.mjs && cd ../..
+          uv run --project server python scripts/make_texture.py
+          uv run --project server python scripts/make_assets.py
+      - name: Models (cached between nights)
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: models-${{ runner.os }}-v1
+      - name: Slow tests
+        run: uv run --project server pytest -m "slow and not gpu and not assistant" -rsfE --durations=15 -o addopts="" | tee slow.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: slow-log
+          path: slow.log
+          retention-days: 14
+
+  video:
+    name: One real video (built-in rules)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with: { enable-cache: true }
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Packages (the locked set)
+        run: uv sync --project server --frozen --extra dev --extra cpu --python 3.11
+      - name: Generated assets (fonts, icons, texture, sounds)
+        run: |
+          cd server/renderer && npm ci --no-audit --no-fund && node scripts/build-fonts.mjs && node scripts/build-icons.mjs && cd ../..
+          uv run --project server python scripts/make_texture.py
+          uv run --project server python scripts/make_assets.py
+      - name: Make the video (voice, plan with the built-in rules, render)
+        env:
+          VT_DATA: ${{ runner.temp }}/vt-data
+        run: |
+          mkdir -p "$VT_DATA"
+          out=$(uv run --project server vt script "Nightly" --file scripts/lab/matrix/watch-battery-en.txt --engine edge --voice en-US-AriaNeural --director rules --aspect 9:16 | tee /dev/stderr | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9-]+' | head -1)
+          test -n "$out"
+          uv run --project server vt run "$out"
+          uv run --project server vt render "$out" --quality draft --cpu
+          mkdir -p video && cp "$VT_DATA"/projects/"$out"/exports/*.mp4 video/
+          ffmpeg -y -v error -i video/*.mp4 -vf "fps=1/2,scale=270:-1,tile=6x3" -frames:v 1 video/sheet.png
+          ffprobe -v error -show_entries format=duration -of csv=p=0 video/*.mp4 | awk '{ if ($1 < 10) { print "video too short: " $1; exit 1 } }'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nightly-video
+          path: video/
+          retention-days: 14
+
+  report:
+    name: Tell the owner
+    needs: [slow, video]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Open, update or close the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          FAILED: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: |
+          gh label create nightly --color D93F0B --description "The nightly check" -R "$GITHUB_REPOSITORY" 2>/dev/null || true
+          open=$(gh issue list -R "$GITHUB_REPOSITORY" --label nightly --state open --json number --jq '.[0].number // empty')
+          if [ "$FAILED" = true ]; then
+            if [ -n "$open" ]; then gh issue comment "$open" -R "$GITHUB_REPOSITORY" --body "Still failing: $RUN"
+            else gh issue create -R "$GITHUB_REPOSITORY" --label nightly --title "Nightly check failing" --body "The nightly check failed: $RUN"; fi
+          elif [ -n "$open" ]; then
+            gh issue close "$open" -R "$GITHUB_REPOSITORY" --comment "Green again: $RUN"
+          fi

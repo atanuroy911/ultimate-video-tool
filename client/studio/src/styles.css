@@ -1,68 +1,7 @@
 /* Ultimate Video Tool: shared design tokens.
    SF font stack, grouped surfaces on a light-grey canvas, frosted glass bars, capsule buttons with springy presses,
    sliding segmented controls, sheets and pops for dialogs. Everything honours prefers-reduced-motion. */
-:root {
-  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI Variable Text", "Segoe UI", "Helvetica Neue", "Hind Siliguri", "Noto Sans Bengali", Arial, sans-serif;
-  --bg: #f5f5f7;
-  --panel: #ffffff;
-  --panel-2: rgb(120 120 128 / 0.08);
-  --fill: rgb(120 120 128 / 0.12);
-  --fill-2: rgb(120 120 128 / 0.2);
-  --border: rgb(0 0 0 / 0.08);
-  --border-strong: rgb(0 0 0 / 0.16);
-  --text: #1d1d1f;
-  --muted: #5f5f64;
-  --accent: #0071e3;
-  --accent-strong: #0062c4;
-  --accent-ink: #ffffff;
-  --accent-soft: rgb(0 113 227 / 0.1);
-  --accent-text: #005bb8;   /* the blue for small text: passes 4.5:1 on white, grey and the soft blue */
-  --ok: #166534;
-  --ok-soft: rgb(52 199 89 / 0.16);
-  --warn: #b25000;
-  --warn-soft: rgb(255 159 10 / 0.18);
-  --err: #d70015;
-  --err-soft: rgb(255 59 48 / 0.12);
-  --glass: rgb(255 255 255 / 0.72);
-  --glass-border: rgb(255 255 255 / 0.7);
-  --shadow: 0 0 0 0.5px rgb(0 0 0 / 0.06), 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px -12px rgb(0 0 0 / 0.1);
-  --shadow-pop: 0 0 0 0.5px rgb(0 0 0 / 0.08), 0 24px 60px -12px rgb(0 0 0 / 0.28);
-  --radius: 14px;
-  --radius-lg: 22px;
-  --ease-ios: cubic-bezier(.32, .72, 0, 1);
-  --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
-  --grad: linear-gradient(110deg, #5e5ce6, #bf5af2 50%, #ff375f);
-  --switch-on: #34c759;
-  --card-bg: var(--panel); --input-bg: var(--fill); --fg: var(--text);   /* older pages name the tokens this way: one palette for all */
-  color-scheme: light;
-}
-[data-theme="dark"] {
-  --bg: #000000;
-  --panel: #1c1c1e;
-  --panel-2: rgb(235 235 245 / 0.08);
-  --fill: rgb(120 120 128 / 0.24);
-  --fill-2: rgb(120 120 128 / 0.36);
-  --border: rgb(255 255 255 / 0.1);
-  --border-strong: rgb(255 255 255 / 0.2);
-  --text: #f5f5f7;
-  --muted: #98989d;
-  --accent: #0a84ff;
-  --accent-strong: #409cff;
-  --accent-soft: rgb(10 132 255 / 0.18);
-  --accent-text: #64b0ff;
-  --ok: #30d158;
-  --ok-soft: rgb(48 209 88 / 0.18);
-  --warn: #ff9f0a;
-  --warn-soft: rgb(255 159 10 / 0.2);
-  --err: #ff453a;
-  --err-soft: rgb(255 69 58 / 0.18);
-  --switch-on: #30d158;
-  --glass: rgb(28 28 30 / 0.72);
-  --glass-border: rgb(255 255 255 / 0.12);
-  --shadow: 0 0 0 0.5px rgb(255 255 255 / 0.08), 0 8px 24px -12px rgb(0 0 0 / 0.6);
-  --shadow-pop: 0 0 0 0.5px rgb(255 255 255 / 0.12), 0 24px 60px -12px rgb(0 0 0 / 0.8);
-  color-scheme: dark;
-}
+/* The colour, size and motion tokens live in tokens.css (loaded first). */
 
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; }
@@ -568,7 +507,6 @@ pre.code { background: var(--panel-2); border-radius: 12px; padding: 10px 12px; 
 }
 /* contrast fixes (axe, WCAG AA) */
 :root:not([data-theme="dark"]) .chip.ok { color: #1b6e31; }
-[data-theme="dark"] { --muted: #aeaeb3; }
 [data-theme="dark"] .btn.primary, [data-theme="dark"] .dash-filters button.on, [data-theme="dark"] .seg button.on[role="radio"], [data-theme="dark"] button[role="radio"][aria-checked="true"] { background: #0071e3; color: #fff; }
 [data-theme="dark"] .tl-chip { color: #8cc8ff; }
 [data-theme="dark"] .chip { color: #c4c4c9; }

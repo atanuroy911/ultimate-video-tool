@@ -1,4 +1,4 @@
-"""Parity check of the ONNX voice cloning against the PyTorch reference outputs kept in tests/fixtures/clone_ref (plan.md, Phase 7 step 3.6).
+"""Parity check of the ONNX voice cloning against the PyTorch reference outputs kept in tests/fixtures/clone_ref (docs/history/plan-2026-10.md, Phase 7 step 3.6).
 
 For each of the three sentences: (a) speech recognition hears the key phrases, (b) the WavLM speaker similarity to the 12 s reference voice is >= 0.95 (and above Kokoro's, measured by
 qa_voices.py), (c) the length is within 25 % of the PyTorch output, (d) no clipping and loudness at the app's speech level (-19 dB RMS; the PyTorch output peaked at 0.99-1.0, so it is not a loudness reference), (e) the real-time factor is printed per device.

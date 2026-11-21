@@ -339,5 +339,5 @@ class Engine:
         return np.concatenate(out)
 
 
-# which networks run on the GPU in "auto" mode; set by measurement (see plan.md, P7 step 3.6e)
+# which networks run on the GPU in "auto" mode; set by measurement (see docs/history/plan-2026-10.md, P7 step 3.6e)
 AUTO_CUDA: dict[str, bool] = {"speech_encoder": True, "embed_tokens": True, "language_model": True, "decoder": True}

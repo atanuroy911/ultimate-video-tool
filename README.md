@@ -6,6 +6,8 @@
 
 **Talk, or type a script. Get a finished, edited video.**
 
+**Status: beta (0.x).** It works end to end, but video quality and installs on new machines are still being proven. See the [status page](docs/STATUS.md).
+
 A free, open-source video studio: an AI director plans every scene, finds the pictures,
 designs the look and adds captions, music and sound. Then you can change anything by hand.
 
@@ -122,9 +124,11 @@ Get the installers from [Releases](https://github.com/atanuroy911/ultimate-video
 | **Ultimate Video Tool Server**: `.exe` · `.AppImage` · `.deb` | The processing server, with a management window |
 | **Video Tool Engine**: `.zip` · `.tar.gz` · Docker image | A headless server for a GPU machine |
 
-Install the server, open it, and follow the setup screen. It finds your graphics card, offers models that fit it, and downloads what it needs into its own folder. No administrator rights are needed. Then open the client and connect: on the same computer it finds the server by itself, and across a network it needs only the server's address.
+Install the server, open it, and follow the setup screen. It finds your graphics card, offers models that fit it, and downloads what it needs into its own folder. No administrator rights are needed. Then open the client and connect: on the same computer it finds the server by itself. From another computer, give it the server's address, and paste the server's key once (the server window has a **Copy key** button).
 
 > The installers are not code-signed yet. Windows SmartScreen shows a one-time warning: choose **More info → Run anyway**.
+>
+> Coming from the earlier 1.0.0 download? Install over it. That release was numbered too early and is replaced by the 0.x versions. On Linux, install a `.deb` with `sudo apt install --allow-downgrades ./<file>.deb`.
 
 ### From source
 
@@ -186,7 +190,7 @@ docs/          documentation and this project's website
 
 - [docs/README.md](docs/README.md): where to start in the docs
 - [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/STATUS.md](docs/STATUS.md): the plan, and what is built, with evidence
-- [docs/HANDOFF.md](docs/HANDOFF.md): how to work in this repository
+- [docs/HANDOFF.md](docs/dev/CODEX-HANDOFF.md): how to work in this repository
 - [docs/GLOSSARY.md](docs/GLOSSARY.md): what every word in the app means
 - [docs/plans/](docs/plans/): detailed designs
 

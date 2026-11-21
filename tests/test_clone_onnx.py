@@ -135,6 +135,7 @@ def test_the_graphs_have_the_names_the_code_feeds():
 
 
 @needs_model
+@pytest.mark.models
 @pytest.mark.slow
 def test_the_real_model_speaks_a_sentence_in_a_given_voice_and_is_repeatable_by_seed():
     import soundfile as sf

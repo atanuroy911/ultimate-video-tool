@@ -233,7 +233,12 @@ def test_scoped_endpoint_needs_its_token_even_on_the_home_network(scoped, path):
     assert not serve.allowed(request)
     request["path"] = "/mcp"
     request["headers"] = []
-    assert serve.allowed(request), "ordinary assistants on the person's network keep address-only access"
+    assert not serve.allowed(request), "another computer needs the key, even on the person's network"
+    serve.STATE["trust_network"] = True
+    try:
+        assert serve.allowed(request), "...unless the person turned on trust for their network"
+    finally:
+        serve.STATE["trust_network"] = False
 
 
 def test_dedicated_request_without_validated_scope_marker_is_refused(scoped):

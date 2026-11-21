@@ -122,10 +122,13 @@ class OllamaProvider(Provider):
             r.raise_for_status()
             reply = r.json()
             if reply.get("done_reason") == "length" and body["options"]["num_ctx"] < MAX_CONTEXT:
-                body["options"]["num_ctx"] = MAX_CONTEXT               # it still ran out of room: once more with all the room there is
+                # it ran out of room: once more with more, but within what this card holds whole (a context the card cannot hold runs partly on the
+                # processor, several times slower); a prompt that by itself needs more still gets it, and note_if_spilled says so
+                body["options"]["num_ctx"] = max(body["options"]["num_ctx"] + 8192, min(MAX_CONTEXT, llm.context_cap(body["model"])))
                 r = httpx.post(s["ollama_url"] + "/api/chat", json=body, timeout=timeout)
                 r.raise_for_status()
                 reply = r.json()
+            llm.note_if_spilled(s["ollama_url"], body["model"])
             return reply["message"]["content"]
         except (httpx.HTTPError, KeyError, ValueError) as e:
             from .failures import service_failure
@@ -549,7 +552,7 @@ def complete_json(prompt: str, schema: dict, images: Optional[Sequence[Image]] =
     if cf is not None and cf.exists():
         try:
             data = json.loads(cf.read_text(encoding="utf-8"))
-            talk.record(p.name, p.model(), system=system, prompt=prompt, answer=data, cached=True, images=len(images), image_data=[_image_bytes(i) for i in images])
+            talk.record(p.name, p.model(), system=system, prompt=prompt, schema=schema, answer=data, cached=True, images=len(images), image_data=[_image_bytes(i) for i in images])
             return data
         except (OSError, ValueError):
             pass
@@ -559,9 +562,9 @@ def complete_json(prompt: str, schema: dict, images: Optional[Sequence[Image]] =
         try:
             raw = p.complete(system, ask, schema, images, max_tokens, timeout, temperature)
         except Exception as e:
-            talk.record(p.name, p.model(), system=system, prompt=ask, seconds=time.time() - began, error=f"{type(e).__name__}: {e}", images=len(images), image_data=[_image_bytes(i) for i in images])
+            talk.record(p.name, p.model(), system=system, prompt=ask, schema=schema, seconds=time.time() - began, error=f"{type(e).__name__}: {e}", images=len(images), image_data=[_image_bytes(i) for i in images])
             raise
-        talk.record(p.name, p.model(), system=system, prompt=ask, answer=raw, seconds=time.time() - began, images=len(images), image_data=[_image_bytes(i) for i in images])
+        talk.record(p.name, p.model(), system=system, prompt=ask, schema=schema, answer=raw, seconds=time.time() - began, images=len(images), image_data=[_image_bytes(i) for i in images])
         try:
             data = parse_json(raw)
             if repair is not None:

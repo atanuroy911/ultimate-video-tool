@@ -51,6 +51,7 @@ def test_vision_provider_picks_installed_vision_model(monkeypatch):
     assert P.vision_provider().model() == "qwen2.5vl:7b"
 
 
+@pytest.mark.browser
 @pytest.mark.slow
 def test_qa_project_with_pixels_only(ref):
     from vt.render.hyperframes import BIN

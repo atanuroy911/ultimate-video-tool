@@ -85,7 +85,7 @@ def _strings(o):
 
 
 def compare(ai_scores: dict[str, float], rule_scores: dict[str, float]) -> dict:
-    """Metrics where the AI is at least as good, and whether it wins (4 of 6, per plan.md H.2-1)."""
+    """Metrics where the AI is at least as good, and whether it wins (4 of 6, per docs/history/plan-2026-10.md H.2-1)."""
     ge = [m for m in METRICS if ai_scores[m] >= rule_scores[m] - 1e-9]
     gt = [m for m in METRICS if ai_scores[m] > rule_scores[m] + 1e-9]
     return {"at_least_as_good": ge, "better": gt, "wins": len(ge) >= 4 and len(gt) >= 1}

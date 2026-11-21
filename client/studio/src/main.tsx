@@ -33,6 +33,8 @@ const ThemesPage = lazyScreen(() => import("./pages/Themes"));
 const SettingsPage = lazyScreen(() => import("./pages/Settings"));
 const ShortsPage = lazyScreen(() => import("./pages/ShortsExtractor"));
 const SocialPage = lazyScreen(() => import("./pages/SocialHub"));
+import "@fontsource-variable/inter";
+import "./tokens.css";
 import "./styles.css";
 import ErrorBoundary from "./components/ErrorBoundary";
 

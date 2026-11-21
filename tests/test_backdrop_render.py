@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-pytestmark = pytest.mark.slow
+pytestmark = [pytest.mark.slow, pytest.mark.browser]
 TOLERANCE = 0.35        # the camera zoom moves the photo a little, so the measured ratio may differ slightly from the analysed one
 
 

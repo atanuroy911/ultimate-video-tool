@@ -246,9 +246,58 @@ def choose(card: Card, allow_partial: bool = True) -> Fit:
 
 
 # ----------------------------------------------------------------------------- the language model (Ollama)
-# (model, GB on the card with an 8k context) best first; gemma3 reads Bangla best of the small open models
-LANGUAGE = [("gemma3:12b", 10.0), ("gemma3:4b", 4.6), ("gemma3:1b", 1.9)]
-LANGUAGE_DOWNLOAD_GB = {"gemma3:12b": 8.1, "gemma3:4b": 3.3, "gemma3:1b": 0.8}     # the size Ollama's library lists for each
+# ----- the language models, MEASURED on the card (docs/plans/PLAN-LOCAL-AI-6GB.MD, 2026-11-21, RTX 4050 Laptop 6 GB, Ollama 0.40.16)
+# card_gb: what the model takes on the card at a 32k context with our Ollama settings (llm.OLLAMA_TUNING: flash attention, 8-bit context cache),
+#          as nvidia-smi showed after loading minus what was in use before (models not measured here are estimates, marked so).
+# pictures: it can read a frame (the director's frame review sends one); a model without pictures cannot do that step.
+# The order is the ranking, best first, decided by the same videos made with each (section 3.3 of the plan).
+@dataclass(frozen=True)
+class LanguageModel:
+    name: str
+    card_gb: float
+    download_gb: float
+    pictures: bool = True
+    measured: bool = True
+    note: str = ""
+
+
+LANGUAGE_MODELS: list[LanguageModel] = [
+    LanguageModel("gemma3:12b", 9.6, 8.1, measured=False, note="12 GB cards and up"),
+    # 6 GB card, the same 4 videos each (plan 3.3): E2B made them in 140-208 s with the most sensible pictures; Gemma 3 4B took 250-533 s and picked
+    # wrong meanings (a moon cake for "snooze"); E4B left the Bangla video nearly empty; Qwen 3.5 wrote numbers where text belongs and fell back.
+    LanguageModel("gemma4:e2b", 2.79, 7.2),
+    LanguageModel("gemma3:4b", 3.64, 3.3),
+    LanguageModel("gemma4:e4b", 4.17, 9.6),
+    LanguageModel("qwen3.5:4b", 3.93, 3.4),
+    LanguageModel("gemma3:1b", 1.6, 0.8, pictures=False, measured=False, note="tiny cards and the processor"),
+]
+LANGUAGE = [(m.name, m.card_gb) for m in LANGUAGE_MODELS]                       # (name, GB on the card), the form setup.py reads
+LANGUAGE_DOWNLOAD_GB = {m.name: m.download_gb for m in LANGUAGE_MODELS}
+BY_NAME = {m.name: m for m in LANGUAGE_MODELS}
+OTHER_PROGRAMS_GB = 1.5          # what Windows, the browser and our own windows kept on the card before the model loaded (measured: 1550 MiB)
+
+
+def language_room(vram_gb: float) -> float:
+    """What the language model may take of a card: the card less the safety margin and what other programs already hold."""
+    return max(0.0, vram_gb * (1 - MARGIN) - OTHER_PROGRAMS_GB) if vram_gb else 0.0
+
+
+def fits_card(name: str, vram_gb: float) -> bool:
+    """A model we measured (or estimated) that stays whole on this card at a 32k context. An unknown model is not judged (False)."""
+    m = BY_NAME.get(name)
+    return bool(m and vram_gb and m.card_gb <= language_room(vram_gb))
+
+
+def max_context(name: str, vram_gb: float) -> int:
+    """The largest context worth asking this model for on this card: 64k only with 2 GB to spare (64k was not measured), else 32k (measured), else 16k."""
+    m = BY_NAME.get(name)
+    room = language_room(vram_gb)
+    if not m or not vram_gb:
+        return 32768
+    if m.card_gb + 2.0 <= room:
+        return 65536
+    return 32768 if m.card_gb <= room else 16384
+
 
 # Short clips (Wan 2.2: two 14B experts at 8 bits that take turns). ComfyUI streams what does not fit from RAM, but below these sizes it
 # swaps or runs out of memory. Estimates from the model sizes, not a bench on every card.
@@ -269,8 +318,8 @@ def clips_fit(vram_gb: float, ram_gb: float) -> dict:
 def language_model(vram_gb: float, ram_gb: float = 0.0) -> dict:
     """The language model for this card. On one card it runs before the pictures and is unloaded after (llm.release), so it may use the whole card."""
     for name, need in LANGUAGE:
-        if vram_gb and need <= vram_gb * (1 - MARGIN):
-            return {"model": name, "card_gb": need, "where": "card"}
+        if vram_gb and need <= language_room(vram_gb):
+            return {"model": name, "card_gb": need, "where": "card", "max_context": max_context(name, vram_gb)}
     for name, need in LANGUAGE[1:]:                                   # no card, or a small one: on the processor, slowly
         if not ram_gb or need + RAM_FOR_SYSTEM <= ram_gb:
             return {"model": name, "card_gb": 0.0, "where": "processor", "note": "no card big enough: it runs on the processor, a few times slower"}

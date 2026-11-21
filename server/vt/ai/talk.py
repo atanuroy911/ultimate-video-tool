@@ -135,7 +135,8 @@ def _bound_images(where: Path, rows: list[dict]) -> bool:
 
 
 def record(who: str, model: str, *, system: Any = "", prompt: Any = "", answer: Any = "", seconds: float = 0.0, error: str = "", kind: str = "ask",
-           cached: bool = False, images: int = 0, folder: Optional[Path] = None, image_data: Optional[list[bytes]] = None) -> None:
+           cached: bool = False, images: int = 0, folder: Optional[Path] = None, image_data: Optional[list[bytes]] = None,
+           schema: Any = None) -> None:
     """Never raises: a log must not stop a video."""
     try:
         with _lock:
@@ -144,7 +145,7 @@ def record(who: str, model: str, *, system: Any = "", prompt: Any = "", answer: 
         if where is None or not where.is_dir():
             return
         row = redact({"at": now_iso(), "stage": str(slot["stage"] if slot else "")[:200], "who": str(who)[:200], "model": str(model)[:200], "kind": str(kind)[:50], "system": _text(system), "prompt": _text(prompt),
-                      "answer": _text(answer), "seconds": round(seconds, 1), "error": redact(error)[:1000], "cached": cached, "images": images})
+                      "answer": _text(answer), "seconds": round(seconds, 1), "error": redact(error)[:1000], "cached": cached, "images": images, **({"schema": schema} if schema else {})})
         with _lock:
             file = project_file(where, FILE)
             rows, next_seq, compact = _read_rows(file)

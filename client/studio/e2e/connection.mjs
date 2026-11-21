@@ -32,7 +32,7 @@ console.log("A server that does not accept this computer");
   await page.goto(base + "/", { waitUntil: "load" });
   await page.waitForTimeout(1200);
   const t = await text(page);
-  check("the refused screen says what is wrong and what to do", /not open to this computer/.test(t) && /same network|another server/.test(t));
+  check("the refused screen says what is wrong and what to do", /needs its key/.test(t) && /Copy key/.test(t));
   check("and shows no raw error", !/401|detail|undefined/.test(t));
   await page.screenshot({ path: "e2e/out/connection/refused.png" });
   await page.close();

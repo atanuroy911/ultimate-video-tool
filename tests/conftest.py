@@ -67,6 +67,11 @@ def _no_real_graphics_cards(monkeypatch):
 
 def pytest_configure(config):
     config.addinivalue_line("markers", "slow: renders real frames with HyperFrames (needs Node + Chrome)")
+    config.addinivalue_line("markers", "gpu: needs an NVIDIA graphics card and the CUDA build of torch")
+    config.addinivalue_line("markers", "models: uses a speech, voice or picture model (downloaded; the test skips when it is absent)")
+    config.addinivalue_line("markers", "browser: renders in headless Chrome (HyperFrames)")
+    config.addinivalue_line("markers", "network: needs the internet")
+    config.addinivalue_line("markers", "assistant: needs Claude Code or Codex signed in on this computer")
 
 
 @pytest.fixture()

@@ -33,6 +33,8 @@ function createServerManager(controller){
   }
   async function act(action){
     if(action==='copy-address'){const s=await state();const lan=(s.addresses||[]).filter(a=>!/\/\/(127\.|localhost|\[::1\])/.test(a));if(!s.running)throw new Error('Start the server first.');if(!lan.length)throw new Error('Other computers can\'t reach this server yet.');clipboard.writeText(lan[0].replace(/^https?:\/\//,''));return {ok:true};}
+    if(action==='trust-on'||action==='trust-off'){if(!(await state()).running)throw new Error('Start the server first.');await control.request(controller.url(),'/api/server/trust-network','POST',{on:action==='trust-on'});return {ok:true};}
+    if(action==='copy-key'){if(!(await state()).running)throw new Error('Start the server first.');const k=await control.request(controller.url(),'/api/server/key');if(!k||typeof k.key!=='string'||!k.key)throw new Error('This server did not give its key.');clipboard.writeText(k.key);return {ok:true};}
     if(action==='engine-settings'){if(!controller.url()||!(await state()).running)throw new Error('Start the server first.');return {url:control.localURL(controller.url())+'/manage?embedded=1'};}
     if(action==='gpu-settings'){if(!controller.url()||!(await state()).running)throw new Error('Start the server first.');try{fs.mkdirSync(path.dirname(gpuMarker),{recursive:true});fs.writeFileSync(gpuMarker,'shown');}catch{}return {url:control.localURL(controller.url())+'/manage?embedded=1#cards'};}
     if(action==='open-log'){return {log:await controller.readLog()};}

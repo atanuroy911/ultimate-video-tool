@@ -1,56 +1,35 @@
 # Documentation: start here
 
-Everything about the project, organised so that an agent or a person can pick it up cold.
-
-Start with the [2026-11-03 vision-to-product audit](AUDIT-2026-11-03.md) for the latest discrepancies, completed connections and open acceptance gates.
+Everything about the project, organised so that an agent or a person can pick it up cold. The product is **0.5 (beta)**.
 
 ## Read in this order
 | # | Read | For |
 |---|---|---|
-| 1 | [HANDOFF.md](HANDOFF.md) | how to work here: commands, rules, the GPU server, traps. Five minutes. |
-| 2 | [ROADMAP.md](ROADMAP.md) | **the plan, in phases.** Phase 0 is what exists; **Phase 1 is what to do next**; every phase has tasks with file paths, a gate and the verification commands |
-| 3 | [STATUS.md](STATUS.md), and [TEST-PLAN.md](TEST-PLAN.md) for how everything is tested | **what is implemented, where (file paths and functions), the tests, and the logs that prove it**; what is not built; what failed |
-| 4 | [plans/](plans/) | the detailed designs behind the phases (below) |
-| 5 | [research/REELS-ANALYSIS.md](research/REELS-ANALYSIS.md) | what the owner's high-retention example reels do, measured and watched; the model for Phase 4 |
-| 6 | [ops/](ops/), qa/ (historical report missing from this checkout), [evidence/](evidence/), [history/](history/) | the server runbook, QA reports, raw test logs, and archived plans |
+| 1 | [dev/CODEX-HANDOFF.md](dev/CODEX-HANDOFF.md) and the top of [dev/WORKLOG.md](dev/WORKLOG.md) | how to work here, the owner's rules, and what was done last. Five minutes. |
+| 2 | [STATUS.md](STATUS.md) | what is proven, how, and the honest list of gaps |
+| 3 | [plans/PLAN-WORKBENCH.MD](plans/PLAN-WORKBENCH.MD) | the step-by-step plan being carried out now (releases, security, tests, the new editor layout, Claude Code inside the app) |
+| 4 | [plans/PLAN-PERFECT.MD](plans/PLAN-PERFECT.MD) | the plan for video quality |
+| 5 | [ROADMAP.md](ROADMAP.md), [TEST-PLAN.md](TEST-PLAN.md) | the phases, and how everything is tested |
+| 6 | [dev/](dev/) | measured baselines, the slow-test table, matrix findings, screenshots |
 
 ## Folder map
 ```
 docs/
   README.md        this page
-  HANDOFF.md       how to work in the repo
-  ROADMAP.md       the master plan: Phase 0 (partly done) ... Phase 10
-  STATUS.md        the implementation ledger with evidence
-  TEST-PLAN.md     the end-to-end test plan: layers, the automatic battery, the judges, the acceptance corpus, the human checklist
-  plans/           detailed designs
-    PLAN-DIRECTOR-MODULES.MD      everything is a module; the director, the plan review, the live log (the big one)
-    PLAN-AUDIO-FIRST-DIRECTOR.MD  the audio is cut first, cuts land on impact, what fills a slot; the research behind it
-    PLAN-COMFYUI-VIDEO.MD         generated clips: the server, the workflows, the measured timings
-    PLAN-ENGINES-AND-SETUP.MD     engines (Ollama, ComfyUI, VoiceStudio...) local or remote, the setup wizard, the two-server principle
-    PLAN-PACKAGING.MD             the app and the engine as two downloads, the engine hub, the GitHub Actions that build both
-    PLAN-VOICESTUDIO.MD           VoiceStudio on the GPU machine and in the app
-    PLAN-VOICE-DIRECTION.MD       voice direction and vocal events for the director
-    PLAN-REEL-DIRECTOR.MD         the reel director in full: how a script becomes a video that holds attention
-    PLAN-EDITOR-UI.MD             the everyday, CapCut-style editor and what is next for it
-    PLAN-SHORTS.MD                finding viral moments in long recordings and making shorts
-    PLAN-SOCIAL.MD                posting to Meta, YouTube and TikTok with a queue
-    README.md                     the plan audit, updated alongside STATUS.md
-  ops/             the GPU server's layout, update procedure and rollback
-  qa/              QA reports (live scripts, YouTube A-roll, Ollama models, Shorts UI)
-  evidence/        raw logs of the test suites and measurements, by date; the code-to-test map; the measured facts
-  research/        what the owner's example reels do (REELS-ANALYSIS.md), the best models for each job (BEST-MODELS.md)
-  OPEN-QUESTIONS.md  questions held for the end of the build, and what was decided meanwhile
-  history/         every earlier plan, word for word (Phases 2-16 and the first rounds)
+  STATUS.md        what is proven and what is not (short, current)
+  ROADMAP.md       the phases
+  TEST-PLAN.md     the test layers and the human checklist
+  OPEN-QUESTIONS.md  questions held for the owner, and what was decided meanwhile
+  GLOSSARY.md      the words used in the product
+  DEVELOPMENT-INSTALL.md  running the client and server from source
+  dev/             working notes: handoff, worklog, baselines, matrix findings, screenshots
+  plans/           the detailed plans (the current ones are PLAN-WORKBENCH and PLAN-PERFECT)
+  ops/             the GPU server's runbook (kept for reference)
+  research/        what the owner's example reels do, the best models for each job
+  history/         earlier plans, audits and the old status ledger, word for word
 ```
+The raw evidence logs (6,556 files) are no longer in the repository: they are in `docs-evidence-2026-11.zip` on the 0.5.0 release.
 
 ## Conventions
-* **Status words:** DONE · PARTLY DONE · NEXT · PLANNED · PARALLEL (phases); ✅ verified · ◐ partial or unmeasured · ✗ not built · ⚠ failing or stale (ledger rows).
-* **Paths** are relative to the repository root `C:\Users\atanu\Desktop\Video Tool`. A path in `backticks` in STATUS.md, HANDOFF.md or this page **must exist**; `path::name` must also name something defined in that file. Planned files are written without backticks.
-* **Nothing is "done" without a log** in `evidence/`.
-* **The docs are checked:** `python scripts/check_docs.py` fails on a broken link, a path that does not exist, a test name that is not in its file, a measured number that drifted, or a roadmap phase without a status.
-
-## When you finish something
-1. Update the task and the phase **Status** in [ROADMAP.md](ROADMAP.md).
-2. Update the row in [STATUS.md](STATUS.md) (paths, tests, evidence log).
-3. `python scripts/collect_evidence.py ...` for the suites you touched; commit nothing without the owner asking.
-4. `python scripts/check_docs.py`.
+* A path in `backticks` in STATUS.md or this page **must exist**; the docs are checked: `python scripts/check_docs.py` fails on a broken link, a missing path, a test name not in its file, or a measured number that drifted.
+* Paths are relative to the repository root.

@@ -85,6 +85,21 @@ def validate(spec, srt_text=None, fix=True, notes=None):
             for key in ('x', 'y', 's', 'rot', 'at', 'until'):
                 if key in el and not isinstance(el[key], (int, float)):
                     err.append(f'scene {i} element {j}: "{key}" must be a number')
+            # words the drawing reads as text: a number written by the director (e.g. steps 3, 6, 9) is the same words as text; anything else goes back
+            for key in ('text', 'title', 'big'):
+                if el.get(key) is not None and not isinstance(el[key], str):
+                    if fix and isinstance(el[key], (int, float)) and not isinstance(el[key], bool):
+                        note(f'element {j} ({t}): its {key} {el[key]!r} was a number, so it is written as text', False, i + 1)
+                        el[key] = f"{el[key]:g}"
+                    else:
+                        err.append(f'scene {i} element {j}: "{key}" must be text')
+            for key in ('items', 'texts', 'labels'):
+                if key in el and isinstance(el[key], list) and any(not isinstance(v, str) for v in el[key]):
+                    if fix and all(isinstance(v, (str, int, float)) and not isinstance(v, bool) for v in el[key]):
+                        note(f'element {j} ({t}): some of its {key} were numbers, so they are written as text', False, i + 1)
+                        el[key] = [v if isinstance(v, str) else f"{v:g}" for v in el[key]]
+                    else:
+                        err.append(f'scene {i} element {j}: every one of "{key}" must be text')
             if fix and 'at' in el and isinstance(el['at'], (int, float)):
                 at = min(max(el['at'], x['s']), x['e'] - 0.1)
                 if at != el['at']:

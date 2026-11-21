@@ -536,7 +536,7 @@ class Pipeline:
                     PD.save(p.dir, plan)
                     self._say("plan", 0.1, f"Waiting for {status.get('label', 'Claude on this PC')}")
                     result = directors.broker.request(who.split("@", 1)[1], p.id, directors.client_prompt(p.id),
-                                                      directors.settings()["wait_seconds"], assistant=who.split('@',1)[0])
+                                                      directors.direct_timeout(), assistant=who.split('@',1)[0])
                     plan = PD.load(p.dir) or plan
                     if result.get("ok") and plan.state in ("approved", "running"):
                         directors.record(p, who, requested=requested, fallback_reason=fallback_reason)
@@ -614,7 +614,7 @@ class Pipeline:
         actual = "rules" if how == "rules" else chosen
         if chosen.startswith(("claude@", "codex@")):
             self._say("plan", 0.92, f"Waiting for {available[chosen].get('label', 'the director on your computer')}")
-            result = directors.broker.request(chosen.split("@", 1)[1], p.id, directors.client_story_prompt(p.id), directors.settings()["wait_seconds"],
+            result = directors.broker.request(chosen.split("@", 1)[1], p.id, directors.client_story_prompt(p.id), directors.direct_timeout(),
                                               assistant=chosen.split("@", 1)[0])
             outside = p.scenes()
             if result.get("ok") and outside is not None and outside.planner in ("claude", "assistant"):
@@ -795,7 +795,7 @@ class Pipeline:
             if outside:
                 p.save_scenes(sf)                              # only so the project has a plan while it waits; the director writes the whole video itself
                 self._say("plan", 0.1, f"Waiting for {available[chosen].get('label', 'Claude on this PC')}")
-                result = directors.broker.request(chosen.split("@", 1)[1], p.id, directors.client_scene_prompt(p.id), directors.settings()["wait_seconds"], assistant=chosen.split('@',1)[0])
+                result = directors.broker.request(chosen.split("@", 1)[1], p.id, directors.client_scene_prompt(p.id), directors.direct_timeout(), assistant=chosen.split('@',1)[0])
                 returned = p.scenes()
                 if result.get("ok") and returned is not None and returned.planner in ("claude", "assistant"):
                     sf = returned

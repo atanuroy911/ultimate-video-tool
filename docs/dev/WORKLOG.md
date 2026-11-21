@@ -593,3 +593,6 @@ Model chooser in the Claude Code tab (Default, Sonnet, Opus, Haiku); e2e 16/16.
 C7: ask_local tool (small model on this computer); tried: 12.9 s.
 C8: small VS Code extension (preview a shot beside the code), helper test only.
 Fast suite: one test needed updating (client may depend on the two ACP packages); a stray backspace in this file was removed.
+
+## 2026-11-22 (C7 check)
+VT_LOCAL_MCP=1 lets a test server on 127.0.0.1 offer /mcp (same checks; for tests). Real Claude Code in the real app made a picture with ComfyUI and spoke a line with Kokoro through our tools: e2e/desktop-agent-media.mjs 5/5.

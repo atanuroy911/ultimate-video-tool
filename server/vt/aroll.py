@@ -227,7 +227,7 @@ def build(project, progress=None, force: bool = False) -> Optional[MediaItem]:
         meta.media=[m for m in meta.media if m.id!='aroll']+[item];project.save_meta(meta)
         project.mark_stage('aroll',h,seconds=item.duration,faces=0)
         return item
-    with tempfile.TemporaryDirectory() as d:
+    with tempfile.TemporaryDirectory(dir=project.dir) as d:       # on the project's own drive: a file cannot be moved from C:\ temp to a project on E:\ (WinError 17)
         script = Path(d) / "cut.txt"
         tmp = Path(d) / "aroll.mp4"                                # written here first, moved into the media bin only when the cut succeeded
         script.write_text(filter_script([(a, b) for a, b in cuts.keep], MAX_LONG_SIDE, info["width"], info["height"]), encoding="utf-8")

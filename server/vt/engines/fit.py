@@ -358,3 +358,8 @@ VOICE_SPEED = {
     "kokoro": {"seconds_per_second": 1.5, "first_load_s": 20, "device": "processor (int8)", "note": "7.4 s for 4.8 s of English"},
     "chatterbox-turbo": {"seconds_per_second": 17.0, "first_load_s": 15, "device": "ONNX, processor or card (the same either way here)", "note": "56 s for 3.2 s of speech; use only for short lines or on a stronger machine"},
 }
+
+# ----- short clips, MEASURED on one laptop (RTX 4050 Laptop 6 GB, 32 GB RAM, 2026-11-22): Wan 2.2 TI2V 5B at Q4 (GGUF) with the umt5 encoder at Q4 runs
+# on 6 GB, but slowly: a 2 s clip at 640x352 (49 frames, 20 steps) took 1357 s while speech recognition used every processor core. Recognisable motion, some
+# stray objects (docs/dev/spikes/html-shot/c7-wan-clip.png). Not for a whole video on such a card; CLIPS_CARD_GB stays the rule for offering clips by default.
+CLIP_SPEED = {"wan2.2-ti2v-5b-q4": {"card_gb": 6, "seconds": 1357, "clip_s": 2.0, "size": "640x352", "steps": 20, "note": "machine busy; re-time on a quiet machine"}}

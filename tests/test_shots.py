@@ -419,3 +419,10 @@ def test_an_unset_picture_server_is_this_computer_never_somebody_elses(monkeypat
     import subprocess, sys
     hits = subprocess.run(["git", "grep", "-l", "192.168.123.47", "--", "server/vt"], capture_output=True, text=True, cwd=paths.ROOT.parent).stdout
     assert hits == "", f"a hard-coded LAN address is in the code again: {hits}"
+
+
+def test_agent_generator_tools_are_registered_and_scoped():
+    """C7: make_picture and speak exist as agent tools and a task token for one project may call them."""
+    from vt.mcp import scope, server as S
+    assert callable(S.make_picture) and callable(S.speak)
+    assert {"make_picture", "speak"} <= scope._PROJECT_TOOLS

@@ -22,7 +22,7 @@ module_call get_planning_task submit_scenes get_reel_plan check_reel_plan run_pi
 fix_word add_glossary_term get_scenes update_scene list_media list_scene_types show_scene_as request_regenerate
 get_preview_frame render get_script_task submit_script get_story_task submit_story get_current_script
 get_director_notes frame_facts preview_frames
-list_shots get_shot write_shot set_scene_shot set_shot_edits get_shot_frame
+list_shots get_shot write_shot set_scene_shot set_shot_edits get_shot_frame make_picture speak
 """.split())
 # Exact ids are deliberate. A new module must be reviewed before a task token
 # may call it; a project_id argument alone does not make a capability scoped.

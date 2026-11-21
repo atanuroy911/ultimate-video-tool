@@ -857,6 +857,45 @@ def get_shot_frame(project: str, shot_id: str, time_seconds: float = 0.0) -> Ima
     return Image(path=str(got[0]))
 
 
+@tool
+def make_picture(project: str, prompt: str, aspect: str = "", seed: int = 1) -> dict:
+    """Draw one picture with the picture engine on this computer (ComfyUI) and put it in the project's media bin. About 15 s on a 6 GB card, 30 s the first time.
+    Say what it shows in plain words. Use the returned media id in a shot (assets) or a scene (show_scene_as). Fails in words when no picture engine runs."""
+    from ..comfy import ComfyClient, ComfyError, generate_still, picture_workflow
+    from ..server.comfy_routes import comfy_url
+
+    p = _proj(project)
+    client = ComfyClient(comfy_url())
+    try:
+        try:
+            item, rec = generate_still(p, client, picture_workflow(object_info=client.object_info()), prompt.strip()[:600], aspect=aspect or p.meta().aspect, seed=int(seed), caption=prompt[:80])
+        except ComfyError as e:
+            return {"ok": False, "error": str(e)[:300]}
+    finally:
+        client.close()
+    return {"ok": True, "media": item.id, "file": item.file if hasattr(item, "file") else "", "seconds": rec.get("seconds_taken"), "size": rec.get("size")}
+
+
+@tool
+def speak(project: str, text: str, voice: str = "af_heart", engine: str = "kokoro", rate: float = 1.0) -> dict:
+    """Speak English text with a voice on this computer (Kokoro by default; voices such as af_heart, am_michael, bf_emma). Saves a WAV in the project's
+    agent_audio folder and returns its path, duration and word times. About 1.5x real time on the processor, 20 s the first time."""
+    import re
+
+    from .. import tts
+
+    p = _proj(project)
+    out_dir = p.dir / "agent_audio"
+    out_dir.mkdir(exist_ok=True)
+    name = re.sub(r"[^a-z0-9]+", "-", text.lower())[:30].strip("-") or "speech"
+    out = out_dir / f"{name}-{voice}.wav"
+    try:
+        res = tts.synthesize(text, out, engine=engine, voice=voice, rate=float(rate), language="en")
+    except tts.TTSError as e:
+        return {"ok": False, "error": str(e)[:300]}
+    return {"ok": True, "file": str(out.relative_to(p.dir)), "duration": res.get("duration"), "engine": res.get("engine"), "voice": res.get("voice")}
+
+
 @server.prompt(name="plan_this_video", description="Plan every pending video request")
 def plan_this_video() -> str:
     return ("Plan all pending Video Tool requests: call list_pending_requests; for each, get_planning_task, then submit_scenes (fix returned errors "

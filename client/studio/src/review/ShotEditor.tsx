@@ -2,11 +2,13 @@
 // The shot runs in a sandboxed frame with no access to the Studio (server/renderer/runtime/vt-shot-bridge.js answers messages); every change here is an
 // override saved next to the shot's code, never a change to the code. Click an element to select it, drag it, pull the corner to scale, the top dot to rotate.
 import { Eye, EyeOff, Pause, Play, Redo2, RotateCcw, Undo2, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { get, put } from "../api";
 import { toast } from "../store";
 import * as E from "./shotEdit";
 import "./shot-editor.css";
+
+const ShotCode = lazy(() => import("./ShotCode"));          // CodeMirror loads only when the code is opened
 
 interface ShotInfo { id: string; title: string; duration: number; width: number; height: number; knobs: { name: string; label?: string; kind?: string }[]; html: string; ids: string[]; overrides: E.Overrides }
 interface Ready { ids: string[]; texts: Record<string, string>; colours: Record<string, string | null>; duration: number; width: number; height: number }
@@ -27,6 +29,8 @@ export default function ShotEditor({ projectId, shotId, onClose }: { projectId: 
   const [playing, setPlaying] = useState(false);
   const [scale, setScale] = useState(0.3);
   const [saving, setSaving] = useState<"saved" | "saving" | "error">("saved");
+  const [tab, setTab] = useState<"design" | "code">("design");
+  const [pageRev, setPageRev] = useState(0);                       // bumps when the code changed: the frame loads the new page
   const drag = useRef<Drag | null>(null);
   const shown = live ?? hist.now;
   const base = `/api/projects/${encodeURIComponent(projectId)}/shots/${encodeURIComponent(shotId)}`;
@@ -98,6 +102,21 @@ export default function ShotEditor({ projectId, shotId, onClose }: { projectId: 
   }, [hist.now, info, base]);
 
   const change = (next: E.Overrides) => setHist((h) => E.commit(h, next));
+
+  /** New code: the server checks it, then the frame loads it; the visual edits are kept (an edit whose element is gone is listed, not lost). */
+  const saveCode = async (code: string): Promise<boolean> => {
+    try {
+      const s = await put<ShotInfo>(base, { html: code });
+      setInfo((old) => (old ? { ...old, ...s, overrides: old.overrides } : s));
+      setReady(null);
+      setPageRev((n) => n + 1);
+      return true;
+    } catch (e: any) {
+      toast(`The code was not saved: ${e.message}`, "err");
+      return false;
+    }
+  };
+  const orphans = Object.keys(hist.now.elements).filter((id) => info && !info.ids.includes(id));
   const el = sel ? shown.elements[sel] ?? {} : null;
   const declared = useMemo(() => E.declaredKnobs(info?.html ?? ""), [info]);
 
@@ -147,6 +166,10 @@ export default function ShotEditor({ projectId, shotId, onClose }: { projectId: 
     <div className="shot-editor" onKeyDown={onKey} tabIndex={-1} aria-label={`Shot ${info.title}`}>
       <div className="shot-bar">
         <strong>{info.title}</strong>
+        <div className="shot-tabs" role="tablist" aria-label="View">
+          <button role="tab" aria-selected={tab === "design"} className={tab === "design" ? "on" : ""} onClick={() => setTab("design")}>Design</button>
+          <button role="tab" aria-selected={tab === "code"} className={tab === "code" ? "on" : ""} onClick={() => { setSel(null); setTab("code"); }}>Code</button>
+        </div>
         <span className="muted small">{saving === "saving" ? "Saving…" : saving === "error" ? "Not saved" : "Saved"}</span>
         <span className="grow" />
         <button className="btn ghost icon sm" aria-label="Undo" title="Undo (Ctrl+Z)" disabled={!hist.past.length} onClick={() => setHist(E.undo)}><Undo2 size={15} /></button>
@@ -157,9 +180,9 @@ export default function ShotEditor({ projectId, shotId, onClose }: { projectId: 
       <div className="shot-body">
         <div className="shot-stage" ref={box}>
           <div className="shot-canvas" style={{ width: info.width * scale, height: info.height * scale }}
-               onPointerDown={(e) => { if (!drag.current) { const p = toShot(e); post({ vt: "shot-pick", x: p[0], y: p[1] }); } }}
+               onPointerDown={(e) => { if (!drag.current && tab === "design") { const p = toShot(e); post({ vt: "shot-pick", x: p[0], y: p[1] }); } }}
                onPointerMove={moveTo} onPointerUp={up} onPointerCancel={up}>
-            <iframe ref={frame} title={`Shot ${info.title}`} sandbox="allow-scripts" src={`${base}/page/index.html?editor=1`}
+            <iframe ref={frame} title={`Shot ${info.title}`} sandbox="allow-scripts" src={`${base}/page/index.html?editor=1&v=${pageRev}`}
                     style={{ width: info.width, height: info.height, transform: `scale(${scale})` }} />
             {r && (
               <div className="shot-sel" style={r} onPointerDown={(e) => down(e, "move")} aria-label={`Selected: ${sel}. Drag to move; arrow keys move by 1, with shift by 10.`}>
@@ -175,6 +198,17 @@ export default function ShotEditor({ projectId, shotId, onClose }: { projectId: 
             <span className="small muted mono">{t.toFixed(2)} / {info.duration.toFixed(2)} s</span>
           </div>
         </div>
+        {tab === "code" ? (
+          <div className="shot-code-pane">
+            <Suspense fallback={<p className="small muted" role="status">Opening the code…</p>}>
+              <ShotCode key={shotId} code={info.html} onSave={saveCode} dark={document.documentElement.dataset.theme === "dark" || matchMedia("(prefers-color-scheme: dark)").matches} />
+            </Suspense>
+            {orphans.length > 0 && (
+              <p className="small shot-orphans">Edits kept for elements the code no longer has: {orphans.map((id) => (
+                <button key={id} className="btn ghost sm" onClick={() => change(E.resetElement(hist.now, id))} title="Remove this edit">{id} ×</button>))}</p>
+            )}
+          </div>
+        ) : (
         <aside className="shot-side" aria-label="Shot settings">
           {sel && el ? (
             <section>
@@ -221,6 +255,7 @@ export default function ShotEditor({ projectId, shotId, onClose }: { projectId: 
           )}
           {ready && <p className="small muted">Selectable: {ready.ids.join(", ") || "nothing (the shot has no data-vt-id)"}</p>}
         </aside>
+        )}
       </div>
     </div>
   );

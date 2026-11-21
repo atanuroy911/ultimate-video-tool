@@ -66,12 +66,39 @@ if (await knob.count()) {
 }
 await page.screenshot({ path: process.env.VT_SHOT_PNG || "shot-editor.png" });
 
+// C4: the code view. Add an element in the code, save with Ctrl+S: the preview loads it and the visual edits stay.
+await page.getByRole("tab", { name: "Code" }).click();
+await page.waitForSelector(".shot-code-editor .cm-content", { timeout: 15000 });
+check("the code view shows the shot's code", (await page.locator(".cm-content").textContent()).includes("data-composition-id"));
+const newCode = codeBefore.replace("</body>", '<div data-vt-id="extra" style="position:absolute;left:100px;top:1500px;color:#fff;font-size:60px">Added in code</div>\n</body>');
+await page.locator(".cm-content").click();
+await page.keyboard.press("Control+a");
+await page.keyboard.insertText(newCode);
+check("an unsaved change is shown", (await page.locator(".shot-code-bar").textContent()).includes("Not saved"));
+await page.keyboard.press("Control+s");
+await page.waitForFunction(() => document.querySelector(".shot-code-bar")?.textContent?.includes("Saved"), null, { timeout: 10000 });
+const afterCode = await api("GET", shotApi);
+check("saving sends the code", afterCode.html.includes('data-vt-id="extra"') && afterCode.ids.includes("extra"));
+check("the visual edits survive new code", afterCode.overrides.elements?.[target]?.text === "Edited in the Studio");
+await page.getByRole("tab", { name: "Design" }).click();
+await page.waitForFunction(() => document.querySelector(".shot-side")?.textContent?.includes("extra"), null, { timeout: 15000 }).catch(() => {});
+check("the preview loads the new code", (await page.locator(".shot-side").textContent()).includes("extra"));
+await page.getByRole("tab", { name: "Code" }).click();
+await page.locator(".cm-content").click();
+await page.keyboard.press("Control+a");
+await page.keyboard.insertText("<div>no root</div>");
+await page.keyboard.press("Control+s");
+await page.waitForTimeout(1200);
+check("code without a timed root is refused and the shot keeps its code", (await api("GET", shotApi)).html === newCode);
+await page.getByRole("tab", { name: "Design" }).click();
+await api("PUT", shotApi, { html: codeBefore });
+
 await page.locator(".shot-editor").focus();
 await page.keyboard.press("Control+z");
 await page.waitForTimeout(900);
 saved = (await api("GET", shotApi)).overrides;
 check("undo takes the last change back", !Object.keys(saved.knobs || {}).length, JSON.stringify(saved.knobs));
-check("the shot's code was never changed", (await api("GET", shotApi)).html === codeBefore);
+check("the visual editor never changed the shot's code", (await api("GET", shotApi)).html === codeBefore);
 await page.getByRole("button", { name: "Close the shot editor" }).click();
 check("closing returns to the video", await page.getByRole("button", { name: "Edit shot" }).isVisible().catch(() => false));
 check("no page errors", errors.length === 0, errors.join(" | "));

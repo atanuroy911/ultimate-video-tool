@@ -22,3 +22,11 @@
 .shot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
 .shot-knob { flex-direction: row !important; align-items: center; justify-content: space-between; margin-bottom: 6px; }
 .shot-knob input[type="text"] { width: 110px; }
+.shot-tabs { display: inline-flex; margin-left: 10px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.shot-tabs button { border: 0; background: transparent; color: var(--muted); padding: 3px 10px; font: inherit; font-size: var(--fs-12); cursor: pointer; }
+.shot-tabs button.on { background: var(--bg-selected); color: var(--fg); }
+.shot-code-pane { flex: 1.2; min-width: 0; display: flex; flex-direction: column; border-left: 1px solid var(--border); background: var(--bg-panel); }
+.shot-code { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.shot-code-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+.shot-code-editor { flex: 1; min-height: 0; overflow: hidden; }
+.shot-orphans { margin: 0; padding: 8px 10px; border-top: 1px solid var(--border); }

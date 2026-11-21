@@ -250,7 +250,8 @@ def render(project: str,
 
 
 @app.command("outline")
-def outline_talk(project: str, local: bool = typer.Option(False, "--local", help="use the local AI (Ollama) even when another is chosen")) -> None:
+def outline_talk(project: str, local: bool = typer.Option(False, "--local", help="use the local AI (Ollama) even when another is chosen"),
+                 model: str = typer.Option("", "--model", help="the local model to use, e.g. gemma4:e4b")) -> None:
     """Read a long talk ahead and mark its example stretches (for B-roll) and the parts that stay on the speaker (C10)."""
     from . import talk_outline
 
@@ -258,7 +259,7 @@ def outline_talk(project: str, local: bool = typer.Option(False, "--local", help
     provider = None
     if local:
         from .ai import OllamaProvider
-        provider = OllamaProvider()
+        provider = OllamaProvider(model or None)
     out = talk_outline.build(p, provider=provider, progress=lambda f, m: console.print(f"[dim]{m}[/dim]"))
     console.print(f"{len(out['sentences'])} sentences, {len(out['sections'])} sections, {len(out['examples'])} examples")
     for e in out["examples"]:

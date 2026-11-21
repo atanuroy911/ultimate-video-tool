@@ -20,6 +20,7 @@ CHUNK = 60            # sentences per AI call (about 900 words of speech)
 OVERLAP = 8           # sentences shared with the previous chunk, so an example cut by the chunk edge is seen whole
 KINDS = ("story", "case", "numbers", "comparison", "list", "demonstration", "analogy", "definition")
 OUTLINE_FILE = "talk_outline.json"
+MAX_EXAMPLE = 15     # sentences; longer is a section, and the AI is asked again
 
 
 class Section(BaseModel):
@@ -43,10 +44,11 @@ class Keep(BaseModel):
 
 
 class ChunkAnswer(BaseModel):
+    # The lists come first and are required: a small model that may skip them writes only the summary (gemma4:e2b did, 2026-11-22, on every chunk after the first).
+    examples: list[Example] = Field(description="Every example in these sentences (often 3 to 8 in a part this long).")
+    keep_on_speaker: list[Keep] = Field(description="Stretches that must stay on the speaker; may be empty.")
+    sections: list[Section] = Field(description="The topics of these sentences, in order, covering all of them.")
     summary: str = Field(max_length=1200, description="The whole talk so far in a few sentences, including this part: its topic, its sections and its examples by name.")
-    sections: list[Section] = Field(default_factory=list)
-    examples: list[Example] = Field(default_factory=list)
-    keep_on_speaker: list[Keep] = Field(default_factory=list)
 
 
 SYSTEM = (
@@ -54,7 +56,8 @@ SYSTEM = (
     "the speaker gives an EXAMPLE, and keep the speaker on screen elsewhere. Your job is only to read and mark; you do not design anything.\n"
     "An example is a stretch where the speaker makes an idea concrete: a story or anecdote, a real case or study, numbers and results, a comparison, "
     "a list of steps or items, a demonstration being described, an analogy, or a definition of a term the audience may not know.\n"
-    "Mark an example from its first to its last sentence (use the sentence numbers you are given). It is usually 2 to 12 sentences. Do not mark "
+    "Mark an example from its first to its last sentence (use the sentence numbers you are given). It is usually 2 to 12 sentences and never more than 15: "
+    "a long description of a method or of experiments is a section, and the separate examples inside it are marked one by one. Do not mark "
     "greetings, the plan of the talk, opinions or the closing as examples: those are keep_on_speaker.\n"
     "For each example, `show` says what a viewer could see while it is said, using only what the words say (no invented facts or numbers).\n"
     "Sections: split the part you are given into its topics. Summary: rewrite the summary of the whole talk so far to include this part."
@@ -77,10 +80,12 @@ def sentences(words: list[dict]) -> list[dict]:
 
 
 def _prompt(chunk: list[dict], summary: str, total: int) -> str:
-    lines = "\n".join(f"{s['n']}. [{s['start']:.0f}s] {s['text']}" for s in chunk)
+    lines = "\n".join(f"S{s['n']}: {s['text']}" for s in chunk)          # no times on the line: a small model took the seconds for sentence numbers
     before = f"Summary of the talk so far:\n{summary}\n\n" if summary else "This is the start of the talk.\n\n"
-    return (f"{before}The talk has {total} sentences. Here are sentences {chunk[0]['n']} to {chunk[-1]['n']}:\n\n{lines}\n\n"
-            "Mark the sections, examples and keep-on-speaker stretches in these sentences only, and update the summary.")
+    lo, hi = chunk[0]["n"], chunk[-1]["n"]
+    return (f"{before}The talk has {total} sentences. Here are sentences {lo} to {hi}:\n\n{lines}\n\n"
+            f"Mark the examples, keep-on-speaker stretches and sections in these sentences only, and update the summary. "
+            f"`first` and `last` are sentence numbers between {lo} and {hi} (S{lo} is {lo}).")
 
 
 def _clip(a: int, b: int, lo: int, hi: int) -> Optional[tuple[int, int]]:
@@ -92,14 +97,33 @@ def merge_examples(found: list[dict]) -> list[dict]:
     """Examples seen twice (in the overlap of two chunks) become one: overlapping ranges merge, the longer description wins."""
     out: list[dict] = []
     for e in sorted(found, key=lambda e: (e["first"], -e["last"])):
+        e = dict(e)
         if out and e["first"] <= out[-1]["last"]:
             last = out[-1]
-            if (e["last"] - e["first"]) > (last["last"] - last["first"]):
-                last.update({k: e[k] for k in ("kind", "about", "show")})
-            last["last"] = max(last["last"], e["last"])
-        else:
-            out.append(dict(e))
+            shared = min(e["last"], last["last"]) - e["first"] + 1
+            shorter = min(e["last"] - e["first"], last["last"] - last["first"]) + 1
+            if shared * 2 >= shorter:                                  # mostly the same stretch: one example
+                if (e["last"] - e["first"]) > (last["last"] - last["first"]):
+                    last.update({k: e[k] for k in ("kind", "about", "show")})
+                last["last"] = max(last["last"], e["last"])
+                continue
+            e["first"] = last["last"] + 1                              # two examples that touch: the later one starts after the earlier
+            if e["first"] > e["last"]:
+                continue
+        out.append(e)
     return out
+
+
+def problems(answer: dict, lo: int, hi: int) -> list[str]:
+    """What the AI is asked to fix: numbers outside the part it was given, and an "example" so long it is really a section."""
+    errs = []
+    for e in answer.get("examples", []) or []:
+        a, b = int(e.get("first", 0)), int(e.get("last", 0))
+        if not (lo <= a <= hi and lo <= b <= hi):
+            errs.append(f"example {a}-{b}: use sentence numbers between {lo} and {hi}")
+        elif b - a + 1 > MAX_EXAMPLE:
+            errs.append(f"example {a}-{b} is {b - a + 1} sentences; an example is at most {MAX_EXAMPLE}. Mark the separate examples inside it, or mark it as a section.")
+    return errs
 
 
 def outline(words: list[dict], *, provider=None, progress: Callable[[float, str], None] = lambda f, m: None,
@@ -112,8 +136,9 @@ def outline(words: list[dict], *, provider=None, progress: Callable[[float, str]
         return {"sentences": [], "sections": [], "examples": [], "keep_on_speaker": [], "summary": ""}
     if ask is None:
         def ask(system: str, prompt: str) -> dict:
+            lo, hi = (int(x) for x in prompt.split("Here are sentences ")[1].split(":")[0].split(" to "))
             return ai.complete_json(prompt, ChunkAnswer.model_json_schema(), system=system, model_cls=ChunkAnswer, provider=provider,
-                                    max_tokens=3000, timeout=600, retries=1)
+                                    max_tokens=3000, timeout=600, retries=1, check=lambda a: problems(a, lo, hi))
     summary = ""
     sections: list[dict] = []
     examples: list[dict] = []

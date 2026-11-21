@@ -72,3 +72,11 @@ def test_speech_recognition_asks_the_local_engines_to_free_the_card(monkeypatch)
     monkeypatch.setattr(comfy_routes, "comfy_url", lambda: "http://10.0.0.5:8188")       # another computer's engine is left alone
     posted.clear()
     assert asr.free_card() == ["ollama"] and posted == []
+
+
+def test_touching_examples_stay_two_and_a_too_long_example_is_sent_back():
+    got = T.merge_examples([{"first": 10, "last": 20, "kind": "case", "about": "a", "show": "a"},
+                            {"first": 19, "last": 30, "kind": "list", "about": "b", "show": "b"}])
+    assert [(e["first"], e["last"]) for e in got] == [(10, 20), (21, 30)]
+    errs = T.problems({"examples": [{"first": 60, "last": 112}, {"first": 5, "last": 6}]}, 53, 112)
+    assert any("53 sentences" in e for e in errs) and any("between 53 and 112" in e for e in errs)

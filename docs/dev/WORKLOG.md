@@ -589,3 +589,4 @@ C8 first half: "Open in VS Code" button in the Claude Code tab opens the agent f
 C7 voices: Kokoro 1.5 s per second of speech; Chatterbox Turbo 17 s per second (too slow here). Numbers are in engines/fit.py VOICE_SPEED.
 W14 first part: change event carries rev/scenes/removed/by/what (tested); Studio toast.
 W14 toast seen in a real browser (e2e/agent-toast.mjs): "Claude changed scene s1 (update scene)".
+Model chooser in the Claude Code tab (Default, Sonnet, Opus, Haiku); e2e 16/16.

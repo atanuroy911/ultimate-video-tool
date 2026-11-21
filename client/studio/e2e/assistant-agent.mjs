@@ -28,7 +28,7 @@ await page.addInitScript(() => {
   window.vtDesktop = { agents: {
     status: async () => ({ found: true, logged_in: true, version: "2", reason: "", adapter: true }),
     list: async () => [{ sessionId: "old", title: "Make the title bigger", at: "2026-11-20" }],
-    open: async (kind, projectId, o) => { calls.push(["open", kind, projectId, o && o.resume]); return { conversationId: "c1", resumed: !!(o && o.resume), note: "" }; },
+    open: async (kind, projectId, o) => { calls.push(["open", kind, projectId, o && o.resume, o && o.model]); return { conversationId: "c1", resumed: !!(o && o.resume), note: "" }; },
     send: async (id, text) => {
       calls.push(["send", text]);
       emit({ type: "step", id: "t1", title: "Set caption style", tool: "mcp__video-tool__set_caption_style", status: "in_progress" });
@@ -54,6 +54,7 @@ const box = page.getByLabel("Message to Claude Code");
 await box.waitFor({ timeout: 5000 });
 check("the earlier conversation is offered", await page.getByRole("button", { name: /Continue “Make the title bigger”/ }).isVisible());
 
+await page.getByLabel("Claude model").selectOption("sonnet");
 await box.fill("Make the title bigger");
 await page.keyboard.press("Enter");
 await page.getByText("Making it bigger in").waitFor({ timeout: 5000 });
@@ -62,6 +63,7 @@ check("a vt:// link is a button and an outside link is plain text", await page.l
 await page.locator(".agent-link", { hasText: "the end" }).click();
 await page.waitForTimeout(400);
 check("clicking a time link moves the playhead", /0:20|0:19|0:2\d/.test(await page.locator(".wb-viewer").textContent()), (await page.locator(".wb-viewer").textContent()).slice(-40));
+check("the chosen model is passed to the agent", (await page.evaluate(() => window.__calls)).some((c) => c[0] === "open" && c[4] === "sonnet"));
 check("a new conversation was opened for this video", (await page.evaluate(() => window.__calls)).some((c) => c[0] === "open" && c[2] === "c2-mix" && !c[3]));
 
 await box.fill("run a command please");

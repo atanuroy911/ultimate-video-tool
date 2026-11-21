@@ -48,6 +48,7 @@ export default function AgentChat({ projectId, title, onChanged, onLink }: { pro
   const [status, setStatus] = useState<{ found: boolean; logged_in: boolean; reason: string } | null>(null);
   const [earlier, setEarlier] = useState<{ sessionId: string; title: string } | null>(null);
   const [note, setNote] = useState("");
+  const [model, setModel] = useState("");
   const conv = useRef<string>("");
   const end = useRef<HTMLDivElement>(null);
   const denyRef = useRef<HTMLButtonElement>(null);
@@ -82,7 +83,7 @@ export default function AgentChat({ projectId, title, onChanged, onLink }: { pro
   if (status && !status.found) return <div className="agent-empty"><strong>{WHO} is not installed</strong><p>{status.reason || `Install ${WHO} on this computer, then come back.`}</p></div>;
 
   const begin = async (resume?: string) => {
-    const o = await bridge.open("claude", projectId, { resume, title });
+    const o = await bridge.open("claude", projectId, { resume, title, model: model || undefined });
     conv.current = o.conversationId;
     setNote(o.note || (o.resumed ? "Continuing the earlier conversation." : ""));
     return o.conversationId;
@@ -111,6 +112,8 @@ export default function AgentChat({ projectId, title, onChanged, onLink }: { pro
         {!turns.length && <div className="agent-empty"><strong>{WHO}</strong>
           <p>Ask for a change in your own words. It works on this video through Video Tool's own tools, and asks you before it does anything else.</p>
           {earlier && <button className="btn sm" onClick={async () => { setProblem(null); try { await begin(earlier.sessionId); } catch (e: any) { setProblem({ kind: "other", message: String(e?.message || e) }); } }}>Continue “{earlier.title.slice(0, 40)}”</button>}</div>}
+        {!conv.current && !running && <label className="agent-model small muted">Model <select value={model} onChange={(e) => setModel(e.target.value)} aria-label="Claude model">
+          <option value="">Claude's own default</option><option value="sonnet">Sonnet (faster, lighter on your limit)</option><option value="opus">Opus (best, uses more of your limit)</option><option value="haiku">Haiku (fastest, simple changes)</option></select></label>}
         {bridge.openInCode && <button className="btn sm agent-vscode" title="Open this video's agent folder in your own VS Code" onClick={() => bridge.openInCode?.(projectId).catch((e: any) => setProblem({ kind: "other", message: String(e?.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, "") }))}>Open in VS Code</button>}
         {note && <p className="small muted agent-note">{note}</p>}
         {turns.map((t, i) => (

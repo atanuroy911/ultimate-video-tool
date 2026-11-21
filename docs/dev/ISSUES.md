@@ -12,7 +12,7 @@ Newest first. Each line: what is wrong, where it was seen, how bad.
 - gemma4:e2b cannot write valid shots (they get dropped with a note); Claude can.
 - Video quality: text clipped ("outdoo|"), a tiny icon, empty stretches, stick figures overlapping (PLAN-PERFECT).
 - cuDNN crash that stops the server now and then (F1); the server manager does not restart a crashed server.
-- The Claude Code tab has no model chooser; it has not been tried on a rebuilt installer (W12.6).
+- The Claude Code tab has a model chooser (fake-agent test only; the real adapter has not been tried with each model); it has not been tried on a rebuilt installer (W12.6).
 - Studio reloads after the agent turn ends, not live while it edits (W14).
 - Clips (FramePack, Wan 2.2 5B) and the voices Chatterbox, Qwen3-TTS, OmniVoice and Bangla are not measured yet (C7).
 

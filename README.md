@@ -91,6 +91,18 @@ Video Tool is also an [MCP](https://modelcontextprotocol.io) server. Claude Code
 - In this repository, `.mcp.json` already registers the `video-tool` server for Claude Code. Run `/vt-plan` to plan every video waiting for Claude.
 - Remote assistants can use the token-protected HTTP endpoint: `vt-mcp --http --port 8766`.
 
+## Claude Code inside the app
+
+The editor's Assistant pane has a **Claude Code** tab next to the Director. It uses the Claude Code already signed in on your computer (no key to paste) and works on the open video through Video Tool's own tools:
+
+- Ask for a change in your own words: it edits scenes, captions and the look, and the timeline glows where it changed. Ctrl+Z takes its change back.
+- It can **write a shot**: a scene drawn as HTML and CSS with its own animation. Open it with **Edit shot** to move, resize, recolour or retype any part without touching code, or switch to **Code** to edit the HTML.
+- It can draw a picture (ComfyUI), speak a line (Kokoro) and ask the small local model (Ollama) on your own computer.
+- Anything other than Video Tool's tools (a shell command, a file write) asks you first, with **Deny** as the default.
+- **Open in VS Code** opens the video's agent folder in your own VS Code; the extension in `client/vscode/` previews a shot beside your code.
+
+Codex is not built in yet.
+
 ## How it works
 
 ```text

@@ -729,7 +729,7 @@ Before starting, read `E:\openfilm-a1b8d75\apps\desktop\src\agents.mjs` lines 1â
 
 - [x] **W15.4 Linux check.** Skipped by the owner's decision (Windows only, no WSL). Say "Linux not tested" in the release notes.
 
-- [ ] **W15.5 Docs.** Update `README.md` (the "Use it from your AI assistant" section: Claude Code and Codex now work inside the app; the MCP setup remains for outside use), `docs/STATUS.md`, `CHANGELOG` notes in the release body, and `THIRD-PARTY.md` (OpenFilm, the ACP packages, Lexical, Inter).
+- [~] (2026-11-22: README section "Claude Code inside the app" written; the rest of W15.5 not checked) **W15.5 Docs.** Update `README.md` (the "Use it from your AI assistant" section: Claude Code and Codex now work inside the app; the MCP setup remains for outside use), `docs/STATUS.md`, `CHANGELOG` notes in the release body, and `THIRD-PARTY.md` (OpenFilm, the ACP packages, Lexical, Inter).
 
 - [ ] **W15.6 Hand over to the owner.** Open a pull request `workbench` â†’ `main` titled "0.6.0: workbench layout and Claude Code inside the app", with a summary, the screenshots and the test results. Ask the owner, in plain words, to review and merge, and to say whether to publish it as 0.6.0 (push the tag `v0.6.0` on the merge commit). Do not merge it yourself.
 

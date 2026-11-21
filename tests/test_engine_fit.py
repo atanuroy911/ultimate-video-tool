@@ -41,7 +41,7 @@ def test_busy_card_warns():
 
 def test_language_model_by_card():
     assert fit.language_model(12)["model"] == "gemma3:12b"
-    assert fit.language_model(6)["model"] == "gemma3:4b"
+    assert fit.language_model(6)["model"] == "gemma4:e2b"                 # measured best on a 6 GB card (docs/plans/PLAN-LOCAL-AI-6GB.MD)
     assert fit.language_model(0, 16)["where"] == "processor"
 
 

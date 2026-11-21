@@ -263,10 +263,12 @@ class LanguageModel:
 
 LANGUAGE_MODELS: list[LanguageModel] = [
     LanguageModel("gemma3:12b", 9.6, 8.1, measured=False, note="12 GB cards and up"),
+    # 6 GB card, the same 4 videos each (plan 3.3): E2B made them in 140-208 s with the most sensible pictures; Gemma 3 4B took 250-533 s and picked
+    # wrong meanings (a moon cake for "snooze"); E4B left the Bangla video nearly empty; Qwen 3.5 wrote numbers where text belongs and fell back.
+    LanguageModel("gemma4:e2b", 2.79, 7.2),
     LanguageModel("gemma3:4b", 3.64, 3.3),
     LanguageModel("gemma4:e4b", 4.17, 9.6),
     LanguageModel("qwen3.5:4b", 3.93, 3.4),
-    LanguageModel("gemma4:e2b", 2.79, 7.2),
     LanguageModel("gemma3:1b", 1.6, 0.8, pictures=False, measured=False, note="tiny cards and the processor"),
 ]
 LANGUAGE = [(m.name, m.card_gb) for m in LANGUAGE_MODELS]                       # (name, GB on the card), the form setup.py reads
@@ -287,12 +289,12 @@ def fits_card(name: str, vram_gb: float) -> bool:
 
 
 def max_context(name: str, vram_gb: float) -> int:
-    """The largest context worth asking this model for on this card: 64k only with plenty of room, else 32k (what was measured), else 16k."""
+    """The largest context worth asking this model for on this card: 64k only with 2 GB to spare (64k was not measured), else 32k (measured), else 16k."""
     m = BY_NAME.get(name)
     room = language_room(vram_gb)
     if not m or not vram_gb:
         return 32768
-    if m.card_gb + 1.0 <= room:
+    if m.card_gb + 2.0 <= room:
         return 65536
     return 32768 if m.card_gb <= room else 16384
 

@@ -127,9 +127,9 @@ PLAIN = {
     "gemma3:12b": "Best writing. Needs a 12 GB card to be quick.",
     "gemma3:4b": "Good writing, quick on most cards.",
     "gemma3:1b": "Basic writing, for small computers.",
-    "gemma4:e4b": "Newer, reads pictures well; slower on long plans. Fits a 6 GB card.",
-    "gemma4:e2b": "Newer and the fastest; fits small cards, writes less carefully.",
-    "qwen3.5:4b": "Strong writing in English; slower on long plans. Fits a 6 GB card.",
+    "gemma4:e4b": "Newer, but slower here, and it left a Bangla video nearly empty in our tests.",
+    "gemma4:e2b": "The best fit for 6 to 8 GB cards: about twice as fast, and it picked the most sensible pictures in our tests.",
+    "qwen3.5:4b": "Strong English, but slower on long plans and less reliable in our tests.",
 }
 LABELS = {"gemma3:12b": "Gemma 3 12B", "gemma3:4b": "Gemma 3 4B", "gemma3:1b": "Gemma 3 1B", "gemma4:e4b": "Gemma 4 E4B", "gemma4:e2b": "Gemma 4 E2B", "qwen3.5:4b": "Qwen 3.5 4B"}
 

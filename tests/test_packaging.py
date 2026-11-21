@@ -103,7 +103,9 @@ def test_the_workflows_are_valid_and_wired_together():
     assert jobs["ci"]["uses"] == "./.github/workflows/ci.yml"
     assert {"app", "engine", "engine-smoke", "engine-image", "publish"} <= set(jobs)
     assert "ci" in jobs["app"]["needs"] and "ci" in jobs["engine"]["needs"]
-    assert set(jobs["publish"]["needs"]) >= {"app", "engine", "engine-smoke", "engine-image"}   # nothing is published unless every part built
+    assert set(jobs["publish"]["needs"]) >= {"app", "engine", "engine-smoke"}   # nothing is published unless the installers and the engine package built and started
+    assert "engine-image" not in jobs["publish"]["needs"], "the Docker image is pushed on its own; a stuck image build must not hold back the installers"
+    assert jobs["engine-image"]["timeout-minutes"] <= 60
     assert jobs["publish"]["if"] == "needs.version.outputs.publish == 'true'"
     assert jobs["app"]["strategy"]["matrix"]["os"] == ["windows-latest", "ubuntu-latest"]
     assert jobs["app"]["strategy"]["matrix"]["edition"] == ["client", "server"]

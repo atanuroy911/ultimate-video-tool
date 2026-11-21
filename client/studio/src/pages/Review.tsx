@@ -44,6 +44,7 @@ import PictureTools from "../editor/PictureTools";
 import SoundPanel from "../editor/SoundPanel";
 import HookCard from "../editor/HookCard";
 const ShotEditor = lazy(() => import("../review/ShotEditor"));
+const AgentChat = lazy(() => import("../assistant/AgentChat"));
 
 type LeftTab = "chat" | "scenes" | "elements" | "direction" | "script" | "words" | "media" | "sound";
 
@@ -61,6 +62,7 @@ function ReviewEditor() {
   const icons = useIconPack();
   const player = useRef<PlayerHandle>(null);
   const [time, setTime] = useState(0);
+  const [assistantTab, setAssistantTab] = useState<"director" | "claude">("director");   // which conversation the Assistant pane shows
   const [shotEdit, setShotEdit] = useState<string | null>(null);   // a code-native shot open in the visual editor (PLAN-CODE-NATIVE-EDITOR C3)
   const lastT = useRef(0);
   const [tool, setTool] = useState<Tool>("select");
@@ -639,8 +641,8 @@ function ReviewEditor() {
         </section>),
 
           assistant: (<div className="wb-assistant-body" aria-label="Assistant">
-            <div className="wb-pane-heading"><strong>Assistant</strong><span className="grow" /><button className="btn ghost icon sm" aria-label="Close the assistant" onClick={() => setShowAssistant(false)}><X size={16} /></button></div>
-            <div className="wb-assistant-scroll">{directorMounted && <div style={{ height: "100%" }}><Suspense fallback={<div className="row muted" style={{ padding: 12 }}><Spinner /> Opening the chat…</div>}><DirectorChat projectId={id}
+            <div className="wb-pane-heading"><strong>Assistant</strong><div className="wb-assistant-tabs" role="tablist" aria-label="Who to talk to"><button role="tab" aria-selected={assistantTab === "director"} className={assistantTab === "director" ? "on" : ""} onClick={() => setAssistantTab("director")}>Director</button><button role="tab" aria-selected={assistantTab === "claude"} className={assistantTab === "claude" ? "on" : ""} onClick={() => setAssistantTab("claude")}>Claude Code</button></div><span className="grow" /><button className="btn ghost icon sm" aria-label="Close the assistant" onClick={() => setShowAssistant(false)}><X size={16} /></button></div>
+            <div className="wb-assistant-scroll">{assistantTab === "claude" && <Suspense fallback={<div className="row muted" style={{ padding: 12 }}><Spinner /> Opening…</div>}><AgentChat projectId={id} title={p.title || id} onChanged={r.reloadAll} /></Suspense>}{directorMounted && <div style={{ height: "100%", display: assistantTab === "director" ? undefined : "none" }}><Suspense fallback={<div className="row muted" style={{ padding: 12 }}><Spinner /> Opening the chat…</div>}><DirectorChat projectId={id}
                 onStarted={r.beginDirectorChange}
                 onRunningChange={setDirectorRunning}
                 onChanged={async (result, token) => {

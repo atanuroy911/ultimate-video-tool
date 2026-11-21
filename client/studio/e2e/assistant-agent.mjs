@@ -1,0 +1,87 @@
+// The Claude Code tab of the Assistant pane (docs/plans/PLAN-WORKBENCH.MD W12.4) in a real browser, with a scripted stand-in for window.vtDesktop.agents
+// (the real bridge needs the desktop app; the runner behind it is tested by client/desktop/test-acp-agents.js).
+//   VT_URL=http://localhost:5174 VT_PROJECT=<project id> node e2e/assistant-agent.mjs
+import { chromium } from "playwright-core";
+import { base, chromePath } from "./common.mjs";
+
+const pid = process.env.VT_PROJECT || "c2-mix";
+let pass = 0, fail = 0;
+const check = (name, ok, extra = "") => { (ok ? pass++ : fail++); console.log(`${ok ? "ok  " : "FAIL"} ${name}${extra ? "  " + extra : ""}`); };
+
+const browser = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
+const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+const plain = await ctx.newPage();
+await plain.goto(`${base}/p/${pid}`, { waitUntil: "load" });
+await plain.waitForSelector(".wb .wb-assistant-body", { timeout: 45000 });
+await plain.getByRole("tab", { name: "Claude Code" }).click();
+check("in a plain browser the tab says it needs the desktop app", await plain.getByText("Available in the desktop app").waitFor({ timeout: 5000 }).then(() => true, () => false));
+await plain.close();
+
+const page = await ctx.newPage();
+const errors = [];
+page.on("pageerror", (e) => errors.push(String(e).slice(0, 200)));
+await page.addInitScript(() => {
+  const listeners = new Set();
+  const calls = [];
+  const emit = (event) => setTimeout(() => listeners.forEach((cb) => cb({ conversationId: "c1", event })), 30);
+  window.__calls = calls;
+  window.vtDesktop = { agents: {
+    status: async () => ({ found: true, logged_in: true, version: "2", reason: "", adapter: true }),
+    list: async () => [{ sessionId: "old", title: "Make the title bigger", at: "2026-11-20" }],
+    open: async (kind, projectId, o) => { calls.push(["open", kind, projectId, o && o.resume]); return { conversationId: "c1", resumed: !!(o && o.resume), note: "" }; },
+    send: async (id, text) => {
+      calls.push(["send", text]);
+      emit({ type: "step", id: "t1", title: "Set caption style", tool: "mcp__video-tool__set_caption_style", status: "in_progress" });
+      emit({ type: "text", text: "Making " });
+      emit({ type: "text", text: "it bigger." });
+      emit({ type: "step", id: "t1", title: "Set caption style", status: "completed" });
+      if (/command/.test(text)) emit({ type: "permission", requestId: "r1", tool: "Bash", what: "run a command", title: "Run: dir", detail: JSON.stringify({ command: "dir C:\\Users" }) });
+      else if (/limit/.test(text)) emit({ type: "error", kind: "login", message: "Claude Code is not signed in. Sign in, then try again." });
+      else emit({ type: "done", stopReason: "end_turn" });
+      return { ok: true };
+    },
+    stop: async () => { calls.push(["stop"]); emit({ type: "done", stopReason: "cancelled" }); },
+    permission: async (id, rid, choice) => { calls.push(["permission", choice]); emit({ type: "text", text: choice === "deny" ? " Denied." : " Done." }); emit({ type: "done", stopReason: "end_turn" }); },
+    signIn: async () => { calls.push(["signIn"]); },
+    onEvent: (cb) => { listeners.add(cb); return () => listeners.delete(cb); },
+  } };
+});
+await page.goto(`${base}/p/${pid}`, { waitUntil: "load" });
+await page.waitForSelector(".wb .wb-assistant-body", { timeout: 45000 });
+check("the Director is the default tab", await page.getByRole("tab", { name: "Director", selected: true }).isVisible());
+await page.getByRole("tab", { name: "Claude Code" }).click();
+const box = page.getByLabel("Message to Claude Code");
+await box.waitFor({ timeout: 5000 });
+check("the earlier conversation is offered", await page.getByRole("button", { name: /Continue “Make the title bigger”/ }).isVisible());
+
+await box.fill("Make the title bigger");
+await page.keyboard.press("Enter");
+await page.getByText("Making it bigger.").waitFor({ timeout: 5000 });
+check("the reply streams in and the step shows as finished", await page.locator(".agent-steps li.completed", { hasText: "Set caption style" }).isVisible());
+check("a new conversation was opened for this video", (await page.evaluate(() => window.__calls)).some((c) => c[0] === "open" && c[2] === "c2-mix" && !c[3]));
+
+await box.fill("run a command please");
+await page.keyboard.press("Enter");
+const card = page.getByRole("alertdialog", { name: "Permission needed" });
+await card.waitFor({ timeout: 5000 });
+check("a command asks first, with what it would run", (await card.textContent()).includes("wants to run a command") && (await card.textContent()).includes("dir C:"));
+check("Deny has the focus", await page.evaluate(() => document.activeElement?.textContent === "Deny"));
+await page.getByRole("button", { name: "Deny" }).click();
+await page.getByText("Denied.").waitFor({ timeout: 5000 });
+check("Deny is passed to the agent", (await page.evaluate(() => window.__calls)).some((c) => c[0] === "permission" && c[1] === "deny"));
+check("the card is gone after the answer", await card.count() === 0);
+
+await box.fill("hit the limit");
+await page.keyboard.press("Enter");
+await page.getByRole("alert").waitFor({ timeout: 5000 });
+check("a missing sign-in is said in plain words with a Sign in button", await page.getByRole("button", { name: "Sign in" }).isVisible());
+await page.getByRole("button", { name: "Sign in" }).click();
+check("Sign in asks the app to open the sign-in", (await page.evaluate(() => window.__calls)).some((c) => c[0] === "signIn"));
+
+await page.getByRole("tab", { name: "Director" }).click();
+check("the Director conversation is still there", await page.getByPlaceholder(/Tell the director/i).isVisible().catch(() => false));
+await page.screenshot({ path: process.env.VT_SHOT_PNG || "assistant-agent.png" });
+check("no page errors", errors.length === 0, errors.join(" | "));
+await browser.close();
+console.log(`${pass} passed, ${fail} failed`);
+process.exit(fail ? 1 : 0);

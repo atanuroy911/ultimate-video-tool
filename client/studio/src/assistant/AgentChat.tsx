@@ -1,6 +1,6 @@
 // Claude Code in the Assistant pane (docs/plans/PLAN-WORKBENCH.MD W12.4). The real program runs in the desktop app (client/desktop/acp-agents.js); this page only
 // sends what the person types and shows what comes back: the reply, the steps, and a permission card whenever the agent wants to do something that is not a Video Tool action.
-import { Square, Send } from "lucide-react";
+import { Plus, Square, Send } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { pieces, type VtLink } from "./links";
 import { blocks, type Inline } from "./markdown";
@@ -131,6 +131,8 @@ export default function AgentChat({ projectId, title, onChanged, onLink }: { pro
 
   return (
     <div className="agent-chat">
+      {turns.length > 0 && !running && (                                  /* W10.1: start over with a fresh conversation (the old one stays in Claude Code's history) */
+        <div className="agent-bar"><button type="button" className="btn sm ghost" onClick={() => { conv.current = ""; setTurns([]); setRefs([]); setProblem(null); setNote(""); }}><Plus size={13} /> New conversation</button></div>)}
       <div className="agent-log" role="log" aria-live="polite">
         {!turns.length && <div className="agent-empty"><strong>{WHO}</strong>
           <p>Ask for a change in your own words. It works on this video through Video Tool's own tools, and asks you before it does anything else.</p>

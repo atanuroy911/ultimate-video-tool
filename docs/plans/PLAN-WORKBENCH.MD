@@ -530,7 +530,7 @@ Target look: the openfilm screenshot the owner liked. Quiet cool greys, panels s
 
 ### W10 — The Assistant pane
 
-- [~] (2026-11-22: starter suggestions in an empty Claude Code chat; model chooser; header/history/agent chip popover not done) **W10.1 The pane frame.** Create `client/studio/src/assistant/AssistantPane.tsx` + `assistant.css` (tokens only):
+- [~] (2026-11-22: starter suggestions, model chooser, New conversation, "Continue" an earlier one; the history popover and the agent chip popover not done) **W10.1 The pane frame.** Create `client/studio/src/assistant/AssistantPane.tsx` + `assistant.css` (tokens only):
   - **Header (36px):** the conversation title (first message, cut to 40 characters; `--fs-12` weight 500), ＋ (new conversation), 🕘 (history popover listing earlier conversations for this project), ⋯ (Copy conversation, Details).
   - **Body:** the message list (W10.2), with `useStickToBottom` behaviour. Port OpenFilm's `useStickToBottom.ts` (327 lines, MIT, with header): it stays pinned to the newest message unless the person scrolled up, and then shows a "↓ New messages" chip.
   - **Footer:** the composer (W10.3) and, under it, the **agent chip**: an icon plus the name, e.g. "Director · Claude on the server", or "Claude Code · Sonnet". Clicking it opens a popover to choose who you are talking to: **Director** (the server's director: whatever is set in Settings → Director, works everywhere) and, in the desktop app, **Claude Code** and **Codex** (W12), each showing "Ready", "Sign in…" or "Not installed — how to install". Port the layout idea of OpenFilm's `ModelPopover.tsx`; do not port the file.

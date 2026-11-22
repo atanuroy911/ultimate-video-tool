@@ -37,3 +37,4 @@
 .agent-reply p { margin: 0; white-space: normal; }
 .agent-reply ul, .agent-reply ol { margin: 0; padding-left: 20px; }
 .agent-reply code { font-family: var(--font-mono); font-size: var(--fs-12); background: var(--bg-field); padding: 1px 4px; border-radius: 4px; }
+.agent-bar { display: flex; justify-content: flex-end; padding: 4px var(--sp-3) 0; }

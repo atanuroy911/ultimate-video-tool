@@ -116,6 +116,8 @@ await page.waitForTimeout(600);
 const sent = (await page.evaluate(() => window.__calls)).filter((c) => c[0] === "send").pop();
 check("the reference goes to the agent with the scene and its times", sent && sent[2]?.[0]?.kind === "scene" && sent[2][0].scene === "s2" && sent[2][0].to > sent[2][0].from, JSON.stringify(sent && sent[2]));
 check("the pill is cleared after sending", await page.locator(".agent-pills-draft").count() === 0);
+await page.getByRole("button", { name: "New conversation" }).click();
+check("New conversation clears the chat and the next message opens a fresh one", (await page.locator(".agent-turn").count()) === 0 && (await page.locator(".agent-starters button").count()) === 3);
 await page.getByRole("tab", { name: "Director" }).click();
 check("the Director conversation is still there", await page.getByPlaceholder(/Tell the director/i).isVisible().catch(() => false));
 await page.screenshot({ path: process.env.VT_SHOT_PNG || "assistant-agent.png" });

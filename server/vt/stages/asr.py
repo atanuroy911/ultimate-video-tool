@@ -44,8 +44,26 @@ def cuda_available() -> bool:
         return False
     try:
         import ctranslate2
-        return ctranslate2.get_cuda_device_count() > 0
-    except Exception:
+        if ctranslate2.get_cuda_device_count() <= 0:
+            return False
+    except Exception:                                                   # noqa: BLE001 — no CTranslate2 CUDA build: the processor listens
+        return False
+    return cuda_libraries_load()
+
+
+def cuda_libraries_load() -> bool:
+    """Whether the CUDA libraries CTranslate2 needs can be loaded. When cuBLAS is missing (a processor-only torch, 2026-11-22), CTranslate2
+    builds the model on the card and then waits for ever in its first encode instead of raising, so this is checked before choosing the card."""
+    import sys
+
+    if sys.platform != "win32":
+        return True
+    import ctypes
+
+    try:
+        ctypes.WinDLL("cublas64_12.dll")
+        return True
+    except OSError:
         return False
 
 

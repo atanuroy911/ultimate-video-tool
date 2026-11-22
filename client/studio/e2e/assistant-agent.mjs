@@ -78,7 +78,7 @@ await page.locator(".agent-link", { hasText: "the end" }).click();
 await page.waitForTimeout(400);
 check("clicking a time link moves the playhead", /0:20|0:19|0:2\d/.test(await page.locator(".wb-viewer").textContent()), (await page.locator(".wb-viewer").textContent()).slice(-40));
 check("the chosen model is passed to the agent", (await page.evaluate(() => window.__calls)).some((c) => c[0] === "open" && c[4] === "sonnet"));
-check("a new conversation was opened for this video", (await page.evaluate(() => window.__calls)).some((c) => c[0] === "open" && c[2] === "c2-mix" && !c[3]));
+check("a new conversation was opened for this video", (await page.evaluate(() => window.__calls)).some((c) => c[0] === "open" && c[2] === pid && !c[3]));
 
 await box.fill("run a command please");
 await page.keyboard.press("Enter");

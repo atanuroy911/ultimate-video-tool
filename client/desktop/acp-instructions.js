@@ -21,7 +21,8 @@ function toPrompt(text, refs) {
     const where = r.kind === "scene" ? `scene ${r.scene}${span(r)} · vt://scene/${r.scene}` : r.kind === "time" ? `time ${clock(r.t)} · vt://t/${r.t}`
       : r.kind === "range" ? `time ${clock(r.from)}–${clock(r.to)} · vt://range/${r.from}/${r.to}`
       : r.kind === "element" ? `element ${r.scene}#${r.index ?? ""}${span(r)} · vt://element/${r.scene}/${r.index ?? 0}` : r.kind === "word" ? `word ${r.word}`
-      : r.kind === "layer" ? `layer ${r.layer}` : `a region of scene ${r.scene}`;
+      : r.kind === "layer" ? `layer ${r.layer}`
+      : `region at ${clock(r.t)}${r.box ? ` · box x=${r.box.x} y=${r.box.y} w=${r.box.w} h=${r.box.h}` : ""} · vt://t/${r.t}`;
     return `[${i + 1}] ${where}${r.label ? ` · "${r.label}"` : ""}`;
   };
   return `${text}\n\n<video_references>\n${refs.map(line).join("\n")}\n</video_references>`;

@@ -130,6 +130,22 @@ await page.getByRole("button", { name: /Ask the assistant about this/ }).click()
 await page.waitForTimeout(600);
 check("a scene's menu points Claude Code at that scene", /Scene 3/.test(await page.locator(".agent-pills-draft .agent-pill").first().textContent().catch(() => "")));
 await page.locator(".agent-pills-draft button").first().click();
+// W13.3: hold Alt and drag on the picture: a region pill with its box in video pixels
+const phone = await page.locator(".ed-canvas .phone").boundingBox();
+await page.keyboard.down("Alt");
+await page.mouse.move(phone.x + phone.width * 0.1, phone.y + phone.height * 0.7);
+await page.mouse.down();
+await page.mouse.move(phone.x + phone.width * 0.9, phone.y + phone.height * 0.9, { steps: 6 });
+await page.mouse.up();
+await page.keyboard.up("Alt");
+await page.waitForTimeout(600);
+check("Alt-drag on the picture points the assistant at a region", /Region at/.test(await page.locator(".agent-pills-draft .agent-pill").first().textContent().catch(() => "")));
+await box.fill("keep the caption out of [1]");
+await page.keyboard.press("Enter");
+await page.waitForTimeout(600);
+const regionSent = (await page.evaluate(() => window.__calls)).filter((c) => c[0] === "send").pop();
+const rb = regionSent && regionSent[2] && regionSent[2][0] && regionSent[2][0].box;
+check("the region goes with its box in video pixels", rb && rb.w > 600 && rb.h > 200 && rb.y > 1000, JSON.stringify(regionSent && regionSent[2]));
 await page.getByRole("button", { name: "New conversation" }).click();
 check("New conversation clears the chat and the next message opens a fresh one", (await page.locator(".agent-turn").count()) === 0 && (await page.locator(".agent-starters button").count()) === 3);
 await page.getByRole("tab", { name: "Director" }).click();

@@ -39,6 +39,11 @@ function refs(v) {
     for (const key of ["scene", "element", "layer", "word"]) if (r[key] != null) out[key] = String(r[key]).slice(0, 64);
     for (const key of ["t", "from", "to", "index"]) if (r[key] != null) { if (!Number.isFinite(r[key])) fail("A reference is not valid."); out[key] = r[key]; }
     if (r.label != null) out.label = String(r.label).slice(0, 200);
+    if (r.box != null) {                                                  // a region of the frame, in video pixels (W13.3 Alt-drag)
+      const b = r.box;
+      if (!b || typeof b !== "object" || !["x", "y", "w", "h"].every((k) => Number.isFinite(b[k]) && b[k] >= 0 && b[k] <= 10000)) fail("A reference is not valid.");
+      out.box = { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.w), h: Math.round(b.h) };
+    }
     return out;
   });
 }

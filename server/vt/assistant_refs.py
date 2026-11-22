@@ -42,7 +42,9 @@ def _line(r: dict, i: int) -> str:
     elif k == "layer":
         where = f"layer {r.get('layer')}"
     else:
-        where = f"a region of scene {r.get('scene')}"
+        b = r.get("box")
+        box = f" · box x={b['x']} y={b['y']} w={b['w']} h={b['h']}" if b else ""
+        where = f"region at {_clock(r.get('t'))}{box} · vt://t/{_num(r.get('t'))}"
     label = r.get("label")
     return f"[{i + 1}] {where}" + (f' · "{label}"' if label else "")
 
@@ -63,6 +65,9 @@ def clean(refs: Any) -> list[dict]:
                 c[key] = v
         if r.get("label") is not None:
             c["label"] = str(r["label"])[:200]
+        b = r.get("box")
+        if isinstance(b, dict) and all(isinstance(b.get(k), (int, float)) and not isinstance(b.get(k), bool) and math.isfinite(b[k]) and 0 <= b[k] <= 10000 for k in "xywh"):
+            c["box"] = {k: int(round(b[k])) for k in "xywh"}
         out.append(c)
     return out
 

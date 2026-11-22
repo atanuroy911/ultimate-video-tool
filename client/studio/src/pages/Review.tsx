@@ -72,6 +72,35 @@ function ReviewEditor() {
     if (claude) setAssistantTab("claude");
     setTimeout(() => window.dispatchEvent(new CustomEvent(claude ? "vt-ask-about" : "vt-ask-director", { detail: ref })), 250);
   };
+  const regionNow = useRef({ t: 0, scene: "" as string, w: 1080, h: 1920 });
+  useEffect(() => {                                                      // W13.3: hold Alt and drag on the picture to point the assistant at a region
+    const down = (e: PointerEvent) => {
+      if (!e.altKey || e.button !== 0) return;
+      const phone = (e.target as HTMLElement | null)?.closest?.(".ed-canvas .phone") as HTMLElement | null;
+      if (!phone) return;
+      e.preventDefault(); e.stopPropagation();
+      const r0 = phone.getBoundingClientRect(), x0 = e.clientX, y0 = e.clientY;
+      const box = document.createElement("div");
+      box.className = "vt-region-box";
+      document.body.appendChild(box);
+      const place = (x1: number, y1: number) => Object.assign(box.style, { left: `${Math.min(x0, x1)}px`, top: `${Math.min(y0, y1)}px`, width: `${Math.abs(x1 - x0)}px`, height: `${Math.abs(y1 - y0)}px` });
+      place(x0, y0);
+      const move = (ev: PointerEvent) => place(ev.clientX, ev.clientY);
+      const up = (ev: PointerEvent) => {
+        window.removeEventListener("pointermove", move, true); window.removeEventListener("pointerup", up, true); box.remove();
+        const { t, scene, w, h } = regionNow.current;
+        const fx = (x: number) => Math.max(0, Math.min(1, (x - r0.left) / Math.max(1, r0.width))), fy = (y: number) => Math.max(0, Math.min(1, (y - r0.top) / Math.max(1, r0.height)));
+        const bx = Math.round(Math.min(fx(x0), fx(ev.clientX)) * w), by = Math.round(Math.min(fy(y0), fy(ev.clientY)) * h);
+        const bw = Math.round(Math.abs(fx(ev.clientX) - fx(x0)) * w), bh = Math.round(Math.abs(fy(ev.clientY) - fy(y0)) * h);
+        if (bw < 8 || bh < 8) return;
+        const clock = `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, "0")}`;
+        pointAssistant({ kind: "region", scene, t: +t.toFixed(2), box: { x: bx, y: by, w: bw, h: bh }, label: `Region at ${clock}` });
+      };
+      window.addEventListener("pointermove", move, true); window.addEventListener("pointerup", up, true);
+    };
+    window.addEventListener("pointerdown", down, true);
+    return () => window.removeEventListener("pointerdown", down, true);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {                                                      // "Ask the assistant about this" from a scene's menu
     const on = (e: Event) => pointAssistant(askRef.current((e as CustomEvent<string>).detail));
     window.addEventListener("vt-ask-scene", on);
@@ -240,6 +269,7 @@ function ReviewEditor() {
     if (!selected || !scenes.some((s) => s.id === selected)) setSelected(scenes[0].id);
   }, [scenes, selected]);
   const timeOf = useMemo(() => new Map(r.timing.scenes.map((s) => [s.id, s])), [r.timing.scenes]);
+  { const c = p?.canvas ?? CANVAS[p?.aspect ?? "9:16"] ?? CANVAS["9:16"]; regionNow.current = { t: time, scene: r.timing.scenes.find((s) => time >= s.start && time < s.end)?.id ?? "", w: c.width, h: c.height }; }
   askRef.current = (only?: string) => {                      // what Ctrl+L points at: the selected element, else the selected scene (or the scene a menu named)
     const sid = only ?? selEl?.scene ?? selected;
     if (!sid) return null;

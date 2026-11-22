@@ -17,7 +17,7 @@ from typing import Callable, Optional
 
 from ..util import CREATE_NO_WINDOW, find_tool
 
-MIN_PLAIN = 3.0          # a plain stretch shorter than this is drawn with its neighbours (no tiny pieces)
+MIN_PLAIN = 6.0          # a plain stretch shorter than this is drawn with its neighbours: starting the renderer for one more stretch costs more (measured 2026-11-22)
 MIN_SHARE = 0.4          # use the fast path only when at least this share of the video is plain A-roll
 
 

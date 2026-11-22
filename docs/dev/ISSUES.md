@@ -40,3 +40,4 @@ Result: all 17 examples the reader found got B-roll (10 pictures drawn on this l
 - **A generated picture has garbled lettering** ("RRRUSTIER") despite "no text" in the prompt; FLUX.2 Klein draws words anyway. Try a negative prompt or a checker that rejects pictures with text.
 - **Slow on this laptop:** speech recognition 28 min (processor), sounds 16 min, planning about 11 min, 10 pictures about 6 min. The sounds step (16 min for 16 min of audio) needs a look.
 - Claude directing this talk has not been tried yet (C10 check).
+- **A 14-minute video takes about 2 hours to render on this laptop** (draft quality, 16:9: 25,500 frames captured in Chrome at about 3.5 frames a second). A long talk that is mostly the speaker's own picture should not capture every frame in the browser: render the A-roll stretches straight from the video with ffmpeg (captions burned) and only capture the B-roll scenes.

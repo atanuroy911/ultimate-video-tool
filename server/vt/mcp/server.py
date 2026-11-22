@@ -884,7 +884,8 @@ def make_picture(project: str, prompt: str, aspect: str = "", seed: int = 1) -> 
 @tool
 def speak(project: str, text: str, voice: str = "af_heart", engine: str = "kokoro", rate: float = 1.0) -> dict:
     """Speak English text with a voice on this computer (Kokoro by default; voices such as af_heart, am_michael, bf_emma). Saves a WAV in the project's
-    agent_audio folder and returns its path, duration and word times. About 1.5x real time on the processor, 20 s the first time."""
+    agent_audio folder, adds it to the media bin as a sound (its id comes back as `media`, for a layer's audio track) and returns its path and
+    duration. About 1.5x real time on the processor, 20 s the first time."""
     import re
 
     from .. import tts
@@ -898,7 +899,14 @@ def speak(project: str, text: str, voice: str = "af_heart", engine: str = "kokor
         res = tts.synthesize(text, out, engine=engine, voice=voice, rate=float(rate), language="en")
     except tts.TTSError as e:
         return {"ok": False, "error": str(e)[:300]}
-    return {"ok": True, "file": str(out.relative_to(p.dir)), "duration": res.get("duration"), "engine": res.get("engine"), "voice": res.get("voice")}
+    media_id = ""
+    try:                                                              # in the media bin as a sound, ready for a layer's audio track (it was only a file before)
+        from ..director.media import add_sound
+        media_id = add_sound(p, out, caption=text[:80], source="kokoro" if engine == "kokoro" else engine).id
+    except Exception as e:                                            # noqa: BLE001 — the WAV is still there
+        import logging
+        logging.getLogger(__name__).warning("speak: could not add the sound to the media bin: %s", e)
+    return {"ok": True, "file": str(out.relative_to(p.dir)), "media": media_id, "duration": res.get("duration"), "engine": res.get("engine"), "voice": res.get("voice")}
 
 
 @tool

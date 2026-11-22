@@ -5,7 +5,7 @@ Newest first. Each line: what is wrong, where it was seen, how bad.
 ## 2026-11-22 (C7)
 - **First picture is slow with the card cold:** `make_picture` took 42 s the first time (model load), 12 to 14 s after. Fine, but the agent should be told to wait. (C7)
 - **Kokoro warns "words count mismatch on 100% of the lines"** for a one-sentence test; word timing may be rough for agent speech. (C7, minor)
-- **Media bin holds pictures and clips only**, so `speak` saves a WAV under `agent_audio/` that no scene can use yet. Needs a place in the bin or a voice-over slot. (C7)
+- **(fixed 2026-11-22: speak adds the line to the media bin as a sound, for a layer's audio track) Media bin holds pictures and clips only**, so `speak` saves a WAV under `agent_audio/` that no scene can use yet. Needs a place in the bin or a voice-over slot. (C7)
 - **Codex** is not available (owner: ignore for now; ChatGPT app is installed, not the Codex command line).
 
 ## Carried over

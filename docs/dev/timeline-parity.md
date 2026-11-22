@@ -15,7 +15,7 @@ Classic: `client/studio/src/review/Timeline.tsx`, `LayerLanes.tsx`, `MotionClip.
 | Narration: cut a stretch | yes | yes (voice-cut, by words) | same |
 | Narration: mute the selection (M), volume of the selection (dB) | yes | **ported 2026-11-22** (voice-mute, voice-gain from a piece's volume; test in tests/occ-bridge.test.mjs) | ported |
 | Narration: restore a cut by dragging an edge outward | yes | no (moving the narration is reported as ignored) | to port |
-| Words lane: double-click a word to edit its caption | yes | narration has the transcript; editing a word's text is not saved | to port |
+| Words lane: double-click a word to edit its caption | yes | **ported 2026-11-22** (double-click the narration: that word opens in the caption inspector; e2e/timeline-words.mjs) | ported |
 | Selected range on the voice (drag across) | yes | pick mode exists for pointing the assistant; not for edits | to port |
 | Add a text layer at the playhead; add a picture/video/sound from files; add a track | yes | yes (text; files via the library and the track menu; TrackCreateControl adds a track) | same |
 | Sounds lane (laughter, applause found in the voice; "Listen for sounds") | yes | **shown, 2026-11-22** (a locked Sounds track; test) | ported, with a "Listen for sounds" button by the timeline switch |

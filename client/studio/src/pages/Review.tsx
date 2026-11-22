@@ -679,6 +679,7 @@ function ReviewEditor() {
                 onSave={saveTimeline} onUndo={() => void r.undo()} onRedo={() => void r.redo()}
                 disabled={directorRunning}
                 highlightScenes={directorChangedScenes}
+                onWordAt={(t) => { const w = r.words.find((x) => !x.cut && x.start <= t + 0.05 && t <= x.end + 0.15); if (w) { setSelectedWord(w.id); setSel(null); setSelLayer(null); setShowInspector(true); } }}
                 view={{ projectId: id, fps: 30, ...(p.canvas ?? CANVAS[p.aspect] ?? CANVAS["9:16"]), duration: dur, plan, timing: r.timing.scenes,
                   elementTimes: r.sc.data?.elements, words: r.words, keep: r.audio?.keep ?? [],
                   audioUrl: p.audio_url ? `${p.audio_url}${p.audio_url.includes("?") ? "&" : "?"}v=${r.audioRev}` : null,

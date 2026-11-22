@@ -75,6 +75,7 @@ check("recording timer runs", /0:0[2-9]/.test(await page2.locator("text=/0:0\\d/
 await page2.getByRole("button", { name: "Stop recording" }).click();
 await page2.waitForSelector("audio[controls]");
 check("recorded clip can be played back", true);
+for (let i = 0; i < 6 && !(await page2.getByRole("button", { name: "Make my video" }).count()); i++) await page2.locator(".tf-nav .btn.primary").first().click().catch(() => {});   // OK through the screens
 const gen2 = page2.getByRole("button", { name: "Make my video" });
 check("Make enabled after recording", await gen2.isEnabled());
 await gen2.click();
@@ -82,13 +83,14 @@ await page2.waitForURL(/\/p\/[^/]+\/progress/, { timeout: 15000 });
 created.push(page2.url().split("/p/")[1].split("/")[0]);
 await page2.getByText(/No speech was found/).waitFor({ timeout: 90000 });
 check("no-speech error is shown in plain language", true);
-check("retry and start-over buttons offered", (await page2.getByRole("button", { name: "Retry this step" }).count()) === 1);
+check("retry and start-over buttons offered", (await page2.getByRole("button", { name: "Try again" }).count()) === 1 && (await page2.getByRole("button", { name: "Start over" }).count()) === 1);
 await page2.screenshot({ path: out + "/g3-nospeech.png" });
 
 console.log("Delete from the projects list");
 await page2.goto(base + "/", { waitUntil: "networkidle" });
 const before = (await api("/api/projects")).length;
-await page2.locator("article", { hasText: "UI upload test" }).getByRole("button", { name: /Delete/ }).click();
+await page2.locator("article.dash2-card", { hasText: "UI upload test" }).first().getByRole("button", { name: /Actions for/ }).click();
+await page2.getByRole("menuitem", { name: /Delete/ }).click();
 await page2.getByRole("dialog").getByRole("button", { name: "Delete" }).click();
 await page2.waitForTimeout(1200);
 check("project deleted", (await api("/api/projects")).length === before - 1);

@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import shutil
+import time
 import uuid
 from pathlib import Path
 from typing import Any
@@ -94,7 +95,14 @@ def _atomic_json(path: Path, value: Any) -> None:
     temp = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
     try:
         temp.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        os.replace(temp, path)
+        for attempt in range(20):                                    # Windows refuses to replace a file someone is reading at that instant
+            try:
+                os.replace(temp, path)
+                break
+            except PermissionError:
+                if attempt == 19:
+                    raise
+                time.sleep(0.05 * (attempt + 1))
     finally:
         temp.unlink(missing_ok=True)
 

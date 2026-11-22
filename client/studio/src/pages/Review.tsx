@@ -33,6 +33,7 @@ const ELEMENT_NAME: Record<string, string> = { value_card: "Value card", big_num
 const CANVAS: Record<string, { width: number; height: number }> = { "9:16": { width: 1080, height: 1920 }, "16:9": { width: 1920, height: 1080 }, "1:1": { width: 1080, height: 1080 } };
 import CaptionLook from "../review/CaptionLook";
 import TranscriptPanel from "../review/TranscriptPanel";
+import StudioButton from "../review/StudioButton";
 import VideoInspector from "../review/VideoInspector";
 import { useReview, type DirectorState } from "../review/useReview";
 import type { LClip, MediaItem, SoundEvents, UseCase } from "../types";
@@ -557,6 +558,7 @@ function ReviewEditor() {
           <Tooltip text="Redo" keys="Ctrl+Shift+Z"><Button icon variant="ghost" size="sm" onClick={r.redo} disabled={!r.canRedo} aria-label="Redo"><Redo2 size={16}/></Button></Tooltip>
         </div>
         <Button size="sm" onClick={() => nav(`/p/${id}/script`)} aria-label="Director's script"><MessageSquareText size={15}/> Script</Button>
+        <StudioButton projectId={id} />
         <Button size="sm" onClick={() => setAiOpen(true)} aria-label="AI assistant"><Sparkles size={15}/> AI</Button>
         <Button size="sm" variant="primary" onClick={exportNow}><Download size={15}/> Export</Button>
       </header>

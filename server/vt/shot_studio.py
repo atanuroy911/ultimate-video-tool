@@ -25,7 +25,7 @@ _ADDED = re.compile(re.escape(BEGIN) + r".*?" + re.escape(END) + r"\n?", re.S)
 START_SECONDS = 45.0
 
 _lock = threading.Lock()
-_open: dict[str, Any] = {}                       # the one open shot: {"key", "shot_dir", "work", "proc", "port", "url", "base_html", "started"}
+_open: dict[str, Any] = {}                       # the one open Studio: {"key", "work", "saver", "proc", "port", "url", "log", "started"}
 
 
 class StudioError(Exception):
@@ -142,51 +142,68 @@ def status() -> dict:
         return {"open": True, "key": _open["key"], "url": _open["url"], "port": _open["port"], "started": _open["started"]}
 
 
-def open_shot(key: str, shot_dir: Path, theme: Optional[dict] = None) -> dict:
-    """Start the Studio on this shot (closing another open one first, with its edits saved). `key` names the shot (`<project>/<shot>`)."""
+def start(key: str, work: Path, saver, log_dir: Path) -> dict:
+    """Start the Studio on the folder `work` (closing another open one first, with its edits saved). `saver()` copies the edits to where they
+    belong and says what it did; it runs on Save, on close and when another Studio is opened. Used for one shot (O2) and for a whole video (O4)."""
     from .render.hyperframes import _env, hyperframes_cmd
 
     with _lock:
         if _open and _open["key"] == key and _open["proc"].poll() is None:
             return {"open": True, "key": key, "url": _open["url"], "port": _open["port"], "started": _open["started"]}
         previous = _close_locked()
-        work = prepare(shot_dir, theme)
         port = _free_port()
-        log = (shot_dir / "studio.log").open("w", encoding="utf-8")
+        log_path = log_dir / "studio.log"
+        log = log_path.open("w", encoding="utf-8")
         flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
-        proc = subprocess.Popen(hyperframes_cmd("preview", "--no-open", "--foreground", "--port", str(port), str(work)), cwd=str(shot_dir),
+        proc = subprocess.Popen(hyperframes_cmd("preview", "--no-open", "--foreground", "--port", str(port), str(work)), cwd=str(log_dir),
                                 stdout=log, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, env=_env(), creationflags=flags)
         t0 = time.time()
         while not _listening(port):
             if proc.poll() is not None or time.time() - t0 > START_SECONDS:
                 _stop_proc(proc)
                 log.close()
-                tail = (shot_dir / "studio.log").read_text(encoding="utf-8", errors="replace")[-600:]
+                tail = log_path.read_text(encoding="utf-8", errors="replace")[-600:]
                 raise StudioError("The Studio did not start. " + tail.strip())
             time.sleep(0.3)
-        url = f"http://127.0.0.1:{port}/#project/{WORK}"
-        _open.update(key=key, shot_dir=shot_dir, work=work, proc=proc, port=port, url=url, log=log, started=time.time(),
-                     synced=(shot_dir / "index.html").read_text(encoding="utf-8"))
+        url = f"http://127.0.0.1:{port}/#project/{work.name}"
+        _open.update(key=key, work=work, saver=saver, proc=proc, port=port, url=url, log=log, started=time.time())
         out = {"open": True, "key": key, "url": url, "port": port, "started": _open["started"]}
         if previous:
             out["closed"] = previous
         return out
 
 
+def open_shot(key: str, shot_dir: Path, theme: Optional[dict] = None) -> dict:
+    """Start the Studio on this shot. `key` names the shot (`<project>/<shot>`)."""
+    with _lock:
+        if _open and _open["key"] == key and _open["proc"].poll() is None:
+            return {"open": True, "key": key, "url": _open["url"], "port": _open["port"], "started": _open["started"]}
+    work = prepare(shot_dir, theme)
+    state = {"synced": (shot_dir / "index.html").read_text(encoding="utf-8")}
+
+    def saver() -> dict:
+        got = take_back(shot_dir, work, state["synced"])
+        if got.get("changed"):
+            state["synced"] = (shot_dir / "index.html").read_text(encoding="utf-8")
+        return got
+
+    return start(key, work, saver, shot_dir)
+
+
 def save(key: str) -> dict:
     with _lock:
         if not _open or _open["key"] != key:
-            raise StudioError("That shot is not open in the Studio.")
-        got = take_back(_open["shot_dir"], _open["work"], _open["synced"])
-        if got.get("changed"):
-            _open["synced"] = (_open["shot_dir"] / "index.html").read_text(encoding="utf-8")
-        return got
+            raise StudioError("That is not open in the Studio.")
+        return _open["saver"]()
 
 
 def _close_locked() -> Optional[dict]:
     if not _open:
         return None
-    got = take_back(_open["shot_dir"], _open["work"], _open.get("synced"))
+    try:
+        got = _open["saver"]()
+    except Exception as e:                                               # noqa: BLE001  the Studio still stops
+        got = {"saved": False, "reason": f"The edits could not be saved: {e}"}
     _stop_proc(_open["proc"])
     try:
         _open["log"].close()

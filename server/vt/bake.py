@@ -7,6 +7,7 @@ as GSAP code addressing those ids. The baked page needs no vt.js. What cannot be
 """
 from __future__ import annotations
 
+import os
 import re
 import shutil
 from pathlib import Path
@@ -21,10 +22,22 @@ class BakeError(Exception):
     pass
 
 
+def _link_or_copy(src: str, dst: str) -> str:
+    """Media can be gigabytes (a long talk's A-roll): a hard link costs no space and no time; another drive gets a copy. Only large files are linked:
+    a small file (a page, a style sheet) is copied, so an editor that changes it in place never changes the original."""
+    try:
+        if os.path.getsize(src) > 1_000_000:
+            os.link(src, dst)
+            return dst
+    except OSError:
+        pass
+    return shutil.copy2(src, dst)
+
+
 def _with_recorder(comp_dir: Path, work: Path) -> Path:
     if work.exists():
         shutil.rmtree(work)
-    shutil.copytree(comp_dir, work, ignore=shutil.ignore_patterns("baked", ".bake-*", "*.mp4.part"))
+    shutil.copytree(comp_dir, work, copy_function=_link_or_copy, ignore=shutil.ignore_patterns("baked", ".bake-*", "*.mp4.part"))
     shutil.copy(RECORDER, work / "runtime" / "vt-bake.js")
     page = work / "index.html"
     html = page.read_text(encoding="utf-8")
@@ -57,7 +70,7 @@ def bake(comp_dir: Path, out_dir: Path) -> dict:
         raise BakeError(f"The page could not be baked: {(got or {}).get('error') if isinstance(got, dict) else got}")
     if out_dir.exists():
         shutil.rmtree(out_dir)
-    shutil.copytree(comp_dir, out_dir, ignore=shutil.ignore_patterns("baked", ".bake-*", "index.html"))
+    shutil.copytree(comp_dir, out_dir, copy_function=_link_or_copy, ignore=shutil.ignore_patterns("baked", ".bake-*", "index.html"))
     (out_dir / "index.html").write_text(page_of((comp_dir / "index.html").read_text(encoding="utf-8"), got["html"], got["script"]), encoding="utf-8")
     lost = got.get("lost") or []
     return {"dir": str(out_dir), "timelines": got.get("timelines", 0), "elements": got.get("elements", 0), "lost": lost[:50], "lost_count": len(lost)}

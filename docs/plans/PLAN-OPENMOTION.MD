@@ -65,3 +65,11 @@ recordings, Claude Code over ACP. Our own editor stays for those until each live
 - **O3 left:** (b) captions are baked as per-word parts of the root (they should become their
   own composition in O4); (c) count-up numbers and other callbacks are reported in `lost` (none in the samples so far); (d) bake a stick-figure, cartoon
   and media-heavy video and compare.
+- **O4 done (2026-11-23):** the editor's header has a **Studio** button. The server composes the current video, bakes it into `<project>/studio-<shape>/`
+  (`vt/video_studio.py`; media hard-linked, not copied) and starts the Studio on it (shared process code in `vt/shot_studio.py`, one Studio at a time).
+  The Studio saves into that folder itself. The export draws from it while it holds edits and was baked from the same composition (a fingerprint of
+  `index.html` + `data.json`); if the video changed since, the export uses the new video and a notice says the Studio edits are not in it; opening the
+  Studio again keeps the old edits aside in `studio-<shape>.old`. With Studio edits the fast long-talk render is skipped (it redraws from the runtime data).
+  Tested: `tests/test_video_studio.py`, and `client/studio/e2e/video-studio.mjs` 9/9 (button opens the Studio window, scenes are clips, "S4 Defn Term"
+  retyped in the Studio's Design panel, export says it drew the Studio's edits; the final MP4 frame shows the new words).
+- **Next: O3 (b) captions as their own composition** (they fill the top of the Studio's Layers panel today), then O5 (the Studio inside our app).

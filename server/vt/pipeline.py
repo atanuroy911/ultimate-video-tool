@@ -1074,15 +1074,24 @@ def export(project: Project, aspect: Optional[str] = None, *, quality: str = "lo
     out_dir.mkdir(parents=True, exist_ok=True)
     silent = out_dir / f".render-{fmt['tag']}.mp4"
     from .render.hyperframes import check as hf_check
+    from .video_studio import for_render
+
+    draw_dir, studio_note = for_render(project, fmt["tag"], comp_dir)           # O4: edits made in the HyperFrames Studio are what gets drawn
+    if studio_note:
+        from .notices import record as record_notice
+        record_notice(project, "studio", studio_note)
+    studio_edits = draw_dir != comp_dir
+    if studio_edits:
+        progress("render", 0.0, "drawing the video as edited in the Studio")
 
     progress("render", 0.0, "checking the composition")
-    verdict = hf_check(comp_dir)
+    verdict = hf_check(draw_dir)
     write_json(out_dir / f".check-{fmt['tag']}.json", verdict)
     if verdict.get("errors"):
         progress("render", 0.0, f"HyperFrames found {verdict['errors']} problem(s) that can break the picture: {verdict['issues'][0]['message'][:120]}")
     progress("render", 0.0, "rendering frames")
     fast = None
-    if os.environ.get("VT_FAST_RENDER", "1") != "0" and captions:          # a long talk: the speaker's stretches are cut, not drawn (C11, vt/render/fast.py)
+    if os.environ.get("VT_FAST_RENDER", "1") != "0" and captions and not studio_edits:          # a long talk: the speaker's stretches are cut, not drawn (C11, vt/render/fast.py)
         try:
             from .render.fast import render_silent_fast
             fast = render_silent_fast(project, comp_dir, data, silent, fps=fps or fmt["fps"], quality=quality, gpu=gpu,
@@ -1092,7 +1101,7 @@ def export(project: Project, aspect: Optional[str] = None, *, quality: str = "lo
             record_notice(project, "render", "The fast render for long recordings did not work, so every frame was drawn (slower).", e)
             fast = None
     if fast is None:
-        render_silent(comp_dir, silent, fps=fps or fmt["fps"], quality=quality, gpu=gpu,
+        render_silent(draw_dir, silent, fps=fps or fmt["fps"], quality=quality, gpu=gpu,
                       on_progress=lambda f, c: progress("render", f, c))
     progress("mux", 0.0, "mixing audio")
     voice = project.cut_audio if project.cut_audio.exists() else project.master

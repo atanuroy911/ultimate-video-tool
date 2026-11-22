@@ -648,3 +648,7 @@ C11: fast render for long recordings (vt/render/fast.py): 1321 s instead of 8103
 - Next: O3 (bake runtime scenes into HyperFrames source), then O4 (whole video as a HyperFrames project).
 - O3 part 1: `vt/bake.py` + `runtime/vt-bake.js` turn a runtime-drawn video into plain HyperFrames source (built DOM with readable ids + the timeline as GSAP code). The c2-mix sample: nothing lost, identical frames at 15 moments; it opens in the HyperFrames Studio with every scene as a clip at its time and every part selectable. tests/test_bake.py.
 - Next: O3 b-d (captions as their own composition, callbacks, more video kinds), then O4: "Edit the whole video in the Studio" from the editor (bake -> Studio session like O2 -> render from the edited baked page).
+
+## 2026-11-23 morning
+- O4: the whole video in the HyperFrames Studio. Editor header **Studio** button -> server bakes the current video into studio-<shape>/ and opens the Studio (own window); Studio edits go into the export while they fit the current video (else a notice, old edits kept aside). Shot and video Studios share one process manager. pytest 7 (bake, shot, video Studio), e2e video-studio 9/9 with a real export whose frame shows the Studio edit; shot-studio still 10/10.
+- Next: captions as their own composition (O3 b), then O5 (the Studio inside our app with our assistant docked).

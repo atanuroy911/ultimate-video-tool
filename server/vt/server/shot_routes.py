@@ -212,3 +212,53 @@ def _changed(pid: str) -> None:
         changed(pid, by="person")
     except Exception:                                    # noqa: BLE001  the edit is saved; only the live refresh is missed
         pass
+
+
+# ---- O4: the whole video in the HyperFrames Studio ----
+
+def _video_key(pid: str, aspect: Optional[str]) -> tuple[Any, str, str]:
+    from ..compose import FORMATS
+
+    project = project_or_404(pid)
+    aspect = aspect or project.meta().aspect
+    if aspect not in FORMATS:
+        raise HTTPException(422, f"Unknown shape '{aspect}'.")
+    tag = FORMATS[aspect]["tag"]
+    return project, aspect, tag
+
+
+@router.post("/api/projects/{pid}/studio")
+def video_studio_open(pid: str, aspect: Optional[str] = None, fresh: bool = False) -> dict[str, Any]:
+    """Open the whole video in the HyperFrames Studio: the current composition is baked into plain source (earlier Studio edits on the same video are
+    kept; fresh=1 starts over). Only one Studio runs at a time."""
+    from ..compose.composer import compose_project
+    from .. import video_studio as VS
+
+    project, aspect, tag = _video_key(pid, aspect)
+    try:
+        comp_dir = compose_project(project, aspect).parent
+    except Exception as e:                                          # noqa: BLE001
+        raise HTTPException(422, f"The video could not be put together for the Studio: {e}")
+    return _studio_call(VS.open_video, project, tag, comp_dir, fresh=fresh)
+
+
+@router.get("/api/projects/{pid}/studio")
+def video_studio_status(pid: str, aspect: Optional[str] = None) -> dict[str, Any]:
+    from .. import shot_studio as ST
+    from .. import video_studio as VS
+
+    project, aspect, tag = _video_key(pid, aspect)
+    s = ST.status()
+    have = VS.info(project, tag, project.comp_dir / tag)
+    return {**(s if s.get("key") == f"{pid}/video/{tag}" else {"open": False}), "edited": have["edited"], "current": have["current"]}
+
+
+@router.delete("/api/projects/{pid}/studio")
+def video_studio_close(pid: str, aspect: Optional[str] = None) -> dict[str, Any]:
+    from .. import shot_studio as ST
+
+    project, aspect, tag = _video_key(pid, aspect)
+    got = _studio_call(ST.close, f"{pid}/video/{tag}")
+    if got.get("changed"):
+        _changed(pid)
+    return got

@@ -51,6 +51,7 @@ await page.addInitScript(() => {
       emit({ type: "step", id: "t1", title: "Set caption style", status: "completed" });
       if (/command/.test(text)) emit({ type: "permission", requestId: "r1", tool: "Bash", what: "run a command", title: "Run: dir", detail: JSON.stringify({ command: "dir C:\\Users" }) });
       else if (/limit/.test(text)) emit({ type: "error", kind: "login", message: "Claude Code is not signed in. Sign in, then try again." });
+      else if (/break/.test(text)) emit({ type: "error", kind: "other", message: "Claude Code stopped unexpectedly." });
       else emit({ type: "done", stopReason: "end_turn" });
       return { ok: true };
     },
@@ -116,6 +117,13 @@ await page.waitForTimeout(600);
 const sent = (await page.evaluate(() => window.__calls)).filter((c) => c[0] === "send").pop();
 check("the reference goes to the agent with the scene and its times", sent && sent[2]?.[0]?.kind === "scene" && sent[2][0].scene === "s2" && sent[2][0].to > sent[2][0].from, JSON.stringify(sent && sent[2]));
 check("the pill is cleared after sending", await page.locator(".agent-pills-draft").count() === 0);
+await box.fill("please break");
+await page.keyboard.press("Enter");
+await page.getByRole("button", { name: "Try again" }).waitFor({ timeout: 5000 });
+const sendsBefore = (await page.evaluate(() => window.__calls)).filter((c) => c[0] === "send" && c[1] === "please break").length;
+await page.getByRole("button", { name: "Try again" }).click();
+await page.waitForTimeout(500);
+check("a failed reply offers Try again, which sends the same message", (await page.evaluate(() => window.__calls)).filter((c) => c[0] === "send" && c[1] === "please break").length === sendsBefore + 1);
 await page.getByRole("button", { name: "New conversation" }).click();
 check("New conversation clears the chat and the next message opens a fresh one", (await page.locator(".agent-turn").count()) === 0 && (await page.locator(".agent-starters button").count()) === 3);
 await page.getByRole("tab", { name: "Director" }).click();

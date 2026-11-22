@@ -110,8 +110,8 @@ export default function AgentChat({ projectId, title, onChanged, onLink }: { pro
     setNote(o.note || (o.resumed ? "Continuing the earlier conversation." : ""));
     return o.conversationId;
   };
-  const send = async () => {
-    const text = draft.trim();
+  const send = async (again?: string) => {
+    const text = (again ?? draft).trim();
     if (!text || running) return;
     const sent = refs;
     setProblem(null); setDraft(""); setRunning(true); setRefs([]);
@@ -165,7 +165,8 @@ export default function AgentChat({ projectId, title, onChanged, onLink }: { pro
         )}
         {problem && (
           <div className="agent-problem" role="alert">{problem.message}
-            {problem.kind === "login" && <button className="btn sm" onClick={() => bridge.signIn("claude").catch(() => {})}>Sign in</button>}</div>
+            {problem.kind === "login" && <button className="btn sm" onClick={() => bridge.signIn("claude").catch(() => {})}>Sign in</button>}
+            {problem.kind === "other" && turns.some((t) => t.role === "me") && <button className="btn sm" onClick={() => send([...turns].reverse().find((t) => t.role === "me")!.text)}>Try again</button>}</div>
         )}
         <div ref={end} />
       </div>

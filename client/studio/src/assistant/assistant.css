@@ -15,7 +15,7 @@
 .agent-card { border: 1px solid var(--border-strong); border-radius: 10px; padding: var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-2); background: var(--bg-raised); }
 .agent-card code { font-family: var(--font-mono); font-size: var(--fs-12); word-break: break-all; max-height: 120px; overflow: auto; background: var(--bg-field); padding: 6px 8px; border-radius: 6px; }
 .agent-card .row { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
-.agent-problem { background: var(--err-soft); color: var(--err); border-radius: 8px; padding: var(--sp-2) var(--sp-3); font-size: var(--fs-13); display: flex; gap: var(--sp-2); align-items: center; justify-content: space-between; }
+.agent-problem { background: var(--err-soft); color: var(--err); border-radius: 8px; border-left: 3px solid var(--err); padding: var(--sp-2) var(--sp-3); font-size: var(--fs-13); display: flex; gap: var(--sp-2); align-items: center; justify-content: space-between; }
 .agent-composer { display: flex; gap: var(--sp-2); align-items: flex-end; padding: var(--sp-3); border-top: 1px solid var(--border); }
 .agent-composer textarea { flex: 1; resize: none; }
 .wb-assistant-tabs { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin-left: var(--sp-2); }

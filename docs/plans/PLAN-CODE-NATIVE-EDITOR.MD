@@ -99,7 +99,7 @@ VRAM figures below come from third-party guides that disagree with each other; o
 | C8 (first half done 2026-11-22: "Open in VS Code" button; the VS Code extension is still to do) | **"Open in VS Code" + a small VS Code extension.** The menu item opens the project folder in the person's VS Code. The extension (published to Open VSX and the Marketplace) adds a live preview of the shot under the cursor, connected to the running app. | The extension previews the spike shot; edits in VS Code show in our app. |
 | C9 | **Optional: code-server pane.** Only if C4 + C8 leave a real gap. | Decided after C8. |
 | C10 (most done 2026-11-22: outline read ahead automatically, in every director's prompt; the local director follows it; uncovered examples get a drawn picture; SRT + VTT. On the owner's talk 17/17 examples got B-roll. Open: slides treated as a talking head, Claude run; see docs/dev/ISSUES.md) | **Long talks: subtitles and look-ahead B-roll, automatically** (section 7). | The owner's 16.5-minute recording comes out with exact subtitles and B-roll over its example stretches, without anyone asking for it. |
-| C11 | **Fast render for long recordings** (section 8). | The owner's 14-minute talk renders in under 15 minutes on this laptop, looking the same. |
+| C11 (done 2026-11-22: vt/render/fast.py; the owner's talk 1321 s instead of 8103 s, 6x; captions drawn by the runtime once per line and keyed over the A-roll; designed stretches from a clipped, pruned page. Target of 15 min not yet met: 22 min) | **Fast render for long recordings** (section 8). | The owner's 14-minute talk renders in under 15 minutes on this laptop, looking the same. |
 
 ## 6. Sources
 - Claude Code in VS Code, and its Open VSX listing: https://code.claude.com/docs/en/vs-code

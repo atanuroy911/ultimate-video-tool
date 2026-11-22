@@ -612,3 +612,4 @@ W15.1: editor screenshots (2 sizes x 2 themes x 3 states), README updated, criti
 
 ## 2026-11-22 morning (timer run)
 Done: W4.3 (no silent failures in the pipeline modules; notices on the video page), W15.1 screenshots and three layout fixes from the critique, set_scene_shot reports elements left over a shot, C10 with Claude directing (16/17 examples, 0 outside). Running: the render of the owner's talk (local-AI version) at 59%, E:\UltimateVideoTool\scratch\c10\projects\2026-11-22-beetle-talk\exports. Next: watch that video; Claude version frames; W4.2 (split app.py) with fresh context; W11 (one timeline); W10; C8 extension run in VS Code; W15.6 PR for the owner.
+C11: fast render for long recordings (vt/render/fast.py): 1321 s instead of 8103 s for the owner's 14-min talk; caption order bug fixed (frame-100 before frame-11), re-render running to confirm.

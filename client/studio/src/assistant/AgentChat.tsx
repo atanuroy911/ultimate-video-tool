@@ -25,13 +25,30 @@ export type AgentEvent =
   | { type: "error"; kind: "limit" | "login" | "other"; message: string };
 
 interface Step { id: string; title: string; status: string }
-export interface AgentRef { kind: string; scene?: string; index?: number; t?: number; from?: number; to?: number; label?: string }
+export interface AgentRef { kind: string; scene?: string; index?: number; t?: number; from?: number; to?: number; label?: string; box?: { x: number; y: number; w: number; h: number } }
 interface Turn { role: "me" | "agent"; text: string; steps: Step[]; refs?: AgentRef[]; began?: number; took?: number }
 interface Card { requestId: string; what: string; title: string; detail: string }
 
 export const agentBridge = (): AgentBridge | undefined => (window as any).vtDesktop?.agents;
 
 const WHO = "Claude Code";
+/** W13.3: the picture under each region the person pointed at (cut on the server), so the agent sees exactly what they mean. At most 3; a picture
+ *  that cannot be made is left out and the region still goes as numbers. */
+async function regionPictures(projectId: string, refs: AgentRef[]): Promise<{ mime: string; data: string }[]> {
+  const out: { mime: string; data: string }[] = [];
+  for (const r of refs.filter((x) => x.kind === "region" && x.box && x.t != null).slice(0, 3)) {
+    try {
+      const b = r.box!;
+      const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/frame-crop?t=${r.t}&x=${b.x}&y=${b.y}&w=${b.w}&h=${b.h}`);
+      if (!res.ok) continue;
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      let bin = "";
+      for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      out.push({ mime: "image/png", data: btoa(bin) });
+    } catch { /* the region still goes as numbers */ }
+  }
+  return out;
+}
 const STARTERS = ["Tighten the opening", "Make the captions bigger", "Draw scene 2 as a shot"];          // W10.1: an empty conversation suggests where to start
 const fmtTook = (ms: number) => { const s = Math.max(1, Math.round(ms / 1000)); return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, "0")}s`; };
 
@@ -118,7 +135,7 @@ export default function AgentChat({ projectId, title, onChanged, onLink }: { pro
     setTurns((all) => [...all, { role: "me", text, steps: [], refs: sent }]);
     try {
       const id = conv.current || await begin();
-      await bridge.send(id, text, sent, []);
+      await bridge.send(id, text, sent, await regionPictures(projectId, sent));
     } catch (e: any) {
       setRunning(false);
       setProblem({ kind: "other", message: String(e?.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, "") });

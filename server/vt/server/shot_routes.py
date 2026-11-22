@@ -121,3 +121,34 @@ def frame(pid: str, sid: str, t: float = 0.0):
     if not got:
         raise HTTPException(500, "The renderer gave no frame.")
     return FileResponse(got[0], media_type="image/png", headers={"Cache-Control": "no-store"})
+
+
+@router.get("/api/projects/{pid}/frame-crop")
+def frame_crop(pid: str, t: float, x: int = 0, y: int = 0, w: int = 0, h: int = 0) -> Any:
+    """The video at time t, cut to a box in video pixels (W13.3: the picture that goes with a region the person pointed at). A few seconds."""
+    import io
+
+    from fastapi.responses import Response
+    from PIL import Image
+
+    from ..compose import FORMATS
+    from ..render.hyperframes import snapshot
+
+    p = project_or_404(pid)
+    fmt = FORMATS[p.meta().aspect]
+    comp = p.comp_dir / fmt["tag"]
+    if not (comp / "index.html").exists():
+        raise HTTPException(409, "the video has not been put together yet")
+    got = snapshot(comp, p.dir / "snapshots" / "crop", [max(0.0, float(t))])
+    if not got:
+        raise HTTPException(500, "could not capture the frame")
+    im = Image.open(got[0]).convert("RGB")
+    sx, sy = im.width / fmt["width"], im.height / fmt["height"]               # the snapshot may be drawn at another size than the video
+    if w > 0 and h > 0:
+        box = (max(0, int(x * sx)), max(0, int(y * sy)), min(im.width, int((x + w) * sx)), min(im.height, int((y + h) * sy)))
+        if box[2] > box[0] and box[3] > box[1]:
+            im = im.crop(box)
+    im.thumbnail((1280, 1280))
+    buf = io.BytesIO()
+    im.save(buf, "PNG")
+    return Response(buf.getvalue(), media_type="image/png")

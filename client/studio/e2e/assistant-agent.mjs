@@ -43,8 +43,8 @@ await page.addInitScript(() => {
     status: async () => ({ found: true, logged_in: true, version: "2", reason: "", adapter: true }),
     list: async () => [{ sessionId: "old", title: "Make the title bigger", at: "2026-11-20" }],
     open: async (kind, projectId, o) => { calls.push(["open", kind, projectId, o && o.resume, o && o.model]); return { conversationId: "c1", resumed: !!(o && o.resume), note: "" }; },
-    send: async (id, text, refs) => {
-      calls.push(["send", text, refs]);
+    send: async (id, text, refs, images) => {
+      calls.push(["send", text, refs, (images || []).map((i) => i.mime + ":" + i.data.length)]);
       emit({ type: "step", id: "t1", title: "Set caption style", tool: "mcp__video-tool__set_caption_style", status: "in_progress" });
       emit({ type: "text", text: "Making " });
       emit({ type: "text", text: "it bigger in [scene 3](vt://scene/s3), see [the end](vt://t/20) and [bad](https://evil.example)." });
@@ -142,10 +142,11 @@ await page.waitForTimeout(600);
 check("Alt-drag on the picture points the assistant at a region", /Region at/.test(await page.locator(".agent-pills-draft .agent-pill").first().textContent().catch(() => "")));
 await box.fill("keep the caption out of [1]");
 await page.keyboard.press("Enter");
-await page.waitForTimeout(600);
-const regionSent = (await page.evaluate(() => window.__calls)).filter((c) => c[0] === "send").pop();
+await page.waitForFunction(() => window.__calls.some((c) => c[0] === "send" && c[1] === "keep the caption out of [1]"), null, { timeout: 30000 }).catch(() => {});   // the picture is cut first (a few seconds)
+const regionSent = (await page.evaluate(() => window.__calls)).filter((c) => c[0] === "send" && c[1] === "keep the caption out of [1]").pop();
 const rb = regionSent && regionSent[2] && regionSent[2][0] && regionSent[2][0].box;
 check("the region goes with its box in video pixels", rb && rb.w > 600 && rb.h > 200 && rb.y > 1000, JSON.stringify(regionSent && regionSent[2]));
+check("and with the picture under it", regionSent && regionSent[3] && regionSent[3].length === 1 && /^image\/png:\d{3,}/.test(regionSent[3][0]), JSON.stringify(regionSent && regionSent[3]));
 await page.getByRole("button", { name: "New conversation" }).click();
 check("New conversation clears the chat and the next message opens a fresh one", (await page.locator(".agent-turn").count()) === 0 && (await page.locator(".agent-starters button").count()) === 3);
 await page.getByRole("tab", { name: "Director" }).click();

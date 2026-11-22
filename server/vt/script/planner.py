@@ -1,6 +1,8 @@
 """Ask an AI (any provider) to write the Video Script; repair and validate it; fall back to the rule director."""
 from __future__ import annotations
 
+import logging
+
 from typing import Callable, Optional
 
 from .. import ai
@@ -44,7 +46,8 @@ def ai_script(tr: Transcript, beats: Beats, *, kind: str = "stick", language: st
             for sc in script.scenes:
                 if not sc.overlays and tuple(sc.beats) in by:
                     sc.overlays = by[tuple(sc.beats)].overlays
-        except Exception:
+        except Exception as _e:  # noqa: BLE001 — overlays of the previous plan could not be carried over
+            logging.getLogger(__name__).warning("overlays of the previous plan could not be carried over: %s", _e, exc_info=True)
             pass
     who = (provider or ai.current_provider()).name
     script.planner = "claude" if who in ("anthropic", "claude-cli") else "llm"
@@ -80,7 +83,8 @@ def revise(script: VideoScript, tr: Transcript, beats: Beats, system: str, schem
                                     check=lambda d: validate_script(d, tr, beats, icons, media_ids))
             cand = VideoScript.model_validate(data)
             cand.kind, cand.planner = best.kind, best.planner
-        except Exception:
+        except Exception as _e:  # noqa: BLE001 — an improved script did not validate; the best earlier one is kept
+            logging.getLogger(__name__).warning("an improved script did not validate; the best earlier one is kept: %s", _e, exc_info=True)
             break
         rv2 = review(cand, tr, beats)
         if rv2["score"] <= rv["score"]:
@@ -127,7 +131,8 @@ def _plan_script(tr: Transcript, beats: Beats, *, draft: ScenesFile, use_ai: boo
 
         try:
             picks = pick_visuals(tr, beats, None)
-        except Exception:
+        except Exception as _e:  # noqa: BLE001 — the picture dictionary could not be used; scenes show words
+            logging.getLogger(__name__).warning("the picture dictionary could not be used; scenes show words: %s", _e, exc_info=True)
             picks = {}
         from .rules_stick import emoji_script
 

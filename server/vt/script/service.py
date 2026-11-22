@@ -1,6 +1,8 @@
 """Project-level glue for Video Scripts: the task handed to an assistant over MCP, and applying a script an assistant (or the app's AI) produced."""
 from __future__ import annotations
 
+import logging
+
 from typing import Any, Optional
 
 from .. import paths
@@ -111,7 +113,8 @@ def apply_script(p: Project, data: dict, *, planner: str = "claude", compose: bo
 
     try:
         sf = refresh_scrims(p, sf)
-    except Exception:
+    except Exception as _e:  # noqa: BLE001 — scrims could not be refreshed; the plan keeps its old ones
+        logging.getLogger(__name__).warning("scrims could not be refreshed; the plan keeps its old ones: %s", _e, exc_info=True)
         pass
     errs = validate_scenes(sf, tr, beats, icons, media)
     if errs:

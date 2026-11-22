@@ -79,3 +79,6 @@ third_party/ai-youtube-shorts-generator/
 
 # Browser-test output (screenshots, logs): never committed
 /client/studio/e2e/out/
+
+# browser-test screenshots written next to the Studio when no path is given (anchored)
+/client/studio/*.png

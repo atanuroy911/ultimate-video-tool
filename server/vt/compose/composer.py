@@ -5,6 +5,8 @@ Word ids are resolved to seconds here and nowhere else.
 """
 from __future__ import annotations
 
+import logging
+
 import json
 import re
 import shutil
@@ -333,7 +335,8 @@ def _prop_art(st: dict) -> dict:
 
                     hits = search((c.get("name") or c["id"]).replace("_", " "), "sticker", 1)
                     key = hits[0]["id"].split(":", 1)[-1] if hits else None
-                except Exception:
+                except Exception as _e:  # noqa: BLE001 — a cast sticker search failed; the figure is drawn without one
+                    logging.getLogger(__name__).warning("a cast sticker search failed; the figure is drawn without one: %s", _e, exc_info=True)
                     key = None
             svg = emo.svg(key) if key else None
             if svg:
@@ -356,7 +359,8 @@ def _prop_art(st: dict) -> dict:
             svg = emo.svg(key) if key else None
             if svg:
                 out[n] = svg
-        except Exception:
+        except Exception as _e:  # noqa: BLE001 — one icon could not be read; it is left out
+            logging.getLogger(__name__).warning("one icon could not be read; it is left out: %s", _e, exc_info=True)
             continue
     return out
 
@@ -874,7 +878,8 @@ def _beat_sync(data: dict, music_id: str) -> None:
         known = next((m.get("bpm") for m in read_json(paths.MUSIC / "index.json", []) or [] if m.get("file") == track.name), None)
         bpm, offset = beatsync.grid_for(track, known)
         beatsync.apply(data, bpm, offset)
-    except Exception:
+    except Exception as _e:  # noqa: BLE001 — the music beat grid could not be worked out; cuts are not moved to the beat
+        logging.getLogger(__name__).warning("the music beat grid could not be worked out; cuts are not moved to the beat: %s", _e, exc_info=True)
         pass
 
 

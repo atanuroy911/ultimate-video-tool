@@ -7,6 +7,8 @@ Everything is normalised once on the way in so rendering is deterministic and fa
 """
 from __future__ import annotations
 
+import logging
+
 import json
 import re
 import shutil
@@ -189,7 +191,7 @@ def add_media(project, src: Path, *, caption: str = "", tags: Optional[list[str]
         try:
             im = Image.open(src)
             im.load()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — raised again as a plain MediaError
             raise MediaError("this picture could not be opened") from e
         im = im.convert("RGBA") if (im.mode in ("RGBA", "LA") or (im.mode == "P" and "transparency" in im.info)) else im.convert("RGB")
         if max(im.size) > MAX_IMAGE:
@@ -269,7 +271,8 @@ def speech_envelope(wav: Path, dt: float = 0.04) -> Optional[dict]:
 
     try:
         x, sr = sf.read(str(wav), dtype="float32", always_2d=False)
-    except Exception:
+    except Exception as _e:  # noqa: BLE001 — an unreadable sound file has no waveform
+        logging.getLogger(__name__).warning("an unreadable sound file has no waveform: %s", _e, exc_info=True)
         return None
     if x.ndim > 1:
         x = x.mean(axis=1)

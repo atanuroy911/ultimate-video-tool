@@ -55,3 +55,13 @@ recordings, Claude Code over ACP. Our own editor stays for those until each live
 - **O1 done (2026-11-23):** renderer on HyperFrames 0.9.81; the shot and fast-render tests pass unchanged.
 - **O2 done (2026-11-23):** the shot editor has a **Studio** tab. The server (`vt/shot_studio.py`, routes in `server/shot_routes.py`) makes a working copy of the shot with the video's theme and earlier edits shown between markers, starts `hyperframes preview` on a free 127.0.0.1 port, and copies the edits back (without the markers) on **Save to video**, **Done**, closing the editor or stopping the server. A change made elsewhere while the Studio is open is never overwritten (the Studio's version is set aside as `studio-conflict.html`). The Studio refuses to sit inside another page's frame, so it opens as its own window (an app window in the desktop app). Tested: `tests/test_shot_studio.py` (4, one starts the real Studio) and `client/studio/e2e/shot-studio.mjs` (10: open, layers listed, retype in the Studio's Design panel, Save to video, theme never reaches the code, Done stops it). Also tried by hand: a drag on the canvas of an animated title became a keyframe; our renderer drew both edits.
 - **Next: O3** (bake runtime scenes into HyperFrames source so every scene opens in the Studio).
+- **O3 first part (2026-11-23):** `vt/bake.py` + `renderer/runtime/vt-bake.js`. The runtime builds the page as for a render while every GSAP call is recorded;
+  the result is written as plain HyperFrames source: the built DOM (animated parts get readable ids such as `s4-defn-term`, `s6-bar-val`, plus
+  `data-hf-id`) and the timeline as GSAP code addressing them. No vt.js on the baked page. Only the properties GSAP animates go back to their built value
+  (the layout guard's fitted sizes stay); shorthand styles the browser cannot write back get their drawn value. Results: the c2-mix sample (value card,
+  sticker, shot backdrop video, definition, steps, bar chart, captions) bakes with nothing lost and draws **identical frames** at 7 moments; the baked
+  video opens in the HyperFrames Studio with every part as a named layer. Test: `tests/test_bake.py` (same frames at 6 moments; nothing lost; ids unique).
+- **O3 left:** (a) give parts their time window (`data-start`/`data-duration` from the scene and element times) so the Studio's timeline shows clips
+  where they play instead of 0 to the end, checking frames stay identical; (b) captions are baked as per-word parts of the root (they should become their
+  own composition in O4); (c) count-up numbers and other callbacks are reported in `lost` (none in the samples so far); (d) bake a stick-figure, cartoon
+  and media-heavy video and compare.

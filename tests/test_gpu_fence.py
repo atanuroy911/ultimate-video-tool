@@ -227,6 +227,7 @@ def test_speech_recognition_listens_on_the_processor_when_no_card_is_allowed(box
     monkeypatch.setattr(gpu, "prepare", lambda: None)
     fake = SimpleNamespace(get_cuda_device_count=lambda: 2)
     monkeypatch.setitem(__import__("sys").modules, "ctranslate2", fake)
+    monkeypatch.setattr(asr, "cuda_libraries_load", lambda: True)          # this test is about the allowed cards, not about the CUDA libraries
     gpuassign.save({"allowed": ["GPU-3060"]})
     assert asr.cuda_available() is True
     gpuassign.save({"allowed": []})

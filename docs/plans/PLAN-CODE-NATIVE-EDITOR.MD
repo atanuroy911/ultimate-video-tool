@@ -99,6 +99,7 @@ VRAM figures below come from third-party guides that disagree with each other; o
 | C8 (first half done 2026-11-22: "Open in VS Code" button; the VS Code extension is still to do) | **"Open in VS Code" + a small VS Code extension.** The menu item opens the project folder in the person's VS Code. The extension (published to Open VSX and the Marketplace) adds a live preview of the shot under the cursor, connected to the running app. | The extension previews the spike shot; edits in VS Code show in our app. |
 | C9 | **Optional: code-server pane.** Only if C4 + C8 leave a real gap. | Decided after C8. |
 | C10 (most done 2026-11-22: outline read ahead automatically, in every director's prompt; the local director follows it; uncovered examples get a drawn picture; SRT + VTT. On the owner's talk 17/17 examples got B-roll. Open: slides treated as a talking head, Claude run; see docs/dev/ISSUES.md) | **Long talks: subtitles and look-ahead B-roll, automatically** (section 7). | The owner's 16.5-minute recording comes out with exact subtitles and B-roll over its example stretches, without anyone asking for it. |
+| C11 | **Fast render for long recordings** (section 8). | The owner's 14-minute talk renders in under 15 minutes on this laptop, looking the same. |
 
 ## 6. Sources
 - Claude Code in VS Code, and its Open VSX listing: https://code.claude.com/docs/en/vs-code
@@ -136,3 +137,19 @@ No setting needs to be turned on. When a long recording with a person talking is
 - The contact sheet and the video have been watched: nothing covers the speaker's face when they are on screen, no caption is cut, and no picture is wrong.
 - It runs with Claude directing, then with gemma on this laptop. With gemma, the outline pass must still finish for the 16.5 minutes.
 - Findings go into `docs/dev/ISSUES.md`.
+
+## 8. Fast render for long recordings (C11, the owner's question of 2026-11-22)
+
+**Why 2 h 15 m for 14 minutes.** The encoder already runs on the graphics card (NVENC on the RTX 4050; the log says "encoder GPU + browser GPU"); encoding took the last few minutes. The time is **capture**: the renderer opens every frame of the HTML composition in Chrome and takes a screenshot, 25,512 frames at about 3 a second with 4 workers. A faster encoder (NVENC, AMD AMF) changes nothing while Chrome is the bottleneck.
+
+**The fix.** Most of a long talk is the speaker's own recording plus captions (113 of 123 scenes in the owner's talk). Those stretches need no browser:
+1. Split the timeline into runs: *A-roll runs* (scenes whose backdrop is the A-roll and whose only element is the caption) and *designed runs* (everything else).
+2. A-roll runs: ffmpeg cuts the already-cut `media/aroll.mp4` and burns the captions with the `subtitles` filter (an ASS file written from the same caption chunks and the theme's caption style: font, size, colours, box, position). Hardware decode and NVENC (AMF or QSV on AMD or Intel, the encoder chooser in `vt/gpu.py` already knows them). Expect 10x real time or better.
+3. Designed runs: captured in Chrome as today.
+4. Join the pieces with the concat demuxer (same size, frame rate, pixel format), then add the voice and music once over the whole.
+5. Check that it looks the same: render 20 s of the talk both ways and compare frames (the caption may differ by a pixel; the picture must not).
+
+**Also:** a frame that does not change (a still slide) need not be captured 30 times a second; and the `draft` quality could capture at 15 fps and let the encoder double it.
+
+**Done when:** the owner's talk renders in under 15 minutes on this laptop and a side-by-side of 10 moments shows the same picture and captions.
+

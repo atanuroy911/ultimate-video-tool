@@ -343,6 +343,8 @@ def fill_examples(project, sf, beats, outline: Optional[dict], progress: Callabl
                 continue
             sc.backdrop = Backdrop(media=item.id, motion="kenburns")
             sc.archetype = "broll"
+            from .aroll import WEAK
+            sc.elements = [x for x in (sc.elements or []) if getattr(x, "type", "") not in WEAK]     # the picture replaces the word-only design ("photo" in huge type over it)
             changed.append(sc.id)
     finally:
         client.close()

@@ -847,6 +847,10 @@ class Pipeline:
                 outline = TO.ensure(p, progress=lambda f, m: self._say("plan", 0.96, m))       # a long talk: its examples, read ahead, get the B-roll (C10)
                 AR.apply_speaker(sf, p, beats, meta.aspect, speaker, force=TO.speaker_scenes(outline, sf, beats))          # the speaker where nothing better illustrates the words
                 TO.fill_examples(p, sf, beats, outline, lambda f, m: self._say("plan", 0.97, m))       # an example left with only words gets a picture
+                if outline:                                                    # in a long talk a scene of words alone on an empty background is worse than the speaker
+                    bare = {sc.id for sc in sf.scenes if sc.backdrop is None and not TO._is_broll(sc)}
+                    if bare:
+                        AR.apply_speaker(sf, p, beats, meta.aspect, speaker, force=bare)
             raw = read_json(p.raw_transcript_path) or {}
             if raw.get("model") == "sounds":                           # nobody speaks: the sounds are the story
                 sf, _ = SN.plan_from_sounds(sf, (doc or {}).get("events", []), tr, beats)

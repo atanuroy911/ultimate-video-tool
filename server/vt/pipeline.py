@@ -862,6 +862,11 @@ class Pipeline:
                         AR2.apply_speaker(sf, p, beats, meta.aspect, spk, force=set(left))
             except Exception:
                 pass
+        try:
+            from . import aroll as AR3
+            AR3.keep_screen_clear(sf, p)                                # a slide recording shows only itself and the captions
+        except Exception:                                               # noqa: BLE001
+            pass
         errs = validate_scenes(sf, tr, beats, icons)
         if errs:
             raise RuntimeError("rule planner produced an invalid plan: " + "; ".join(errs[:5]))

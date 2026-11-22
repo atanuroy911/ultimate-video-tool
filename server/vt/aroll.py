@@ -410,3 +410,17 @@ def apply_speaker(sf, project, beats, aspect: str, item: Optional[MediaItem] = N
         run += 1
         shown += 1
     return shown
+
+
+def keep_screen_clear(sf, project) -> int:
+    """A screen or slide recording (no face in the speaker's picture) is the content itself: on every scene that shows it, nothing but the
+    captions. Later passes may have added a word or a sticker after the speaker was chosen; this runs last, just before the plan is saved."""
+    item = next((m for m in project.meta().media if m.id == "aroll" and m.role == "a_roll"), None)
+    if item is None or item.faces:
+        return 0
+    n = 0
+    for sc in sf.scenes:
+        if sc.backdrop is not None and sc.backdrop.media == item.id and sc.elements:
+            sc.elements = []
+            n += 1
+    return n

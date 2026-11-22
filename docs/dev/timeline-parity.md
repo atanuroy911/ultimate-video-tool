@@ -17,7 +17,7 @@ Classic: `client/studio/src/review/Timeline.tsx`, `LayerLanes.tsx`, `MotionClip.
 | Narration: restore a cut by dragging an edge outward | yes | no (moving the narration is reported as ignored) | to port |
 | Words lane: double-click a word to edit its caption | yes | narration has the transcript; editing a word's text is not saved | to port |
 | Selected range on the voice (drag across) | yes | pick mode exists for pointing the assistant; not for edits | to port |
-| Add a text layer at the playhead; add a picture/video/sound from files; add a track | yes | text yes; files via the library; **no add-track button** | to port: add track |
+| Add a text layer at the playhead; add a picture/video/sound from files; add a track | yes | yes (text; files via the library and the track menu; TrackCreateControl adds a track) | same |
 | Sounds lane (laughter, applause found in the voice; "Listen for sounds") | yes | no | to port |
 | Actions lane (stick-figure actions: drag, trim, select to edit) | yes | no | to port |
 | Motion clip from a picture (MotionClip.tsx: ComfyUI image-to-video) | yes (from a layer clip) | no | to port (the clip itself is slow on a 6 GB card, C7) |

@@ -670,6 +670,9 @@ function ReviewEditor() {
             <button type="button" className={newTimeline ? "" : "on"} aria-pressed={!newTimeline} onClick={() => chooseTimeline(false)}>Classic</button>
             <button type="button" className={newTimeline ? "on" : ""} aria-pressed={newTimeline} onClick={() => chooseTimeline(true)}>New timeline</button>
           </div>
+          {newTimeline && soundEvents.data?.available && !soundEvents.data.analyzed && (            /* W11.1: the classic Sounds lane's button */
+            <button type="button" className="btn sm ghost occ-listen" onClick={listen} disabled={listening} title="Find laughter, applause, music and other sounds in the voice">
+              {listening ? "Listening…" : "Listen for sounds"}</button>)}
           {newTimeline ? (
             <Suspense fallback={<div className="row muted" style={{ padding: 12 }}><Spinner /> Opening the new timeline…</div>}>
               <OccTimeline player={player} playing={playing} revision={`${r.rev}-${r.audioRev}-${JSON.stringify(layers.doc).length}-${soundEvents.data?.events.length ?? 0}`}

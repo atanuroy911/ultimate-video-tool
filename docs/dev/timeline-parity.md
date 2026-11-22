@@ -18,7 +18,7 @@ Classic: `client/studio/src/review/Timeline.tsx`, `LayerLanes.tsx`, `MotionClip.
 | Words lane: double-click a word to edit its caption | yes | narration has the transcript; editing a word's text is not saved | to port |
 | Selected range on the voice (drag across) | yes | pick mode exists for pointing the assistant; not for edits | to port |
 | Add a text layer at the playhead; add a picture/video/sound from files; add a track | yes | yes (text; files via the library and the track menu; TrackCreateControl adds a track) | same |
-| Sounds lane (laughter, applause found in the voice; "Listen for sounds") | yes | **shown, 2026-11-22** (a locked Sounds track; test) | ported; the "Listen for sounds" button is still only in Classic: to port |
+| Sounds lane (laughter, applause found in the voice; "Listen for sounds") | yes | **shown, 2026-11-22** (a locked Sounds track; test) | ported, with a "Listen for sounds" button by the timeline switch |
 | Actions lane (stick-figure actions: drag, trim, delete) | yes | **ported 2026-11-22** (an Actions track; moves, trims and deletes saved as the same action edits; test) | ported (selecting one to edit it in the inspector: still Classic) |
 | Motion clip from a picture (MotionClip.tsx: ComfyUI image-to-video) | yes (from a layer clip) | no | to port (the clip itself is slow on a 6 GB card, C7) |
 

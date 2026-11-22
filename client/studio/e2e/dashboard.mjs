@@ -24,7 +24,7 @@ await page.goto(base + "/", { waitUntil: "networkidle" });
 await page.waitForSelector(".dash2-card");
 const total = (await api("/api/projects")).length;
 check("one card per video, plus the New video card", (await page.locator(".dash2-card").count()) === total && (await page.locator(".dash2-new").count()) === 1);
-check("no filter bar, stats strip or tiles", (await page.locator(".dash-stats, .dash-tiles, .dash-filters").count()) === 0);
+check("filters by status and by format, and no stats strip or tiles", (await page.locator(".dash-filters").count()) === 2 && (await page.locator(".dash-stats, .dash-tiles").count()) === 0);
 check("every card has one status line", (await page.locator(".dash2-status").count()) === total);
 check("the list has a search box", (await page.getByPlaceholder("Search videos").count()) === 1);
 await page.locator(".dash2-new").click();
@@ -34,7 +34,9 @@ await page.goBack();
 await page.waitForSelector(".dash2-card");
 
 // duplicate, rename, delete through the card menu
-const card = page.locator("article.dash2-card", { hasText: "Reference frame" }).first();
+const titles = (await api("/api/projects")).map((p) => p.title);
+const firstTitle = titles.find((t) => titles.filter((x) => x === t).length === 1);          // any video with a title of its own (the old demo project is gone)
+const card = page.locator("article.dash2-card", { hasText: firstTitle }).first();
 await card.getByRole("button", { name: /Actions for/ }).click();
 await page.getByRole("menuitem", { name: "Duplicate" }).click();
 await page.waitForSelector("article:has-text('(copy)')");
@@ -53,7 +55,8 @@ await page.waitForSelector(".busy-layer", { state: "detached", timeout: 15000 })
 await page.locator("article.dash2-card", { hasText: "Dashboard test one" }).getByRole("button", { name: /Actions for/ }).click();
 await page.getByRole("menuitem", { name: /Delete/ }).click();
 await page.getByRole("dialog").getByRole("button", { name: "Delete" }).click();
-check("delete removes the card", await settle(() => page.locator(".dash2-card").count(), total));
+const cardsAfter = await page.locator(".dash2-card").count();
+check("delete removes the card", await settle(() => page.locator(".dash2-card").count(), total), `${cardsAfter} cards, ${total} at the start, ${(await api("/api/projects")).length} on the server`);
 await page.screenshot({ path: out + "/d1-dashboard.png" });
 
 await page.keyboard.press("n");

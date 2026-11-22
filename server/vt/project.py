@@ -147,6 +147,8 @@ class Project:
         data = read_json(self.meta_path)
         if data is None:
             raise FileNotFoundError(f"project '{self.id}' not found")
+        if isinstance(data, dict) and data.get("id") != self.id:          # a folder copied by hand keeps the old id inside: the folder name is the id
+            data = {**data, "id": self.id}                               # (two cards with one id left stale cards on the dashboard, 2026-11-22)
         return ProjectMeta.model_validate(data)
 
     def save_meta(self, meta: ProjectMeta) -> None:

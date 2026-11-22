@@ -26,3 +26,16 @@ def test_a_talk_that_cannot_be_read_ahead_says_so(tmp_path, monkeypatch):
     assert talk_outline.ensure(p) is None
     got = notices.load(p)
     assert got and "could not be read ahead" in got[-1]["message"] and "RuntimeError" in got[-1]["error"]
+
+
+def test_a_copied_project_folder_is_known_by_its_folder_name(tmp_path, monkeypatch):
+    """A folder copied by hand keeps the old id inside project.json; the folder name wins (the dashboard showed stale cards otherwise)."""
+    import json
+
+    from vt import paths
+    from vt.project import Project
+
+    monkeypatch.setattr(paths, "PROJECTS", tmp_path)
+    (tmp_path / "copy-of-a").mkdir()
+    (tmp_path / "copy-of-a" / "project.json").write_text(json.dumps({"id": "a", "title": "A", "audio": "x.wav"}), encoding="utf-8")
+    assert Project("copy-of-a").meta().id == "copy-of-a"

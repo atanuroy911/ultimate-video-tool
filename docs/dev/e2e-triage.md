@@ -13,7 +13,7 @@ First run: all suites one after another on one shared project (`c2-mix`). Second
 | editor | fails at "elements carry an index" | the old `/pro` page and the "reference" demo project (the retired "yield" sample) | rewrite in W15.2 |
 | journey | `samples/audio/bn_plain.mp3` missing | the sample was removed with the "yield" sample | rewrite in W15.2 with a fresh test recording |
 | export | 8/8 after the rewrite (2026-11-22: the project is a parameter, not the old "reference" demo) | hardcoded demo project | rewritten |
-| sounds | "Listen for laughter" button not found | the Sounds lane moved | rewrite in W15.2 |
+| sounds | 5/5 after the rewrite (2026-11-22: workbench page; needs a project never listened to: delete its sounds_events.json) | old /pro page | rewritten |
 | context | 5/5 after the rewrite (2026-11-22: opens Video settings in the workbench layout) | old /pro page | rewritten |
 | edge | 9/9 after the rewrite (and it now cancels the jobs it started, which held the queue for later suites) (2026-11-22: new layout classes; the failing edit is "Merge with next" from a scene's menu) | stale selectors | rewritten |
 | stick | needs a stick-figure project; the Characters inspector moved | stale + needs its own project | rewrite in W15.2 |

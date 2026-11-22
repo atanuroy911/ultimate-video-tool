@@ -32,3 +32,11 @@ Newest first. Each line: what is wrong, where it was seen, how bad.
 - **Clips on a 6 GB card are possible but very slow:** Wan 2.2 TI2V 5B (Q4) made a 2 s 640x352 clip in 22.6 minutes (machine busy with speech recognition). Re-time on a quiet machine; try fewer steps (a 4-step distilled LoRA) before offering clips on small cards. FramePack not tried. (C7)
 - **(fixed 2026-11-22) A-roll failed when the project is on another drive than the system temp folder** (WinError 17 moving C: temp to E:). Now built in a temp folder inside the project.
 - **gemma4:e2b reads a long talk badly** (C10 outline): it skipped the lists when they were optional, took the seconds on each line for sentence numbers, and from run to run found 2 to 13 examples. Fixed what is ours (required lists first, no times on lines, a limit of 15 sentences per example with one retry). gemma4:e4b on the same talk: 17 good examples over the whole 14 minutes in 114 s. The outline should prefer e4b when it fits the card.
+
+## 2026-11-22 (C10, the owner's 16.5-minute talk, local AI directing)
+Result: all 17 examples the reader found got B-roll (10 pictures drawn on this laptop + designed graphics), 1 B-roll scene outside an example, opening and close on the speaker. Sheet: `docs/dev/spikes/html-shot/c10-owner-talk-sheet.png`. Problems seen:
+- **A slide recording is treated as a talking head.** The talk is a screen recording of slides; the speaker scenes put stickers and words over the slides ("box" over the problem statement, "Robotics" over the logo). Detect a slide/screen recording (the `recording_edit` "screen" path already protects the picture) and never cover it.
+- **Random keywords over pictures** from the local planner: "avoidance" over the beetle, "-star", "inside"; a bar chart labelled "4 / 10 version version". The local picture planner's word picks need teaching (PLAN-PERFECT).
+- **A generated picture has garbled lettering** ("RRRUSTIER") despite "no text" in the prompt; FLUX.2 Klein draws words anyway. Try a negative prompt or a checker that rejects pictures with text.
+- **Slow on this laptop:** speech recognition 28 min (processor), sounds 16 min, planning about 11 min, 10 pictures about 6 min. The sounds step (16 min for 16 min of audio) needs a look.
+- Claude directing this talk has not been tried yet (C10 check).

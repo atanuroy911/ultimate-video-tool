@@ -69,7 +69,7 @@ function ReviewEditor() {
   const lastT = useRef(0);
   const [tool, setTool] = useState<Tool>("select");
   const [snap, setSnap] = useState(true);
-  const [showBrowser, showBrowserState] = useState(() => window.innerWidth >= 800);
+  const [showBrowser, showBrowserState] = useState(() => window.innerWidth >= 1400);      // below 1400 px the preview needs the room; the library opens with Ctrl+Shift+B
   const [showInspector, showInspectorState] = useState(() => window.innerWidth >= 1250);
   const [compact, setCompact] = useState(() => window.innerWidth < 1250);
   const inspector = useRef<InspectorHandle>(null);

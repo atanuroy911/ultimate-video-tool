@@ -19,8 +19,8 @@ export default function ScenesPanel({ r, selected, onSelect, seek }: { r: Review
     const c = panel.current?.parentElement;
     const el = selected ? (panel.current?.querySelector(`[data-scene="${selected}"]`) as HTMLElement | null) : null;
     if (!c || !el) return;
-    const top = el.offsetTop - c.scrollTop, bottom = top + el.offsetHeight;
-    if (top < 56 || bottom > c.clientHeight) c.scrollTo({ top: Math.max(0, el.offsetTop - c.clientHeight * 0.25), behavior: "smooth" });
+    const top = el.getBoundingClientRect().top - c.getBoundingClientRect().top, bottom = top + el.offsetHeight;   // on screen, in the list: offsetTop counts from another parent
+    if (top < 64 || bottom > c.clientHeight) c.scrollTo({ top: Math.max(0, c.scrollTop + top - Math.max(64, c.clientHeight * 0.25)), behavior: "smooth" });   // clear of the sticky SCENES header
   }, [selected]);
   const timing = new Map(r.timing.scenes.map((s) => [s.id, s]));
   const thumbs = r.th.data?.scenes ?? {};

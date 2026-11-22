@@ -46,3 +46,7 @@
 @keyframes vt-changed { 50% { outline-color: color-mix(in srgb, var(--ok) 40%, transparent); } }
 @media (prefers-reduced-motion: reduce) { .vt-changed { animation: none; } }
 .vt-agent-touched { display: flex; align-items: center; gap: var(--sp-2); margin: var(--sp-2); }
+
+/* W15.1 critique: the pane switches are used rarely; when on they are quiet grey, not orange pills */
+.ed-panel-actions .btn.selected { background: var(--bg-selected); color: var(--fg); border-color: transparent; box-shadow: none; }
+.ed-panel-actions .btn { border-color: transparent; }

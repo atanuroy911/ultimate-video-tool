@@ -721,7 +721,7 @@ Before starting, read `E:\openfilm-a1b8d75\apps\desktop\src\agents.mjs` lines 1�
 
 ### W15 — Acceptance and 0.6.0
 
-- [ ] **W15.1 Screenshots.** Take the editor at 1440×900 and 1280×720, light and dark, with a real project: nothing selected, a scene selected, an element selected, and the assistant mid-conversation with steps. Save to `docs/assets/screens/` (replace `editor.png`; add `assistant.png`) and update the README's screenshot table. Put the new editor screenshot next to the openfilm frame and next to `docs/dev/shots/before-*.png` in `docs/dev/shots/compare.md`, and read it critically: list anything that still looks heavier than the reference, and fix it before ticking.
+- [~] (2026-11-22: screenshots taken by e2e/screens.mjs, README updated, critique in docs/dev/shots/compare.md; the five layout points listed there are still to fix) **W15.1 Screenshots.** Take the editor at 1440×900 and 1280×720, light and dark, with a real project: nothing selected, a scene selected, an element selected, and the assistant mid-conversation with steps. Save to `docs/assets/screens/` (replace `editor.png`; add `assistant.png`) and update the README's screenshot table. Put the new editor screenshot next to the openfilm frame and next to `docs/dev/shots/before-*.png` in `docs/dev/shots/compare.md`, and read it critically: list anything that still looks heavier than the reference, and fix it before ticking.
 
 - [ ] **W15.2 Suites.** Rewrite the e2e suites marked in W3.5 for the new layout. Every suite passes. Add `e2e:workbench` and `e2e:assistant` to the nightly browser job. `npm run e2e:a11y` and `e2e:contrast` pass in both themes.
 

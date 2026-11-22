@@ -60,12 +60,15 @@ It also cuts **short clips** from long recordings, writes a **publishing kit** (
 
 <table>
 <tr>
-<td width="50%"><img src="docs/assets/screens/editor.png" alt="The editor: scenes on the left, live preview in the middle, the inspector on the right, and a multitrack timeline below"><br><sub><b>Editor.</b> Scenes, live preview, inspector and a multitrack timeline.</sub></td>
+<td width="50%"><img src="docs/assets/screens/editor.png" alt="The editor: scenes on the left, live preview in the middle, the inspector on the right, and a multitrack timeline below"><br><sub><b>Editor.</b> Scenes, live preview, inspector, the assistant and a multitrack timeline.</sub></td>
 <td width="50%"><img src="docs/assets/screens/new-video.png" alt="The New video page with automatic choices for language, style, director, look, music, captions and voice"><br><sub><b>New video.</b> Every choice is automatic until you change it.</sub></td>
 </tr>
 <tr>
 <td><img src="docs/assets/screens/looks.png" alt="The Look page with looks and palettes and a live sample"><br><sub><b>Look.</b> 10 looks × 18 palettes, fonts, motion and captions, with a live preview.</sub></td>
 <td><img src="docs/assets/screens/plan-review.png" alt="Reviewing the director's plan, scene by scene, before the video is made"><br><sub><b>Plan review.</b> See and change what the director decided before anything is drawn.</sub></td>
+</tr>
+<tr>
+<td colspan="2"><img src="docs/assets/screens/assistant.png" alt="The editor with Claude Code in the Assistant pane: the steps it took and its reply, with a link back to scene 2"><br><sub><b>Claude Code inside the app.</b> Ask in your own words; it works through Video Tool's own tools and shows each step.</sub></td>
 </tr>
 </table>
 

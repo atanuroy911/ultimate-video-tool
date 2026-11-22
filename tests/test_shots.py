@@ -376,7 +376,9 @@ def test_the_agent_writes_shows_edits_and_looks_at_a_shot_through_mcp(ref, monke
     got = M.get_shot("reference", "hook")
     assert got["title"] == "Opening" and got["knobs"][0]["label"] == "Ring" and got["overrides"] == {"knobs": {}, "elements": {}}
     first = ref.scenes().scenes[0].id
-    assert M.set_scene_shot("reference", first, "hook") == {"ok": True}
+    said = M.set_scene_shot("reference", first, "hook")
+    assert said["ok"] and said["elements_on_top"], "the agent is told which elements still draw over the shot"
+    assert M.set_scene_shot("reference", first, "hook", clear_elements=True) == {"ok": True} and ref.scenes().scenes[0].elements == []
     assert ref.scenes().scenes[0].shot == "hook"
     assert M.set_shot_edits("reference", "hook", {"elements": {"title": {"text": "Mine"}}})["ok"]
     assert M.set_shot_edits("reference", "hook", {"knobs": {"--x": "a;}"}})["ok"] is False

@@ -803,8 +803,10 @@ def write_shot(project: str, shot_id: str, html: str, title: str = "", knobs: Op
 
 
 @tool
-def set_scene_shot(project: str, scene_id: str, shot_id: Optional[str] = None) -> dict:
-    """Show a shot full-frame behind a scene (the scene's captions stay on top), or pass no shot_id to draw the scene the usual way again."""
+def set_scene_shot(project: str, scene_id: str, shot_id: Optional[str] = None, clear_elements: bool = False) -> dict:
+    """Show a shot full-frame behind a scene (the scene's captions stay on top), or pass no shot_id to draw the scene the usual way again.
+    The scene's own elements (titles, icons, cards) still draw ON TOP of the shot. When the shot replaces them, pass clear_elements=true
+    (Ctrl+Z in the editor brings them back); the answer lists the elements left on top so you can decide."""
     from .. import shots as SH
 
     p = _proj(project)
@@ -816,10 +818,13 @@ def set_scene_shot(project: str, scene_id: str, shot_id: Optional[str] = None) -
     if shot_id and not (SH.shot_dir(p, shot_id) / "index.html").exists():
         raise ValueError(f"no shot '{shot_id}'; write_shot first")
     write_json(p.dir / "scenes.prev.json", sf.model_dump(exclude_none=True))
-    p.save_scenes(sf.model_copy(update={"scenes": [s.model_copy(update={"shot": shot_id or None}) if s.id == scene_id else s for s in sf.scenes],
+    change = {"shot": shot_id or None, **({"elements": []} if clear_elements and shot_id else {})}
+    p.save_scenes(sf.model_copy(update={"scenes": [s.model_copy(update=change) if s.id == scene_id else s for s in sf.scenes],
                                          "planner": "manual" if sf.planner == "rules" else sf.planner}))
     compose_all(p)
-    return {"ok": True}
+    left = [] if (clear_elements or not shot_id) else [f"{getattr(e, 'type', '')}: {str(getattr(e, 'text', '') or getattr(e, 'label', '') or '')[:40]}"
+                                                         for e in next(s for s in sf.scenes if s.id == scene_id).elements]
+    return {"ok": True, **({"elements_on_top": left, "note": "These still draw over the shot. If the shot replaces them, call again with clear_elements=true."} if left else {})}
 
 
 @tool

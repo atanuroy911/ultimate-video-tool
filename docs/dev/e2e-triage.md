@@ -15,7 +15,7 @@ First run: all suites one after another on one shared project (`c2-mix`). Second
 | export | waits for "Exporting…" | export UI moved in the workbench layout | rewrite in W15.2 |
 | sounds | "Listen for laughter" button not found | the Sounds lane moved | rewrite in W15.2 |
 | context | "Topic of the video" field not found | the context panel moved | rewrite in W15.2 |
-| edge | 7/9; two UI checks use the old classes `.ce`, `.ce-tl` and a "Big picture" button | stale selectors | rewrite in W15.2 (the 7 server checks pass) |
+| edge | 9/9 after the rewrite (2026-11-22: new layout classes; the failing edit is "Merge with next" from a scene's menu) | stale selectors | rewritten |
 | stick | needs a stick-figure project; the Characters inspector moved | stale + needs its own project | rewrite in W15.2 |
 | dashboard | no "Reference frame" card | needs the old demo project | rewrite in W15.2 |
 | timeline3 | drag lags the pointer by 28 to 56 px | ran while speech recognition used every processor core and a video model used the card; timing-sensitive | re-run on a quiet machine before calling it a bug |

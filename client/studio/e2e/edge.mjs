@@ -52,13 +52,14 @@ for (let i = 0; i < 120; i++) { const j = await api(`/api/jobs/${e1.j.id}`); if 
 // ---- network loss and server errors in the UI
 await page.goto(base + `/p/${pid}`, { waitUntil: "networkidle" });
 await page.route("**/api/projects/*/scenes/*", (r) => r.abort());
-await page.getByRole("button", { name: "Big picture" }).click().catch(() => {});
-await page.waitForTimeout(900);
-check("a lost connection while editing shows an error and the page keeps working", (await page.locator(".toast, [role=status]").count()) > 0 && (await page.locator(".ce").count()) === 1);
+await page.getByRole("button", { name: "Scene 1 actions" }).click().catch(() => {});        // an edit that reaches the server: merge scene 1 with the next
+await page.getByRole("button", { name: /Merge with next/ }).click().catch(() => {});
+await page.waitForTimeout(1200);
+check("a lost connection while editing shows an error and the page keeps working", (await page.locator(".toast, [role=status], [role=alert]").count()) > 0 && (await page.locator(".wb").count()) === 1);
 await page.unroute("**/api/projects/*/scenes/*");
 await page.route("**/api/projects/*/audio", (r) => r.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ detail: "boom" }) }));
 await page.reload({ waitUntil: "networkidle" });
-check("a failing audio endpoint does not break the editor", (await page.locator(".ce").count()) === 1 && (await page.locator(".ce-tl").count()) === 1);
+check("a failing audio endpoint does not break the editor", (await page.locator(".wb").count()) === 1 && (await page.locator(".ed-timeline").count()) === 1);
 await page.unroute("**/api/projects/*/audio");
 await page.route("**/api/health", (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) }));
 await page.goto(base + "/", { waitUntil: "networkidle" });

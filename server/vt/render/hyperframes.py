@@ -62,7 +62,7 @@ def hyperframes_cmd(*args: str) -> list[str]:
 
 
 def render_silent(comp_dir: Path, out: Path, *, fps: int = 30, quality: str = "looks", gpu: bool = True,
-                  workers: str | int = "auto", on_progress: Optional[Callable[[float, str], None]] = None) -> Path:
+                  workers: str | int = "auto", on_progress: Optional[Callable[[float, str], None]] = None, page: str = "") -> Path:
     """Render comp_dir/index.html to out (H.264, no audio). Uses GPU encoder (NVENC) and hardware browser GPU when requested, falling back to CPU if needed."""
     out.parent.mkdir(parents=True, exist_ok=True)
     configured_workers=os.environ.get('VT_RENDER_WORKERS','')
@@ -84,6 +84,8 @@ def render_silent(comp_dir: Path, out: Path, *, fps: int = 30, quality: str = "l
 
     def attempt(use_gpu: bool) -> None:
         args = ["render", str(comp_dir), "-o", str(out), "-f", str(fps), "-q", quality, "-w", str(workers), "--no-best-effort"]
+        if page:                                                        # one page of the composition folder (C11: a window of a long video)
+            args.extend(["-c", page])
         if (comp_dir/'data.json').exists():
             composition=json.loads((comp_dir/'data.json').read_text(encoding='utf-8'))
             if composition.get('screen_recording'):args.extend(['--video-frame-format','png'])

@@ -1,0 +1,11 @@
+import { chromium } from "playwright-core";
+import { chromePath } from "./common.mjs";
+const b = await chromium.launch({ executablePath: chromePath() });
+const p = await (await b.newContext({ viewport: { width: 1920, height: 1080 } })).newPage();
+const errs = []; p.on("pageerror", (e) => errs.push(String(e))); p.on("console", (m) => m.type() === "error" && errs.push(m.text()));
+await p.goto("http://127.0.0.1:8798/" + (process.argv[2] || "window-test.html"));
+await p.waitForTimeout(4000);
+const info = await p.evaluate(() => { const t = window.__timelines.root; t.seek(2); return { d: t.duration() }; });
+console.log(JSON.stringify(info), errs.slice(0,3));
+await p.screenshot({ path: "E:/UltimateVideoTool/scratch/c11/win.png" });
+await b.close();

@@ -394,7 +394,8 @@ def apply_speaker(sf, project, beats, aspect: str, item: Optional[MediaItem] = N
             run = 0
             continue
         t0, t1 = span
-        keep = [e for e in sc.elements if getattr(e, "type", "") in ("keyword", "title", "sticker")][:1]
+        screen = not item.faces                                         # no face anywhere: a screen or slide recording, whose own picture is the content
+        keep = [] if screen else [e for e in sc.elements if getattr(e, "type", "") in ("keyword", "title", "sticker")][:1]
         sc.elements = keep
         sc.layout = "lower" if item.fy < 0.45 else "upper"             # the text goes where the face is not: in the band above the captions when the head is high in the picture, above the head when it is low
         punch = (not punched_last) and shown % 2 == 1 and bool(item.faces)

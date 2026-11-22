@@ -34,8 +34,8 @@ def script_task(p: Project, kind: Optional[str] = None, hint: str = "", *, compa
     return {
         "instructions": system, "task": user, "schema": to_json_schema(), "kind": kind,
         "project": {"id": p.id, "title": meta.title, "language": meta.language, "aspect": meta.aspect, "theme": load_theme(meta.theme).name},
-        "media_bin": [{"id": m.id, "kind": m.kind, "caption": m.caption, "role": m.role} for m in meta.media],
-        "aroll_direction": "If media id 'aroll' is present, use it as scene backdrop media to keep the recorded speaker visible; place overlays around the face.",
+        "media_bin": [{"id": m.id, "kind": m.kind, "caption": m.caption, "role": m.role, **({"faces": len(m.faces or [])} if m.role == "a_roll" else {})} for m in meta.media],
+        "aroll_direction": "If media id 'aroll' is present, use it as scene backdrop media to keep the recorded speaker visible; place overlays around the face. When it has no face (faces 0: a screen or slide recording), its picture is the content: put nothing over it except the captions.",
         "has_draft": bool(sf), "has_current_script": (p.dir / "video_script.json").is_file(),
         **_craft_and_style(p, meta.theme, include_draft_report=not compact),
         "submit": "Call submit_script(project, script=<the JSON object>). If it returns errors, fix exactly those and call it again until ok is true.",

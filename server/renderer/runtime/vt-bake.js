@@ -187,6 +187,27 @@
       if (a) for (var k in a) { if (a[k] == null) c.removeAttribute(k); else c.setAttribute(k, a[k]); }
       if (firstText.has(el)) c.innerHTML = firstText.get(el);
     });
+    // Each scene gets its time window (data-start / data-duration), read from the root timeline: from its first tween (0 for the first scene) to the end
+    // of its last one (the moment it is hidden), or to the end of the video. HyperFrames shows a timed element only inside its window, so the window
+    // covers every moment the scene can be seen; the Studio's timeline then shows the scene where it plays.
+    var total = Number(rootEl.getAttribute("data-duration")) || root.duration();
+    var direct = root.getChildren(false, true, false);
+    [].slice.call(rootEl.querySelectorAll(".scene[data-scene]")).forEach(function (sc, i) {
+      var c = twin.get(sc);
+      if (!c) return;
+      var from = Infinity, to = -Infinity;
+      direct.forEach(function (tw) {
+        if (tw.targets().indexOf(sc) < 0) return;
+        from = Math.min(from, tw.startTime());
+        to = Math.max(to, tw.endTime());
+      });
+      if (!isFinite(from) || i === 0) from = 0;
+      var hidden = direct.some(function (tw) { return tw.targets().indexOf(sc) >= 0 && tw.vars && (tw.vars.opacity === 0 || tw.vars.autoAlpha === 0); });
+      if (!hidden || !isFinite(to)) to = total;
+      to = Math.min(total, to + 1 / 30);                                     // one frame more: never cut the last frame of a fade
+      c.setAttribute("data-start", String(Math.round(from * 1000) / 1000));
+      c.setAttribute("data-duration", String(Math.round((to - from) * 1000) / 1000));
+    });
     // A shorthand holding a variable with one side overridden (border: 5px solid var(--accent); border-top-color: transparent) cannot be written back
     // as text: the browser leaves its parts empty. Those parts get the value the page actually draws.
     twin.forEach(function (c, el) {

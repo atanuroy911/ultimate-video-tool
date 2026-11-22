@@ -61,7 +61,7 @@ recordings, Claude Code over ACP. Our own editor stays for those until each live
   (the layout guard's fitted sizes stay); shorthand styles the browser cannot write back get their drawn value. Results: the c2-mix sample (value card,
   sticker, shot backdrop video, definition, steps, bar chart, captions) bakes with nothing lost and draws **identical frames** at 7 moments; the baked
   video opens in the HyperFrames Studio with every part as a named layer. Test: `tests/test_bake.py` (same frames at 6 moments; nothing lost; ids unique).
-- **O3 left:** (a) give parts their time window (`data-start`/`data-duration` from the scene and element times) so the Studio's timeline shows clips
-  where they play instead of 0 to the end, checking frames stay identical; (b) captions are baked as per-word parts of the root (they should become their
+- **O3 (a) done (2026-11-23):** each scene gets its time window from the timeline itself (its first tween to the moment it is hidden, plus one frame); frames stay identical at 15 moments including transition edges, and the Studio's timeline shows every scene as a clip where it plays (docs/dev/spikes/html-shot/o3-baked-video-in-studio.png).
+- **O3 left:** (b) captions are baked as per-word parts of the root (they should become their
   own composition in O4); (c) count-up numbers and other callbacks are reported in `lost` (none in the samples so far); (d) bake a stick-figure, cartoon
   and media-heavy video and compare.

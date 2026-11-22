@@ -60,3 +60,15 @@ def test_a_screen_recording_keeps_graphics_off_the_slides(tmp_path, monkeypatch)
     assert stray.backdrop.media == "aroll" and stray.elements == []
     item.faces = [[0.4, 0.2, 0.2, 0.3]]                                       # a person on screen: nothing to do
     assert aroll.keep_screen_clear(N(scenes=[N(backdrop=Backdrop(media="aroll"), elements=[word])]), project) == 0
+
+
+def test_auto_themes_keep_every_text_readable():
+    """e2e contrast found an old saved auto theme with 1.14:1 text (2026-10-31); themes made today must never go below 4.5:1 on their text pairs."""
+    from vt import designer as D
+
+    pairs = [("ink", "bg"), ("caption_ink", "caption_bg"), ("highlight_ink", "highlight_bg"), ("tag_ink", "tag_bg")]
+    for i in range(40):
+        for mood in ("story", "tech", "calm", "energetic", "finance"):
+            c = D.auto_theme(f"seed{i}", mood).color.model_dump()
+            for a, b in pairs:
+                assert D.contrast(c[a], c[b]) >= 4.5, (mood, i, a, b, c[a], c[b])

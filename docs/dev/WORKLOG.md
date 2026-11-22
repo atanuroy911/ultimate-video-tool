@@ -628,3 +628,9 @@ C11: fast render for long recordings (vt/render/fast.py): 1321 s instead of 8103
 - W14.1: change events say who (person, director, agent).
 - Fast suite green (a test updated for the cuBLAS check).
 
+## 2026-11-22 evening
+- W12.6: the packaged client (dist/win-unpacked, own AppData) passes the real Claude Code test 7/7. Installer build needed winCodeSign unpacked by hand (ISSUES). Claude Code's own tool names now in plain words.
+- C10 with Claude: frames looked at (better graphics than the local AI). Fixed: on a slide recording a real graphic gets the theme background (also after the director's review); a director that can rewrite is told once what the repair would cut (labels with "...").
+- C11: the owner's talk renders in 15.6 min (was 2 h 15 m): all designed stretches on one page in one render, 6 workers, stretches cut 3 at a time.
+- Next: re-run the talk's plan with the latest fixes and watch it; W4.2; W11 last row (restore a cut); W15.3 matrix on rebuilt installed apps; W15.6 PR for the owner.
+

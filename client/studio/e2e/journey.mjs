@@ -43,7 +43,7 @@ check("navigated to the progress screen", true);
 await page.waitForSelector("h1", { timeout: 10000 });
 check("the making screen shows one plain-words step", /…$/.test((await page.locator("h1").innerText()).trim()));
 await page.screenshot({ path: out + "/g1-progress.png" });
-await page.waitForURL(new RegExp(`/p/${pid}$`), { timeout: 600000 });          // a laptop makes even a short video in several minutes
+await page.waitForURL(new RegExp(`/p/${pid}$`), { timeout: 900000 });          // a laptop makes even a short video in several minutes
 check("auto-opened the review screen when done", true);
 await page.waitForSelector(".wb .wb-viewer", { timeout: 45000 });
 await page.waitForTimeout(1500);

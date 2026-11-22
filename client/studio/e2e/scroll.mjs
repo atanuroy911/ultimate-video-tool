@@ -12,6 +12,7 @@ if (!list.some((p) => p.id === id)) { console.log(`skip: project ${id} not found
 
 const browser = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu", "--autoplay-policy=no-user-gesture-required"] });
 const page = await (await browser.newContext({ viewport: { width: 1500, height: 900 } })).newPage();
+await page.addInitScript(() => { try { localStorage.setItem("vt-timeline", "classic"); } catch {} });          // this suite tests the Classic timeline (the New one is the default since W11.2)
 let pass = 0, fail = 0;
 const check = (n, c, x = "") => { c ? (pass++, console.log("  ok  ", n)) : (fail++, console.log("  FAIL", n, x)); };
 

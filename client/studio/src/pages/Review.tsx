@@ -238,7 +238,7 @@ function ReviewEditor() {
     return () => { window.clearTimeout(t); els.forEach((e) => e.classList.remove("vt-changed")); };
   }, [directorChangedScenes, r.rev]);   // W14.2: an agent's change glows like the Director's
   const [directorRemovedScenes, setDirectorRemovedScenes] = useState<string[]>([]);
-  const [newTimeline, setNewTimeline] = useState(() => { try { return localStorage.getItem("vt-timeline") === "new"; } catch { return false; } });
+  const [newTimeline, setNewTimeline] = useState(() => { try { return localStorage.getItem("vt-timeline") !== "classic"; } catch { return true; } });   // W11.2: the New timeline is the default; Classic stays one click away until it is removed
   // edits made on the new timeline, as our own edit calls (src/occ/bridge/toProject.ts); one after the other, then the page reloads
   const saveTimeline = async (ops: import("../occ/bridge/toProject").SaveOp[]) => {
     for (const op of ops) {

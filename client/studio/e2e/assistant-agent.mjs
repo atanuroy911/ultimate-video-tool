@@ -11,6 +11,7 @@ const check = (name, ok, extra = "") => { (ok ? pass++ : fail++); console.log(`$
 const browser = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
 const plain = await ctx.newPage();
+await plain.addInitScript(() => { try { localStorage.setItem("vt-timeline", "classic"); } catch {} });          // this suite tests the Classic timeline (the New one is the default since W11.2)
 await plain.goto(`${base}/p/${pid}`, { waitUntil: "load" });
 await plain.waitForSelector(".wb .wb-assistant-body", { timeout: 45000 });
 await plain.getByRole("tab", { name: "Claude Code" }).click();
@@ -32,6 +33,7 @@ check("the Director gets the reference with the message", posted?.refs?.[0]?.sce
 await plain.close();
 
 const page = await ctx.newPage();
+await page.addInitScript(() => { try { localStorage.setItem("vt-timeline", "classic"); } catch {} });          // this suite tests the Classic timeline (the New one is the default since W11.2)
 const errors = [];
 page.on("pageerror", (e) => errors.push(String(e).slice(0, 200)));
 await page.addInitScript(() => {

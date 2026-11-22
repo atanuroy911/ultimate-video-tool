@@ -29,7 +29,7 @@ await page.evaluate(() => document.getElementById("vt-test-field").blur());
 check("and comes in when they leave the field", await page.waitForFunction(() => document.querySelectorAll(".is-director-changed, .vt-changed").length > 0, null, { timeout: 8000 }).then(() => true, () => false));
 await page.evaluate(() => window.dispatchEvent(new CustomEvent("vt-select-scene", { detail: "s2" })));
 await page.waitForTimeout(500);
-const sel = () => page.evaluate(() => document.querySelector('[data-scene-clip][aria-pressed="true"]')?.getAttribute("data-scene-clip") || "");
+const sel = () => page.evaluate(() => document.querySelector('[data-scene].sel')?.getAttribute("data-scene") || "");          // the scene list shows the selection in either timeline
 const before = await sel();
 execSync(process.env.VT_CHANGE, { stdio: "inherit", shell: process.env.VT_SHELL || true });
 await page.waitForFunction(() => document.querySelectorAll(".vt-changed, .is-director-changed").length > 0, null, { timeout: 8000 }).catch(() => {});

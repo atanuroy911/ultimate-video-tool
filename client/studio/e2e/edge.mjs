@@ -77,6 +77,9 @@ check("and is still selected after a reload", (await page.getByRole("button", { 
 await page.getByRole("group", { name: "Default shape" }).getByRole("button", { name: "9:16" }).first().click().catch(() => {});
 await page.waitForTimeout(600);
 
+// leave no work behind: a pipeline this test started would hold the queue for every later test
+const jobsLeft = await api("/api/jobs");
+for (const j of (Array.isArray(jobsLeft.j) ? jobsLeft.j : jobsLeft.j?.jobs ?? [])) if ((made.includes(j.project) || j.project === pid) && (j.status === "running" || j.status === "queued")) await api(`/api/jobs/${j.id}/cancel`, { method: "POST" });
 for (const id of made) await api(`/api/projects/${id}`, { method: "DELETE" });
 await browser.close();
 console.log(`\n${pass} passed, ${fail} failed`);

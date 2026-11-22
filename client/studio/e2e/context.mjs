@@ -20,8 +20,9 @@ check("reading the video works as a job", (await wait(j.id)).status === "done");
 const v0 = await api(`/api/projects/${pid}/context`);
 check("and gives a topic and sentences", !!v0.context?.topic && v0.context.sentences.length > 0 && v0.stale === false);
 
-await page.goto(`${base}/p/${pid}/pro`, { waitUntil: "networkidle" });
-await page.keyboard.press("Escape");                                   // nothing selected: the video's own inspector
+await page.goto(`${base}/p/${pid}`, { waitUntil: "load" });
+await page.waitForSelector(".wb .wb-viewer", { timeout: 45000 });
+await page.getByRole("button", { name: "Video settings" }).click();      // the video's own inspector (workbench layout)
 await page.getByRole("button", { name: "What the video is about" }).click();
 const topic = page.getByRole("textbox", { name: "Topic of the video" });
 check("the panel shows the topic", (await topic.inputValue()) === v0.context.topic);

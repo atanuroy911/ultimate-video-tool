@@ -19,7 +19,9 @@ export type SaveOp =
   | { kind: 'scene-edge'; scene: string; t: number }
   | { kind: 'scene-split'; scene: string; t: number }
   | { kind: 'scene-remove'; scene: string }
-  | { kind: 'voice-cut'; start: number; end: number };
+  | { kind: 'voice-cut'; start: number; end: number }
+  | { kind: 'voice-gain'; start: number; end: number; db: number }
+  | { kind: 'voice-mute'; start: number; end: number };
 
 export interface SavePlan { ops: SaveOp[]; ignored: string[] }
 
@@ -161,6 +163,24 @@ export function planSave(before: TimelineState, after: TimelineState, fps: numbe
       const plays = (s: TimelineState) => merge(s.items.filter((x) => x.track === voice.track && x.kind === 'audio')
         .map((x): [number, number] => [sec(x.srcInFrame ?? 0, fps), sec((x.srcInFrame ?? 0) + x.durationInFrames, fps)]));
       for (const [start, stop] of subtract(plays(before), plays(after)).reverse()) ops.push({ kind: 'voice-cut', start, end: stop });
+    }
+    // a narration piece whose volume changed: the same stretch of our voice gets that gain (0 = muted). The narration is the cut voice, so the
+    // piece's source range is output time. (W11.1: ported from the classic timeline's Mute and Volume of the selection.)
+    const beforeVol = new Map(before.items.filter((x) => x.track === voice.track && x.kind === 'audio').map((x) => [x.id, x.volume ?? 1]));
+    for (const x of pieces) {
+      const vol = x.volume ?? 1;
+      if (Math.abs(vol - (beforeVol.get(x.id) ?? 1)) < 1e-3) continue;
+      let start = sec(x.srcInFrame ?? 0, fps), stop = sec((x.srcInFrame ?? 0) + x.durationInFrames, fps);
+      if (hasOperationalTranscript(voice) && x.transcript?.length) {                 // a word stream: the piece plays its own words, not a source range
+        const deleted = new Set(x.deletedWordIdx ?? []);
+        const heard = x.transcript.filter((_, gi) => !deleted.has(gi));
+        if (!heard.length) continue;
+        start = Math.min(...heard.map((w) => w.start)) / 1000;
+        stop = Math.max(...heard.map((w) => w.end)) / 1000;
+      }
+      start = Math.round(start * 1000) / 1000; stop = Math.round(stop * 1000) / 1000;
+      if (vol <= 0.001) ops.push({ kind: 'voice-mute', start, end: stop });
+      else ops.push({ kind: 'voice-gain', start, end: stop, db: Math.round(20 * Math.log10(vol) * 10) / 10 });
     }
     const v = now.get(VOICE_ID);
     if (v && v.startFrame !== voice.startFrame && (v.srcInFrame ?? 0) === (voice.srcInFrame ?? 0)) ignored.push('moving the narration in time');

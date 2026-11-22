@@ -196,6 +196,8 @@ function ReviewEditor() {
         : op.kind === "scene-edge" ? await r.moveEdge(op.scene, op.t)
         : op.kind === "scene-split" ? await r.splitAt(op.scene, op.t)
         : op.kind === "scene-remove" ? await r.removeScene(op.scene)
+        : op.kind === "voice-gain" ? await r.audioEdit("gain", { start: op.start, end: op.end, db: op.db })
+        : op.kind === "voice-mute" ? await r.audioEdit("mute", { start: op.start, end: op.end, on: true })
         : await r.audioEdit("cut", { start: op.start, end: op.end });
       if (ok === null || ok === false) { await r.reloadAll(); throw new Error("the server did not accept the change; the timeline shows what is saved"); }
     }

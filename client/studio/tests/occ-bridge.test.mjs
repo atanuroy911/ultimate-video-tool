@@ -134,3 +134,17 @@ test('words removed from the narration become a cut, up to the next word still h
   const tl = fromProject(view).timelines[0];
   assert.equal(tl.tracks.C1.locked, true, 'the captions track is locked: edited in the Captions panel for now');
 });
+
+test('a narration piece turned down or muted becomes the same gain or mute on our voice (W11.1, ported from the classic timeline)', () => {
+  const quieter = edit((c, d) => {
+    c.splitItem(VOICE_ID, 30);
+    const right = d.getState().items.find((i) => i.track === 'A1' && i.id !== VOICE_ID);
+    c.setItemVolume(right.id, 0.5);
+  }).ops;
+  assert.equal(quieter.length, 1);
+  assert.equal(quieter[0].kind, 'voice-gain');
+  assert.equal(quieter[0].start, 1.48, 'from the first word the piece plays');
+  assert.equal(quieter[0].db, -6);
+  const muted = edit((c) => c.setItemVolume(VOICE_ID, 0)).ops;
+  assert.deepEqual(muted.map((o) => o.kind), ['voice-mute']);
+});

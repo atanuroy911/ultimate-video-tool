@@ -39,3 +39,24 @@ def test_a_copied_project_folder_is_known_by_its_folder_name(tmp_path, monkeypat
     (tmp_path / "copy-of-a").mkdir()
     (tmp_path / "copy-of-a" / "project.json").write_text(json.dumps({"id": "a", "title": "A", "audio": "x.wav"}), encoding="utf-8")
     assert Project("copy-of-a").meta().id == "copy-of-a"
+
+
+def test_a_screen_recording_keeps_graphics_off_the_slides(tmp_path, monkeypatch):
+    """On a recording with no face (slides), a real graphic gets the theme background, a stray word is removed; the slide is never drawn over."""
+    from types import SimpleNamespace as N
+
+    from vt import aroll
+    from vt.schema import Backdrop
+
+    item = N(id="aroll", role="a_roll", faces=[])
+    project = N(meta=lambda: N(media=[item]))
+    card = N(type="definition")
+    word = N(type="keyword")
+    graphic = N(backdrop=Backdrop(media="aroll"), elements=[card])
+    stray = N(backdrop=Backdrop(media="aroll"), elements=[word])
+    plain = N(backdrop=Backdrop(media="aroll"), elements=[])
+    assert aroll.keep_screen_clear(N(scenes=[graphic, stray, plain]), project) == 2
+    assert graphic.backdrop is None and graphic.elements == [card]
+    assert stray.backdrop.media == "aroll" and stray.elements == []
+    item.faces = [[0.4, 0.2, 0.2, 0.3]]                                       # a person on screen: nothing to do
+    assert aroll.keep_screen_clear(N(scenes=[N(backdrop=Backdrop(media="aroll"), elements=[word])]), project) == 0

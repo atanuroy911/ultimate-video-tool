@@ -195,6 +195,12 @@ def review(p: Project, progress: Callable[[float, str], None] = lambda f, m: Non
                 kept, round_changed = trial, round_changed + 1
         if not round_changed:
             break
+        try:                                                                    # a slide recording stays clean after the director's revision too
+            from . import aroll as AR
+            AR.keep_screen_clear(kept, p)
+        except Exception as e:                                                  # noqa: BLE001 — the revision is valid without it
+            import logging
+            logging.getLogger(__name__).warning("keep_screen_clear after review: %s", e, exc_info=True)
         p.save_scenes(kept)
         report["changed"] += round_changed
         compose(p)

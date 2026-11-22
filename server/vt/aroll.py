@@ -421,6 +421,9 @@ def keep_screen_clear(sf, project) -> int:
     n = 0
     for sc in sf.scenes:
         if sc.backdrop is not None and sc.backdrop.media == item.id and sc.elements:
-            sc.elements = []
+            if any(getattr(e, "type", "") not in WEAK for e in sc.elements):
+                sc.backdrop = None                                       # a real graphic (a card, a flow, a chart): it gets the theme's own background,
+            else:                                                        # never the slide showing through it (C10, Claude's "Obstacle inflation" card)
+                sc.elements = []                                         # a stray word or sticker: the recording stays clean
             n += 1
     return n

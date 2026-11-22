@@ -39,6 +39,8 @@ export interface ProjectView {
   thumbs?: Record<string, string>;
   /** our element type → its name in the editor */
   elementName?: (type: string) => string;
+  /** sounds found in the voice (laughter, applause...): shown on a locked track (W11.1, ported from the classic Sounds lane) */
+  sounds?: { label: string; emoji?: string; start: number; end: number }[];
 }
 
 export const VOICE_ID = 'voice';
@@ -143,6 +145,14 @@ export function fromProject(v: ProjectView): ProjectDoc {
     for (const a of acts) items.push({ id: a.id, track: 'V9', startFrame: f(a.start, fps), durationInFrames: Math.max(1, f(a.end - a.start, fps)), name: a.label, kind: 'text', props: { text: a.label } });
   }
 
+  // sounds heard in the voice: a locked track, for seeing where they are (they are found by the server, not edited here)
+  const snds = (v.sounds ?? []).filter((e) => e.end > e.start);
+  if (snds.length) {
+    tracks.A9 = { kind: 'audio', name: 'Sounds', locked: true };
+    snds.forEach((e, i) => items.push({ id: `snd:${i}`, track: 'A9', startFrame: f(e.start, fps), durationInFrames: Math.max(1, f(e.end - e.start, fps)),
+      name: `${e.emoji ?? ''} ${e.label}`.trim(), kind: 'text', props: { text: e.label } }));
+  }
+
   // scenes with their backdrop
   order.push('V1');
   tracks.V1 = { kind: 'video', name: 'Scenes' };
@@ -160,6 +170,7 @@ export function fromProject(v: ProjectView): ProjectDoc {
 
   // the narration, after cuts, with its words in edited time (captions and the transcript view read them)
   order.push('A1');
+  if (tracks.A9) order.push('A9');
   tracks.A1 = { kind: 'audio', name: 'Narration', role: 'anchor' };
   if (v.audioUrl) {
     const transcript: TranscriptWord[] = [];

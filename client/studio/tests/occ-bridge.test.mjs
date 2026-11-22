@@ -164,3 +164,13 @@ test('stick-figure actions are a track; moving or deleting one is saved as the s
     { kind: 'action', scene: 's1', index: 1, body: { delete: true } },
   ]);
 });
+
+test('sounds heard in the voice are a locked track that saves nothing (W11.1)', () => {
+  const doc = fromProject({ ...view, sounds: [{ label: 'laughter', emoji: '😂', start: 1, end: 1.5 }] });
+  const tl = doc.timelines[0];
+  assert.equal(tl.tracks.A9.locked, true);
+  assert.deepEqual(tl.items.filter((i) => i.id.startsWith('snd:')).map((i) => i.name), ['😂 laughter']);
+  const draft = makeDraft(doc);
+  draft.commands.selectItem('snd:0');
+  assert.deepEqual(planSave(activeEditorState(doc), draft.getState(), 30, view.layers).ops, []);
+});

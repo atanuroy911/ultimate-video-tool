@@ -672,14 +672,14 @@ function ReviewEditor() {
           </div>
           {newTimeline ? (
             <Suspense fallback={<div className="row muted" style={{ padding: 12 }}><Spinner /> Opening the new timeline…</div>}>
-              <OccTimeline player={player} playing={playing} revision={`${r.rev}-${r.audioRev}-${JSON.stringify(layers.doc).length}`}
+              <OccTimeline player={player} playing={playing} revision={`${r.rev}-${r.audioRev}-${JSON.stringify(layers.doc).length}-${soundEvents.data?.events.length ?? 0}`}
                 onSave={saveTimeline} onUndo={() => void r.undo()} onRedo={() => void r.redo()}
                 disabled={directorRunning}
                 highlightScenes={directorChangedScenes}
                 view={{ projectId: id, fps: 30, ...(p.canvas ?? CANVAS[p.aspect] ?? CANVAS["9:16"]), duration: dur, plan, timing: r.timing.scenes,
                   elementTimes: r.sc.data?.elements, words: r.words, keep: r.audio?.keep ?? [],
                   audioUrl: p.audio_url ? `${p.audio_url}${p.audio_url.includes("?") ? "&" : "?"}v=${r.audioRev}` : null,
-                  layers: layers.doc, media: Object.fromEntries(mediaMap), elementName: (t) => ELEMENT_NAME[t] ?? t.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase()) }} />
+                  layers: layers.doc, media: Object.fromEntries(mediaMap), sounds: soundEvents.data?.events ?? [], elementName: (t) => ELEMENT_NAME[t] ?? t.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase()) }} />
             </Suspense>
           ) : <div className="occ-classic">{timeline}</div>}
           {directorRunning && <div className="occ-director-timeline-block" role="status" aria-live="polite" data-testid="director-timeline-block">

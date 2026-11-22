@@ -124,6 +124,12 @@ const sendsBefore = (await page.evaluate(() => window.__calls)).filter((c) => c[
 await page.getByRole("button", { name: "Try again" }).click();
 await page.waitForTimeout(500);
 check("a failed reply offers Try again, which sends the same message", (await page.evaluate(() => window.__calls)).filter((c) => c[0] === "send" && c[1] === "please break").length === sendsBefore + 1);
+// W13.3: a scene's menu points the assistant at it, like Ctrl+L
+await page.getByRole("button", { name: "Scene 3 actions" }).click();
+await page.getByRole("button", { name: /Ask the assistant about this/ }).click();
+await page.waitForTimeout(600);
+check("a scene's menu points Claude Code at that scene", /Scene 3/.test(await page.locator(".agent-pills-draft .agent-pill").first().textContent().catch(() => "")));
+await page.locator(".agent-pills-draft button").first().click();
 await page.getByRole("button", { name: "New conversation" }).click();
 check("New conversation clears the chat and the next message opens a fresh one", (await page.locator(".agent-turn").count()) === 0 && (await page.locator(".agent-starters button").count()) === 3);
 await page.getByRole("tab", { name: "Director" }).click();

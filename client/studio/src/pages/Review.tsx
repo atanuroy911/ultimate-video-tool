@@ -64,6 +64,19 @@ function ReviewEditor() {
   const [time, setTime] = useState(0);
   const [assistantTab, setAssistantTab] = useState<"director" | "claude">("director");   // which conversation the Assistant pane shows
   const assistantTabRef = useRef(assistantTab);
+  /** W13.3: open the assistant and give it what the person pointed at, as a pill: Claude Code in the desktop app, else the Director */
+  const pointAssistant = (ref: Record<string, unknown> | null) => {
+    if (!ref) return;
+    setShowAssistant(true);
+    const claude = !!(window as any).vtDesktop?.agents && assistantTabRef.current !== "director";
+    if (claude) setAssistantTab("claude");
+    setTimeout(() => window.dispatchEvent(new CustomEvent(claude ? "vt-ask-about" : "vt-ask-director", { detail: ref })), 250);
+  };
+  useEffect(() => {                                                      // "Ask the assistant about this" from a scene's menu
+    const on = (e: Event) => pointAssistant(askRef.current((e as CustomEvent<string>).detail));
+    window.addEventListener("vt-ask-scene", on);
+    return () => window.removeEventListener("vt-ask-scene", on);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   assistantTabRef.current = assistantTab;
   const [shotEdit, setShotEdit] = useState<string | null>(null);   // a code-native shot open in the visual editor (PLAN-CODE-NATIVE-EDITOR C3)
   const lastT = useRef(0);
@@ -93,7 +106,7 @@ function ReviewEditor() {
   const [sel, setSel] = useState<Sel | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [selEl, setSelEl] = useState<{ scene: string; index: number } | null>(null);
-  const askRef = useRef<() => Record<string, unknown> | null>(() => null);
+  const askRef = useRef<(sid?: string) => Record<string, unknown> | null>(() => null);
   const [selAction,setSelAction]=useState<{scene:string;index:number}|null>(null);
   const [selectedWord,setSelectedWord]=useState<string|null>(null);
   const captionWord=r.words.find(w=>w.id===selectedWord);
@@ -227,13 +240,13 @@ function ReviewEditor() {
     if (!selected || !scenes.some((s) => s.id === selected)) setSelected(scenes[0].id);
   }, [scenes, selected]);
   const timeOf = useMemo(() => new Map(r.timing.scenes.map((s) => [s.id, s])), [r.timing.scenes]);
-  askRef.current = () => {                                   // what Ctrl+L points at: the selected element, else the selected scene
-    const sid = selEl?.scene ?? selected;
+  askRef.current = (only?: string) => {                      // what Ctrl+L points at: the selected element, else the selected scene (or the scene a menu named)
+    const sid = only ?? selEl?.scene ?? selected;
     if (!sid) return null;
     const t = timeOf.get(sid) as { start?: number; end?: number } | undefined;
     const span = t && t.start != null && t.end != null ? { from: +t.start.toFixed(2), to: +t.end.toFixed(2) } : {};
     const n = (r.plan?.scenes ?? []).findIndex((s) => s.id === sid) + 1;
-    if (selEl) {
+    if (selEl && !only) {
       const el = (r.plan?.scenes ?? []).find((s) => s.id === sid)?.elements?.[selEl.index] as { type?: string; text?: string } | undefined;
       return { kind: "element", scene: sid, index: selEl.index, ...span, label: `${el?.text || ELEMENT_NAME[el?.type ?? ""] || el?.type || "element"} in scene ${n}`.slice(0, 120) };
     }
@@ -327,12 +340,7 @@ function ReviewEditor() {
       else if (act === "palette") setPalette(true);
       else if (act === "focus-assistant") {
         setShowAssistant(true);
-        const ref = askRef.current();                                  // W13.3: Ctrl+L with something selected points Claude Code at it
-        if (ref) {                                                     // Claude Code in the desktop app, else the Director
-          const claude = !!(window as any).vtDesktop?.agents && assistantTabRef.current !== "director";
-          if (claude) setAssistantTab("claude");
-          setTimeout(() => window.dispatchEvent(new CustomEvent(claude ? "vt-ask-about" : "vt-ask-director", { detail: ref })), 250);
-        }
+        pointAssistant(askRef.current());                               // W13.3: Ctrl+L with something selected points the assistant at it
         setTimeout(() => document.querySelector<HTMLTextAreaElement>(".wb-assistant textarea")?.focus(), 60);
       }
     };

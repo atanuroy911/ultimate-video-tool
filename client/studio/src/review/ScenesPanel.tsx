@@ -1,4 +1,4 @@
-import { ArrowDown, Copy, GitMerge, MoreHorizontal, Trash2 } from "lucide-react";
+import { ArrowDown, Copy, GitMerge, MessageSquare, MoreHorizontal, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { fmtTime } from "../api";
 import { Menu, Modal } from "../ui";
@@ -110,6 +110,14 @@ export default function ScenesPanel({ r, selected, onSelect, seek }: { r: Review
             }}
           >
             <GitMerge size={14} /> Merge with next
+          </button>
+          <button
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent("vt-ask-scene", { detail: menu.sid }));          // W13.3: point the assistant at this scene
+              setMenu(null);
+            }}
+          >
+            <MessageSquare size={14} /> Ask the assistant about this
           </button>
           <button
             onClick={() => {

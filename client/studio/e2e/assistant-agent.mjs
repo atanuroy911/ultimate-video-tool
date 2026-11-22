@@ -67,12 +67,16 @@ await page.getByRole("tab", { name: "Claude Code" }).click();
 const box = page.getByLabel("Message to Claude Code");
 await box.waitFor({ timeout: 5000 });
 check("the earlier conversation is offered", await page.getByRole("button", { name: /Continue “Make the title bigger”/ }).isVisible());
+await page.locator(".agent-starters button").first().click();
+check("an empty conversation offers starters, and one fills the message box", (await page.locator(".agent-starters button").count()) === 3 && (await box.inputValue()) === "Tighten the opening");
+await box.fill("");
 
 await page.getByLabel("Claude model").selectOption("sonnet");
 await box.fill("Make the title bigger");
 await page.keyboard.press("Enter");
 await page.getByText("Making it bigger in").waitFor({ timeout: 5000 });
-check("the reply streams in and the step shows as finished", await page.locator(".agent-steps li.completed", { hasText: "Set caption style" }).isVisible());
+check("the reply streams in and the finished steps fold into one row", await page.locator(".agent-worked summary", { hasText: /Worked \d+s · 1 step/ }).isVisible()
+  && await page.locator(".agent-worked .agent-steps li.completed", { hasText: "Set caption style" }).count() === 1);
 check("a vt:// link is a button and an outside link is plain text", await page.locator(".agent-link", { hasText: "scene 3" }).isVisible() && await page.locator(".agent-turn a").count() === 0);
 await page.locator(".agent-link", { hasText: "the end" }).click();
 await page.waitForTimeout(400);

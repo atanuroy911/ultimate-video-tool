@@ -27,3 +27,9 @@
 .agent-pills-draft { padding: var(--sp-2) var(--sp-3) 0; border-top: 1px solid var(--border); }
 .agent-pill { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-12); background: var(--bg-selected); color: var(--fg); border-radius: 999px; padding: 2px 8px; }
 .agent-pill button { border: 0; background: transparent; color: var(--text-muted); cursor: pointer; padding: 0 2px; font: inherit; }
+.agent-starters { display: flex; flex-wrap: wrap; gap: 6px; }
+.agent-worked { margin-bottom: var(--sp-2); font-size: var(--fs-12); color: var(--text-muted); }
+.agent-worked > summary { cursor: pointer; list-style: none; }
+.agent-worked > summary::after { content: " ›"; }
+.agent-worked[open] > summary::after { content: " ⌄"; }
+.agent-worked .agent-steps { margin-top: 6px; }

@@ -260,6 +260,8 @@ GREEN = "#00ff00"
 def caption_stills(comp_dir: Path, data: dict, captions: list[dict], work: Path) -> list[tuple[float, float, Path]]:
     """One picture of each caption line, drawn by the runtime itself (same font, box, border and highlight as the full render) over pure green,
     so ffmpeg can key the green out. Taken when the whole line is on screen. Returns [(start, end, png)]."""
+    import re
+
     from .hyperframes import snapshot
 
     if not captions:
@@ -287,6 +289,7 @@ def caption_stills(comp_dir: Path, data: dict, captions: list[dict], work: Path)
         index.write_text(html, encoding="utf-8")
         for i in range(0, len(times), 120):                               # a few hundred moments per call keeps the command line short
             got = snapshot(comp_dir, work / f"caps-{i:05d}", times[i:i + 120])
+            got = sorted(got, key=lambda p: int(re.search(r"frame-(\d+)", p.name).group(1)))      # frame-10 comes before frame-100 by number, not by text
             shots.extend(got[: len(times[i:i + 120])])
     finally:
         index.write_text(full, encoding="utf-8")

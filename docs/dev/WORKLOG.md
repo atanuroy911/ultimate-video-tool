@@ -619,3 +619,12 @@ C11: fast render for long recordings (vt/render/fast.py): 1321 s instead of 8103
 - W11.1: New timeline gained narration mute/volume, stick actions, the sounds track, Listen for sounds, double-click a word to edit it; parity table docs/dev/timeline-parity.md (one row left: restoring a cut).
 - W15.2: edge, export, context, sounds, dashboard suites rewritten and passing; journey moved to a fresh English Kokoro sample (running).
 - Bugs fixed: copied project folders shared an id (stale dashboard cards; the folder name is now the id). Finding: in the dev environment speech recognition runs on the processor because CUDA cuBLAS is missing (processor-only torch), not because of ComfyUI.
+
+## 2026-11-22 afternoon
+- W15.2: all 8 old-layout browser suites rewritten and passing (editor 20, journey 16, export 8, context 5, sounds 5, edge 9, stick 9, dashboard 10).
+- Bugs found by them and fixed: speech recognition hung for ever without CUDA cuBLAS (now checked first; the installed server still uses the card); the module workspace failed a file replace Windows refused (compose error); copied project folders shared one id; two directors with the same name are told apart.
+- W10: starter suggestions, New conversation, steps fold into "Worked 12s · 3 steps", Markdown replies (parsed to data), Try again on failures.
+- W13: a scene's menu, Alt-drag on the picture (with the cut-out picture for Claude Code, server route /frame-crop) and Shift-drag on the ruler all point the assistant; the region box is in both wire formats (shared fixture).
+- W14.1: change events say who (person, director, agent).
+- Fast suite green (a test updated for the cuBLAS check).
+

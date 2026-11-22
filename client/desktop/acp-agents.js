@@ -32,8 +32,14 @@ function adapterEntry(kind, home) {
 }
 
 /** A short plain name for a tool: "mcp__video-tool__set_caption_style" is "Set caption style". */
+// Claude Code's own tools, in the words a person uses ("ToolSearch" was shown as is, 2026-11-22)
+const OWN_WORDS = { ToolSearch: "Looking for the right tool", Read: "Reading a file", Write: "Writing a file", Edit: "Changing a file", MultiEdit: "Changing a file",
+  Bash: "Running a command", PowerShell: "Running a command", Glob: "Finding files", Grep: "Searching files", LS: "Listing files", WebFetch: "Reading a web page",
+  WebSearch: "Searching the web", TodoWrite: "Planning the steps", Task: "Starting a helper", Agent: "Starting a helper", NotebookEdit: "Changing a notebook" };
 function humanTitle(name) {
-  const bare = String(name || "").replace(/^mcp__[^_]+(?:-[^_]+)*__/, "").replace(/[_-]+/g, " ").trim();
+  const raw = String(name || "").trim();
+  if (OWN_WORDS[raw]) return OWN_WORDS[raw];
+  const bare = raw.replace(/^mcp__[^_]+(?:-[^_]+)*__/, "").replace(/([a-z])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ").trim().toLowerCase();
   return bare ? bare[0].toUpperCase() + bare.slice(1) : "Working";
 }
 const toolName = (call) => String(call?._meta?.claudeCode?.toolName || call?.title || "");

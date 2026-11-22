@@ -40,6 +40,8 @@ assert.equal(toPrompt("Fix [1]", [{ kind: "scene", scene: "s3", from: 4, to: 6.1
 assert.match(toPrompt("x", [{ kind: "element", scene: "s3", index: 2, label: "Small habits" }]), /\[1\] element s3#2 · vt:\/\/element\/s3\/2 · "Small habits"/);
 assert.equal(humanTitle("mcp__video-tool__set_caption_style"), "Set caption style");
 assert.equal(humanTitle(""), "Working");
+assert.equal(humanTitle("ToolSearch"), "Looking for the right tool");
+assert.equal(humanTitle("SomeNewTool"), "Some new tool");
 
 (async () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "vt-acp-"));

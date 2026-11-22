@@ -634,3 +634,9 @@ C11: fast render for long recordings (vt/render/fast.py): 1321 s instead of 8103
 - C11: the owner's talk renders in 15.6 min (was 2 h 15 m): all designed stretches on one page in one render, 6 workers, stretches cut 3 at a time.
 - Next: re-run the talk's plan with the latest fixes and watch it; W4.2; W11 last row (restore a cut); W15.3 matrix on rebuilt installed apps; W15.6 PR for the owner.
 
+## 2026-11-22 night
+- W11.1 done: the New timeline brings a cut back by double-clicking its mark (Cuts track; unit test + e2e/timeline-cuts.mjs). Parity table complete.
+- W11.2 step 1: the New timeline is the default; the 10 suites that test Classic pin it.
+- speak puts the line in the media bin as a sound. Auto themes: 4,000 text pairs checked, all 4.69:1 or better; a test guards it.
+- Running: the owner's talk re-planned with today's fixes (local AI), then the fast render.
+

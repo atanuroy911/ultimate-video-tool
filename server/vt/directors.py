@@ -388,6 +388,12 @@ def listing() -> dict[str, Any]:
                         "version": seen.get("version", ""), "last_seen": seen["last_seen"],
                         "note": "Not connected. Open Video Tool on that computer; its helper starts with it and reconnects by itself."})
     items.extend(sorted(offline, key=lambda d: d["device_name"].casefold()))
+    seen_labels: dict[str, int] = {}
+    for d in items:                                                      # one computer that connected under two identities (a reinstall, a second
+        seen_labels[d["label"]] = seen_labels.get(d["label"], 0) + 1     # app folder) is told apart, so the person sees two rows, not one row twice
+    for d in items:
+        if seen_labels[d["label"]] > 1 and d.get("device"):
+            d["label"] = f"{d['label']} ({str(d['device'])[:4]})"
     cfg = settings()
     return {"directors": items, **cfg, "claude_usage_today": usage_today()}
 

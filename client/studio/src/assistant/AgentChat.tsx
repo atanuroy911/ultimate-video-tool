@@ -3,6 +3,7 @@
 import { Square, Send } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { pieces, type VtLink } from "./links";
+import { blocks, type Inline } from "./markdown";
 import "./assistant.css";
 
 export interface AgentBridge {
@@ -36,9 +37,15 @@ const fmtTook = (ms: number) => { const s = Math.max(1, Math.round(ms / 1000)); 
 
 /** A reply with its vt:// links as buttons (never as addresses: the window does not navigate). */
 function Reply({ text, onLink }: { text: string; onLink?: (l: VtLink) => void }) {
-  return <p>{pieces(text).map((x, i) => "link" in x
-    ? <button key={i} type="button" className="agent-link" title="Show it in the video" onClick={() => onLink?.(x.link)}>{x.label}</button>
-    : <span key={i}>{x.text}</span>)}</p>;
+  const run = (t: string, key: string) => pieces(t).map((x, i) => "link" in x
+    ? <button key={`${key}.${i}`} type="button" className="agent-link" title="Show it in the video" onClick={() => onLink?.(x.link)}>{x.label}</button>
+    : <span key={`${key}.${i}`}>{x.text}</span>);
+  const line = (parts: Inline[], key: string) => parts.map((p, i) => p.kind === "bold" ? <strong key={`${key}-${i}`}>{run(p.text, `${key}-${i}`)}</strong>
+    : p.kind === "code" ? <code key={`${key}-${i}`}>{p.text}</code> : <span key={`${key}-${i}`}>{run(p.text, `${key}-${i}`)}</span>);
+  return <div className="agent-reply">{blocks(text).map((b, k) => b.kind === "p"
+    ? <p key={k}>{b.lines.map((l, j) => <span key={j}>{j > 0 && <br />}{line(l, `${k}.${j}`)}</span>)}</p>
+    : b.kind === "ul" ? <ul key={k}>{b.items.map((l, j) => <li key={j}>{line(l, `${k}.${j}`)}</li>)}</ul>
+    : <ol key={k}>{b.items.map((l, j) => <li key={j}>{line(l, `${k}.${j}`)}</li>)}</ol>)}</div>;
 }
 
 export default function AgentChat({ projectId, title, onChanged, onLink }: { projectId: string; title: string; onChanged: () => void; onLink?: (l: VtLink) => void }) {

@@ -174,3 +174,13 @@ test('sounds heard in the voice are a locked track that saves nothing (W11.1)', 
   draft.commands.selectItem('snd:0');
   assert.deepEqual(planSave(activeEditorState(doc), draft.getState(), 30, view.layers).ops, []);
 });
+
+test('the cuts in the voice are a locked track of marks that save nothing (W11.1)', () => {
+  const doc = fromProject({ ...view, cuts: [{ index: 0, o: 1.2, len: 0.8 }, { index: 1, o: 3, len: 0 }] });
+  const tl = doc.timelines[0];
+  assert.equal(tl.tracks.A8.locked, true);
+  assert.deepEqual(tl.items.filter((i) => i.id.startsWith('cut:')).map((i) => [i.id, i.name]), [['cut:0', '✂ 0.8 s']]);
+  const draft = makeDraft(doc);
+  draft.commands.selectItem('cut:0');
+  assert.deepEqual(planSave(activeEditorState(doc), draft.getState(), 30, view.layers).ops, []);
+});

@@ -726,11 +726,12 @@ function ReviewEditor() {
                 onSave={saveTimeline} onUndo={() => void r.undo()} onRedo={() => void r.redo()}
                 disabled={directorRunning}
                 highlightScenes={directorChangedScenes}
+                onRestoreCut={(index) => void r.audioEdit("restore", { index, side: "all" })}
                 onWordAt={(t) => { const w = r.words.find((x) => !x.cut && x.start <= t + 0.05 && t <= x.end + 0.15); if (w) { setSelectedWord(w.id); setSel(null); setSelLayer(null); setShowInspector(true); } }}
                 view={{ projectId: id, fps: 30, ...(p.canvas ?? CANVAS[p.aspect] ?? CANVAS["9:16"]), duration: dur, plan, timing: r.timing.scenes,
                   elementTimes: r.sc.data?.elements, words: r.words, keep: r.audio?.keep ?? [],
                   audioUrl: p.audio_url ? `${p.audio_url}${p.audio_url.includes("?") ? "&" : "?"}v=${r.audioRev}` : null,
-                  layers: layers.doc, media: Object.fromEntries(mediaMap), sounds: soundEvents.data?.events ?? [], elementName: (t) => ELEMENT_NAME[t] ?? t.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase()) }} />
+                  layers: layers.doc, media: Object.fromEntries(mediaMap), sounds: soundEvents.data?.events ?? [], cuts: r.audio?.cuts ?? [], elementName: (t) => ELEMENT_NAME[t] ?? t.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase()) }} />
             </Suspense>
           ) : <div className="occ-classic">{timeline}</div>}
           {directorRunning && <div className="occ-director-timeline-block" role="status" aria-live="polite" data-testid="director-timeline-block">

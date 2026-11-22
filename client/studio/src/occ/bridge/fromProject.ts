@@ -41,6 +41,8 @@ export interface ProjectView {
   elementName?: (type: string) => string;
   /** sounds found in the voice (laughter, applause...): shown on a locked track (W11.1, ported from the classic Sounds lane) */
   sounds?: { label: string; emoji?: string; start: number; end: number }[];
+  /** the cuts in the voice, where they were (output time): a locked track; double-click one to bring it back (W11.1, the classic cut marks) */
+  cuts?: { index: number; o: number; len: number }[];
 }
 
 export const VOICE_ID = 'voice';
@@ -171,6 +173,13 @@ export function fromProject(v: ProjectView): ProjectDoc {
   // the narration, after cuts, with its words in edited time (captions and the transcript view read them)
   order.push('A1');
   if (tracks.A9) order.push('A9');
+  const cutMarks = (v.cuts ?? []).filter((c) => c.len > 0);
+  if (cutMarks.length) {
+    tracks.A8 = { kind: 'audio', name: 'Cuts', locked: true };
+    order.push('A8');
+    for (const c of cutMarks) items.push({ id: `cut:${c.index}`, track: 'A8', startFrame: f(c.o, fps), durationInFrames: Math.max(6, f(0.25, fps)),
+      name: `✂ ${c.len.toFixed(1)} s`, kind: 'text', props: { text: `cut ${c.len.toFixed(1)} s` } });
+  }
   tracks.A1 = { kind: 'audio', name: 'Narration', role: 'anchor' };
   if (v.audioUrl) {
     const transcript: TranscriptWord[] = [];

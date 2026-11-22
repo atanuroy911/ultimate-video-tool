@@ -147,6 +147,21 @@ const regionSent = (await page.evaluate(() => window.__calls)).filter((c) => c[0
 const rb = regionSent && regionSent[2] && regionSent[2][0] && regionSent[2][0].box;
 check("the region goes with its box in video pixels", rb && rb.w > 600 && rb.h > 200 && rb.y > 1000, JSON.stringify(regionSent && regionSent[2]));
 check("and with the picture under it", regionSent && regionSent[3] && regionSent[3].length === 1 && /^image\/png:\d{3,}/.test(regionSent[3][0]), JSON.stringify(regionSent && regionSent[3]));
+// W13.3: Shift-drag on the timeline's ruler: a stretch of time
+const ruler = await page.locator(".tl-ruler").boundingBox();
+await page.keyboard.down("Shift");
+await page.mouse.move(ruler.x + ruler.width * 0.2, ruler.y + ruler.height / 2);
+await page.mouse.down();
+await page.mouse.move(ruler.x + ruler.width * 0.4, ruler.y + ruler.height / 2, { steps: 6 });
+await page.mouse.up();
+await page.keyboard.up("Shift");
+await page.waitForTimeout(600);
+check("Shift-drag on the ruler points the assistant at a stretch of time", /\d:\d\d\.\d–\d:\d\d\.\d/.test(await page.locator(".agent-pills-draft .agent-pill").first().textContent().catch(() => "")));
+await box.fill("tighten [1]");
+await page.keyboard.press("Enter");
+await page.waitForFunction(() => window.__calls.some((c) => c[0] === "send" && c[1] === "tighten [1]"), null, { timeout: 15000 }).catch(() => {});
+const rangeSent = (await page.evaluate(() => window.__calls)).filter((c) => c[0] === "send" && c[1] === "tighten [1]").pop();
+check("the stretch goes as a range with its times", rangeSent && rangeSent[2][0].kind === "range" && rangeSent[2][0].to - rangeSent[2][0].from > 1, JSON.stringify(rangeSent && rangeSent[2]));
 await page.getByRole("button", { name: "New conversation" }).click();
 check("New conversation clears the chat and the next message opens a fresh one", (await page.locator(".agent-turn").count()) === 0 && (await page.locator(".agent-starters button").count()) === 3);
 await page.getByRole("tab", { name: "Director" }).click();

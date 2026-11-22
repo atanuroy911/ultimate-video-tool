@@ -101,6 +101,15 @@ function ReviewEditor() {
     window.addEventListener("pointerdown", down, true);
     return () => window.removeEventListener("pointerdown", down, true);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {                                                      // Shift-drag on the timeline's ruler: a stretch of time
+    const on = (e: Event) => {
+      const { from, to } = (e as CustomEvent<{ from: number; to: number }>).detail;
+      const c = (t: number) => `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, "0")}`;
+      pointAssistant({ kind: "range", from: +from.toFixed(2), to: +to.toFixed(2), label: `${c(from)}–${c(to)}` });
+    };
+    window.addEventListener("vt-ask-range", on);
+    return () => window.removeEventListener("vt-ask-range", on);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {                                                      // "Ask the assistant about this" from a scene's menu
     const on = (e: Event) => pointAssistant(askRef.current((e as CustomEvent<string>).detail));
     window.addEventListener("vt-ask-scene", on);

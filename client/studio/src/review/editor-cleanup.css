@@ -51,3 +51,4 @@
 .ed-panel-actions .btn.selected { background: var(--bg-selected); color: var(--fg); border-color: transparent; box-shadow: none; }
 .ed-panel-actions .btn { border-color: transparent; }
 .vt-region-box { position: fixed; z-index: 9999; border: 2px dashed var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); pointer-events: none; }
+.tl-ask-range { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--accent) 25%, transparent); border-left: 2px solid var(--accent); border-right: 2px solid var(--accent); pointer-events: none; }

@@ -264,3 +264,19 @@ def test_a_place_written_as_a_backdrop_is_sent_back_to_the_ai_not_crashed_on():
     d["scenes"][0]["backdrop"] = {"media": "pic1", "motion": "pan"}
     assert validate_script(d, TR, BEATS, media_ids={"pic1"}) == []
     assert "belongs" not in str(VideoScript.model_json_schema()) or "`sets`" in str(VideoScript.model_json_schema())
+
+
+def test_a_director_that_can_rewrite_is_told_once_what_the_repair_would_change():
+    """2026-11-22: labels cut short ("Follow the reference tr...") were repaired silently; a director that can rewrite now gets one try to fix them,
+    and a failed second try still keeps the first, repaired plan (never the rule director)."""
+    tr, beats = EX.make(EX.ED_TEXTS)
+    bad = copy.deepcopy(EX.ED)
+    bad["scenes"][1]["actions"][0]["at_word"] = "w999"           # a repair that changes what the director wrote
+    good = copy.deepcopy(EX.ED)
+    p = ai.FakeProvider([bad, good])
+    s = ai_script(tr, beats, provider=p)
+    assert len(p.calls) == 2, "the director was asked once more, with what the repair would change"
+    assert s.planner == "llm"
+    once = ai.FakeProvider([copy.deepcopy(bad)])                     # no second answer: the first, repaired script is used
+    s2 = ai_script(tr, beats, provider=once)
+    assert len(once.calls) == 2 and s2.planner == "llm" and validate_script(s2.model_dump(by_alias=True), tr, beats) == []

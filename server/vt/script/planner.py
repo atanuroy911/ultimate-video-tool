@@ -32,9 +32,31 @@ def ai_script(tr: Transcript, beats: Beats, *, kind: str = "stick", language: st
     system, user = build_prompt(tr, beats, kind=kind, language=language, audience=audience, tone=tone, aspect=aspect, draft=base, hint=hint, schema=schema,
                                 look_ahead=look_ahead)
     say(0.1, "Asking the AI to direct the video")
-    data = ai.complete_json(user, schema, system=system, provider=provider, max_tokens=8000, timeout=600, cache=True, retries=1,
-                            repair=repairer(tr, beats, kind, notes, frame),
-                            check=lambda d: validate_script(d, tr, beats, icons, media_ids, None, frame))
+    # A director that can rewrite (Claude, an API model) is told once what the repair would change in what it wrote (a label cut short, an
+    # overlay left out) and gets one try to write it right; after that the repaired script is used, as for the local AI (2026-11-22: "Follow the
+    # reference tr..." labels). The local model is never asked twice: its second answer is rarely better and the person waits.
+    tries = {"n": 0}
+    can_rewrite = not isinstance(provider or ai.current_provider(), ai.OllamaProvider)
+
+    first: dict = {}
+
+    def check(d):
+        tries["n"] += 1
+        errs = validate_script(d, tr, beats, icons, media_ids, None, frame)
+        if not errs and can_rewrite and tries["n"] == 1:
+            asks = [f"scene {n.get('scene')}: {n.get('says')}; write it so it fits" for n in notes if n.get("meaning")][:8]
+            if asks:
+                first.update(data=d, notes=list(notes))                    # usable as it is: kept in case the second try fails
+            return asks
+        return errs
+    try:
+        data = ai.complete_json(user, schema, system=system, provider=provider, max_tokens=8000, timeout=600, cache=True, retries=1,
+                                repair=repairer(tr, beats, kind, notes, frame), check=check)
+    except ai.AIUnavailable:
+        if not first:
+            raise
+        data = first["data"]                                               # the second try failed: the first, repaired script is still a good plan
+        notes[:] = first["notes"]
     script = VideoScript.model_validate(data)
     script.kind = kind  # type: ignore[assignment]
     if kind == "emoji" and draft is not None and any(not sc.overlays for sc in script.scenes):          # a scene the model left empty gets the rule director's emoji

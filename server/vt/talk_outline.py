@@ -10,7 +10,7 @@ The AI decides what is an example; code only splits, merges and checks the numbe
 from __future__ import annotations
 
 import re
-from typing import Any, Callable, Literal, Optional
+from typing import Callable, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -207,7 +207,7 @@ def reading_provider():
             for name in READING_MODELS:
                 if name in have:
                     return ai.OllamaProvider(name)
-    except Exception:                                                                       # noqa: BLE001
+    except Exception:                                                                       # noqa: BLE001 — no better reading model: the chosen AI reads
         pass
     return None
 
@@ -241,7 +241,9 @@ def ensure(project, *, provider=None, progress: Callable[[float, str], None] = l
         out["words_key"] = key
         write_json(project.dir / OUTLINE_FILE, out)
         return out
-    except Exception:                                                                       # noqa: BLE001  (no outline is not a reason to stop planning)
+    except Exception as e:                                                                  # noqa: BLE001 — no outline is not a reason to stop planning
+        from .notices import record
+        record(project, "plan", "The talk could not be read ahead, so B-roll was not matched to its examples.", e)
         return have
 
 
@@ -323,7 +325,9 @@ def fill_examples(project, sf, beats, outline: Optional[dict], progress: Callabl
 
         client = ComfyClient(comfy_url())
         flow = picture_workflow(object_info=client.object_info())
-    except Exception:                                                  # noqa: BLE001  no picture engine: the speaker stays
+    except Exception as e:                                             # noqa: BLE001 — no picture engine: the speaker stays
+        from .notices import record
+        record(project, "plan", f"No picture engine answered, so {len(todo)} example(s) of the talk stay on the speaker instead of getting a picture.", e)
         return []
     changed = []
     try:
@@ -333,7 +337,9 @@ def fill_examples(project, sf, beats, outline: Optional[dict], progress: Callabl
             prompt = f"{e['show']}. Clear, simple illustration, no text, no letters, no watermark."
             try:
                 item, _ = generate_still(project, client, flow, prompt[:600], aspect=aspect, seed=1 + i, caption=e["about"][:80], scene=sc.id, checked=True)
-            except ComfyError:
+            except ComfyError as err:
+                from .notices import record
+                record(project, "plan", f"A picture for \"{e['about'][:60]}\" could not be drawn, so that part stays on the speaker.", err)
                 continue
             sc.backdrop = Backdrop(media=item.id, motion="kenburns")
             sc.archetype = "broll"

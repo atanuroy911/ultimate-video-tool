@@ -74,6 +74,7 @@ export interface ProjectSummary {
   thumb: string | null;
   plan_notice: { at: string; planner: string; message: string } | null;
   ai_notice?: { at: string; message: string } | null;
+  notices?: { at: string; stage: string; message: string; error: string }[];
   ai_brief?: { topic?: string; summary?: string; characters?: string[]; place?: string } | null;
   active_job: JobInfo | null;
   needs_reprocess_from?: string | null;

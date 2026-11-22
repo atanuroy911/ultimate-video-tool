@@ -534,6 +534,13 @@ function ReviewEditor() {
           <Link className="btn sm" to="/settings">Settings</Link>
         </div>
       )}
+      {!!p.notices?.length && (
+        <div className="banner" role="status" style={{ margin: "8px 12px 0" }}>
+          <div className="grow"><strong>{p.notices.length === 1 ? "One extra was skipped" : `${p.notices.length} extras were skipped`}</strong>
+            <ul className="small muted" style={{ margin: "4px 0 0", paddingLeft: 18 }}>{p.notices.map((n, i) => <li key={i} title={n.error}>{n.message}</li>)}</ul></div>
+          <button className="btn sm" onClick={() => del(`/api/projects/${id}/notices`).then(r.reloadAll)}>Got it</button>
+        </div>
+      )}
       <Requests r={r} sceneIndexById={sceneIndexById} />
 
       <div className="ed-body">

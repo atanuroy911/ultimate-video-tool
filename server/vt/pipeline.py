@@ -104,7 +104,7 @@ class Pipeline:
                 self._frac = frac
             try:
                 self.progress(stage, frac, msg)
-            except (Cancelled, Exception):  # the stage itself stops at its next report
+            except (Cancelled, Exception):  # noqa: BLE001 — the heartbeat thread: the stage itself stops at its next report
                 return
 
     def director(self) -> str:
@@ -161,7 +161,7 @@ class Pipeline:
         except Cancelled:
             self.p.update_meta(status="cancelled")
             raise
-        except Exception:
+        except Exception:                        # noqa: BLE001 — marks the project and raises again
             self.p.update_meta(status="error")   # the job keeps the failing stage as its current stage, so the UI can mark it
             raise
         finally:
@@ -309,8 +309,9 @@ class Pipeline:
         self._say("asr", 0.01, "Working out the language")
         try:
             lang, _ = langdetect.from_audio(self.p.asr_wav, allowed=AUTO_LANGUAGES)
-        except Exception as e:                                     # Match the English-first creation defaults when detection is unavailable.
-            log.warning("language detection failed (%s); using English", e)
+        except Exception as e:                                     # noqa: BLE001 — match the English-first creation defaults when detection is unavailable
+            from .notices import record as record_notice
+            record_notice(self.p, "asr", "The language could not be detected, so English was used. Change it in the video's settings if that is wrong.", e)
             lang = "en"
         self._say("asr", 0.03, f"Language: {langdetect.NAMES.get(lang, lang)}")
         return self.p.update_meta(language=lang)
@@ -346,8 +347,10 @@ class Pipeline:
         try:
             AR.build(p, lambda f, m: self._say("aroll", f, m), force=force)
             (p.dir / "aroll.error.json").unlink(missing_ok=True)          # an earlier failure is no longer true
-        except Exception as e:
+        except Exception as e:                                     # noqa: BLE001 — the video is made without the speaker's picture
             write_json(p.dir / "aroll.error.json", {"at": now_iso(), "error": f"{type(e).__name__}: {str(e)[:200]}"})
+            from .notices import record as record_notice
+            record_notice(p, "aroll", "The speaker's own picture could not be prepared, so this video does not show the recording.", e)
 
     def stage_sounds(self, force: bool = False) -> None:
         """Find laughter, applause, music, animals ... in the voice track (output time). Never stops the video: a failure is recorded and the stage is skipped."""
@@ -358,8 +361,10 @@ class Pipeline:
             return
         try:
             SN.analyze_project(p, lambda f: self._say("sounds", f, "listening"), force=force)
-        except Exception as e:
+        except Exception as e:                                     # noqa: BLE001 — sounds are an extra
             write_json(SN.path(p), {"hash": "", "model": SN.MODEL, "duration": 0, "events": [], "error": f"{type(e).__name__}: {str(e)[:160]}"})
+            from .notices import record as record_notice
+            record_notice(p, "sounds", "Listening for sounds (laughter, applause, music) was skipped.", e)
 
     def stage_cuts(self, force: bool = False) -> None:
         p = self.p
@@ -425,7 +430,9 @@ class Pipeline:
 
             try:
                 who = SP.assign(load_mono16k(p.cut_audio), tr, beats)
-            except Exception:                                  # a guess must never stop a video from being made
+            except Exception as e:                             # noqa: BLE001 — a guess must never stop a video from being made
+                from .notices import record as record_notice
+                record_notice(p, "words", "Who speaks when could not be worked out, so every word is given to one speaker.", e)
                 who = None
             if who:
                 names = (read_json(p.dir / "speakers.json", {}) or {}).get("names", {})
@@ -503,13 +510,17 @@ class Pipeline:
                 self._say("context", 0.05, "Preparing the AI")
                 try:
                     AIP.ensure_ai(lambda s_, f, m: self._say("context", 0.05 + 0.25 * f, m))
-                except Exception:
+                except Exception as e:                         # noqa: BLE001 — the rules can still work out the topic
+                    from .notices import record as record_notice
+                    record_notice(p, "context", "The AI could not be prepared, so what the video is about was worked out by rules.", e)
                     use_ai = False
             ctx = CX.build(p.transcript(), p.beats(), meta.language, use_ai=use_ai, overrides=ov)
             ctx.hash = CX.current_hash(p)
             CX.save(p, ctx)
             p.mark_stage("context", h, source=ctx.source, entities=len(ctx.entities), sections=len(ctx.sections))
-        except Exception as e:
+        except Exception as e:                                     # noqa: BLE001 — the plan can be made without the context
+            from .notices import record as record_notice
+            record_notice(p, "context", "What the video is about could not be worked out, so scenes are planned from the words alone.", e)
             write_json(CX.path(p), {"version": 1, "source": "failed", "notes": [f"{type(e).__name__}: {str(e)[:160]}"]})
 
     def _reel_plan_for_making(self, force: bool):
@@ -555,7 +566,7 @@ class Pipeline:
                         plan = PD.build(p, provider=ClaudeCLIProvider())
                         directors.record(p, who, requested=requested, fallback_reason=fallback_reason)
                         break
-                    except Exception as e:  # a CLI that disappears or loses login must not stop the video
+                    except Exception as e:  # noqa: BLE001 — a CLI that disappears or loses login must not stop the video (the reason is recorded by directors.record)
                         fallback_reason = f"Claude on the server failed ({type(e).__name__}: {str(e)[:120]})."
                         self._say("plan", 0.12, f"{fallback_reason} Falling back.")
                         (p.dir / PD.PLAN).unlink(missing_ok=True)
@@ -569,7 +580,7 @@ class Pipeline:
                         plan = PD.build(p, provider=OllamaProvider())
                         directors.record(p, who, requested=requested, fallback_reason=fallback_reason)
                         break
-                    except Exception as e:  # the rules below are the engine-free final fallback
+                    except Exception as e:  # noqa: BLE001 — the rules below are the engine-free final fallback (the reason is recorded)
                         fallback_reason = f"The local AI failed ({type(e).__name__}: {str(e)[:120]})."
                         (p.dir / PD.PLAN).unlink(missing_ok=True)
                         (p.dir / "reel_reading.json").unlink(missing_ok=True)
@@ -649,7 +660,7 @@ class Pipeline:
             recording_plan=base_plan(p)
             if meta.options.recording_edit=='screen':
                 try:recording_plan=supporting_graphics(p,recording_plan)
-                except Exception as error:
+                except Exception as error:                     # noqa: BLE001 — said in ai_notice.json
                     write_json(p.dir/'ai_notice.json',{'at':now_iso(),'message':f'The supporting graphics could not be planned. Your original screen and captions were kept. {type(error).__name__}'})
             p.save_scenes(recording_plan)
             write_json(p.dir / 'plan_basis.json',self._word_basis())
@@ -738,7 +749,9 @@ class Pipeline:
             from .visuals.picker import pick_visuals
 
             picks = pick_visuals(tr, beats, audio)
-        except Exception:                      # no dictionary/model: typography-only pictures
+        except Exception as e:                 # noqa: BLE001 — no dictionary/model: typography-only pictures
+            from .notices import record as record_notice
+            record_notice(p, "plan", "The picture dictionary could not be used, so scenes show words instead of pictures.", e)
             picks = {}
 
         def draw(brief_):
@@ -814,7 +827,7 @@ class Pipeline:
                 directors.record(p, actual, requested=requested,
                                  fallback_reason=unavailable or ("The selected AI was unavailable, so the rule director wrote the plan." if actual == "rules" else ""))
                 notice = notice or unavailable
-        except Exception as e:                  # the script step never breaks the video
+        except Exception as e:                  # noqa: BLE001 — the script step never breaks the video
             import logging
             logging.getLogger("pipeline.plan").warning("script step failed", exc_info=True)       # the traceback goes to the video's technical log
             notice = notice or f"Script step skipped: {type(e).__name__}: {str(e)[:120]}"
@@ -839,16 +852,18 @@ class Pipeline:
                 sf, _ = SN.plan_from_sounds(sf, (doc or {}).get("events", []), tr, beats)
             elif doc and doc.get("events") and not ai_directed:
                 SN.add_stickers(sf, doc["events"], tr, beats)          # a picture where a sound happens
-        except Exception:
-            pass
+        except Exception as e:                                          # noqa: BLE001 — extras on top of a valid plan
+            from .notices import record as record_notice
+            record_notice(p, "plan", "The speaker's picture, the read-ahead B-roll or the sound stickers could not be added to every scene.", e)
         if not ai_directed:                                               # these passes finish the rule draft; an AI's plan is its own direction (craft.check below still reports on it)
             try:
                 from . import craft as CR
 
                 CR.fix_hook(sf, tr, p)                                     # the first frame shows what the video is about (vt/craft.py hook.topic)
                 CR.fix_numbers(sf, tr, beats, meta.language)               # never a figure nobody said
-            except Exception:
-                pass
+            except Exception as e:                                         # noqa: BLE001 — checks on top of a valid plan
+                from .notices import record as record_notice
+                record_notice(p, "plan", "The opening and the numbers were not checked.", e)
             try:
                 from .director import heartbeat as HB
 
@@ -860,13 +875,15 @@ class Pipeline:
                     left = HB.still_scenes(sf, tr, beats, meta.aspect)
                     if left:
                         AR2.apply_speaker(sf, p, beats, meta.aspect, spk, force=set(left))
-            except Exception:
-                pass
+            except Exception as e:                                         # noqa: BLE001 — an extra on top of a valid plan
+                from .notices import record as record_notice
+                record_notice(p, "plan", "Still stretches could not be given the speaker's picture.", e)
         try:
             from . import aroll as AR3
             AR3.keep_screen_clear(sf, p)                                # a slide recording shows only itself and the captions
-        except Exception:                                               # noqa: BLE001
-            pass
+        except Exception as e:                                          # noqa: BLE001 — the plan is valid without it
+            from .notices import record as record_notice
+            record_notice(p, "plan", "Words over the screen recording could not be cleared.", e)
         errs = validate_scenes(sf, tr, beats, icons)
         if errs:
             raise RuntimeError("rule planner produced an invalid plan: " + "; ".join(errs[:5]))
@@ -876,8 +893,9 @@ class Pipeline:
             from . import craft as CR
 
             write_json(p.dir / "craft.json", CR.check(p))                  # the craft rules this plan still breaks, for the Review page and the director
-        except Exception:
-            pass
+        except Exception as e:                                             # noqa: BLE001 — a report, not the plan
+            from .notices import record as record_notice
+            record_notice(p, "plan", "The craft check was skipped, so the Review page has no craft notes for this plan.", e)
         p.mark_stage("plan", "rules", scenes=len(sf.scenes), usecase=usecase)
 
     def _word_basis(self) -> dict[str, str]:
@@ -929,7 +947,9 @@ class Pipeline:
 
             try:
                 review(self.p, lambda f, m: self._say("compose", 0.05 + 0.9 * f, m))
-            except Exception as e:                                       # the cut as planned is still a video
+            except Exception as e:                                       # noqa: BLE001 — the cut as planned is still a video
+                from .notices import record as record_notice
+                record_notice(self.p, "compose", "The director's look at the finished cut was skipped, so it was not revised.", e)
                 write_json(self.p.dir / "director_review.json", {"at": now_iso(), "error": f"{type(e).__name__}: {str(e)[:300]}"})
 
 
@@ -946,7 +966,7 @@ def directing(project: Project):
     try:
         pipeline = Pipeline(project)
         provider = pipeline._director_provider(pipeline.director())
-    except Exception as e:                                           # a director that cannot be worked out never stops a job: the AI setting in Settings applies
+    except Exception as e:                                           # noqa: BLE001 — a director that cannot be worked out never stops a job: the AI setting in Settings applies
         log.warning("could not work out the director of %s: %s", project.id, e)
     with talk.for_project(project.dir), (AIP.use_provider(provider) if provider is not None else nullcontext()):
         yield provider
@@ -1020,9 +1040,11 @@ def repair_scenes(sf: ScenesFile, tr: Transcript, beats: Beats, icons: set[str],
             if el["at_word"] not in tr.by_id() or (el["at_word"] not in wset and sc.get("start") is None and el.get("start") is None):
                 el["at_word"] = (wids or [w.id for w in tr.kept()])[0]
         sc["caption"]["highlight_words"] = [w for w in sc["caption"]["highlight_words"] if w in wset]
+    from pydantic import ValidationError
+
     try:
         fixed = ScenesFile.model_validate(data)
-    except Exception:
+    except ValidationError:                                          # the remapped plan no longer fits: the caller plans again
         return None
     return fixed if not validate_scenes(fixed, tr, beats, icons) else None
 
@@ -1085,8 +1107,9 @@ def export(project: Project, aspect: Optional[str] = None, *, quality: str = "lo
         from . import retention as RT
 
         RT.save(final.with_suffix(".retention.json"), RT.scorecard(final, aspect, data, project.cut_audio if project.cut_audio.exists() else None))
-    except Exception:
-        pass
+    except Exception as e:                                           # noqa: BLE001 — the video is made; only its scorecard is missing
+        from .notices import record as record_notice
+        record_notice(project, "render", "The retention scorecard could not be made for this export.", e)
     compose_project(project, aspect)  # restore the preview composition (captions on) after a no-captions export
     project.update_meta(status="rendered")
     progress("mux", 1.0, "done")

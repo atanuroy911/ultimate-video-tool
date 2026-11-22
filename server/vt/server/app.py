@@ -236,6 +236,7 @@ def project_summary(p: Project) -> dict:
         "usecase_used": read_json(p.dir / "usecase.json"),
         "ai_notice": (lambda n: n if n and n.get("message") else None)(read_json(p.dir / "ai_notice.json")),
         "ai_brief": (read_json(p.dir / "ai_notice.json") or {}).get("brief"),
+        "notices": (read_json(p.dir / "notices.json", []) or [])[-8:],          # optional extras that were skipped, and why (vt/notices.py, W4.3)
         "video_kind": (read_json(p.dir / "script_kind.json", {}) or {}).get("kind") or "explainer",
         "source_mode": (read_json(p.dir / "source.json", {}) or {}).get("mode") or "audio",
         "active_job": (jobs.active_for(p.id).public() if jobs.active_for(p.id) else None),
@@ -2412,6 +2413,14 @@ class ReqBody(BaseModel):
     scene_id: Optional[str] = None
     hint: str = ""
     alternatives: int = 1
+
+
+@app.delete("/api/projects/{pid}/notices")
+def clear_notices(pid: str) -> dict:
+    """The person read what was skipped (vt/notices.py)."""
+    write_json(proj(pid).dir / "notices.json", [])
+    changed(pid)
+    return {"ok": True}
 
 
 @app.delete("/api/projects/{pid}/plan-notice")

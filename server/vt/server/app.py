@@ -213,8 +213,9 @@ def proj(pid: str) -> Project:
     return p
 
 
-def changed(pid: str) -> None:
-    hub.emit({"type": "changed", "project": pid})
+def changed(pid: str, by: str = "person") -> None:
+    """A project changed through the API: by the person (the Studio), or by the director (W14.1). Agents' changes come from the file watcher."""
+    hub.emit({"type": "changed", "project": pid, "by": by})
 
 
 def project_summary(p: Project) -> dict:
@@ -1526,7 +1527,7 @@ def director_chat(pid: str, body: DirectorMessage) -> dict:
             res = chat.talk(p, with_refs(body.message, body.refs), say=lambda f, m: cb("director", 0.6 * f, m))
         except ai.AIUnavailable as e:
             raise RuntimeError(f"No AI could answer ({e}). Choose one in Settings > AI.") from e
-        changed(pid)
+        changed(pid, by="director")
         if res["ok"] and p.exports_dir.exists() and any(p.exports_dir.glob("*.mp4")):
             autopilot_finish(p, lambda s, f, m="": cb(s, 0.6 + 0.4 * f, m), again=True)
         return res

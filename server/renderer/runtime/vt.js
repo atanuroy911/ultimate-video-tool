@@ -999,28 +999,38 @@
      is cut straight from the recording. The page lasts end - start; the whole timeline is played through a tween from start to end, and every
      timed media element is moved by -start (trimmed at the edges), so frame t of this page is frame start + t of the whole video. */
   function clipToWindow(root, D) {
-    const w = window.__VT_WINDOW;
+    // C11: one or more stretches of the video played back to back (window.__VT_WINDOWS = [{start, end}, ...], or window.__VT_WINDOW = {start, end}),
+    // so the renderer starts once for every designed stretch of a long talk. Timed media get one copy per stretch they show in.
+    const ws = (window.__VT_WINDOWS || (window.__VT_WINDOW ? [window.__VT_WINDOW] : [])).filter((w) => w && w.end > w.start);
     window.__vtClipped = null;
-    if (!w || !(w.end > w.start)) return;
-    const dur = w.end - w.start;
-    root.setAttribute("data-duration", String(dur));
+    if (!ws.length) return;
+    const offs = []; let total = 0;
+    for (const w of ws) { offs.push(total); total += w.end - w.start; }
+    root.setAttribute("data-duration", String(total));
     root.querySelectorAll("[data-start]").forEach((el) => {
       if (el === root) return;
-      let s = +el.getAttribute("data-start") - w.start, d = +(el.getAttribute("data-duration") || 0), ms = +(el.getAttribute("data-media-start") || 0);
-      if (s < 0) { ms -= s; d += s; s = 0; }
-      if (s + d > dur) d = dur - s;
-      if (d <= 0.001) { el.remove(); return; }
-      el.setAttribute("data-start", String(s));
-      el.setAttribute("data-duration", String(d));
-      if (el.hasAttribute("data-media-start")) el.setAttribute("data-media-start", String(ms));
+      const s0 = +el.getAttribute("data-start"), d0 = +(el.getAttribute("data-duration") || 0), m0 = +(el.getAttribute("data-media-start") || 0);
+      const parts = [];
+      ws.forEach((w, k) => {
+        const a = Math.max(s0, w.start), b = Math.min(s0 + d0, w.end);
+        if (b - a > 0.001) parts.push({ s: offs[k] + (a - w.start), d: b - a, ms: m0 + (a - s0) });
+      });
+      if (!parts.length) { el.remove(); return; }
+      parts.forEach((part, i) => {
+        const node = i === 0 ? el : el.cloneNode(true);
+        node.setAttribute("data-start", String(part.s));
+        node.setAttribute("data-duration", String(part.d));
+        if (el.hasAttribute("data-media-start")) node.setAttribute("data-media-start", String(part.ms));
+        if (i > 0) el.parentNode.insertBefore(node, el.nextSibling);
+      });
     });
     try {
-    const outer = gsap.timeline({ paused: true });
-    outer.add(tl.tweenFromTo(w.start, w.end, { duration: dur, ease: "none" }), 0);
-    outer.set(root, { opacity: 1 }, Math.max(0, dur - 0.001));
-    window.__timelines[D.comp_id || "root"] = outer;
-    window.__vtClipped = outer;                                   // the page registers window.__vt.timeline() again after the build
-    outer.time(0);
+      const outer = gsap.timeline({ paused: true });
+      ws.forEach((w, k) => outer.add(tl.tweenFromTo(w.start, w.end, { duration: w.end - w.start, ease: "none", immediateRender: false }), offs[k]));
+      outer.set(root, { opacity: 1 }, Math.max(0, total - 0.001));
+      window.__timelines[D.comp_id || "root"] = outer;
+      window.__vtClipped = outer;                                   // the page registers window.__vt.timeline() again after the build
+      outer.time(0);
     } catch (e) { console.error("clipToWindow", e && e.stack || e); }
   }
 

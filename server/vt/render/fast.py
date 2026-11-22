@@ -155,7 +155,7 @@ def plain_piece(aroll: Path, comp_dir: Path, data: dict, t0: float, t1: float, o
     return out
 
 
-def _prune(html: str, t0: float, t1: float, margin: float = 1.0) -> str:
+def _prune(html: str, t0: float, t1: float, margin: float = 1.0, windows: Optional[list[tuple[float, float]]] = None) -> str:
     """The page's data (window.__VT__) with only the scenes, captions and layer clips near the window. Times stay as they are (the runtime
     shifts the whole timeline), so nothing inside a kept scene changes."""
     import json
@@ -170,7 +170,8 @@ def _prune(html: str, t0: float, t1: float, margin: float = 1.0) -> str:
         d = json.loads(body)
     except ValueError:
         return html
-    near = lambda s, e: float(e) > t0 - margin and float(s) < t1 + margin              # noqa: E731
+    spans = windows or [(t0, t1)]
+    near = lambda s, e: any(float(e) > a - margin and float(s) < b + margin for a, b in spans)              # noqa: E731
     d["scenes"] = [sc for sc in d.get("scenes", []) if near(sc["start"], sc["end"])]
     d["captions"] = [c for c in d.get("captions", []) if near(c["start"], c["end"])]
     d["cues"] = []                                                       # sounds are mixed later, not drawn
@@ -213,6 +214,37 @@ def join(pieces: list[Path], out: Path, *, fps: int, gpu: bool = True) -> Path:
     return out
 
 
+def designed_all(comp_dir: Path, windows: list[tuple[float, float]], out: Path, *, fps: int, quality: str, gpu: bool,
+                 on_progress: Optional[Callable[[float, str], None]] = None) -> Path:
+    """Every designed stretch on one page, back to back (window.__VT_WINDOWS), drawn by the renderer in one go: it starts its browsers once."""
+    import json
+    import re
+
+    from .hyperframes import render_silent
+
+    total = sum(b - a for a, b in windows)
+    page = comp_dir / "windows.html"
+    html = _prune((comp_dir / "index.html").read_text(encoding="utf-8"), 0, 0, windows=windows)
+    html = re.sub(r'(<div[^>]*id="root"[^>]*?data-duration=")[^"]*(")', lambda m: f"{m.group(1)}{total:.3f}{m.group(2)}", html, count=1)
+    tag = "<script>window.__VT_WINDOWS=" + json.dumps([{"start": a, "end": b} for a, b in windows]) + ";</script>"
+    at = html.find("<script")
+    page.write_text(html[:at] + tag + html[at:] if at >= 0 else tag + html, encoding="utf-8")
+    try:
+        render_silent(comp_dir, out, fps=fps, quality=quality, gpu=gpu, on_progress=on_progress, page=page.name)
+    finally:
+        page.unlink(missing_ok=True)
+    return out
+
+
+def cut_piece(src: Path, start: float, dur: float, out: Path, *, fps: int, gpu: bool) -> Path:
+    """A stretch of the drawn video, frame-exact (re-encoded: a cut that must land between key frames)."""
+    cmd = [find_tool("ffmpeg"), "-y", "-v", "error", "-i", str(src), "-ss", f"{start:.3f}", "-t", f"{dur:.3f}", "-an", *_encoder(gpu), "-r", str(fps), str(out)]
+    r = subprocess.run(cmd, capture_output=True, text=True, creationflags=CREATE_NO_WINDOW)
+    if r.returncode != 0:
+        raise RuntimeError("a drawn stretch could not be cut: " + r.stderr[-300:])
+    return out
+
+
 def render_silent_fast(project, comp_dir: Path, data: dict, out: Path, *, fps: int, quality: str, gpu: bool,
                        on_progress: Callable[[float, str], None] = lambda f, m: None) -> Optional[Path]:
     """The whole silent video by runs, or None when this video is not mostly plain A-roll (the caller then renders it the usual way)."""
@@ -234,6 +266,16 @@ def render_silent_fast(project, comp_dir: Path, data: dict, out: Path, *, fps: i
     except Exception as e:                                               # noqa: BLE001 — the ASS captions below are close enough
         import logging
         logging.getLogger(__name__).warning("caption stills failed, using ASS captions: %s", e, exc_info=True)
+    designed = [(s, e) for k, s, e in rs if k == "designed"]
+    drawn = None
+    if designed:                                                         # all designed stretches in one render: the browsers start once
+        drawn = designed_all(comp_dir, designed, work / "designed.mp4", fps=fps, quality=quality, gpu=gpu,
+                             on_progress=lambda f, m: on_progress(0.05 + 0.6 * f, f"Drawing the designed scenes: {m}"))
+    offset = {}
+    o = 0.0
+    for s, e in designed:
+        offset[(s, e)] = o
+        o += e - s
     done = 0.0
     pieces = []
     for i, (kind, s, e) in enumerate(rs):
@@ -244,8 +286,7 @@ def render_silent_fast(project, comp_dir: Path, data: dict, out: Path, *, fps: i
             on_progress(base, f"Cutting the speaker's stretch {s:.0f}-{e:.0f} s")
             plain_piece(aroll, comp_dir, data, s, e, piece, gpu=gpu, track=track)
         else:
-            designed_piece(comp_dir, s, e, piece, fps=fps, quality=quality, gpu=gpu,
-                           on_progress=lambda f, m, b=base, sh=share: on_progress(b + sh * f, f"Drawing {s:.0f}-{e:.0f} s: {m}"))
+            cut_piece(drawn, offset[(s, e)], e - s, piece, fps=fps, gpu=gpu)
         pieces.append(piece)
         done += e - s
     on_progress(0.98, "Joining the pieces")

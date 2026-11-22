@@ -135,6 +135,14 @@ export function fromProject(v: ProjectView): ProjectDoc {
       name: v.elementName ? v.elementName(e.type) : e.type, kind: 'text', props: { text: v.elementName ? v.elementName(e.type) : e.type } });
   }
 
+  // stick-figure actions (W11.1, ported from the classic timeline): one row above the elements, moved and trimmed like any clip
+  const acts = v.plan.scenes.flatMap((s) => (s.stick?.actions ?? []).map((a, k) => ({ id: `act:${s.id}:${k}`, label: `${a.who} ${a.do}`, start: a.start, end: Math.max(a.end, a.start + 1 / fps) })));
+  if (acts.length) {
+    tracks.V9 = { kind: 'video', name: 'Actions' };
+    order.unshift('V9');
+    for (const a of acts) items.push({ id: a.id, track: 'V9', startFrame: f(a.start, fps), durationInFrames: Math.max(1, f(a.end - a.start, fps)), name: a.label, kind: 'text', props: { text: a.label } });
+  }
+
   // scenes with their backdrop
   order.push('V1');
   tracks.V1 = { kind: 'video', name: 'Scenes' };

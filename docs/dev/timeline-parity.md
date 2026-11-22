@@ -19,7 +19,7 @@ Classic: `client/studio/src/review/Timeline.tsx`, `LayerLanes.tsx`, `MotionClip.
 | Selected range on the voice (drag across) | yes | pick mode exists for pointing the assistant; not for edits | to port |
 | Add a text layer at the playhead; add a picture/video/sound from files; add a track | yes | yes (text; files via the library and the track menu; TrackCreateControl adds a track) | same |
 | Sounds lane (laughter, applause found in the voice; "Listen for sounds") | yes | no | to port |
-| Actions lane (stick-figure actions: drag, trim, select to edit) | yes | no | to port |
+| Actions lane (stick-figure actions: drag, trim, delete) | yes | **ported 2026-11-22** (an Actions track; moves, trims and deletes saved as the same action edits; test) | ported (selecting one to edit it in the inspector: still Classic) |
 | Motion clip from a picture (MotionClip.tsx: ComfyUI image-to-video) | yes (from a layer clip) | no | to port (the clip itself is slow on a 6 GB card, C7) |
 
 Nothing is dropped yet. Classic stays until every "to port" row is done (W11.2).

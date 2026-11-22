@@ -148,3 +148,19 @@ test('a narration piece turned down or muted becomes the same gain or mute on ou
   const muted = edit((c) => c.setItemVolume(VOICE_ID, 0)).ops;
   assert.deepEqual(muted.map((o) => o.kind), ['voice-mute']);
 });
+
+test('stick-figure actions are a track; moving or deleting one is saved as the same action edit as on the classic timeline (W11.1)', () => {
+  const stick = { cast: [], actions: [{ who: 'A', do: 'wave', at_word: 'w1', start: 0.5, end: 1.5 }, { who: 'B', do: 'jump', at_word: 'w2', start: 1.6, end: 2.0 }] };
+  const withActs = { ...view, plan: { ...view.plan, scenes: view.plan.scenes.map((s, i) => (i === 0 ? { ...s, stick } : s)) } };
+  const doc = fromProject(withActs);
+  const items = doc.timelines[0].items.filter((i) => i.id.startsWith('act:'));
+  assert.deepEqual(items.map((i) => [i.id, i.name]), [['act:s1:0', 'A wave'], ['act:s1:1', 'B jump']]);
+  const draft = makeDraft(doc);
+  draft.commands.removeItem('act:s1:1');
+  draft.commands.moveItem('act:s1:0', { startFrame: 30 });
+  const { ops } = planSave(activeEditorState(doc), draft.getState(), 30, withActs.layers);
+  assert.deepEqual(ops.filter((o) => o.kind === 'action'), [
+    { kind: 'action', scene: 's1', index: 0, body: { patch: { start: 1, end: 2 } } },
+    { kind: 'action', scene: 's1', index: 1, body: { delete: true } },
+  ]);
+});

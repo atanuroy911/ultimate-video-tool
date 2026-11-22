@@ -20,6 +20,7 @@ export type SaveOp =
   | { kind: 'scene-split'; scene: string; t: number }
   | { kind: 'scene-remove'; scene: string }
   | { kind: 'voice-cut'; start: number; end: number }
+  | { kind: 'action'; scene: string; index: number; body: { patch: { start: number; end: number } } | { delete: true } }
   | { kind: 'voice-gain'; start: number; end: number; db: number }
   | { kind: 'voice-mute'; start: number; end: number };
 
@@ -134,6 +135,17 @@ export function planSave(before: TimelineState, after: TimelineState, fps: numbe
     }
   });
   ops.push(...sceneOps);
+
+  // stick-figure actions: timing, then deletes from the last index back (W11.1)
+  const actDeletes: SaveOp[] = [];
+  for (const id of before.items.filter(ours('act:')).map((i) => i.id)) {
+    const [, scene, k] = id.split(':');
+    const index = Number(k), a = was.get(id)!, b = now.get(id);
+    if (!b) { actDeletes.push({ kind: 'action', scene, index, body: { delete: true } }); continue; }
+    if (b.startFrame !== a.startFrame || b.durationInFrames !== a.durationInFrames)
+      ops.push({ kind: 'action', scene, index, body: { patch: { start: sec(b.startFrame, fps), end: sec(end(b), fps) } } });
+  }
+  ops.push(...actDeletes.sort((x, y) => (x.kind === 'action' && y.kind === 'action' && x.scene === y.scene ? y.index - x.index : 0)));
 
   // the narration. With words, OpenChatCut edits it as a word stream: a split gives each piece its own words, deleting words in its
   // transcript view marks them deleted. So a cut is the run of our words no longer played by any piece, from its first word to the next

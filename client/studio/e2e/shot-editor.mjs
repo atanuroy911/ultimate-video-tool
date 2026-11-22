@@ -31,7 +31,7 @@ check("the shot loads in a frame with no access to the Studio", await page.$eval
 // Find the element on screen: the bridge says where it is when picked; click the middle of the canvas region the shot puts it in.
 const canvas = await page.$eval(".shot-canvas", (e) => { const r = e.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; });
 const info = await api("GET", shotApi);
-const where = { q: [0.5, 0.64], title: [0.3, 0.42] }[target] || [0.5, 0.5];
+const where = { q: [0.5, 0.64], title: [0.3, 0.42], head: [0.25, 0.36] }[target] || [0.5, 0.5];
 await page.mouse.click(canvas.x + canvas.w * where[0], canvas.y + canvas.h * where[1]);
 const sel = page.locator(".shot-sel");
 await sel.waitFor({ timeout: 5000 }).catch(() => {});

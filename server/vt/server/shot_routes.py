@@ -152,3 +152,63 @@ def frame_crop(pid: str, t: float, x: int = 0, y: int = 0, w: int = 0, h: int = 
     buf = io.BytesIO()
     im.save(buf, "PNG")
     return Response(buf.getvalue(), media_type="image/png")
+
+
+# ---- O2: edit a shot in the HyperFrames Studio (docs/plans/PLAN-OPENMOTION.MD) ----
+
+def _studio_call(fn, *a, **k):
+    from .. import shot_studio as ST
+
+    try:
+        return fn(*a, **k)
+    except (ST.StudioError, SH.ShotError) as e:
+        raise HTTPException(422, str(e))
+
+
+@router.post("/api/projects/{pid}/shots/{sid}/studio")
+def studio_open(pid: str, sid: str) -> dict[str, Any]:
+    """Start the HyperFrames Studio on this shot (one shot at a time; another open one is saved and closed). Returns the Studio's local address."""
+    from .. import shot_studio as ST
+
+    d = _shot(pid, sid)
+    return _studio_call(ST.open_shot, f"{pid}/{sid}", d, SH.theme_vars(project_or_404(pid)))
+
+
+@router.get("/api/projects/{pid}/shots/{sid}/studio")
+def studio_status(pid: str, sid: str) -> dict[str, Any]:
+    from .. import shot_studio as ST
+
+    s = ST.status()
+    return s if s.get("key") == f"{pid}/{sid}" else {"open": False}
+
+
+@router.post("/api/projects/{pid}/shots/{sid}/studio/save")
+def studio_save(pid: str, sid: str) -> dict[str, Any]:
+    """Copy the Studio's edits into the shot now (the Studio stays open)."""
+    from .. import shot_studio as ST
+
+    _shot(pid, sid)
+    got = _studio_call(ST.save, f"{pid}/{sid}")
+    if got.get("changed"):
+        _changed(pid)
+    return got
+
+
+@router.delete("/api/projects/{pid}/shots/{sid}/studio")
+def studio_close(pid: str, sid: str) -> dict[str, Any]:
+    """Save the edits and stop the Studio."""
+    from .. import shot_studio as ST
+
+    got = _studio_call(ST.close, f"{pid}/{sid}")
+    if got.get("changed"):
+        _changed(pid)
+    return got
+
+
+def _changed(pid: str) -> None:
+    try:
+        from .app import changed
+
+        changed(pid, by="person")
+    except Exception:                                    # noqa: BLE001  the edit is saved; only the live refresh is missed
+        pass

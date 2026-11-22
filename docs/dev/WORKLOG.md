@@ -640,3 +640,9 @@ C11: fast render for long recordings (vt/render/fast.py): 1321 s instead of 8103
 - speak puts the line in the media bin as a sound. Auto themes: 4,000 text pairs checked, all 4.69:1 or better; a test guards it.
 - Running: the owner's talk re-planned with today's fixes (local AI), then the fast render.
 
+
+## 2026-11-23 early morning
+- Owner: "We need EXACTLY this kind of editing" (OpenMotion). Found that OpenMotion's editor is the HyperFrames Studio (we already render with HyperFrames); plan docs/plans/PLAN-OPENMOTION.MD (O1-O8).
+- O1: renderer on HyperFrames 0.9.81 (tests pass).
+- O2: shot editor **Studio** tab opens the HyperFrames Studio on the shot (own window; it refuses frames), edits come back on Save to video / Done / close; changes made elsewhere meanwhile are never overwritten. pytest 4/4, browser suite 10/10 (retype in the Studio's Design panel reaches the shot). A canvas drag on an animated title became a GSAP keyframe; our renderer drew it.
+- Next: O3 (bake runtime scenes into HyperFrames source), then O4 (whole video as a HyperFrames project).

@@ -98,6 +98,16 @@ async def _startup() -> None:
     asyncio.create_task(_watch_files())
 
 
+@app.on_event("shutdown")
+def _shutdown() -> None:
+    from ..shot_studio import close as close_studio          # a shot open in the HyperFrames Studio keeps its edits when the server stops
+
+    try:
+        close_studio()
+    except Exception:                                        # noqa: BLE001
+        pass
+
+
 
 def scene_hashes(p: Project) -> dict[str, str]:
     import hashlib

@@ -3,7 +3,7 @@
 // override saved next to the shot's code, never a change to the code. Click an element to select it, drag it, pull the corner to scale, the top dot to rotate.
 import { Eye, EyeOff, Pause, Play, Redo2, RotateCcw, Undo2, X } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { get, put } from "../api";
+import { del, get, post as apiPost, put } from "../api";
 import { toast } from "../store";
 import * as E from "./shotEdit";
 import "./shot-editor.css";
@@ -29,7 +29,8 @@ export default function ShotEditor({ projectId, shotId, onClose }: { projectId: 
   const [playing, setPlaying] = useState(false);
   const [scale, setScale] = useState(0.3);
   const [saving, setSaving] = useState<"saved" | "saving" | "error">("saved");
-  const [tab, setTab] = useState<"design" | "code">("design");
+  const [tab, setTab] = useState<"design" | "code" | "studio">("design");
+  const [studio, setStudio] = useState<{ url?: string; state: "off" | "starting" | "open" | "saving"; note?: string }>({ state: "off" });
   const [pageRev, setPageRev] = useState(0);                       // bumps when the code changed: the frame loads the new page
   const drag = useRef<Drag | null>(null);
   const shown = live ?? hist.now;
@@ -116,6 +117,60 @@ export default function ShotEditor({ projectId, shotId, onClose }: { projectId: 
       return false;
     }
   };
+  /** O2 (docs/plans/PLAN-OPENMOTION.MD): the HyperFrames Studio edits this shot's code directly. The server starts it on this computer and copies its
+   *  edits back into the shot when the person saves, leaves the Studio tab or closes the editor. */
+  const reload = useCallback(async () => {
+    const s = await get<ShotInfo>(base);
+    setInfo(s);
+    setReady(null);
+    setPageRev((n) => n + 1);
+  }, [base]);
+  // The Studio refuses to be shown inside another page's frame (it sends X-Frame-Options), so it opens as its own window: an app window in the
+  // desktop app, a tab in a browser. Same window name: opening again brings the same window back.
+  const studioWin = useRef<Window | null>(null);
+  const showStudio = (url: string) => { studioWin.current = window.open(url, "vt-hyperframes-studio"); };
+  const openStudio = async () => {
+    setSel(null);
+    setTab("studio");
+    if (studio.state === "open") return;
+    setStudio({ state: "starting" });
+    try {
+      const s = await apiPost<{ url: string }>(`${base}/studio`);
+      setStudio({ state: "open", url: s.url });
+      showStudio(s.url);
+    } catch (e: any) {
+      setStudio({ state: "off", note: e.message });
+      toast(`The Studio did not open: ${e.message}`, "err");
+    }
+  };
+  const saveStudio = async () => {
+    setStudio((s) => ({ ...s, state: "saving" }));
+    try {
+      const got = await apiPost<{ saved: boolean; changed?: boolean; reason?: string }>(`${base}/studio/save`);
+      setStudio((s) => ({ ...s, state: "open", note: got.saved ? (got.changed ? "Saved into the video." : "Nothing new to save.") : got.reason }));
+      if (got.changed) await reload();
+    } catch (e: any) {
+      setStudio((s) => ({ ...s, state: "open", note: e.message }));
+    }
+  };
+  const closeStudio = useCallback(async (then?: () => void) => {
+    try {
+      const got = await del<{ saved?: boolean; changed?: boolean; reason?: string }>(`${base}/studio`);
+      if (got.saved === false && got.reason) toast(got.reason, "err");
+      if (got.changed) await reload();
+    } catch (e: any) {
+      toast(`The Studio's edits were not saved: ${e.message}`, "err");
+    }
+    try { studioWin.current?.close(); } catch { /* a window we may not close */ }
+    studioWin.current = null;
+    setStudio({ state: "off" });
+    then?.();
+  }, [base, reload]);
+  const studioOn = useRef(false);
+  studioOn.current = studio.state !== "off";
+  useEffect(() => () => { if (studioOn.current) void del(`${base}/studio`).catch(() => {}); }, [base]);
+  const leaveStudio = (next: "design" | "code") => { if (studio.state !== "off") void closeStudio(); setTab(next); };
+
   const orphans = Object.keys(hist.now.elements).filter((id) => info && !info.ids.includes(id));
   const el = sel ? shown.elements[sel] ?? {} : null;
   const declared = useMemo(() => E.declaredKnobs(info?.html ?? ""), [info]);
@@ -167,16 +222,41 @@ export default function ShotEditor({ projectId, shotId, onClose }: { projectId: 
       <div className="shot-bar">
         <strong>{info.title}</strong>
         <div className="shot-tabs" role="tablist" aria-label="View">
-          <button role="tab" aria-selected={tab === "design"} className={tab === "design" ? "on" : ""} onClick={() => setTab("design")}>Design</button>
-          <button role="tab" aria-selected={tab === "code"} className={tab === "code" ? "on" : ""} onClick={() => { setSel(null); setTab("code"); }}>Code</button>
+          <button role="tab" aria-selected={tab === "design"} className={tab === "design" ? "on" : ""} onClick={() => leaveStudio("design")}>Design</button>
+          <button role="tab" aria-selected={tab === "code"} className={tab === "code" ? "on" : ""} onClick={() => { setSel(null); leaveStudio("code"); }}>Code</button>
+          <button role="tab" aria-selected={tab === "studio"} className={tab === "studio" ? "on" : ""} onClick={openStudio}
+                  title="Edit in the HyperFrames Studio: move, resize, retype and animate the shot's own code, with layers and a timeline">Studio</button>
         </div>
-        <span className="muted small">{saving === "saving" ? "Saving…" : saving === "error" ? "Not saved" : "Saved"}</span>
+        {tab === "studio" ? (
+          <>
+            <span className="muted small" role="status">{studio.state === "starting" ? "Starting the Studio…" : studio.state === "saving" ? "Saving…" : studio.note ?? "Edits go into the video when you save or leave the Studio."}</span>
+            <span className="grow" />
+            <button className="btn sm" disabled={studio.state !== "open"} onClick={saveStudio}>Save to video</button>
+          </>
+        ) : (
+          <span className="muted small">{saving === "saving" ? "Saving…" : saving === "error" ? "Not saved" : "Saved"}</span>
+        )}
         <span className="grow" />
         <button className="btn ghost icon sm" aria-label="Undo" title="Undo (Ctrl+Z)" disabled={!hist.past.length} onClick={() => setHist(E.undo)}><Undo2 size={15} /></button>
         <button className="btn ghost icon sm" aria-label="Redo" title="Redo (Ctrl+Shift+Z)" disabled={!hist.future.length} onClick={() => setHist(E.redo)}><Redo2 size={15} /></button>
         <button className="btn ghost sm" onClick={() => change(E.EMPTY)} disabled={!Object.keys(hist.now.elements).length && !Object.keys(hist.now.knobs).length} title="Remove every edit: the shot as its code draws it">Reset all</button>
-        <button className="btn ghost icon sm" aria-label="Close the shot editor" onClick={onClose}><X size={16} /></button>
+        <button className="btn ghost icon sm" aria-label="Close the shot editor" onClick={() => (studio.state !== "off" ? closeStudio(onClose) : onClose())}><X size={16} /></button>
       </div>
+      {tab === "studio" ? (
+        <div className="shot-body shot-studio">
+          {studio.url ? (
+            <div className="shot-studio-card">
+              <h3>{info.title} is open in the Studio</h3>
+              <p className="small muted">Select anything on the canvas or in Layers to move, resize, retype or animate it; the timeline and keyframes are under the picture.
+                Come back here and press <b>Save to video</b>, or <b>Done</b> to save and close the Studio.</p>
+              <div className="row">
+                <button className="btn sm" onClick={() => showStudio(studio.url!)}>Show the Studio</button>
+                <button className="btn sm" disabled={studio.state !== "open"} onClick={() => closeStudio(() => setTab("design"))}>Done</button>
+              </div>
+            </div>
+          ) : <p className="small muted" role="status">{studio.state === "starting" ? "Starting the Studio for this shot…" : studio.note ?? ""}</p>}
+        </div>
+      ) : (
       <div className="shot-body">
         <div className="shot-stage" ref={box}>
           <div className="shot-canvas" style={{ width: info.width * scale, height: info.height * scale }}
@@ -257,6 +337,7 @@ export default function ShotEditor({ projectId, shotId, onClose }: { projectId: 
         </aside>
         )}
       </div>
+      )}
     </div>
   );
 }

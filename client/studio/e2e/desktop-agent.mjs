@@ -16,9 +16,12 @@ const home = fs.mkdtempSync(path.join(os.tmpdir(), "vt-desktop-agent-"));
 let pass = 0, fail = 0;
 const check = (name, ok, extra = "") => { (ok ? pass++ : fail++); console.log(`${ok ? "ok  " : "FAIL"} ${name}${extra ? "  " + extra : ""}`); };
 
-const env = { ...process.env, UVT_DEV_HOME: home };
+// VT_PACKAGED=<path to the built app's exe> runs the packaged app (W12.6) with its own AppData folder, so it never shares the installed app's settings
+const packaged = process.env.VT_PACKAGED || "";
+const env = { ...process.env, UVT_DEV_HOME: home, ...(packaged ? { APPDATA: path.join(home, "appdata") } : {}) };
 delete env.ELECTRON_RUN_AS_NODE;
-const app = await electron.launch({ executablePath: exe, args: [desktop, "--server", server], env });
+const app = packaged ? await electron.launch({ executablePath: packaged, args: ["--server", server], env })
+  : await electron.launch({ executablePath: exe, args: [desktop, "--server", server], env });
 try {
   const page = await app.firstWindow();
   const errors = [];
@@ -49,7 +52,7 @@ try {
   check("a shell command asks first", (await card.textContent()).includes("wants to run a command"), (await card.textContent()).slice(0, 100));
   await page.getByRole("button", { name: "Deny" }).click();
   await page.getByRole("button", { name: "Send" }).waitFor({ timeout: 120000 });
-  const probe = path.join(home, "client", "agents", pid, "vt_probe.txt");
+  const probe = packaged ? path.join(home, "appdata", "Video Tool", "agents", pid, "vt_probe.txt") : path.join(home, "client", "agents", pid, "vt_probe.txt");
   check("Deny was respected: nothing was written", !fs.existsSync(probe));
   await page.screenshot({ path: process.env.VT_SHOT_PNG || "desktop-agent.png" });
   check("no page errors", errors.length === 0, errors.join(" | "));

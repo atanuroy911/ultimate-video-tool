@@ -643,7 +643,7 @@ Before starting, read `E:\openfilm-a1b8d75\apps\desktop\src\agents.mjs` lines 1â
   _Status: Done 2026-11-21 (`client/desktop/test/fake-acp-agent.mjs`, `test-acp-agents.js`, in CI)._
   Check: `node client/desktop/test-acp-agents.js` green on Windows here, and in CI on Linux.
 
-- [x] **W12.6 Real run with Claude Code (Sonnet).** In the installed desktop client on this PC (rebuild and reinstall), open a real project on the installed server. In the Assistant, choose **Claude Code**, model **Sonnet**. Ask: "Make the opening line bigger and move it to the top third." Confirm:
+- [x] (2026-11-22: also on the packaged build, dist/win-unpacked with its own AppData: e2e/desktop-agent.mjs VT_PACKAGED, 7/7 with real Claude; the installed client was not replaced because it was running) **W12.6 Real run with Claude Code (Sonnet).** In the installed desktop client on this PC (rebuild and reinstall), open a real project on the installed server. In the Assistant, choose **Claude Code**, model **Sonnet**. Ask: "Make the opening line bigger and move it to the top third." Confirm:
   _Status: Done for Claude 2026-11-21 from source (`client/studio/e2e/desktop-agent.mjs`: the real app, real Claude Code, our tools asked nothing, a shell command raised a card and Deny was respected). Not yet on a rebuilt installer; Codex not installed here._
   1. The steps show while it works, using our MCP tools.
   2. The preview and timeline update (after W14; before W14, after a reload).

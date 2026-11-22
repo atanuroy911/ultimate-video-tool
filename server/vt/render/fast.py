@@ -230,7 +230,9 @@ def designed_all(comp_dir: Path, windows: list[tuple[float, float]], out: Path, 
     at = html.find("<script")
     page.write_text(html[:at] + tag + html[at:] if at >= 0 else tag + html, encoding="utf-8")
     try:
-        render_silent(comp_dir, out, fps=fps, quality=quality, gpu=gpu, on_progress=on_progress, page=page.name)
+        import os
+        workers = max(2, min(8, (os.cpu_count() or 4) // 2))          # the drawn stretches are short: more browsers help (4 by default, 6 on 12 cores)
+        render_silent(comp_dir, out, fps=fps, quality=quality, gpu=gpu, on_progress=on_progress, page=page.name, workers=workers)
     finally:
         page.unlink(missing_ok=True)
     return out
@@ -276,19 +278,20 @@ def render_silent_fast(project, comp_dir: Path, data: dict, out: Path, *, fps: i
     for s, e in designed:
         offset[(s, e)] = o
         o += e - s
-    done = 0.0
-    pieces = []
-    for i, (kind, s, e) in enumerate(rs):
-        piece = work / f"{i:03d}-{kind}.mp4"
-        base = done / total
-        share = (e - s) / total
+    from concurrent.futures import ThreadPoolExecutor
+
+    pieces = [work / f"{i:03d}-{kind}.mp4" for i, (kind, s, e) in enumerate(rs)]
+
+    def make(i: int) -> None:
+        kind, s, e = rs[i]
         if kind == "plain":
-            on_progress(base, f"Cutting the speaker's stretch {s:.0f}-{e:.0f} s")
-            plain_piece(aroll, comp_dir, data, s, e, piece, gpu=gpu, track=track)
+            plain_piece(aroll, comp_dir, data, s, e, pieces[i], gpu=gpu, track=track)
         else:
-            cut_piece(drawn, offset[(s, e)], e - s, piece, fps=fps, gpu=gpu)
-        pieces.append(piece)
-        done += e - s
+            cut_piece(drawn, offset[(s, e)], e - s, pieces[i], fps=fps, gpu=gpu)
+    on_progress(0.7, f"Cutting {len(rs)} stretches")
+    with ThreadPoolExecutor(max_workers=3) as pool:                    # ffmpeg jobs side by side (NVENC takes several sessions at once)
+        for _ in pool.map(make, range(len(rs))):
+            pass
     on_progress(0.98, "Joining the pieces")
     join(pieces, out, fps=fps, gpu=gpu)
     import shutil
@@ -328,10 +331,10 @@ def caption_stills(comp_dir: Path, data: dict, captions: list[dict], work: Path)
     backup.write_text(full, encoding="utf-8")
     try:
         index.write_text(html, encoding="utf-8")
-        for i in range(0, len(times), 120):                               # a few hundred moments per call keeps the command line short
-            got = snapshot(comp_dir, work / f"caps-{i:05d}", times[i:i + 120])
+        for i in range(0, len(times), 300):                               # 300 moments per call: fewer browser starts, a command line still well under the limit
+            got = snapshot(comp_dir, work / f"caps-{i:05d}", times[i:i + 300])
             got = sorted(got, key=lambda p: int(re.search(r"frame-(\d+)", p.name).group(1)))      # frame-10 comes before frame-100 by number, not by text
-            shots.extend(got[: len(times[i:i + 120])])
+            shots.extend(got[: len(times[i:i + 300])])
     finally:
         index.write_text(full, encoding="utf-8")
         backup.unlink(missing_ok=True)

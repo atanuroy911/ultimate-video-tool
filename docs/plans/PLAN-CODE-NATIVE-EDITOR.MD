@@ -149,6 +149,8 @@ No setting needs to be turned on. When a long recording with a person talking is
 4. Join the pieces with the concat demuxer (same size, frame rate, pixel format), then add the voice and music once over the whole.
 5. Check that it looks the same: render 20 s of the talk both ways and compare frames (the caption may differ by a pixel; the picture must not).
 
+**Found while starting (2026-11-22):** `hyperframes render` (0.8.181) has no time-range option (`--help` checked). So step 3 needs the composer to write one clipped page per designed run: the same index.html with `data-duration` = run length, and our runtime (`server/renderer/runtime`) offsetting the master timeline by the run's start (nest the master GSAP timeline in a wrapper at -t0, and offset `<video>` currentTime the same way). Render each clipped page with `-c`. Caption ASS styling: read the theme's caption fields in `vt/compose/composer.py` (captions are drawn by the runtime today).
+
 **Also:** a frame that does not change (a still slide) need not be captured 30 times a second; and the `draft` quality could capture at 15 fps and let the encoder double it.
 
 **Done when:** the owner's talk renders in under 15 minutes on this laptop and a side-by-side of 10 moments shows the same picture and captions.

@@ -10,7 +10,7 @@ First run: all suites one after another on one shared project (`c2-mix`). Second
 | shot-editor | pass alone (17/17 earlier); failed on the shared project | another suite removed the scene's shot | keep; its own copy of a project with a shot |
 | contrast | one theme fails (`auto-026-10-31-lab-mixed-wide`: text 1.14:1) and the suite timed out over 90+ themes | **real**: an old auto theme has unreadable text; the suite is too slow to check every saved theme | issue noted; limit the suite to built-in themes plus new auto themes |
 | crawl | 4 problems: 404s on a project deleted mid-run | another suite deleted the project | keep; run alone |
-| editor | fails at "elements carry an index" | the old `/pro` page and the "reference" demo project (the retired "yield" sample) | rewrite in W15.2 |
+| editor | 20/20 after the rewrite (2026-11-22: workbench page; picks a scene with two or more elements; pane resizing left to e2e/workbench.mjs; Settings sections) | old /pro page + demo project | rewritten |
 | journey | `samples/audio/bn_plain.mp3` missing | the sample was removed with the "yield" sample | rewrite in W15.2 with a fresh test recording |
 | export | 8/8 after the rewrite (2026-11-22: the project is a parameter, not the old "reference" demo) | hardcoded demo project | rewritten |
 | sounds | 5/5 after the rewrite (2026-11-22: workbench page; needs a project never listened to: delete its sounds_events.json) | old /pro page | rewritten |

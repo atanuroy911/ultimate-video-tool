@@ -56,16 +56,66 @@ def suggest_prompt(project, scene_id: str) -> str:
     return f"A clear illustration of: {words[:300]}. One subject, simple background, no text." if words else "A clear illustration, one subject, simple background, no text."
 
 
-def generate(project, scene_id: str, prompt: str, *, count: int = 4, recipe: str = "", seed: Optional[int] = None, client=None,
+PROMPT_RULES = (
+    "Each prompt describes one picture that a picture model can draw well. It must be self-contained: say the place, what is visible and how big "
+    "it is in the frame, and how any person looks (age, clothes), since the model knows nothing else. Describe only visible things, never an absence "
+    "or an idea the eye cannot see. Prefer one clear subject; for a rare pose or action choose a close-up. No writing, letters, numbers or logos in "
+    "the picture. Plain English, one to three sentences, under 60 words."
+)
+PROMPTS_SCHEMA = {
+    "type": "object", "required": ["prompts"],
+    "properties": {"prompts": {"type": "array", "minItems": 1, "maxItems": MAX_COUNT, "items": {
+        "type": "object", "required": ["idea", "prompt"],
+        "properties": {"idea": {"type": "string", "maxLength": 60}, "prompt": {"type": "string", "minLength": 10, "maxLength": 600}}}}},
+}
+
+
+def write_prompts(project, scene_id: str, count: int = 4, note: str = "", provider=None) -> list[dict]:
+    """G3: `count` different picture prompts for the scene, written by the AI chosen in Settings from what is said there and around it.
+    Each is {idea, prompt}; the person edits them before anything is drawn. Raises GenError in plain words when no AI can answer."""
+    from .ai.providers import AIUnavailable, complete_json, ensure_ai
+
+    count = max(1, min(MAX_COUNT, int(count)))
+    words = scene_words(project, scene_id)
+    sf = project.scenes()
+    ids = [s.id for s in sf.scenes]
+    i = ids.index(scene_id)
+    around = lambda j: scene_words(project, ids[j]) if 0 <= j < len(ids) else ""          # noqa: E731
+    meta = project.meta()
+    ask = (f"A {'Bangla' if meta.language == 'bn' else 'English'} explainer video titled \"{meta.title}\".\n"
+           f"Said just before this scene: \"{around(i - 1)[:400]}\"\n"
+           f"Said in this scene: \"{words[:800]}\"\n"
+           f"Said just after: \"{around(i + 1)[:400]}\"\n"
+           + (f"The person adds: \"{note.strip()[:300]}\"\n" if note.strip() else "")
+           + f"\nWrite {count} picture prompts for the picture behind this scene. Make them clearly different from each other "
+           f"(another subject, another angle or another way to show the same point), each with a short idea name of two to five words.\n{PROMPT_RULES}\n"
+           "Answer as JSON: {\"prompts\": [{\"idea\": ..., \"prompt\": ...}]}.")
+    try:
+        p = provider or ensure_ai()
+        got = complete_json(ask, PROMPTS_SCHEMA, provider=p, system="You write prompts for a picture model, for one scene of a video.",
+                            max_tokens=1500, timeout=240, temperature=0.8, cache=False)
+    except AIUnavailable as e:
+        raise GenError(f"No AI could write prompts: {str(e)[:200]} Choose one in Settings > AI, or write the prompt yourself.") from e
+    out, seen = [], set()
+    for x in got["prompts"]:
+        key = x["prompt"].strip().lower()
+        if key not in seen:
+            seen.add(key)
+            out.append({"idea": x["idea"].strip()[:60], "prompt": x["prompt"].strip()[:600]})
+    return out[:count]
+
+
+def generate(project, scene_id: str, prompt: str, *, count: int = 4, recipe: str = "", seed: Optional[int] = None, client=None, prompts: Optional[list[str]] = None,
              progress: Callable[[float, str], None] = lambda f, m: None, cancelled: Callable[[], bool] = lambda: False) -> dict:
     """Draw `count` pictures for the scene, one after another, saving the run after each so the panel shows them as they come."""
     from .comfy import ComfyClient, ComfyError, generate_still, picture_workflow
     from .server.comfy_routes import comfy_url
 
-    prompt = (prompt or "").strip()
+    prompts = [p.strip()[:600] for p in (prompts or []) if p and len(p.strip()) >= 3][:MAX_COUNT]      # G3: one picture from each of these
+    prompt = (prompt or (prompts[0] if prompts else "")).strip()
     if len(prompt) < 3:
         raise GenError("Write what the picture should show.")
-    count = max(1, min(MAX_COUNT, int(count)))
+    count = len(prompts) if prompts else max(1, min(MAX_COUNT, int(count)))
     scene_words(project, scene_id)                                       # the scene exists
     own = client is None
     client = client or ComfyClient(comfy_url())
@@ -84,10 +134,11 @@ def generate(project, scene_id: str, prompt: str, *, count: int = 4, recipe: str
                 break
             progress(i / count, f"Picture {i + 1} of {count}")
             try:
-                item, rec = generate_still(project, client, workflow, prompt[:600], aspect=project.meta().aspect, seed=first + i, caption=prompt[:80],
+                said = prompts[i] if prompts else prompt[:600]
+                item, rec = generate_still(project, client, workflow, said, aspect=project.meta().aspect, seed=first + i, caption=said[:80],
                                            scene=scene_id, checked=i > 0, cancelled=cancelled,
                                            progress=lambda f, m, i=i: progress((i + f) / count, f"Picture {i + 1} of {count}: {m}"))
-                run["items"].append({"media": item.id, "seed": rec.get("seed", first + i), "seconds": rec.get("seconds_taken")})
+                run["items"].append({"media": item.id, "seed": rec.get("seed", first + i), "seconds": rec.get("seconds_taken"), **({"prompt": said} if prompts else {})})
             except ComfyError as e:
                 if getattr(e, "kind", "") == "cancelled":
                     break

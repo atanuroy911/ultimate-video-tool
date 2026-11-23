@@ -1,12 +1,12 @@
 // G1/G4 (docs/plans/PLAN-SCENE-TOOLS.MD): pictures for one scene, three columns like a generation studio: the chosen picture large (left), every
 // picture made for the scene (middle: Use, Redraw, Forget), the setup (right: prompt, model, how many, Generate, progress). The pictures are drawn by
 // the picture engine the person chose (ComfyUI); each lands in the media bin too. Using one shows the scene with it (undoable like every edit).
-import { Check, Clapperboard, ImagePlus, Loader2, RefreshCw, Trash2, X } from "lucide-react";
+import { Check, Clapperboard, ImagePlus, Loader2, RefreshCw, Sparkles, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { del, get, post } from "../api";
 import { toast } from "../store";
 
-interface Item { media?: string; seed: number; seconds?: number; error?: string; kind?: "clip"; from?: string }
+interface Item { media?: string; prompt?: string; seed: number; seconds?: number; error?: string; kind?: "clip"; from?: string }
 interface Run { id: string; kind?: "clip"; from?: string; prompt: string; recipe: string; model: string; count: number; made_at: number; items: Item[] }
 interface Info { runs: Run[]; prompt: string; words: string; models: { id: string; label: string; note?: string; seconds?: number }[]; clip_models?: { id: string; label: string }[] }
 interface Media { id: string; url: string; kind: string; caption?: string }
@@ -31,8 +31,10 @@ export default function ScenePictures({ projectId, sceneId, sceneLabel, onClose,
   const [model, setModel] = useState("");
   const [count, setCount] = useState(4);
   const [clipModel, setClipModel] = useState("");
+  const [ideas, setIdeas] = useState<{ idea: string; prompt: string }[]>([]);          // G3: prompts written by the AI, edited before drawing
+  const [writing, setWriting] = useState(false);
   const [clipLength, setClipLength] = useState(3);
-  const [job, setJob] = useState<{ id: string; frac: number; msg: string; clip?: boolean } | null>(null);
+  const [job, setJob] = useState<{ id: string; frac: number; msg: string; clip?: boolean; n?: number } | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
 
@@ -68,13 +70,25 @@ export default function ScenePictures({ projectId, sceneId, sceneLabel, onClose,
     return () => { stop = true; };
   }, [job?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const generate = async (p = prompt, n = count, seed?: number) => {
+  const generate = async (p = prompt, n = count, seed?: number, many?: string[]) => {
     setProblem(null);
     try {
-      const j = await post<{ id: string }>(`${base}?quiet=1`, { prompt: p, count: n, recipe: model, ...(seed != null ? { seed } : {}) });          // the panel shows its own progress
-      setJob({ id: j.id, frac: 0, msg: "Starting the picture engine" });
+      const j = await post<{ id: string }>(`${base}?quiet=1`, { prompt: p, count: many ? many.length : n, recipe: model, ...(many ? { prompts: many } : {}), ...(seed != null ? { seed } : {}) });          // the panel shows its own progress
+      setJob({ id: j.id, frac: 0, msg: "Starting the picture engine", n: many ? many.length : n });
     } catch (e: any) {
       setProblem(e.message);
+    }
+  };
+  const writePrompts = async () => {
+    setProblem(null);
+    setWriting(true);
+    try {
+      const r = await post<{ prompts: { idea: string; prompt: string }[] }>(`${base}/prompts?quiet=1`, { count });
+      setIdeas(r.prompts);
+    } catch (e: any) {
+      setProblem(e.message);
+    } finally {
+      setWriting(false);
     }
   };
   const move = async (m: string, p: string) => {                          // G2: the picture is the clip's first frame
@@ -134,25 +148,49 @@ export default function ScenePictures({ projectId, sceneId, sceneLabel, onClose,
                 {it.media && media[it.media]
                   ? <button className={`scene-pics-thumb ${it.kind === "clip" ? "clip" : ""}`} aria-label={`Show ${it.kind === "clip" ? "clip" : "picture"} with seed ${it.seed}`} onClick={() => setPicked(it.media!)}><Shown m={media[it.media]} /></button>
                   : <div className="scene-pics-thumb failed small" title={it.error}>{it.error ? "Not made" : <Loader2 className="spin" size={18} />}</div>}
-                <div className="scene-pics-meta small muted" title={run.prompt}>{it.kind === "clip" ? "Clip · " : ""}Seed {it.seed}{it.seconds ? ` · ${Math.round(it.seconds)} s` : ""}</div>
+                <div className="scene-pics-meta small muted" title={it.prompt || run.prompt}>{it.kind === "clip" ? "Clip · " : ""}Seed {it.seed}{it.seconds ? ` · ${Math.round(it.seconds)} s` : ""}</div>
                 <div className="row">
                   {it.media && <button className="btn sm" onClick={() => use(it.media!)}>Use</button>}
                   {it.kind === "clip"
                     ? <button className="btn ghost sm" disabled={!!job || !it.from} title="Make the clip again from the same picture with a new seed" onClick={() => move(it.from!, run.prompt)}><RefreshCw size={13} /> Again</button>
-                    : <button className="btn ghost sm" disabled={!!job} title="Draw this one again with the same prompt and a new seed" onClick={() => { setPrompt(run.prompt); generate(run.prompt, 1); }}><RefreshCw size={13} /> Redraw</button>}
-                  {it.media && it.kind !== "clip" && <button className="btn ghost sm" disabled={!!job} title={`Make a ${clipLength} s clip that starts on this picture`} onClick={() => move(it.media!, run.prompt)}><Clapperboard size={13} /> Make it move</button>}
+                    : <button className="btn ghost sm" disabled={!!job} title="Draw this one again with the same prompt and a new seed" onClick={() => { const p = it.prompt || run.prompt; setPrompt(p); generate(p, 1); }}><RefreshCw size={13} /> Redraw</button>}
+                  {it.media && it.kind !== "clip" && <button className="btn ghost sm" disabled={!!job} title={`Make a ${clipLength} s clip that starts on this picture`} onClick={() => move(it.media!, it.prompt || run.prompt)}><Clapperboard size={13} /> Make it move</button>}
                   {it.media && <button className="btn ghost icon sm" aria-label="Forget this picture" title="Take it out of this list (it stays in the media bin)" onClick={() => forget(it.media!)}><Trash2 size={13} /></button>}
                 </div>
               </div>
             ))}
-            {job && Array.from({ length: job.clip ? 1 : Math.max(0, count - Math.round(job.frac * count)) }).map((_, i) => (
+            {job && Array.from({ length: job.clip ? 1 : Math.max(0, (job.n ?? count) - Math.round(job.frac * (job.n ?? count))) }).map((_, i) => (
               <div key={`wait-${i}`} className="scene-pics-card waiting" role="listitem"><div className="scene-pics-thumb"><Loader2 className="spin" size={18} /></div></div>
             ))}
           </div>
         </section>
         <aside className="scene-pics-setup" aria-label="What to make">
           <label className="field">What the picture shows
-            <textarea rows={6} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Say what the picture shows, in plain words." /></label>
+            <textarea rows={5} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Say what the picture shows, in plain words." /></label>
+          <button className="btn sm" disabled={writing || !!job} onClick={writePrompts} title={`The AI chosen in Settings writes ${count} different prompts from what is said in and around this scene`}>
+            {writing ? <><Loader2 className="spin" size={13} /> Writing prompts…</> : <><Sparkles size={13} /> Write {count} prompts for me</>}</button>
+          {ideas.length > 0 && (
+            <div className="scene-pics-ideas">
+              <div className="row"><strong className="small">Prompt ideas</strong><span className="grow" />
+                <button className="btn primary sm" disabled={!!job || ideas.every((x) => x.prompt.trim().length < 3)} onClick={() => generate(ideas[0].prompt, ideas.length, undefined, ideas.map((x) => x.prompt))}>
+                  <ImagePlus size={13} /> Draw all {ideas.length}</button>
+                <button className="btn ghost icon sm" aria-label="Clear the prompt ideas" onClick={() => setIdeas([])}><X size={13} /></button></div>
+              <div role="list" aria-label="Written prompts">
+                {ideas.map((x, i) => (
+                  <div key={i} role="listitem" className="scene-pics-idea">
+                    <span className="small muted">{x.idea}</span>
+                    <textarea rows={3} aria-label={`Prompt: ${x.idea}`} value={x.prompt} onChange={(e) => setIdeas((all) => all.map((y, k) => (k === i ? { ...y, prompt: e.target.value } : y)))} />
+                    <div className="row">
+                      <button className="btn ghost sm" onClick={() => setPrompt(x.prompt)} title="Put it in the prompt above">Use</button>
+                      <button className="btn ghost sm" disabled={!!job || x.prompt.trim().length < 3} onClick={() => generate(x.prompt, 1)}>Draw one</button>
+                      <span className="grow" />
+                      <button className="btn ghost icon sm" aria-label={`Remove the idea ${x.idea}`} onClick={() => setIdeas((all) => all.filter((_, k) => k !== i))}><Trash2 size={13} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <label className="field">Model
             <select value={model} onChange={(e) => setModel(e.target.value)}>
               <option value="">The one chosen in Settings</option>

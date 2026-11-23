@@ -58,6 +58,27 @@ await page.waitForTimeout(500);
 await alert.waitFor({ timeout: 60000 }).catch(() => {});
 check("Make it move with no picture engine says so plainly", /picture engine/i.test(await alert.textContent().catch(() => "")), (await alert.textContent().catch(() => "")).slice(0, 120));
 
+// G3: the AI writes different prompts for the scene (Claude through this PC's login, set on the scratch server for this call), each editable
+const settingsFile = path.join(process.env.VT_DATA || "E:/UltimateVideoTool/scratch/c2-data", "settings.json");
+const settings0 = fs.readFileSync(settingsFile, "utf8");
+fs.writeFileSync(settingsFile, JSON.stringify({ ...JSON.parse(settings0), ai_provider: "claude_cli", claude_cli_model: "sonnet" }, null, 2));
+try {
+  await panel.getByRole("radio", { name: "4" }).click();
+  await panel.getByRole("button", { name: "Write 4 prompts for me" }).click();
+  const ideas = panel.getByRole("list", { name: "Written prompts" }).getByRole("listitem");
+  await ideas.first().waitFor({ timeout: 180000 }).catch(() => {});
+  const n = await ideas.count();
+  const texts = await Promise.all(Array.from({ length: n }, (_, i) => ideas.nth(i).locator("textarea").inputValue()));
+  check("Write prompts for me gives different, editable prompts", n >= 3 && new Set(texts).size === n && texts.every((t) => t.length > 20), `${n}: ${texts[0]?.slice(0, 70)}`);
+  await ideas.first().locator("textarea").fill("a calm wrist with a smartwatch, close-up");
+  await ideas.first().getByRole("button", { name: "Use" }).click();
+  check("an idea, edited, goes into the prompt", (await panel.getByLabel("What the picture shows").inputValue()) === "a calm wrist with a smartwatch, close-up");
+  check("Draw all offers one picture per idea", await panel.getByRole("button", { name: `Draw all ${n}` }).isVisible());
+  await page.screenshot({ path: "e2e/out/g3-written-prompts.png" });
+} finally {
+  fs.writeFileSync(settingsFile, settings0);
+}
+
 // use it
 await panel.getByRole("button", { name: "Use for this scene" }).click();
 await page.waitForTimeout(2500);

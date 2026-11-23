@@ -29,9 +29,10 @@ def scene_pictures(pid: str, sid: str) -> dict[str, Any]:
 
 
 class GenBody(BaseModel):
-    prompt: str = Field(min_length=3, max_length=600)
+    prompt: str = Field(default="", max_length=600)
     count: int = Field(default=4, ge=1, le=G.MAX_COUNT)
     recipe: str = ""
+    prompts: list[str] = Field(default_factory=list, max_length=G.MAX_COUNT)
     seed: Optional[int] = Field(default=None, ge=0, le=2**31 - 1)
 
 
@@ -43,12 +44,14 @@ def scene_pictures_generate(pid: str, sid: str, body: GenBody, request: Request)
         G.scene_words(p, sid)
     except G.GenError as e:
         raise HTTPException(404, str(e))
+    if len(body.prompt.strip()) < 3 and not any(len(x.strip()) >= 3 for x in body.prompts):
+        raise HTTPException(422, "Write what the picture should show.")
     jobs = request.app.state.jobs
     mine: dict = {}
 
     def work(cb):
         try:
-            run = G.generate(p, sid, body.prompt, count=body.count, recipe=body.recipe, seed=body.seed, progress=lambda f, m: cb("pictures", f, m),
+            run = G.generate(p, sid, body.prompt, count=body.count, recipe=body.recipe, seed=body.seed, prompts=body.prompts, progress=lambda f, m: cb("pictures", f, m),
                              cancelled=lambda: bool(mine.get("job") and mine["job"].cancel.is_set()))
         except G.GenError as e:
             raise RuntimeError(str(e)) from e
@@ -64,6 +67,21 @@ def scene_pictures_generate(pid: str, sid: str, body: GenBody, request: Request)
     except JobBusy as e:
         raise HTTPException(409, "Pictures are already being made for this video.") from e
     return mine["job"].public()
+
+
+class PromptsBody(BaseModel):
+    count: int = Field(default=4, ge=1, le=G.MAX_COUNT)
+    note: str = Field(default="", max_length=300)
+
+
+@router.post("/projects/{pid}/scenes/{sid}/pictures/prompts")
+def scene_picture_prompts(pid: str, sid: str, body: PromptsBody) -> dict:
+    """G3: different picture prompts for the scene, written by the AI chosen in Settings; nothing is drawn until the person picks."""
+    p = project_or_404(pid)
+    try:
+        return {"prompts": G.write_prompts(p, sid, body.count, body.note)}
+    except G.GenError as e:
+        raise HTTPException(422, str(e))
 
 
 class MoveBody(BaseModel):

@@ -46,4 +46,10 @@ Order: S1, S2, G1, G4, S3, G2, G3, S4.
 - **G2 done:** each picture has *Make it move* (a 3 or 5 s clip that starts on it; the clip model from the list or "Any that runs"); clips show in the grid
   next to their picture and play large on the left; *Use* shows a clip behind the scene. `scene_gen.animate`, `POST .../pictures/{media}/move` (a job).
   Tests: test_scene_gen 4/4, scene-pictures 9/9. Screens: s3-scene-parts.png, g2-make-it-move.png. Real clips not tried (no ComfyUI here).
-- Next: G3 (prompts written by the Director / Claude Code), S4.
+- **G3 done:** *Write N prompts for me* under the prompt: the AI chosen in Settings writes N different prompts from what is said in the scene and
+  around it, with the drawable-prompt rules (self-contained place, people and scale; only visible things; close-up for rare poses; no writing).
+  Each is an editable card (*Use*, *Draw one*, remove); *Draw all N* makes one picture from each in one run, and each picture keeps its own prompt
+  for *Redraw*. `scene_gen.write_prompts`, `POST .../pictures/prompts`. Real test: Sonnet wrote 4 distinct prompts for c2-mix s4 in 7 s. Tests:
+  test_scene_gen 6/6, scene-pictures 12/12. Screen: g3-written-prompts.png.
+- Left: reference pictures in the setup (not built), S4, and real pictures/clips once a picture engine runs here.
+- Next: S4.

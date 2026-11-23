@@ -131,3 +131,32 @@ def test_a_picture_made_to_move_is_kept_as_a_clip_next_to_it(ref, engine, monkey
     assert h["runs"][0]["items"][0]["kind"] == "clip" and h["runs"][0]["items"][0]["from"] == pic
     with pytest.raises(G.GenError):
         G.animate(ref, sid, "nope")
+
+
+def test_prompts_are_written_for_the_scene_from_what_is_said(ref):
+    """G3: the AI chosen in Settings writes different prompts from the scene's words; repeats are dropped; with no AI it says so plainly."""
+    from vt import scene_gen as G
+    from vt.ai.providers import AIUnavailable, FakeProvider
+
+    sid = ref.scenes().scenes[1].id
+    words = G.scene_words(ref, sid)
+    fake = FakeProvider([{"prompts": [{"idea": "Close-up", "prompt": "A close-up of a hand holding a phone, soft light, plain grey wall behind."},
+                                      {"idea": "Same again", "prompt": "a close-up of a hand holding a phone, soft light, plain grey wall behind."},
+                                      {"idea": "Wide view", "prompt": "A wide view of a small kitchen in the morning, a woman of thirty in a blue shirt."}]}])
+    got = G.write_prompts(ref, sid, 3, note="warm colours", provider=fake)
+    assert [g["idea"] for g in got] == ["Close-up", "Wide view"], "a repeated prompt is dropped"
+    asked = fake.calls[0]["prompt"]
+    assert words[:40] in asked and "warm colours" in asked and "Write 3 picture prompts" in asked
+    assert "self-contained" in asked and "No writing" in asked
+    with pytest.raises(G.GenError, match="No AI could write prompts"):
+        G.write_prompts(ref, sid, 2, provider=FakeProvider([AIUnavailable("the local AI is off")]))
+
+
+def test_one_picture_from_each_written_prompt(ref, engine):
+    """G3: "Draw all" makes one picture from each prompt in one run; each picture keeps its own prompt (Redraw uses it)."""
+    from vt import scene_gen as G
+
+    sid = ref.scenes().scenes[0].id
+    run = G.generate(ref, sid, "", prompts=["a red kite over a field", "  ", "a boy reading under a tree"], seed=10)
+    assert run["count"] == 2 and [i["prompt"] for i in run["items"]] == ["a red kite over a field", "a boy reading under a tree"]
+    assert [m.caption for m in ref.meta().media if m.id in {i["media"] for i in run["items"]}] == ["a red kite over a field", "a boy reading under a tree"]

@@ -18,6 +18,7 @@ from . import shot_studio as ST
 from .bake import bake
 
 BASELINE = ".baked.html"           # the page as baked, to tell edits from no edits
+BASE_OF = {"index.html": BASELINE, "captions.html": ".baked-captions.html"}
 STAMP = ".baked.json"              # what it was baked from
 
 
@@ -44,7 +45,7 @@ def without_captions(src: Path, dst: Path) -> Path:
 
     if dst.exists():
         shutil.rmtree(dst)
-    shutil.copytree(src, dst, copy_function=_link_or_copy, ignore=shutil.ignore_patterns(BASELINE, STAMP, "captions.html"))
+    shutil.copytree(src, dst, copy_function=_link_or_copy, ignore=shutil.ignore_patterns(BASELINE, BASE_OF["captions.html"], STAMP, "captions.html"))
     page = dst / "index.html"
     page.write_text(HOST.sub("", page.read_text(encoding="utf-8")), encoding="utf-8")
     return dst
@@ -55,7 +56,7 @@ def info(project, tag: str, comp_dir: Optional[Path] = None) -> dict:
     d = folder(project, tag)
     if not (d / "index.html").exists() or not (d / BASELINE).exists():
         return {"baked": False, "edited": False, "current": False}
-    edited = (d / "index.html").read_bytes() != (d / BASELINE).read_bytes()
+    edited = any((d / f).exists() and (d / b).exists() and (d / f).read_bytes() != (d / b).read_bytes() for f, b in BASE_OF.items())
     try:
         stamp = json.loads((d / STAMP).read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -70,7 +71,11 @@ def prepare(project, tag: str, comp_dir: Path, *, fresh: bool = False) -> dict:
     have = info(project, tag, comp_dir)
     if have["baked"] and have["current"] and not fresh:
         return {**have, "kept": True}
-    if have["edited"] and not have["current"]:                     # older edits: kept beside, never thrown away silently
+    earlier = {}
+    if have["edited"] and not have["current"]:                     # older edits: carried into the new bake where they still fit, and kept beside
+        for f, b in BASE_OF.items():
+            if (d / f).exists() and (d / b).exists():
+                earlier[f] = ((d / b).read_text(encoding="utf-8"), (d / f).read_text(encoding="utf-8"))
         old = project.dir / f"studio-{tag}.old"
         shutil.rmtree(old, ignore_errors=True)
         shutil.move(str(d), str(old))
@@ -79,9 +84,25 @@ def prepare(project, tag: str, comp_dir: Path, *, fresh: bool = False) -> dict:
         shutil.rmtree(d, ignore_errors=True)
         raise ST.StudioError(f"This video has {got['lost_count']} animation step(s) the Studio cannot hold yet (for example stick figures, whose "
                              "limbs are drawn by code every frame). Edit it in Video Tool's own editor for now.")
-    shutil.copy(d / "index.html", d / BASELINE)
+    for f, b in BASE_OF.items():
+        if (d / f).exists():
+            shutil.copy(d / f, d / b)
     (d / STAMP).write_text(json.dumps({"from": fingerprint(comp_dir), "lost": got["lost"][:20], "lost_count": got["lost_count"]}, indent=1), encoding="utf-8")
-    return {**info(project, tag, comp_dir), "kept": False, "lost_count": got["lost_count"]}
+    carried = missed = 0
+    if not fresh:
+        for f, (base, mine) in earlier.items():
+            if not (d / f).exists():
+                continue
+            text, c, m = carry(base, mine, (d / f).read_text(encoding="utf-8"))
+            if f == "index.html" and c:
+                from . import shots as SH
+                try:
+                    SH.info_of("video", text, {})
+                except SH.ShotError:
+                    text, c, m = (d / f).read_text(encoding="utf-8"), 0, c + m
+            (d / f).write_text(text, encoding="utf-8")
+            carried, missed = carried + c, missed + m
+    return {**info(project, tag, comp_dir), "kept": False, "lost_count": got["lost_count"], "carried": carried, "missed": missed}
 
 
 def open_video(project, tag: str, comp_dir: Path, *, fresh: bool = False) -> dict:
@@ -102,12 +123,22 @@ def for_render(project, tag: str, comp_dir: Path, captions: bool = True) -> tupl
     have = info(project, tag, comp_dir)
     if not have["edited"]:
         return comp_dir, None
-    if have["current"]:
-        if not captions:
-            return without_captions(Path(have["dir"]), project.dir / f".studio-{tag}-nocaptions"), None
-        return Path(have["dir"]), None
-    return comp_dir, ("The video changed after it was edited in the Studio, so those Studio edits are not in this export. "
-                      "Open the Studio again to edit the new version (the old edits are kept in the project folder).")
+    note = None
+    if not have["current"]:                                         # the video changed since: bake it again and carry the Studio edits into it
+        try:
+            got = prepare(project, tag, comp_dir)
+        except Exception as e:                                       # noqa: BLE001
+            return comp_dir, (f"The video changed after it was edited in the Studio, and the Studio edits could not be carried into the new version ({e}). "
+                              "This export is the new version without them; the old edits are kept in the project folder.")
+        if got.get("missed"):
+            note = (f"The video changed after it was edited in the Studio. {got.get('carried', 0)} Studio change(s) were carried into the new version; "
+                    f"{got['missed']} no longer had a place (the part changed or is gone) and are kept in studio-{tag}.old.")
+        if not got.get("edited"):
+            return comp_dir, note
+    d = folder(project, tag)
+    if not captions:
+        return without_captions(d, project.dir / f".studio-{tag}-nocaptions"), note
+    return d, note
 
 
 # ---- O6: agents work on the same copy the person edits in the Studio ----
@@ -206,3 +237,73 @@ def selection(project, tag: str) -> dict:
     box = sel.get("boundingBox") or {}
     return {"selected": True, "id": t.get("id"), "selector": t.get("selector"), "label": sel.get("label"), "text": (sel.get("textContent") or "")[:200],
             "file": sel.get("sourceFile"), "time": sel.get("currentTime"), "box": [round(box.get(k, 0)) for k in ("x", "y", "width", "height")]}
+
+
+def _history(project, tag: str, *args: str) -> dict:
+    """HyperFrames' own history of the Studio copy (the Studio shows it and can undo it): `history <args> --json`, run in the copy's folder."""
+    import json as _json
+    import subprocess
+
+    from .render.hyperframes import _env, hyperframes_cmd
+
+    try:
+        out = subprocess.run(hyperframes_cmd("history", *args, "--json"), cwd=str(folder(project, tag)), capture_output=True, text=True,
+                             encoding="utf-8", errors="replace", timeout=60, env=_env()).stdout
+        return _json.loads(out[out.index("{"): out.rindex("}") + 1])
+    except Exception as e:                                           # noqa: BLE001  the edit itself never depends on the history
+        return {"ok": False, "error": {"message": str(e)[:160]}}
+
+
+def recorded_edit(project, tag: str, find: str, replace: str, file: str = "index.html", who: str = "Claude Code", label: str = "") -> dict:
+    """edit(), recorded as one entry of the Studio's history under `who` with `label`, so the person sees it there and can undo it."""
+    label = (label or "Changed the video").strip()[:80]
+    began = _history(project, tag, "begin", "--who", who, "--label", label)
+    try:
+        got = edit(project, tag, find, replace, file)
+    finally:
+        if began.get("entryId"):
+            _history(project, tag, "end")
+    return {**got, "history": label if began.get("entryId") else None}
+
+
+def undo(project, tag: str, who: str = "Claude Code") -> dict:
+    """Undo the newest change `who` made that is still in effect (from the Studio's history)."""
+    _page(project, tag)
+    got = _history(project, tag, "undo", "--who", who)
+    if not got.get("ok"):
+        raise ST.StudioError((got.get("error") or {}).get("message", "There was nothing to undo."))
+    return {"ok": True, "undid": str(got.get("label") or (got.get("entry") or {}).get("label") or "").replace("Undid: ", ""), "edited": info(project, tag)["edited"]}
+
+
+_TOKEN = re.compile(r"(?<=>)|(?<=\n)")
+
+
+def carry(base: str, mine: str, new: str, context: int = 3) -> tuple[str, int, int]:
+    """Apply the changes made from `base` to `mine` onto `new` (a fresh bake of a changed video). Each change is found in `new` by the code
+    around it (a few tags or lines before and after, and what it replaced); it is applied only where that is found exactly once.
+    Returns the new text, how many changes were carried and how many found no place."""
+    from difflib import SequenceMatcher
+
+    a, b, n = [t for t in _TOKEN.split(base) if t], [t for t in _TOKEN.split(mine) if t], [t for t in _TOKEN.split(new) if t]
+    plan, missed = [], 0
+    for op, i1, i2, j1, j2 in SequenceMatcher(None, a, b, autojunk=False).get_opcodes():
+        if op == "equal":
+            continue
+        before, removed, after = a[max(0, i1 - context): i1], a[i1:i2], a[i2: i2 + context]
+        start = None
+        for lead, tail in ((before, after), (before, []), ([], after)):        # the code around it, or only what comes before, or only after
+            need = lead + removed + tail
+            if not lead and not tail:
+                continue
+            hits = [p for p in range(len(n) - len(need) + 1) if n[p: p + len(need)] == need]
+            if len(hits) == 1:
+                start = hits[0] + len(lead)
+                break
+        if start is None:
+            missed += 1
+            continue
+        plan.append((start, start + len(removed), b[j1:j2]))
+    plan.sort(key=lambda x: x[0], reverse=True)
+    for s0, s1, put in plan:
+        n[s0:s1] = put
+    return "".join(n), len(plan), missed

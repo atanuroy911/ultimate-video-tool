@@ -115,3 +115,10 @@ recordings, Claude Code over ACP. Our own editor stays for those until each live
   in windows narrower than 1500 px, so the Studio fills the window below the title bar (1344 x 770 in the app's default 1360 x 880 window); the Studio
   menu has "Show / Hide the assistant". The Studio's own "Ask agent about this element" / "Describe a change to the agent" (and Ctrl+K) now open the
   docked Claude Code with "The part I selected in the Studio: " ready to finish. e2e desktop-studio 10/10.
+- **Studio edits survive changes to the video (2026-11-23):** when the plan changes after Studio edits (a Director note, a word edit, an element edited
+  in Video Tool's editor), the next Studio open or export bakes the new video and carries each Studio change into it, found by the code around it
+  (`video_studio.carry`, token diff of the old bake against the edited copy). Changes whose part is gone are counted and kept in `studio-<shape>.old`,
+  and the export says so. Agent edits are recorded in HyperFrames' own history under "Claude Code" with a plain label (the Studio shows it; `studio_undo`
+  takes it back). HyperFrames' update check and self-install are switched off (`HYPERFRAMES_NO_UPDATE_CHECK`, `HYPERFRAMES_NO_AUTO_INSTALL`).
+  Checked end to end on c2-mix: a Studio edit on scene 4, then scene 5 changed in the editor; the export shows both.
+- The Director stays plan-level (it rewrites the plan; the Studio edits are then carried). Claude Code is the agent for Studio-level changes.

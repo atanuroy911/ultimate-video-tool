@@ -896,13 +896,29 @@ def studio_part(project: str, part_id: str, aspect: Optional[str] = None) -> dic
 
 
 @tool
-def studio_edit(project: str, find: str, replace: str, file: str = "index.html", aspect: Optional[str] = None) -> dict:
+def studio_edit(project: str, find: str, replace: str, label: str = "", file: str = "index.html", aspect: Optional[str] = None) -> dict:
     """Change the Studio copy: replace one exact piece of its code (it must appear exactly once; copy it from studio_part). Text, styles and GSAP lines can all
-    be changed this way. The Studio, if open, reloads at once and the person sees it; the export draws the edited copy. file: index.html or captions.html."""
+    be changed this way. label: what you changed in a few plain words ("Bigger title"); it is the entry the person sees in the Studio's history and can undo.
+    The Studio, if open, reloads at once; the export draws the edited copy. file: index.html or captions.html. studio_undo takes it back."""
     from .. import video_studio as VS
 
     p, tag = _studio(project, aspect)
-    got = VS.edit(p, tag, find, replace, file)
+    got = VS.recorded_edit(p, tag, find, replace, file, who="Claude Code", label=label)
+    try:
+        from ..server.app import changed
+        changed(p.id, by="agent")
+    except Exception:                                                  # noqa: BLE001
+        pass
+    return got
+
+
+@tool
+def studio_undo(project: str, aspect: Optional[str] = None) -> dict:
+    """Take back your newest change to the Studio copy that is still in effect (the person can also undo it in the Studio's history)."""
+    from .. import video_studio as VS
+
+    p, tag = _studio(project, aspect)
+    got = VS.undo(p, tag, who="Claude Code")
     try:
         from ..server.app import changed
         changed(p.id, by="agent")

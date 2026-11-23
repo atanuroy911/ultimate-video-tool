@@ -52,6 +52,8 @@ def _env() -> dict[str, str]:
     env = dict(os.environ)
     env["HYPERFRAMES_NO_TELEMETRY"] = "1"
     env["DO_NOT_TRACK"] = "1"
+    env["HYPERFRAMES_NO_UPDATE_CHECK"] = "1"          # no look at npm for a newer version (it goes to the internet)
+    env["HYPERFRAMES_NO_AUTO_INSTALL"] = "1"          # and never install one by itself: the version is pinned in renderer/package.json
     return env
 
 

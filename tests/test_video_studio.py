@@ -48,12 +48,15 @@ def test_bake_edit_render_and_a_changed_video(video):
     assert VS.prepare(proj, "9x16", comp)["kept"], "opening again keeps the edits"
     assert "Each minute" in page.read_text(encoding="utf-8")
 
-    # the video changes afterwards (a new plan): the edits no longer fit it
+    # the video changes afterwards (a new plan): the export bakes it again and carries the Studio edit into it
     (comp / "data.json").write_text((comp / "data.json").read_text(encoding="utf-8").replace("more than you need", "more than enough"), encoding="utf-8")
     where, note = VS.for_render(proj, "9x16", comp)
-    assert where == comp and "changed after it was edited in the Studio" in note
+    assert where == d and note is None, note
+    assert VS.info(proj, "9x16", comp)["current"], "the Studio copy now fits the changed video"
+    (comp / "data.json").write_text((comp / "data.json").read_text(encoding="utf-8").replace("more than enough", "more than plenty"), encoding="utf-8")
     again = VS.prepare(proj, "9x16", comp)
-    assert not again["kept"] and not again["edited"]
+    assert not again["kept"] and again["edited"] and again["carried"] >= 1 and again["missed"] == 0, again
+    assert "Each minute" in page.read_text(encoding="utf-8"), "the Studio edit is carried into the new bake"
     assert "Each minute" in (proj.dir / "studio-9x16.old" / "index.html").read_text(encoding="utf-8"), "the old edits are kept aside"
 
 
@@ -126,3 +129,39 @@ def test_agents_read_and_change_the_studio_copy(video, tmp_path):
     with pytest.raises(ST.StudioError, match="timing"):
         VS.edit(proj, "9x16", 'data-composition-id="root"', 'data-x="root"')
     assert VS.selection(proj, "9x16")["selected"] is False
+
+
+def test_an_agent_edit_is_in_the_studio_history_and_can_be_undone(video, tmp_path):
+    import shutil
+
+    from vt import video_studio as VS
+
+    proj0, comp0 = video
+    proj = SimpleNamespace(id="h", dir=tmp_path / "h")
+    comp = proj.dir / "composition" / "9x16"
+    shutil.copytree(comp0, comp)
+    VS.prepare(proj, "9x16", comp)
+    page = VS.folder(proj, "9x16") / "index.html"
+    before = page.read_text(encoding="utf-8")
+    term = next(x for x in VS.parts(proj, "9x16") if x["id"] == "s1-defn-term")["text"]
+    got = VS.recorded_edit(proj, "9x16", f">{term}<", ">Each minute<", label="New words for the term")
+    assert got["ok"] and got["history"] == "New words for the term"
+    entries = VS._history(proj, "9x16", "--limit", "5").get("entries", [])
+    assert any(e["label"] == "New words for the term" and e["who"]["name"] == "Claude Code" for e in entries), entries
+    undone = VS.undo(proj, "9x16")
+    assert undone["ok"] and "New words" in undone["undid"]
+    assert page.read_text(encoding="utf-8") == before
+
+
+def test_studio_edits_survive_a_change_of_the_video():
+    from vt.video_studio import carry
+
+    base = '<div id="a">Hello</div>\n<div id="b">World</div>\n<script>\nt0.to(["a"].map($),{"opacity":1},0.5);\n</script>'
+    mine = base.replace(">Hello<", ">Hi there<").replace('{"opacity":1},0.5', '{"opacity":1},0.9')
+    new = base.replace(">World<", ">Everyone<")                       # the plan changed another part
+    text, carried, missed = carry(base, mine, new)
+    assert (carried, missed) == (2, 0)
+    assert ">Hi there<" in text and ">Everyone<" in text and '{"opacity":1},0.9' in text
+    gone = new.replace('<div id="a">Hello</div>\n', "")                # the part the person edited is no longer in the video
+    text, carried, missed = carry(base, mine, gone)
+    assert missed == 1 and ">Hi there<" not in text

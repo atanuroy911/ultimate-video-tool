@@ -120,6 +120,22 @@ try {
         if ((await pane.innerText()).replace(/\s+/g, " ").length < 120) empty.push(v);
       }
       check("Direction, Script, Sound and Media open beside HyperFrames", !empty.length, empty.join(", "));
+      // Elements beside HyperFrames: add a text to the scene HyperFrames is on; it reaches HyperFrames' copy by itself
+      {
+        const plan0 = (await page.evaluate(async (u) => (await fetch(u)).json(), `/api/projects/${pid}/scenes`)).plan;
+        const sid3 = sc[2].id, before = plan0.scenes.find((x) => x.id === sid3).elements.length;
+        await page.getByRole("tablist", { name: "What to see beside HyperFrames" }).getByRole("tab", { name: "Elements" }).click();
+        await pane.getByLabel("Search elements").fill("title");
+        const add = pane.getByRole("button", { name: /^Add / }).first();
+        await add.waitFor({ timeout: 8000 }).catch(() => {});
+        const name = (await add.getAttribute("aria-label")) || "";
+        await add.click();
+        await page.waitForTimeout(2500);
+        const after = (await page.evaluate(async (u) => (await fetch(u)).json(), `/api/projects/${pid}/scenes`)).plan.scenes.find((x) => x.id === sid3).elements.length;
+        check("Elements beside HyperFrames adds to the scene it is on", after === before + 1, `${name}: ${before} -> ${after}`);
+        await page.evaluate(async ([u, plan]) => fetch(u, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(plan) }), [`/api/projects/${pid}/scenes`, plan0]);
+        await page.waitForTimeout(2000);
+      }
       await page.screenshot({ path: path.join(repo, "studio", "e2e", "out", "o8-video-views.png") });
     } finally { fs.rmSync(outFile, { force: true }); }
   }

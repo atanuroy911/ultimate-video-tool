@@ -118,10 +118,25 @@ def _swap_in(src: Path, dst: Path) -> None:
     shutil.rmtree(src, ignore_errors=True)
 
 
+_locks: dict = {}
+_locks_guard = __import__("threading").Lock()
+
+
+def _lock_for(d: Path):
+    """One bake at a time per Studio folder: two at once would share the bake folder (a refresh asked while another runs waits for it)."""
+    with _locks_guard:
+        return _locks.setdefault(str(d).lower(), __import__("threading").Lock())
+
+
 def prepare(project, tag: str, comp_dir: Path, *, fresh: bool = False) -> dict:
     """Bake the composition for the Studio, unless edits made on this same composition are already there (they are kept). When the video changed since
     the Studio edits, the edits are carried into the new bake where they still fit (a copy of the old ones stays in studio-<shape>.old). The new files
     are moved into the Studio folder one by one, so an open Studio shows the new video."""
+    with _lock_for(folder(project, tag)):
+        return _prepare(project, tag, comp_dir, fresh=fresh)
+
+
+def _prepare(project, tag: str, comp_dir: Path, *, fresh: bool = False) -> dict:
     from .bake import _link_or_copy
 
     d = folder(project, tag)

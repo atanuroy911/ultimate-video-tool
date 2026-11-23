@@ -36,6 +36,7 @@ import TranscriptPanel from "../review/TranscriptPanel";
 import StudioButton from "../review/StudioButton";
 import StudioSceneBar from "../review/StudioSceneBar";
 import StudioInsights from "../review/StudioInsights";
+import { newSceneElement } from "../review/componentOps";
 import ScenePictures from "../review/ScenePictures";
 import VideoInspector from "../review/VideoInspector";
 import { useReview, type DirectorState } from "../review/useReview";
@@ -67,7 +68,7 @@ function ReviewEditor() {
   const player = useRef<PlayerHandle>(null);
   const [time, setTime] = useState(0);
   const [assistantTab, setAssistantTab] = useState<"director" | "claude" | "video">("director");
-  type VideoView = "scenes" | "direction" | "words" | "script" | "sound" | "media" | "outline" | "checks";
+  type VideoView = "scenes" | "direction" | "elements" | "words" | "script" | "sound" | "media" | "outline" | "checks";
   const [videoView, setVideoView] = useState<VideoView>("scenes");   // O8: the old editor's panels beside HyperFrames   // which conversation the Assistant pane shows
   const assistantTabRef = useRef(assistantTab);
   /** W13.3: open the assistant and give it what the person pointed at, as a pill: Claude Code in the desktop app, else the Director */
@@ -255,18 +256,30 @@ function ReviewEditor() {
   }, [studioUrl, studioScene, studioSel, studioAt, r.timing.scenes]);
   // O7: while the Studio is open, a change to the video (a word edit, a cut, a Director note) is baked again with the Studio edits carried over;
   // the open Studio reloads by itself. A short pause gathers several changes; the refresh's own composing is not taken as a change.
-  const studioQuiet = useRef(0), studioTimer = useRef<number | undefined>(undefined);
-  useChanged(id, useCallback(() => {
-    if (!studioUrl || Date.now() - studioQuiet.current < 4000) return;
+  const studioQuiet = useRef(0), studioTimer = useRef<number | undefined>(undefined), studioKept = useRef(true);
+  const studioBusy = useRef(false), studioAgain = useRef(false);
+  useChanged(id, useCallback(function onVideoChanged() {
+    if (!studioUrl) return;
+    if (studioBusy.current) { studioAgain.current = true; return; }      // one refresh at a time; a change meanwhile asks for one more after it
+    // Right after a refresh, its own composing reports a change. When that refresh found nothing new, the report is only its echo and is dropped;
+    // when it did carry something, a report in those seconds may be a real change made meanwhile: it is put off, not dropped. A refresh of an
+    // unchanged video answers "kept", so this always ends.
+    const wait = Math.max(0, 4000 - (Date.now() - studioQuiet.current));
+    if (wait > 0 && studioKept.current) return;
     window.clearTimeout(studioTimer.current);
     studioTimer.current = window.setTimeout(async () => {
+      studioBusy.current = true;
+      studioAgain.current = false;
       studioQuiet.current = Date.now();
       try {
         const got = await post<{ kept?: boolean; carried?: number; missed?: number }>(`/api/projects/${encodeURIComponent(id)}/studio/refresh`);
+        studioKept.current = !!got.kept;
         if (got.missed) toast(`The video changed: ${got.carried ?? 0} Studio change(s) carried over, ${got.missed} no longer had a place (kept aside in the project folder).`, "err");
-      } catch (e: any) { toast(`The Studio could not show the change: ${e.message}`, "err"); }
+      } catch (e: any) { studioKept.current = true; toast(`The Studio could not show the change: ${e.message}`, "err"); }
       studioQuiet.current = Date.now();
-    }, 1500);
+      studioBusy.current = false;
+      if (studioAgain.current) onVideoChanged();   // a change arrived while it ran: once more (that refresh's own echo, after an unchanged video, is dropped)
+    }, wait + 1500);
   }, [studioUrl, id]));
   useEffect(() => {                                                      // O6: the Studio's own "ask the agent" goes to the docked Claude Code
     if (!studioUrl) return;
@@ -821,11 +834,25 @@ function ReviewEditor() {
             <div className="wb-pane-heading"><strong>Assistant</strong><div className="wb-assistant-tabs" role="tablist" aria-label="Who to talk to"><button role="tab" aria-selected={assistantTab === "director"} className={assistantTab === "director" ? "on" : ""} onClick={() => setAssistantTab("director")}>Director</button><button role="tab" aria-selected={assistantTab === "claude"} className={assistantTab === "claude" ? "on" : ""} onClick={() => setAssistantTab("claude")}>Claude Code</button>{studioUrl && <button role="tab" aria-selected={assistantTab === "video"} className={assistantTab === "video" ? "on" : ""} onClick={() => setAssistantTab("video")} title="The video beside HyperFrames: scenes, direction, words, script, sound, media, outline and checks">Video</button>}</div><span className="grow" /><button className="btn ghost icon sm" aria-label="Close the assistant" onClick={() => setShowAssistant(false)}><X size={16} /></button></div>
             <div className="wb-assistant-scroll">{assistantTab === "video" && studioUrl && <div className="studio-video-pane">
               <div className="studio-video-views" role="tablist" aria-label="What to see beside HyperFrames">
-                {([["scenes", "Scenes"], ["direction", "Direction"], ["words", "Words"], ["script", "Script"], ["sound", "Sound"], ["media", "Media"], ["outline", "Outline"], ["checks", "Checks"]] as const).map(([v, label]) =>
+                {([["scenes", "Scenes"], ["direction", "Direction"], ["elements", "Elements"], ["words", "Words"], ["script", "Script"], ["sound", "Sound"], ["media", "Media"], ["outline", "Outline"], ["checks", "Checks"]] as const).map(([v, label]) =>
                   <button key={v} role="tab" aria-selected={videoView === v} className={videoView === v ? "on" : ""} onClick={() => setVideoView(v)}>{label}</button>)}
               </div>
               {videoView === "scenes" && <ScenesPanel r={r} selected={selected} onSelect={(sid) => { pickScene(sid); const sc = r.timing.scenes.find((x) => x.id === sid); if (sc) studioGo(sc.start + 0.05); }} seek={studioGo} />}
               {videoView === "direction" && ((r.timing.scenes[Math.min(studioScene, Math.max(0, r.timing.scenes.length - 1))]?.id) ? <DirectionPanel key={(r.timing.scenes[Math.min(studioScene, Math.max(0, r.timing.scenes.length - 1))]?.id)} r={r} sid={(r.timing.scenes[Math.min(studioScene, Math.max(0, r.timing.scenes.length - 1))]?.id)!} onElement={() => {}} /> : <p className="small muted" style={{ padding: 12 }}>This video has no scenes yet.</p>)}
+              {videoView === "elements" && (() => {                         // add a text, shape or diagram to the scene HyperFrames is on (through the plan; HyperFrames shows it after its refresh)
+                const st = r.timing.scenes[Math.min(studioScene, Math.max(0, r.timing.scenes.length - 1))];
+                const plan = st && r.plan?.scenes.find((x) => x.id === st.id);
+                const at = st && (r.words.find((w) => !w.cut && w.start >= (studioAt ?? st.start) - 0.01 && w.start < st.end) ?? r.words.find((w) => !w.cut && w.start >= st.start - 0.01 && w.start < st.end));
+                return <ComponentLibrary catalogue={cat} disabled={!plan || !at} reason={!plan ? "This video has no scenes yet." : !at ? "This scene has no words to time a visual to." : `Adding to scene ${studioScene + 1}, at “${at.text}”`}
+                  onAdd={async (spec) => {
+                    if (!plan || !at) return;
+                    try {
+                      const el = newSceneElement(spec, at.id, mediaList.data ?? []);
+                      await r.patchScene(plan.id, { elements: [...(plan.elements ?? []), { ...el, edited: true }] });
+                      toast(`Added to scene ${studioScene + 1}. HyperFrames shows it in a moment.`);
+                    } catch (e: any) { toast(e.message, "err"); }
+                  }} />;
+              })()}
               {videoView === "words" && <><CaptionLook r={r} /><TranscriptPanel r={r} time={time} playing={playing} seek={seek} selected={selected} onSelectScene={pickScene} editingId={editingId} setEditingId={setEditingId} /></>}
               {videoView === "script" && <ScriptPanel r={r} time={time} playing={playing} seek={studioGo} />}
               {videoView === "sound" && <div style={{ padding: 12 }}><SoundPanel r={r} /></div>}

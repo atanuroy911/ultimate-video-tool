@@ -7,11 +7,14 @@ import { del, post } from "../api";
 import { toast } from "../store";
 import { Button, MenuItem, Popover } from "../ds";
 
-export default function StudioButton({ projectId }: { projectId: string }) {
+// In the desktop app the Studio sits inside the editor (the app lets this one local page be framed); in a browser it opens its own window.
+const canEmbed = () => typeof window !== "undefined" && !!(window as any).vtDesktop;
+
+export default function StudioButton({ projectId, embedded, onEmbed }: { projectId: string; embedded?: boolean; onEmbed?: (url: string | null) => void }) {
   const [state, setState] = useState<"off" | "starting" | "open">("off");
   const [url, setUrl] = useState("");
   const base = `/api/projects/${encodeURIComponent(projectId)}/studio`;
-  const show = (u: string) => window.open(u, "vt-hyperframes-studio");
+  const show = (u: string) => { if (onEmbed && canEmbed()) onEmbed(u); else window.open(u, "vt-hyperframes-studio"); };
 
   const open = async (fresh = false) => {
     setState("starting");
@@ -31,6 +34,7 @@ export default function StudioButton({ projectId }: { projectId: string }) {
   const close = async () => {
     try { await del(base); } catch { /* already stopped */ }
     setState("off");
+    onEmbed?.(null);
     toast("The Studio is closed. Its edits stay with the video.");
   };
 
@@ -43,7 +47,7 @@ export default function StudioButton({ projectId }: { projectId: string }) {
     );
   return (
     <Popover label="Studio" align="right" trigger={<><Clapperboard size={15} /> Studio open</>}>
-      <MenuItem onClick={() => show(url)}>Show the Studio</MenuItem>
+      {embedded ? <MenuItem onClick={() => onEmbed?.(null)}>Back to Video Tool's editor</MenuItem> : <MenuItem onClick={() => show(url)}>Show the Studio</MenuItem>}
       <MenuItem onClick={() => open(true)}>Start over from the current video</MenuItem>
       <MenuItem onClick={close}>Close the Studio</MenuItem>
     </Popover>

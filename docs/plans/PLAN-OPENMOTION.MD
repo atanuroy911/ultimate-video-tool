@@ -93,3 +93,12 @@ recordings, Claude Code over ACP. Our own editor stays for those until each live
     before, the fit depended on how fast fonts arrived; the page probe now starts Chrome with the renderer's text settings (`--font-render-hinting=none` ...).
   Left: the mosaic transition scene at 405 s (the original keeps its card hidden for ~4 s after the mosaic; the baked page shows it as designed) and a
   small difference at 640.95 s; stick figures (their limbs are drawn by callbacks: 17 steps lost; the Studio refuses such videos until they bake).
+- **O5 done (2026-11-23), by embedding instead of copying the Studio's source:** in the desktop app the editor's **Studio** button shows the HyperFrames
+  Studio inside the canvas pane, with the Director and Claude Code docked on the right; the editor's own library, inspector and timeline step aside
+  (the Studio has its own) and "Back to Video Tool's editor" returns (docs/dev/spikes/html-shot/o5-studio-in-the-app.png). The desktop app
+  (`client/desktop/main.js`) lifts the Studio's no-framing rule only for a 127.0.0.1 frame inside its own page, hides the Studio's Share (HeyGen's
+  cloud), Install-the-desktop-app and Export buttons there, and refuses any request the Studio page makes off this computer (none seen). In a plain
+  browser the Studio still opens in its own window. Copying `@hyperframes/studio`'s source the way OpenMotion did stays possible later (O5b) if we need
+  our panels inside the Studio's own layout; today the Studio runs unchanged, so its updates come with `npm install`.
+  Tested: `client/studio/e2e/desktop-studio.mjs` 7/7 in the real desktop app.
+- **Next: O6** (the Studio's "Describe a change to the agent" goes to our Claude Code / Director; our MCP tools read and write the baked video).

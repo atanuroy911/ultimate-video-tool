@@ -68,9 +68,28 @@ async function connect(address,typedKey){
     selected=target;transport=await createTransport({server:target,dist,key});
     const partition='persist:processing-'+crypto.createHash('sha256').update(target).digest('hex').slice(0,20);
     selectedSession=session.fromPartition(partition);
+    // O5: the HyperFrames Studio that the processing server started on this computer sits inside the editor. It forbids framing by any other page
+    // (X-Frame-Options, frame-ancestors); that is lifted only for a frame on 127.0.0.1 whose parent is this app's own page.
+    selectedSession.webRequest.onHeadersReceived((details,callback)=>{
+      const own=details.resourceType==='subFrame'&&/^http:\/\/127\.0\.0\.1:\d{2,5}\//.test(details.url)&&details.frame&&details.frame.parent&&String(details.frame.parent.url||'').startsWith(transport.origin+'/');
+      if(!own)return callback({});
+      const h={};for(const [k,v] of Object.entries(details.responseHeaders||{})){const n=k.toLowerCase();if(n==='x-frame-options')continue;if(n==='content-security-policy'){const kept=v.map(x=>x.split(';').filter(d=>!/^\s*frame-ancestors\b/i.test(d)).join(';')).filter(x=>x.trim());if(kept.length)h[k]=kept;continue;}h[k]=v;}
+      callback({responseHeaders:h});
+    });
+    // The Studio inside the editor talks only to this computer: anything it would fetch from the internet (analytics, cloud) is refused.
+    selectedSession.webRequest.onBeforeRequest((details,callback)=>{
+      const fromStudio=details.frame&&/^http:\/\/127\.0\.0\.1:\d{2,5}\//.test(String(details.frame.url||''))&&!String(details.frame.url||'').startsWith(transport.origin+'/');
+      const local=/^(http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/|data:|blob:|devtools:)/.test(details.url);
+      if(fromStudio&&!local){log('Studio request kept on this computer (refused): '+details.url.slice(0,120));return callback({cancel:true});}
+      callback({});
+    });
+    // Inside the editor the Studio's own product buttons are hidden: Share (HeyGen's cloud: the video would leave this computer), Install the desktop
+    // app, and its Export (Video Tool's Export is the one that mixes the voice and music).
+    const studioTidy=`(()=>{const hide=()=>document.querySelectorAll('button,a').forEach(b=>{const t=(b.textContent||'').trim();if(t==='Share'||t==='Install the desktop app'||t==='Export'){b.style.display='none';b.setAttribute('aria-hidden','true');}});hide();new MutationObserver(hide).observe(document.documentElement,{childList:true,subtree:true});})();`;
+    const tidyFrames=(contents)=>contents.on('did-frame-finish-load',(_e,isMain,pid,rid)=>{if(isMain)return;try{const f=require('electron').webFrameMain.fromId(pid,rid);if(f&&/^http:\/\/127\.0\.0\.1:\d{2,5}\//.test(f.url)&&f.parent&&String(f.parent.url||'').startsWith(transport.origin+'/'))f.executeJavaScript(studioTidy).catch(()=>{});}catch{}});
     await selectedSession.cookies.set({url:transport.origin,name:'uvt_local_session',value:transport.secret,httpOnly:true,sameSite:'strict',path:'/'});
     win=new BrowserWindow({width:1360,height:880,minWidth:640,minHeight:540,title:'Ultimate Video Tool',icon:appIcon(),backgroundColor:'#f5f5f7',webPreferences:{partition,preload:path.join(__dirname,'main-preload.js'),contextIsolation:true,sandbox:true}});
-    const current=win;current.on('closed',()=>{if(win===current)win=null;});
+    const current=win;current.on('closed',()=>{if(win===current)win=null;});tidyFrames(current.webContents);
     current.webContents.setWindowOpenHandler(({url})=>{if(/^http:\/\/127\.0\.0\.1:\d{2,5}\/#project\/studio(-(9x16|1x1|16x9))?$/.test(url))return {action:'allow',overrideBrowserWindowOptions:{width:1560,height:980,title:'HyperFrames Studio',autoHideMenuBar:true,webPreferences:{sandbox:true,contextIsolation:true,nodeIntegration:false}}};/* O2: the HyperFrames Studio the server started on this computer opens as an app window */if(/^https?:/.test(url)&&!url.startsWith(transport.origin+'/'))shell.openExternal(url);return {action:'deny'};});
     current.webContents.on('will-navigate',(event,url)=>{if(new URL(url).origin!==transport.origin){event.preventDefault();if(/^https?:/.test(url))shell.openExternal(url);}});
     selectedSession.setPermissionRequestHandler((contents,permission,callback)=>callback(contents===current.webContents&&contents.getURL().startsWith(transport.origin+'/')&&['media','audioCapture','fullscreen','clipboard-sanitized-write'].includes(permission)));

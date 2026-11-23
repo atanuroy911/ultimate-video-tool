@@ -218,6 +218,7 @@ function ReviewEditor() {
   const [tab, setTab] = useState<LeftTab>(() => { const q = new URLSearchParams(location.search).get("tab"); return q === "words" || q === "script" || q === "media" ? q : "scenes"; });
   const [directorMounted, setDirectorMounted] = useState(true);          // the assistant pane keeps the director conversation and its job poll alive
   const [showAssistant, setShowAssistant] = useState(() => window.innerWidth >= 1180);
+  const [studioUrl, setStudioUrl] = useState<string | null>(null);          // O5: the HyperFrames Studio inside the editor (desktop app)
   const [showTimeline, setShowTimeline] = useState(true);
   const { data: useCases } = useFetch<UseCase[]>("/api/usecases");
   const [playing, setPlaying] = useState(false);
@@ -558,7 +559,7 @@ function ReviewEditor() {
           <Tooltip text="Redo" keys="Ctrl+Shift+Z"><Button icon variant="ghost" size="sm" onClick={r.redo} disabled={!r.canRedo} aria-label="Redo"><Redo2 size={16}/></Button></Tooltip>
         </div>
         <Button size="sm" onClick={() => nav(`/p/${id}/script`)} aria-label="Director's script"><MessageSquareText size={15}/> Script</Button>
-        <StudioButton projectId={id} />
+        <StudioButton projectId={id} embedded={!!studioUrl} onEmbed={(u) => { setStudioUrl(u); if (u) setShowAssistant(true); }} />
         <Button size="sm" onClick={() => setAiOpen(true)} aria-label="AI assistant"><Sparkles size={15}/> AI</Button>
         <Button size="sm" variant="primary" onClick={exportNow}><Download size={15}/> Export</Button>
       </header>
@@ -596,7 +597,7 @@ function ReviewEditor() {
       <Requests r={r} sceneIndexById={sceneIndexById} />
 
       <div className="ed-body">
-        <Workbench layoutKey="editor" shown={{ library: showBrowser, inspector: showInspector, timeline: showTimeline, assistant: showAssistant }} panes={{
+        <Workbench layoutKey="editor" shown={studioUrl ? { library: false, inspector: false, timeline: false, assistant: showAssistant } : { library: showBrowser, inspector: showInspector, timeline: showTimeline, assistant: showAssistant }} panes={{
           library: (<aside className="ed-left" aria-label="Editing tools panel">
             <div className="ed-panel-heading"><strong>Build your video</strong><button className="btn ghost icon sm" aria-label="Close tools panel" onClick={() => setShowBrowser(false)}><X size={16}/></button></div>
             <nav className="ed-tool-grid" aria-label="Editing tools">
@@ -626,6 +627,7 @@ function ReviewEditor() {
           </aside>),
 
           viewer: (<section className="ed-canvas" aria-label="Canvas">
+            {studioUrl && <div className="studio-embed"><iframe title="HyperFrames Studio" src={studioUrl} allow="clipboard-read; clipboard-write" /></div>}
             {shotEdit ? (
               <Suspense fallback={<Spinner />}>
                 <ShotEditor projectId={id} shotId={shotEdit} onClose={() => { setShotEdit(null); r.reloadAll(); }} />

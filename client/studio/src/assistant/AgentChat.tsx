@@ -88,6 +88,18 @@ export default function AgentChat({ projectId, title, onChanged, onLink }: { pro
     window.addEventListener("vt-ask-about", on);
     return () => window.removeEventListener("vt-ask-about", on);
   }, []);
+  useEffect(() => {                                                      // O6: the Studio's "Ask agent about this element" starts a message here
+    const on = (e: Event) => {
+      const text = String((e as CustomEvent).detail?.text || "");
+      delete (window as any).__vtAgentDraft;
+      setDraft((d) => (d.trim() ? d : text));
+      setTimeout(() => { const b = box.current; if (b) { b.focus(); b.setSelectionRange(b.value.length, b.value.length); } }, 30);
+    };
+    const waiting = (window as any).__vtAgentDraft;
+    if (waiting) { delete (window as any).__vtAgentDraft; on(new CustomEvent("vt-agent-draft", { detail: { text: waiting } })); }
+    window.addEventListener("vt-agent-draft", on);
+    return () => window.removeEventListener("vt-agent-draft", on);
+  }, []);
   const conv = useRef<string>("");
   const end = useRef<HTMLDivElement>(null);
   const denyRef = useRef<HTMLButtonElement>(null);

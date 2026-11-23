@@ -219,6 +219,21 @@ function ReviewEditor() {
   const [directorMounted, setDirectorMounted] = useState(true);          // the assistant pane keeps the director conversation and its job poll alive
   const [showAssistant, setShowAssistant] = useState(() => window.innerWidth >= 1180);
   const [studioUrl, setStudioUrl] = useState<string | null>(null);          // O5: the HyperFrames Studio inside the editor (desktop app)
+  useEffect(() => {                                                      // O6: the Studio's own "ask the agent" goes to the docked Claude Code
+    if (!studioUrl) return;
+    const origin = new URL(studioUrl).origin;
+    const on = (e: MessageEvent) => {
+      if (e.origin !== origin || !e.data || e.data.vt !== "studio-ask") return;
+      setShowAssistant(true);
+      const claude = !!(window as any).vtDesktop?.agents;
+      if (claude) setAssistantTab("claude");
+      const text = "The part I selected in the Studio: ";
+      if (claude) (window as any).__vtAgentDraft = text;               // read by the Claude Code chat when it opens (it mounts with its tab)
+      setTimeout(() => window.dispatchEvent(new CustomEvent(claude ? "vt-agent-draft" : "vt-director-draft", { detail: { text } })), 250);
+    };
+    window.addEventListener("message", on);
+    return () => window.removeEventListener("message", on);
+  }, [studioUrl]);
   const [showTimeline, setShowTimeline] = useState(true);
   const { data: useCases } = useFetch<UseCase[]>("/api/usecases");
   const [playing, setPlaying] = useState(false);
@@ -559,11 +574,12 @@ function ReviewEditor() {
           <Tooltip text="Redo" keys="Ctrl+Shift+Z"><Button icon variant="ghost" size="sm" onClick={r.redo} disabled={!r.canRedo} aria-label="Redo"><Redo2 size={16}/></Button></Tooltip>
         </div>
         <Button size="sm" onClick={() => nav(`/p/${id}/script`)} aria-label="Director's script"><MessageSquareText size={15}/> Script</Button>
-        <StudioButton projectId={id} embedded={!!studioUrl} onEmbed={(u) => { setStudioUrl(u); if (u) setShowAssistant(true); }} />
+        <StudioButton projectId={id} embedded={!!studioUrl} assistantShown={showAssistant} onAssistant={setShowAssistant}
+          onEmbed={(u) => { setStudioUrl(u); if (u) setShowAssistant(window.innerWidth >= 1500); }} />
         <Button size="sm" onClick={() => setAiOpen(true)} aria-label="AI assistant"><Sparkles size={15}/> AI</Button>
         <Button size="sm" variant="primary" onClick={exportNow}><Download size={15}/> Export</Button>
       </header>
-      <div className="ed-workspace-bar">
+      <div className="ed-workspace-bar" hidden={!!studioUrl}>
         <div className="ed-panel-actions">
           <button className={`btn sm ${showBrowser ? "selected" : ""}`} aria-pressed={showBrowser} onClick={() => setShowBrowser(!showBrowser)}><PanelLeftClose size={15}/> Tools</button>
           <button className={`btn sm ${showInspector ? "selected" : ""}`} aria-pressed={showInspector} onClick={() => { if(videoSel) { setVideoSel(false); setShowInspector(true); } else setShowInspector(!showInspector); }}><PanelRightClose size={15}/> Details</button>

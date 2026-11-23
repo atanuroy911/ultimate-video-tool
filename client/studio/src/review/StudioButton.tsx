@@ -10,7 +10,8 @@ import { Button, MenuItem, Popover } from "../ds";
 // In the desktop app the Studio sits inside the editor (the app lets this one local page be framed); in a browser it opens its own window.
 const canEmbed = () => typeof window !== "undefined" && !!(window as any).vtDesktop;
 
-export default function StudioButton({ projectId, embedded, onEmbed }: { projectId: string; embedded?: boolean; onEmbed?: (url: string | null) => void }) {
+export default function StudioButton({ projectId, embedded, onEmbed, assistantShown, onAssistant }: { projectId: string; embedded?: boolean; onEmbed?: (url: string | null) => void;
+  assistantShown?: boolean; onAssistant?: (on: boolean) => void }) {
   const [state, setState] = useState<"off" | "starting" | "open">("off");
   const [url, setUrl] = useState("");
   const base = `/api/projects/${encodeURIComponent(projectId)}/studio`;
@@ -48,6 +49,7 @@ export default function StudioButton({ projectId, embedded, onEmbed }: { project
   return (
     <Popover label="Studio" align="right" trigger={<><Clapperboard size={15} /> Studio open</>}>
       {embedded ? <MenuItem onClick={() => onEmbed?.(null)}>Back to Video Tool's editor</MenuItem> : <MenuItem onClick={() => show(url)}>Show the Studio</MenuItem>}
+      {embedded && onAssistant && <MenuItem onClick={() => onAssistant(!assistantShown)}>{assistantShown ? "Hide the assistant (more room for the Studio)" : "Show the assistant beside the Studio"}</MenuItem>}
       <MenuItem onClick={() => open(true)}>Start over from the current video</MenuItem>
       <MenuItem onClick={close}>Close the Studio</MenuItem>
     </Popover>

@@ -111,3 +111,7 @@ recordings, Claude Code over ACP. Our own editor stays for those until each live
 - **O6 left:** the Studio's own "Ask agent about this element" / "Describe a change to the agent" box still talks to HeyGen's agent flow, not ours
   (route it to the docked Claude Code); the Director chat does not have the studio tools yet; whether an agent's file edit is undoable in the Studio's
   history is not checked yet.
+- **O5/O6 follow-up (2026-11-23, owner: "the entire viewport looks shrunk"):** in Studio mode our second toolbar hides and the assistant starts closed
+  in windows narrower than 1500 px, so the Studio fills the window below the title bar (1344 x 770 in the app's default 1360 x 880 window); the Studio
+  menu has "Show / Hide the assistant". The Studio's own "Ask agent about this element" / "Describe a change to the agent" (and Ctrl+K) now open the
+  docked Claude Code with "The part I selected in the Studio: " ready to finish. e2e desktop-studio 10/10.

@@ -23,7 +23,7 @@ try {
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e).slice(0, 200)));
   await page.waitForLoadState("load");
-  await page.setViewportSize({ width: 1700, height: 1000 }).catch(() => {});
+  // the app's own window size (1360 x 880): the Studio must have room in it
   const origin = new URL(page.url()).origin;
   await page.goto(`${origin}/p/${pid}`, { waitUntil: "load" });
   await page.waitForSelector(".wb .wb-viewer", { timeout: 60000 });
@@ -37,9 +37,21 @@ try {
   check("the Studio loads there (its timeline shows the scenes)", /S\d Scene/.test(text), text.slice(0, 80).replace(/\s+/g, " "));
   const shown = async (t) => frame.getByRole("button", { name: t, exact: true }).first().isVisible().catch(() => false);
   check("the Studio's cloud and product buttons are hidden inside the app", frame && !(await shown("Share")) && !(await shown("Install the desktop app")) && !(await shown("Export")));
-  check("the assistant stays docked beside it", await page.locator(".wb-assistant-body").isVisible());
+  check("in a window this size the Studio gets the room: our toolbar and the assistant step aside", !(await page.locator(".ed-workspace-bar").isVisible()) && !(await page.locator(".wb-assistant-body").isVisible().catch(() => false)));
+  const studioBox = await frameEl.boundingBox();
+  const win = await page.evaluate(() => [window.innerWidth, window.innerHeight]);
+  check("the Studio fills the window below the title bar", studioBox.width >= win[0] - 4 && studioBox.height >= win[1] - 60, JSON.stringify([studioBox.width, studioBox.height, win]));
   check("the editor's own panels step aside", (await page.locator(".ed-left").count()) === 0 || !(await page.locator(".ed-left").isVisible()));
   await page.screenshot({ path: path.join(repo, "studio", "e2e", "out", "o5-studio-in-the-app.png") });
+  // the Studio's own agent box opens our Claude Code, started with a note about the selection
+  await frame.getByText("Describe a change to the agent").first().click().catch(() => {});
+  await page.waitForTimeout(800);
+  await page.waitForTimeout(1500);
+  const msg = page.getByLabel("Message to Claude Code");
+  const v = (await msg.count()) ? await msg.inputValue() : "";
+  check("the Studio's ask-the-agent opens the docked Claude Code", /part I selected in the Studio/.test(v), v.slice(0, 60));
+  check("the assistant is then docked beside the Studio", await page.locator(".wb-assistant-body").isVisible());
+  if (await msg.count()) await msg.fill("");
 
   await page.getByRole("button", { name: "Studio open" }).click();
   await page.getByRole("menuitem", { name: "Back to Video Tool's editor" }).click();

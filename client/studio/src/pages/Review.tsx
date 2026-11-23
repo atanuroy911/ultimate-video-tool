@@ -222,6 +222,8 @@ function ReviewEditor() {
   const [showAssistant, setShowAssistant] = useState(() => window.innerWidth >= 1180);
   const [studioUrl, setStudioUrl] = useState<string | null>(null);          // O5: the HyperFrames Studio inside the editor (desktop app)
   const [studioScene, setStudioScene] = useState(0);                        // S1: the scene the Studio is on (the scene bar moves it)
+  const [studioSel, setStudioSel] = useState<{ id: string; file: string } | null>(null);   // S3: the part picked in the scene bar
+  useEffect(() => setStudioSel(null), [studioScene]);
   const [genScene, setGenScene] = useState<string | null>(null);            // G1: the scene whose pictures panel is open
   useEffect(() => {                                                      // S2 / G1: from a scene's menu
     const pics = (e: Event) => setGenScene(String((e as CustomEvent).detail || ""));
@@ -238,8 +240,9 @@ function ReviewEditor() {
     if (!studioUrl) return null;
     const sc = r.timing.scenes[studioScene];
     const t = sc ? Math.max(0, sc.start + 0.05) : 0;
-    return studioUrl.split("?")[0] + "?t=" + t.toFixed(2);
-  }, [studioUrl, studioScene, r.timing.scenes]);
+    const sel = studioSel ? `&selFile=${encodeURIComponent(studioSel.file)}&selId=${encodeURIComponent(studioSel.id)}` : "";   // the Studio reads its selection from the address too
+    return studioUrl.split("?")[0] + "?t=" + t.toFixed(2) + sel;
+  }, [studioUrl, studioScene, studioSel, r.timing.scenes]);
   // O7: while the Studio is open, a change to the video (a word edit, a cut, a Director note) is baked again with the Studio edits carried over;
   // the open Studio reloads by itself. A short pause gathers several changes; the refresh's own composing is not taken as a change.
   const studioQuiet = useRef(0), studioTimer = useRef<number | undefined>(undefined);
@@ -682,7 +685,7 @@ function ReviewEditor() {
 
           viewer: (<section className="ed-canvas" aria-label="Canvas">
             {studioUrl && studioSrc && <div className="studio-embed">
-              <StudioSceneBar scenes={r.timing.scenes} words={r.words} index={Math.min(studioScene, Math.max(0, r.timing.scenes.length - 1))} onGo={setStudioScene}
+              <StudioSceneBar projectId={id} selected={studioSel?.id} onSelect={(p) => setStudioSel(p ? { id: p.id, file: p.file } : null)} scenes={r.timing.scenes} words={r.words} index={Math.min(studioScene, Math.max(0, r.timing.scenes.length - 1))} onGo={setStudioScene}
                 onPictures={(sid) => setGenScene(sid)}
                 onDirector={(sid) => { setShowAssistant(true); setAssistantTab("director"); setTimeout(() => window.dispatchEvent(new CustomEvent("vt-ask-director", { detail: { kind: "scene", scene: sid } })), 300); }}
                 onBack={() => setStudioUrl(null)} />

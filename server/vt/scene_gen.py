@@ -103,6 +103,66 @@ def generate(project, scene_id: str, prompt: str, *, count: int = 4, recipe: str
             client.close()
 
 
+def clip_models() -> list[dict]:
+    """The picture-to-clip workflows there are (G2), for the panel's choice."""
+    from .comfy import list_workflows
+
+    return [{"id": w.id, "label": w.label, "sizes": sorted(w.sizes)} for w in list_workflows("video")]
+
+
+def animate(project, scene_id: str, media_id: str, prompt: str = "", *, workflow: str = "", seconds: float = 3.0, seed: Optional[int] = None, client=None,
+            progress: Callable[[float, str], None] = lambda f, m: None, cancelled: Callable[[], bool] = lambda: False) -> dict:
+    """G2: one picture made into a short clip (its first frame), kept in the scene's runs as a clip next to the picture it came from."""
+    from .comfy import ComfyClient, ComfyError, generate_clip, list_workflows, load_workflow
+    from .server.comfy_routes import comfy_url
+
+    scene_words(project, scene_id)
+    item = next((m for m in project.meta().media if m.id == media_id), None)
+    if item is None or item.kind != "image":
+        raise GenError("Choose a picture to make move.")
+    seconds = max(1.0, min(8.0, float(seconds)))
+    aspect = project.meta().aspect
+    own = client is None
+    client = client or ComfyClient(comfy_url())
+    try:
+        try:
+            info = client.object_info()
+        except ComfyError as e:
+            raise GenError(f"No picture engine answered at {getattr(client, 'url', 'its address')}. Start it, or choose one in Settings > Engines.") from e
+        if workflow:
+            try:
+                wf = load_workflow(workflow)
+            except KeyError as e:
+                raise GenError(f"There is no clip model '{workflow}'.") from e
+        else:                                                           # the first clip model the engine can run, else the usual one (it says what is missing)
+            ready = [w for w in list_workflows("video") if aspect in w.sizes and not w.problems(info)]
+            wf = ready[0] if ready else load_workflow("wan22_i2v")
+        if aspect not in wf.sizes:
+            raise GenError(f"{wf.label} does not make {aspect} clips.")
+        words = (prompt or "").strip() or next((r.get("prompt", "") for r in history(project, scene_id)["runs"]
+                                                 if any(i.get("media") == media_id for i in r.get("items", []))), "") or suggest_prompt(project, scene_id)
+        run = {"id": uuid.uuid4().hex[:10], "kind": "clip", "prompt": words[:600], "recipe": wf.id, "model": wf.label, "count": 1, "from": media_id,
+               "made_at": time.time(), "items": []}
+        data = read_json(_file(project, scene_id), {"runs": []}) or {"runs": []}
+        data["runs"].append(run)
+        _save(project, scene_id, data)
+        try:
+            clip, rec = generate_clip(project, client, wf, project.dir / item.file, words[:600], aspect=aspect, seconds=seconds, seed=seed,
+                                      caption=words[:80], scene=scene_id, source_media=media_id, focus=(item.fx, item.fy), progress=progress, cancelled=cancelled)
+            run["items"].append({"media": clip.id, "seed": rec.get("seed", seed or 0), "seconds": rec.get("seconds_taken"), "kind": "clip", "from": media_id})
+        except ComfyError as e:
+            if getattr(e, "kind", "") != "cancelled":
+                run["items"].append({"seed": seed or 0, "error": str(e)[:300], "kind": "clip", "from": media_id})
+                _save(project, scene_id, data)
+                raise GenError(str(e)[:300]) from e
+        _save(project, scene_id, data)
+        progress(1.0, "Done")
+        return run
+    finally:
+        if own:
+            client.close()
+
+
 def forget(project, scene_id: str, media_id: str) -> dict:
     """Take a picture out of the scene's candidates (it stays in the media bin)."""
     data = read_json(_file(project, scene_id), {"runs": []}) or {"runs": []}

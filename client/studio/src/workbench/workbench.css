@@ -43,7 +43,13 @@
 .ed-canvas .studio-embed iframe { flex: 1; border: 0; width: 100%; height: 100%; }
 .ed-workspace-bar[hidden] { display: none; }
 .ed-canvas .studio-embed { flex-direction: column; }
-.studio-scene-bar { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-bottom: 1px solid var(--border); background: var(--bg-panel); min-height: 40px; }
+.studio-scene-bar { display: flex; flex-direction: column; gap: 4px; padding: 6px 10px; border-bottom: 1px solid var(--border); background: var(--bg-panel); }
+.studio-scene-row { display: flex; align-items: center; gap: 6px; min-height: 28px; }
+.studio-scene-parts { display: flex; align-items: center; gap: 4px; overflow-x: auto; scrollbar-width: thin; padding-bottom: 2px; }
+.studio-part { flex: none; border: 1px solid var(--border); background: transparent; color: inherit; border-radius: 999px; padding: 2px 10px; font-size: 12px; cursor: pointer; white-space: nowrap; }
+.studio-part:hover { border-color: var(--accent, #2d66f2); }
+.studio-part.on { background: var(--accent, #2d66f2); border-color: var(--accent, #2d66f2); color: #fff; }
+.studio-part.on .muted { color: rgba(255,255,255,.8); }
 .studio-scene-bar .studio-scene-name { white-space: nowrap; font-size: var(--fs-13, 13px); }
 .studio-scene-bar .studio-scene-said { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 46%; }
 /* G1: pictures for a scene */
@@ -53,15 +59,17 @@
 .scene-pics-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(240px, 1.1fr) minmax(320px, 1.6fr) minmax(260px, 340px); gap: 12px; padding: 12px; }
 .scene-pics-body > section, .scene-pics-body > aside { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 12px; min-height: 0; }
 .scene-pics-view { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 12px; }
-.scene-pics-view img { max-width: 100%; max-height: calc(100% - 48px); object-fit: contain; border-radius: 8px; background: #000; }
+.scene-pics-view img, .scene-pics-view video { max-width: 100%; max-height: calc(100% - 48px); object-fit: contain; border-radius: 8px; background: #000; }
 .scene-pics-grid { display: flex; flex-direction: column; overflow: hidden; }
 .scene-pics-grid-head { padding: 10px 12px 0; }
-.scene-pics-cards { flex: 1; overflow: auto; padding: 10px 12px 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; align-content: start; }
+.scene-pics-cards { flex: 1; overflow: auto; padding: 10px 12px 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; align-content: start; }
 .scene-pics-card { border: 1px solid var(--border); border-radius: 10px; padding: 6px; display: flex; flex-direction: column; gap: 6px; background: var(--bg); }
 .scene-pics-card.on { outline: 2px solid var(--accent, #e8642c); }
 .scene-pics-thumb { aspect-ratio: 9 / 16; width: 100%; border: 0; padding: 0; border-radius: 6px; overflow: hidden; background: var(--bg-selected); display: flex; align-items: center; justify-content: center; cursor: pointer; }
-.scene-pics-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.scene-pics-thumb img, .scene-pics-thumb video { width: 100%; height: 100%; object-fit: cover; }
 .scene-pics-thumb.failed { cursor: default; color: var(--muted); }
+.scene-pics-thumb.clip { position: relative; }
+.scene-pics-thumb.clip::after { content: "▶"; position: absolute; right: 6px; bottom: 6px; font-size: 11px; color: #fff; background: rgba(0,0,0,.55); border-radius: 4px; padding: 1px 5px; }
 .scene-pics-meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .scene-pics-setup { display: flex; flex-direction: column; gap: 12px; padding: 14px; overflow: auto; }
 .scene-pics-setup textarea { width: 100%; resize: vertical; }
@@ -71,3 +79,4 @@
 .scene-pics-problem { color: var(--danger, #c0392b); }
 @media (max-width: 1000px) { .scene-pics-body { grid-template-columns: 1fr; overflow: auto; } }
 .scene-pics-card .row { gap: 4px; flex-wrap: wrap; }
+.scene-pics-card .row { flex-wrap: wrap; gap: 4px; }

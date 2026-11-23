@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { _electron as electron } from "playwright-core";
-import { repo } from "./common.mjs";
+import { closeDesktop, repo } from "./common.mjs";
 
 const server = process.env.VT_SERVER || "http://127.0.0.1:8791", pid = process.env.VT_PROJECT || "c2-mix";
 const desktop = path.join(repo, "desktop");
@@ -38,9 +38,9 @@ try {
   const shown = async (t) => frame.getByRole("button", { name: t, exact: true }).first().isVisible().catch(() => false);
   check("the Studio's cloud and product buttons are hidden inside the app", frame && !(await shown("Share")) && !(await shown("Install the desktop app")) && !(await shown("Export")));
   check("in a window this size the Studio gets the room: our toolbar and the assistant step aside", !(await page.locator(".ed-workspace-bar").isVisible()) && !(await page.locator(".wb-assistant-body").isVisible().catch(() => false)));
-  const studioBox = await frameEl.boundingBox();
+  const studioBox = await page.locator(".studio-embed").boundingBox();          // the scene bar and the Studio together
   const win = await page.evaluate(() => [window.innerWidth, window.innerHeight]);
-  check("the Studio fills the window below the title bar", studioBox.width >= win[0] - 4 && studioBox.height >= win[1] - 110, JSON.stringify([studioBox.width, studioBox.height, win]));
+  check("the Studio (with its scene bar) fills the window below the title bar", studioBox.width >= win[0] - 4 && studioBox.height >= win[1] - 110, JSON.stringify([studioBox.width, studioBox.height, win]));
   check("the editor's own panels step aside", (await page.locator(".ed-left").count()) === 0 || !(await page.locator(".ed-left").isVisible()));
   await page.screenshot({ path: path.join(repo, "studio", "e2e", "out", "o5-studio-in-the-app.png") });
   // S1: the scene bar above the Studio moves it scene by scene
@@ -52,6 +52,19 @@ try {
   const scenes = (await page.evaluate(async (u) => (await fetch(u)).json(), `/api/projects/${pid}/scenes`)).timing.scenes;
   const c = await clockOf();
   check("Next scene moves the Studio to scene 2", /Scene 2 of/.test(await bar.innerText()) && c.length === 2 && Math.abs(c[0] * 60 + c[1] - Math.floor(scenes[1].start + 0.05)) <= 1, JSON.stringify([c, scenes[1].start]));
+  // S3: the scene's parts by name; picking one selects it in the Studio (through its address: e2e/studio-parts.mjs checks the Studio's side)
+  const chips = bar.getByRole("group", { name: "Parts of this scene" }).getByRole("button");
+  await chips.first().waitFor({ timeout: 8000 }).catch(() => {});
+  const nChips = await chips.count();
+  check("the scene bar lists the scene's parts", nChips > 0, String(nChips));
+  if (nChips) {
+    await chips.first().click();
+    await page.waitForTimeout(1500);
+    const src = await frameEl.getAttribute("src");
+    check("picking a part selects it in the Studio", (await chips.first().getAttribute("aria-pressed")) === "true" && /selId=s\d+/.test(src || ""), (src || "").slice(-60));
+    await page.screenshot({ path: path.join(repo, "studio", "e2e", "out", "s3-scene-parts.png") });
+    await chips.first().click();
+  }
   // the Studio's own agent box opens our Claude Code, started with a note about the selection
   await frame.getByText("Describe a change to the agent").first().click().catch(() => {});
   await page.waitForTimeout(800);
@@ -86,7 +99,7 @@ try {
   check("closing stops the Studio", st.open === false, JSON.stringify(st).slice(0, 120));
   console.log(errors.length ? "ERRORS:\n" + [...new Set(errors)].join("\n") : "ERRORS: none");
 } finally {
-  await app.close();
+  await closeDesktop(app, home);
 }
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

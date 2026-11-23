@@ -39,4 +39,11 @@ Order: S1, S2, G1, G4, S3, G2, G3, S4.
   the setup: prompt from the scene's words or the last run, model from the picture sets, how many 1-8, *Generate n*, progress). Runs are kept in
   `gen/<scene>.json`. With no picture engine the panel says so in one sentence. Tests: tests/test_scene_gen.py (3, stand-in engine),
   e2e/scene-pictures.mjs 7/7. Screen: docs/dev/spikes/html-shot/g1-scene-pictures.png. Not tried with real pictures: no ComfyUI on this PC (ISSUES).
-- Next: S3 (the scene's parts in the scene bar), G2 (make a picture move), G3 (prompts written by the Director / Claude Code), S4.
+- **S3 done:** the scene bar has a second row, *Select:* and the scene's parts by name ("Term", "Eq", "Meaning" for `s4-defn-term`...; layout boxes left out),
+  from `GET /api/projects/{pid}/studio/parts?scene=`. Picking one adds `selFile`/`selId` to the Studio's address hash, which the Studio reads as its
+  selection (found in its source: the hash keeps `t`, `tab`, `selFile`, `selId`), without reloading; picking it again clears it. Tests:
+  e2e/studio-parts.mjs 5/5 (the Studio's own `--selection` answers the part), desktop-studio.mjs (the chips and the address).
+- **G2 done:** each picture has *Make it move* (a 3 or 5 s clip that starts on it; the clip model from the list or "Any that runs"); clips show in the grid
+  next to their picture and play large on the left; *Use* shows a clip behind the scene. `scene_gen.animate`, `POST .../pictures/{media}/move` (a job).
+  Tests: test_scene_gen 4/4, scene-pictures 9/9. Screens: s3-scene-parts.png, g2-make-it-move.png. Real clips not tried (no ComfyUI here).
+- Next: G3 (prompts written by the Director / Claude Code), S4.

@@ -40,6 +40,7 @@ check("the pictures panel opens for the scene", await panel.isVisible());
 await panel.locator(".scene-pics-cards [role=listitem]").first().waitFor({ timeout: 15000 }).catch(() => {});
 check("its prompt starts from the scene (or the last run)", (await panel.getByLabel("What the picture shows").inputValue()).length > 5);
 check("the picture made for the scene is in the grid", (await panel.getByRole("list", { name: "Pictures made for this scene" }).getByRole("listitem").count()) === 1);
+await panel.locator(".scene-pics-view img").waitFor({ timeout: 10000 }).catch(() => {});
 check("it shows large on the left", await panel.locator(".scene-pics-view img").isVisible());
 
 // no picture engine here: one plain sentence
@@ -49,6 +50,13 @@ const alert = panel.getByRole("alert");
 await alert.waitFor({ timeout: 60000 }).catch(() => {});
 check("with no picture engine it says so plainly", /picture engine|ComfyUI|not reachable/i.test(await alert.textContent().catch(() => "")), (await alert.textContent().catch(() => "")).slice(0, 120));
 await page.screenshot({ path: "e2e/out/g1-scene-pictures.png" });
+
+// G2: a picture can be made to move; with no engine it says so the same way
+check("each picture offers Make it move, with a clip model and length", await panel.getByRole("button", { name: /Make it move/ }).first().isVisible() && await panel.getByLabel("Clip model").isVisible() && (await panel.getByRole("radiogroup", { name: "Clip length" }).getByRole("radio").count()) === 2);
+await panel.getByRole("button", { name: /Make it move/ }).first().click();
+await page.waitForTimeout(500);
+await alert.waitFor({ timeout: 60000 }).catch(() => {});
+check("Make it move with no picture engine says so plainly", /picture engine/i.test(await alert.textContent().catch(() => "")), (await alert.textContent().catch(() => "")).slice(0, 120));
 
 // use it
 await panel.getByRole("button", { name: "Use for this scene" }).click();

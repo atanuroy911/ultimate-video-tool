@@ -96,3 +96,38 @@ def test_the_api_lists_makes_and_uses_pictures(ref, engine):
         sc = next(s for s in ref.scenes().scenes if s.id == sid)
         assert media in sc.model_dump_json(), "the scene now shows the chosen picture"
         assert c.post(f"/api/projects/{ref.id}/scenes/{sid}/pictures/use", json={"media": "nope"}).status_code == 404
+
+
+def test_a_picture_made_to_move_is_kept_as_a_clip_next_to_it(ref, engine, monkeypatch, tmp_path):
+    """G2: "Make it move" turns one of the scene's pictures into a clip (the stand-in engine leaves a file in the media bin)."""
+    from vt import comfy
+    from vt import scene_gen as G
+
+    class Video:
+        id, label, sizes = "stand_in_i2v", "Stand-in clip model", {"9:16": [480, 832], "16:9": [832, 480], "1:1": [512, 512]}
+
+        def problems(self, info):
+            return []
+
+    asked = {}
+
+    def clip(project, client, workflow, image, prompt, *, aspect, seconds, seed, caption, scene, source_media, focus, progress, cancelled):
+        from vt.director.media import add_media
+
+        asked.update(image=str(image), prompt=prompt, seconds=seconds, source=source_media)
+        f = tmp_path / "clip.png"
+        Image.new("RGB", (32, 48), (1, 2, 3)).save(f)                  # stands for the clip file
+        return add_media(project, f, caption=caption, tags=["generated"], source="comfyui", licence="generated locally"), {"seed": 5, "seconds_taken": 2.0}
+
+    monkeypatch.setattr(comfy, "list_workflows", lambda kind="video": [Video()])
+    monkeypatch.setattr(comfy, "generate_clip", clip)
+    sid = ref.scenes().scenes[0].id
+    pic = G.generate(ref, sid, "a lighthouse at dusk", count=1, seed=1)["items"][0]["media"]
+    run = G.animate(ref, sid, pic, seconds=12)
+    assert run["kind"] == "clip" and run["from"] == pic and run["model"] == "Stand-in clip model"
+    assert asked["prompt"] == "a lighthouse at dusk", "the clip keeps the picture's prompt when none is given"
+    assert asked["seconds"] == 8.0 and asked["source"] == pic
+    h = G.history(ref, sid)
+    assert h["runs"][0]["items"][0]["kind"] == "clip" and h["runs"][0]["items"][0]["from"] == pic
+    with pytest.raises(G.GenError):
+        G.animate(ref, sid, "nope")

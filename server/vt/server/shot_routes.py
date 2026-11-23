@@ -278,3 +278,14 @@ def video_studio_refresh(pid: str, aspect: Optional[str] = None) -> dict[str, An
     except Exception as e:                                          # noqa: BLE001
         raise HTTPException(422, f"The video could not be put together for the Studio: {e}")
     return _studio_call(VS.prepare, project, tag, comp_dir)
+
+
+@router.get("/api/projects/{pid}/studio/parts")
+def video_studio_parts(pid: str, scene: Optional[str] = None, aspect: Optional[str] = None) -> list[dict[str, Any]]:
+    """S3: the parts of one scene in the Studio copy (readable ids and the start of their text), for the scene bar."""
+    from .. import video_studio as VS
+
+    project, aspect, tag = _video_key(pid, aspect)
+    if scene is not None and not re.fullmatch(r"[A-Za-z0-9_-]{1,40}", scene):
+        raise HTTPException(400, "Invalid scene id")
+    return _studio_call(VS.parts, project, tag, scene)

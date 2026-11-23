@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { _electron as electron } from "playwright-core";
-import { repo } from "./common.mjs";
+import { closeDesktop, repo } from "./common.mjs";
 
 const server = process.env.VT_SERVER || "http://127.0.0.1:8791", pid = process.env.VT_PROJECT || "c2-mix";
 const projects = process.env.VT_PROJECTS || "E:/UltimateVideoTool/scratch/c2-projects";
@@ -62,7 +62,7 @@ try {
   await page.getByRole("menuitem", { name: "Close the Studio" }).click();
   await page.waitForTimeout(1500);
 } finally {
-  await app.close();
+  await closeDesktop(app, home);
 }
 fs.rmSync(path.join(projects, pid, "studio-9x16"), { recursive: true, force: true });          // the sample exports as before again
 console.log(`\n${pass} passed, ${fail} failed`);

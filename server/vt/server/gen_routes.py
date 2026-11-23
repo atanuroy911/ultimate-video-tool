@@ -23,7 +23,7 @@ def _models() -> list[dict]:
 def scene_pictures(pid: str, sid: str) -> dict[str, Any]:
     p = project_or_404(pid)
     try:
-        return {**G.history(p, sid), "prompt": G.suggest_prompt(p, sid), "words": G.scene_words(p, sid), "models": _models()}
+        return {**G.history(p, sid), "prompt": G.suggest_prompt(p, sid), "words": G.scene_words(p, sid), "models": _models(), "clip_models": G.clip_models()}
     except G.GenError as e:
         raise HTTPException(404, str(e))
 
@@ -63,6 +63,46 @@ def scene_pictures_generate(pid: str, sid: str, body: GenBody, request: Request)
         mine["job"] = jobs.submit("pictures", pid, f"Pictures for scene {sid}", work, when_busy="refuse")
     except JobBusy as e:
         raise HTTPException(409, "Pictures are already being made for this video.") from e
+    return mine["job"].public()
+
+
+class MoveBody(BaseModel):
+    prompt: str = Field(default="", max_length=600)
+    workflow: str = ""
+    seconds: float = Field(default=3.0, ge=1.0, le=8.0)
+    seed: Optional[int] = Field(default=None, ge=0, le=2**31 - 1)
+
+
+@router.post("/projects/{pid}/scenes/{sid}/pictures/{media}/move")
+def scene_picture_move(pid: str, sid: str, media: str, body: MoveBody, request: Request) -> dict:
+    """G2: make one of the scene's pictures into a short clip (it is the first frame). A job, like the pictures."""
+    p = project_or_404(pid)
+    try:
+        G.scene_words(p, sid)
+    except G.GenError as e:
+        raise HTTPException(404, str(e))
+    if not any(m.id == media and m.kind == "image" for m in p.meta().media):
+        raise HTTPException(422, "Choose a picture to make move.")
+    jobs = request.app.state.jobs
+    mine: dict = {}
+
+    def work(cb):
+        try:
+            run = G.animate(p, sid, media, body.prompt, workflow=body.workflow, seconds=body.seconds, seed=body.seed, progress=lambda f, m: cb("pictures", f, m),
+                            cancelled=lambda: bool(mine.get("job") and mine["job"].cancel.is_set()))
+        except G.GenError as e:
+            raise RuntimeError(str(e)) from e
+        if mine.get("job") and mine["job"].cancel.is_set():
+            raise Cancelled()
+        hub = getattr(request.app.state, "hub", None)
+        if hub:
+            hub.emit({"type": "changed", "project": pid, "by": "person"})
+        return {"run": run["id"], "made": sum(1 for i in run["items"] if i.get("media"))}
+
+    try:
+        mine["job"] = jobs.submit("pictures", pid, f"A clip for scene {sid}", work, when_busy="refuse")
+    except JobBusy as e:
+        raise HTTPException(409, "Pictures or a clip are already being made for this video.") from e
     return mine["job"].public()
 
 

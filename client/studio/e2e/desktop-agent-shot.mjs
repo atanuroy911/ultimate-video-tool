@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { _electron as electron } from "playwright-core";
-import { repo } from "./common.mjs";
+import { closeDesktop, repo } from "./common.mjs";
 
 const server = process.env.VT_SERVER || "http://127.0.0.1:8791", pid = process.env.VT_PROJECT || "c6-shot", scene = process.env.VT_SCENE || "s2";
 const desktop = path.join(repo, "desktop");
@@ -50,7 +50,7 @@ try {
   await page.screenshot({ path: process.env.VT_SHOT_PNG || "desktop-agent-shot.png" });
   check("no page errors", errors.length === 0, errors.join(" | "));
 } finally {
-  await app.close().catch(() => {});
+  await closeDesktop(app, home);
   fs.rmSync(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
 }
 console.log(`${pass} passed, ${fail} failed`);

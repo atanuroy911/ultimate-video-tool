@@ -73,3 +73,11 @@ recordings, Claude Code over ACP. Our own editor stays for those until each live
   Tested: `tests/test_video_studio.py`, and `client/studio/e2e/video-studio.mjs` 9/9 (button opens the Studio window, scenes are clips, "S4 Defn Term"
   retyped in the Studio's Design panel, export says it drew the Studio's edits; the final MP4 frame shows the new words).
 - **Next: O3 (b) captions as their own composition** (they fill the top of the Studio's Layers panel today), then O5 (the Studio inside our app).
+- **O3 (b) done (2026-11-23):** the captions are baked as their own composition (`captions.html`, mounted by a full-frame host inside the root so the
+  caption styles and theme still apply; their word tweens on their own timeline). The Studio lists "captions" beside the main composition and its Layers
+  panel no longer starts with 35 caption groups. One Studio copy now serves exports with and without captions (the fingerprint ignores
+  `captions_enabled`; without captions the host is left out). A scene holding a timed video gets no window of its own (HyperFrames: a video takes no
+  timing from its wrapper). The baked sample has no HyperFrames lint errors; snapshots identical at 10 moments, and a real render of the baked page
+  matches the original's within encoding noise (same render time, 54 s vs 55 s).
+- **O3 left:** each scene as its own sub-composition (HyperFrames suggests it: `nested_structure_needs_subcomposition`), callbacks (count-ups), and
+  baking stick-figure, cartoon and long-talk videos.

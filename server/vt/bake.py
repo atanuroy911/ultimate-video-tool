@@ -56,6 +56,15 @@ def page_of(original: str, root_html: str, script: str) -> str:
     return (head.group(0) + "\n<body>\n" + root_html + "\n" + GSAP_TAG + "\n<script>\n" + safe + "\n</script>\n</body>\n</html>\n")
 
 
+def captions_page(cap: dict) -> str:
+    """The captions' own composition: their layer and the timeline of their words. The page mounts it inside its root, so it takes the page's styles."""
+    safe = cap["script"].replace("</script", "<\\/script")
+    return ("<!doctype html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n</head>\n<body>\n"
+            f'<div id="captions-root" data-composition-id="captions" data-width="{cap["width"]}" data-height="{cap["height"]}" data-start="0" '
+            f'data-duration="{cap["duration"]}" style="position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none">\n'
+            f'{cap["html"]}\n<script>\n{safe}\n</script>\n</div>\n</body>\n</html>\n')
+
+
 def bake(comp_dir: Path, out_dir: Path) -> dict:
     """Bake `comp_dir` (a composition folder: index.html, data.json, runtime/, fonts/, media/) into `out_dir`. Returns what was baked and what was lost."""
     from .render.hyperframes import probe
@@ -72,5 +81,8 @@ def bake(comp_dir: Path, out_dir: Path) -> dict:
         shutil.rmtree(out_dir)
     shutil.copytree(comp_dir, out_dir, copy_function=_link_or_copy, ignore=shutil.ignore_patterns("baked", ".bake-*", "index.html"))
     (out_dir / "index.html").write_text(page_of((comp_dir / "index.html").read_text(encoding="utf-8"), got["html"], got["script"]), encoding="utf-8")
+    cap = got.get("captions")
+    if cap:
+        (out_dir / "captions.html").write_text(captions_page(cap), encoding="utf-8")
     lost = got.get("lost") or []
     return {"dir": str(out_dir), "timelines": got.get("timelines", 0), "elements": got.get("elements", 0), "lost": lost[:50], "lost_count": len(lost)}

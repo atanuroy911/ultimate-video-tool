@@ -652,3 +652,4 @@ C11: fast render for long recordings (vt/render/fast.py): 1321 s instead of 8103
 ## 2026-11-23 morning
 - O4: the whole video in the HyperFrames Studio. Editor header **Studio** button -> server bakes the current video into studio-<shape>/ and opens the Studio (own window); Studio edits go into the export while they fit the current video (else a notice, old edits kept aside). Shot and video Studios share one process manager. pytest 7 (bake, shot, video Studio), e2e video-studio 9/9 with a real export whose frame shows the Studio edit; shot-studio still 10/10.
 - Next: captions as their own composition (O3 b), then O5 (the Studio inside our app with our assistant docked).
+- O3 b: captions baked as their own composition; one Studio copy serves exports with and without captions; no HyperFrames lint errors on the baked sample; real render of the baked page matches the original. e2e video-studio 9/9 again.

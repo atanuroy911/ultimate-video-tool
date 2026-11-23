@@ -62,3 +62,12 @@ def test_the_baked_page_draws_the_same_frames(baked):
     for t, x, y in zip(times, a, b):
         d = ImageChops.difference(Image.open(x).convert("RGB"), Image.open(y).convert("RGB"))
         assert sum(ImageStat.Stat(d).mean) / 3 < 0.05, f"frame at {t}s differs"
+
+
+def test_captions_are_their_own_composition(baked):
+    comp, out, _ = baked
+    page = (out / "index.html").read_text(encoding="utf-8")
+    caps = (out / "captions.html").read_text(encoding="utf-8")
+    assert re.search(r'<div id="captions" data-composition-id="captions" data-composition-src="captions\.html"', page)
+    assert 'class="cap-layer"' not in page and 'class="cap-layer"' in caps
+    assert 'data-composition-id="captions"' in caps and "window.__timelines.captions = tc" in caps

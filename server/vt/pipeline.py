@@ -1076,7 +1076,7 @@ def export(project: Project, aspect: Optional[str] = None, *, quality: str = "lo
     from .render.hyperframes import check as hf_check
     from .video_studio import for_render
 
-    draw_dir, studio_note = for_render(project, fmt["tag"], comp_dir)           # O4: edits made in the HyperFrames Studio are what gets drawn
+    draw_dir, studio_note = for_render(project, fmt["tag"], comp_dir, captions=captions)           # O4: edits made in the HyperFrames Studio are what gets drawn
     if studio_note:
         from .notices import record as record_notice
         record_notice(project, "studio", studio_note)

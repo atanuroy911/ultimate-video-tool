@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import shutil
 from pathlib import Path
 from typing import Optional
@@ -25,11 +26,28 @@ def folder(project, tag: str) -> Path:
 
 
 def fingerprint(comp_dir: Path) -> str:
-    h = hashlib.sha1(b"v1")
-    for name in ("index.html", "data.json"):
-        p = comp_dir / name
-        h.update(name.encode() + b"\0" + (p.read_bytes() if p.exists() else b"") + b"\0")
-    return h.hexdigest()[:16]
+    """What the video is, from its data. Captions on or off is not part of it: the baked captions are their own composition, left out when not wanted."""
+    try:
+        data = json.loads((comp_dir / "data.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return ""
+    data.pop("captions_enabled", None)
+    return hashlib.sha1(b"v2" + json.dumps(data, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()[:16]
+
+
+HOST = re.compile(r'<div id="captions"[^>]*data-composition-src="captions\.html"[^>]*></div>')
+
+
+def without_captions(src: Path, dst: Path) -> Path:
+    """The edited video with its captions composition left out (an export without captions)."""
+    from .bake import _link_or_copy
+
+    if dst.exists():
+        shutil.rmtree(dst)
+    shutil.copytree(src, dst, copy_function=_link_or_copy, ignore=shutil.ignore_patterns(BASELINE, STAMP, "captions.html"))
+    page = dst / "index.html"
+    page.write_text(HOST.sub("", page.read_text(encoding="utf-8")), encoding="utf-8")
+    return dst
 
 
 def info(project, tag: str, comp_dir: Optional[Path] = None) -> dict:
@@ -75,12 +93,14 @@ def open_video(project, tag: str, comp_dir: Path, *, fresh: bool = False) -> dic
     return {**out, **{k: ready[k] for k in ("kept", "edited") if k in ready}, "lost_count": ready.get("lost_count", 0)}
 
 
-def for_render(project, tag: str, comp_dir: Path) -> tuple[Path, Optional[str]]:
+def for_render(project, tag: str, comp_dir: Path, captions: bool = True) -> tuple[Path, Optional[str]]:
     """The folder the export should draw, and a sentence for the person when their Studio edits are not used."""
     have = info(project, tag, comp_dir)
     if not have["edited"]:
         return comp_dir, None
     if have["current"]:
+        if not captions:
+            return without_captions(Path(have["dir"]), project.dir / f".studio-{tag}-nocaptions"), None
         return Path(have["dir"]), None
     return comp_dir, ("The video changed after it was edited in the Studio, so those Studio edits are not in this export. "
                       "Open the Studio again to edit the new version (the old edits are kept in the project folder).")

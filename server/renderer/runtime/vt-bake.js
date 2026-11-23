@@ -143,6 +143,7 @@
       });
     }
     var touched = new Set();
+    var capLayer = document.querySelector("[data-composition-id] .cap-layer"), capCode = [];
     order.slice().reverse().forEach(function (tl) {                          // children first, so the parent can add them
       var me = names.get(tl);
       code.push("const " + me + " = gsap.timeline({ paused: true });");
@@ -163,6 +164,12 @@
         c.targets.forEach(function (el) { touched.add(el); });
         var tg = "[" + c.targets.map(function (el) { return JSON.stringify(idOf(el)); }).join(",") + "].map($)";
         var rest = c.args.slice(1).map(function (a) { return js(a); });
+        // a tween of caption parts only, at a fixed time on the root timeline, goes to the captions' own composition (same time: it starts at 0)
+        var last = c.args[c.args.length - 1];
+        if (capLayer && tl === root && c.args.length >= (c.m === "fromTo" ? 4 : 3) && typeof last === "number" && c.targets.every(function (el) { return capLayer.contains(el); })) {
+          capCode.push("tc." + c.m + "(" + tg + "," + rest.join(",") + ");");
+          return;
+        }
         code.push(me + "." + c.m + "(" + tg + "," + rest.join(",") + ");");
       });
     });
@@ -195,6 +202,7 @@
     [].slice.call(rootEl.querySelectorAll(".scene[data-scene]")).forEach(function (sc, i) {
       var c = twin.get(sc);
       if (!c) return;
+      if (sc.querySelector("video[data-start], audio[data-start]")) return;  // a timed clip inside takes no timing from its wrapper (HyperFrames: video_nested_in_timed_element)
       var from = Infinity, to = -Infinity;
       direct.forEach(function (tw) {
         if (tw.targets().indexOf(sc) < 0) return;
@@ -216,8 +224,28 @@
       var cs = getComputedStyle(el);
       c.setAttribute("style", s.replace(/([a-z-]+):\s*;/g, function (_, p) { var v = cs.getPropertyValue(p); return v ? p + ": " + v + ";" : ""; }));
     });
+    // The captions become their own composition: their layer moves to captions.html and a full-frame host takes its place in the page (it stays
+    // inside the root, so the caption styles and the theme's variables still apply). Without captions the video still draws; one bake serves both.
+    var captions = null;
+    if (capLayer && capCode.length && twin.get(capLayer)) {
+      var capCopy = twin.get(capLayer);
+      var host = document.createElement("div");
+      host.id = "captions";
+      host.setAttribute("data-composition-id", "captions");
+      host.setAttribute("data-composition-src", "captions.html");
+      host.setAttribute("data-start", "0");
+      host.setAttribute("data-duration", String(total));
+      host.setAttribute("style", "position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none");
+      capCopy.parentNode.replaceChild(host, capCopy);
+      captions = {
+        html: capCopy.outerHTML,
+        script: "{\n  const $ = (id) => document.getElementById(id);\n  const tc = gsap.timeline({ paused: true });\n  " + capCode.join("\n  ") +
+          "\n  window.__timelines = window.__timelines || {};\n  window.__timelines.captions = tc;\n}",
+        width: Number(rootEl.getAttribute("data-width")), height: Number(rootEl.getAttribute("data-height")), duration: total, tweens: capCode.length,
+      };
+    }
     var html = copy.outerHTML;
-    var script = "const $ = (id) => document.getElementById(id);\n" + code.join("\n") + "\nwindow.__timelines = { " + JSON.stringify(rootEl.getAttribute("data-composition-id") || "root") + ": t0 };";
-    return { html: html, script: script, lost: lost, timelines: order.length, elements: touched.size };
+    var script = "const $ = (id) => document.getElementById(id);\n" + code.join("\n") + "\nwindow.__timelines = window.__timelines || {};\nwindow.__timelines[" + JSON.stringify(rootEl.getAttribute("data-composition-id") || "root") + "] = t0;";
+    return { html: html, script: script, captions: captions, lost: lost, timelines: order.length, elements: touched.size };
   };
 })();

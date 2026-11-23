@@ -55,3 +55,27 @@ def test_bake_edit_render_and_a_changed_video(video):
     again = VS.prepare(proj, "9x16", comp)
     assert not again["kept"] and not again["edited"]
     assert "Each minute" in (proj.dir / "studio-9x16.old" / "index.html").read_text(encoding="utf-8"), "the old edits are kept aside"
+
+
+def test_an_export_without_captions_keeps_the_studio_edits(video, tmp_path):
+    import json
+    import shutil
+
+    from vt import video_studio as VS
+
+    proj0, comp0 = video
+    proj = type(proj0)(id="q", dir=tmp_path / "q")
+    comp = proj.dir / "composition" / "9x16"
+    shutil.copytree(comp0, comp)
+    VS.prepare(proj, "9x16", comp)
+    d = VS.folder(proj, "9x16")
+    page = d / "index.html"
+    page.write_text(page.read_text(encoding="utf-8").replace("Every minute", "Each minute"), encoding="utf-8")
+    data = json.loads((comp / "data.json").read_text(encoding="utf-8"))
+    data["captions_enabled"] = False                                           # what a no-captions export composes
+    (comp / "data.json").write_text(json.dumps(data), encoding="utf-8")
+    where, note = VS.for_render(proj, "9x16", comp, captions=False)
+    assert note is None and where != comp
+    html = (where / "index.html").read_text(encoding="utf-8")
+    assert "Each minute" in html and "data-composition-src" not in html and not (where / "captions.html").exists()
+    assert VS.for_render(proj, "9x16", comp)[0] == d, "with captions the Studio folder itself is drawn"

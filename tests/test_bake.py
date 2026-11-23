@@ -88,3 +88,40 @@ def test_captions_are_their_own_composition(baked):
     assert not (out / "captions.html").exists(), "one page at the top: HyperFrames takes every top-level page with a composition for a root"
     assert 'class="cap-layer"' not in page and 'class="cap-layer"' in caps
     assert 'data-composition-id="captions"' in caps and "window.__timelines.captions = tc" in caps
+
+
+@pytest.mark.browser
+def test_stick_figures_bake_into_scenes_that_draw_them(ref, tmp_path):
+    """Stick figures are drawn by code every frame. A stick scene becomes a composition that runs the stick engine on its own timeline, so the
+    video bakes with nothing lost (the HyperFrames Studio may open it) and draws the same frames."""
+    from PIL import Image, ImageChops, ImageStat
+
+    from vt.bake import STICK_MARK, bake
+    from vt.pipeline import compose_all
+    from vt.render import hyperframes as H
+
+    from test_stick import stick_project
+
+    try:
+        H._browser()
+    except Exception as e:                                                      # noqa: BLE001
+        pytest.skip(f"HyperFrames has no browser here: {str(e)[:120]}")
+    stick_project(ref)
+    compose_all(ref)
+    comp = ref.comp_dir / "9x16"
+    got = bake(comp, tmp_path / "baked")
+    assert got["lost_count"] == 0, got["lost"]
+    pages = sorted((tmp_path / "baked" / "scenes").glob("*.html"))
+    drawn = [p for p in pages if "X.stick(" in p.read_text(encoding="utf-8")]
+    assert drawn, "the stick scenes run the stick engine"
+    page = drawn[0].read_text(encoding="utf-8")
+    assert STICK_MARK not in page and "X.stick = function" in page and 'class="stk-stage"' not in page, "the engine is in the page; it draws the stage"
+    import json
+
+    dur = json.loads((comp / "data.json").read_text(encoding="utf-8"))["duration"]
+    times = [round(dur * k / 7, 2) for k in range(1, 7)]
+    a = sorted(H.snapshot(comp, tmp_path / "fa", times, gpu=False))
+    b = sorted(H.snapshot(tmp_path / "baked", tmp_path / "fb", times, gpu=False))
+    for t, x, y in zip(times, a, b):
+        d = ImageChops.difference(Image.open(x).convert("RGB"), Image.open(y).convert("RGB"))
+        assert sum(ImageStat.Stat(d).mean) / 3 < 0.05, f"frame at {t}s differs"

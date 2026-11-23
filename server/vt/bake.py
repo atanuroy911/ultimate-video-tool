@@ -16,6 +16,7 @@ from . import paths
 
 RECORDER = paths.RENDERER / "runtime" / "vt-bake.js"
 GSAP_TAG = '<script src="runtime/gsap.min.js"></script>'
+STICK_MARK = "/*VT_STICK_ENGINE*/"     # where a stick scene's page gets the stick engine (vt-stick.js)
 
 
 class BakeError(Exception):
@@ -122,6 +123,10 @@ def bake(comp_dir: Path, out_dir: Path) -> dict:
         (out_dir / "compositions" / "captions.html").write_text(captions_page(cap), encoding="utf-8")
     for sc in got.get("scenes") or []:                                       # S4: one composition per scene
         (out_dir / "scenes").mkdir(exist_ok=True)
+        if STICK_MARK in sc["script"]:                                       # stick figures: the scene's page carries the stick engine itself
+            engine = (comp_dir / "runtime" / "vt-stick.js")
+            engine = engine if engine.exists() else RECORDER.parent / "vt-stick.js"
+            sc = {**sc, "script": sc["script"].replace(STICK_MARK, engine.read_text(encoding="utf-8"), 1)}
         (out_dir / "scenes" / f"{sc['file']}.html").write_text(comp_page(sc["id"], sc), encoding="utf-8")
     lost = got.get("lost") or []
     return {"dir": str(out_dir), "timelines": got.get("timelines", 0), "elements": got.get("elements", 0), "lost": lost[:50], "lost_count": len(lost),

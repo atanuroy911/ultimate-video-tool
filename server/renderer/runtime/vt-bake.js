@@ -13,6 +13,31 @@
   var lost = [];
   var mkTimeline = g.timeline.bind(g);
 
+  // Stick figures (vt-stick.js) are drawn by code every frame (a pure function of time), which no list of steps can hold. Each call of the stick
+  // engine is noted: the scene element, its scene data, the shared stick state just before (props carried from scene to scene) and the steps it
+  // added. Such a scene becomes a composition that runs the stick engine itself on its own timeline (see "drawn" in __vtBake).
+  var drawn = [], drawnStep = new WeakSet();
+  (function hookVTX() {
+    var vtx;
+    function hookStick(v) {
+      var fn;
+      Object.defineProperty(v, "stick", { configurable: true, enumerable: true, get: function () { return fn; }, set: function (f) {
+        fn = function (el, sc, tl, D) {
+          var before = new Set(tl.getChildren(false, true, true));
+          var state = JSON.parse(JSON.stringify((window.VTX && window.VTX.stickState) || {}));
+          var envelope = D && D.envelope ? { dt: D.envelope.dt, v: D.envelope.v } : null;
+          var data = JSON.parse(JSON.stringify(sc));                       // as given: the engine adds to it while it builds
+          var out = f.apply(this, arguments);
+          var added = tl.getChildren(false, true, true).filter(function (c) { return !before.has(c); });
+          added.forEach(function (c) { drawnStep.add(c); });
+          drawn.push({ el: el, sc: data, state: state, envelope: envelope, format: D && D.format ? JSON.parse(JSON.stringify(D.format)) : null, root: tl, added: added });
+          return out;
+        };
+      } });
+    }
+    Object.defineProperty(window, "VTX", { configurable: true, enumerable: true, get: function () { return vtx; }, set: function (v) { vtx = v; if (v && typeof v === "object") hookStick(v); } });
+  })();
+
   function els(t) {
     if (t == null) return [];
     if (typeof t === "string") { try { return [].slice.call(document.querySelectorAll(t)); } catch (e) { return []; } }
@@ -198,7 +223,7 @@
       for (var k = 0; k <= Math.ceil(dur * 30) + 1; k++) {
         var t = from + Math.min(dur, k / 30);
         root.time(t);
-        obs.takeRecords().forEach(function (m) { var el = m.type === "characterData" ? m.target.parentElement : m.target; if (isEl(el)) seen.set(el, el.textContent); });
+        obs.takeRecords().forEach(function (m) { var el = m.type === "characterData" ? m.target.parentElement : m.target; if (isEl(el) && !(el.closest && el.closest(".stk-stage"))) seen.set(el, el.textContent); });   // not the stick engine's own redraws
         seen.forEach(function (txt, el) { if (last.get(el) !== txt) { last.set(el, txt); steps.push([el, t, txt]); } });
         seen.clear();
       }
@@ -261,6 +286,19 @@
       var sc = sceneOf(rootSteps[k]);
       if (sc) win.get(sc).from = Math.min(win.get(sc).from, Math.floor(ch.startTime() * 1000) / 1000);
     });
+    // stick figures: the scene they are drawn in (the scene element itself, or the one holding it); only a scene with its own page can draw them
+    var drawnIn = new Map();                                                 // scene element -> its stick calls
+    drawn.forEach(function (d) {
+      var sc = d.el.matches && d.el.matches(".scene[data-scene]") ? d.el : d.el.closest && d.el.closest(".scene[data-scene]");
+      var w = sc && win.get(sc);
+      if (!w || !w.own || d.root !== root) {
+        d.added.forEach(function (c) { drawnStep.delete(c); });             // left as they are: listed as lost below, and the Studio is not offered
+        return;
+      }
+      if (!drawnIn.has(sc)) drawnIn.set(sc, []);
+      drawnIn.get(sc).push(d);
+      d.added.forEach(function (c) { w.from = Math.min(w.from, Math.floor(c.startTime() * 1000) / 1000); });
+    });
     var out = code;                                                          // where the code goes: the root's, or a scene's
     function define(tl) {                                                    // writes a timeline (its children first when they are timelines) and returns its name
       if (names.has(tl)) return names.get(tl);
@@ -275,6 +313,7 @@
       var noDelay = function (o) { if (!o || typeof o !== "object" || Array.isArray(o)) return o; var r = {}; for (var k in o) if (k !== "delay") r[k] = o[k]; return r; };
       list.forEach(function (ch) {
         if (ch.parent !== tl) return;                                        // killed or moved since (settleEntrance replaces some entrances with a set)
+        if (drawnStep.has(ch)) return;                                       // the stick engine's own step: its scene's page runs the engine
         var start = at3(ch.startTime());                                     // where it is now (the runtime moves some tweens after making them)
         var src = made.get(ch);
         // at the root, a step that moves only one scene's parts goes to that scene's composition, its time counted from the scene's start
@@ -327,6 +366,7 @@
     define(root);
     // the page as built, before the timeline moved anything: GSAP-set styles, attributes and text go back to what the builder wrote
     // (done on a copy of the page: the live page keeps the nodes the timeline holds)
+    drawnIn.forEach(function (calls, sc) { idOf(sc); calls.forEach(function (d) { idOf(d.el); }); });   // named before the copy, so the copy has the ids
     var copy = rootEl.cloneNode(true);
     var twin = new Map();
     (function pair(a, b) { twin.set(a, b); for (var i = 0; i < a.children.length; i++) pair(a.children[i], b.children[i]); })(rootEl, copy);
@@ -399,7 +439,29 @@
       c.removeAttribute("data-start");
       c.removeAttribute("data-duration");
       c.parentNode.replaceChild(host, c);
-      var lines = sceneCode.get(sc) || [];
+      var lines = (sceneCode.get(sc) || []).slice();
+      var calls = drawnIn.get(sc) || [];
+      if (calls.length) {                                                    // stick figures: the page runs the engine (its source is put in by bake.py)
+        c.querySelectorAll(".stk-stage").forEach(function (s) { s.remove(); });   // drawn again by the engine, as at the start
+        var head = ["window.VTX = window.VTX || {};", "const X = window.VTX;",
+          "X.envelopeAt = function (env, t) { if (!env || !env.v || !env.v.length) return 0; const i = Math.max(0, Math.min(env.v.length - 1, Math.round(t / env.dt) - env.i0)); return env.v[i]; };",
+          "/*VT_STICK_ENGINE*/"];
+        calls.forEach(function (d) {
+          var env = null;
+          if (d.envelope && d.envelope.v && d.envelope.dt) {                // only the part of the voice's loudness this scene can use
+            var i0 = Math.max(0, Math.floor((w.from - 1) / d.envelope.dt)), i1 = Math.min(d.envelope.v.length, Math.ceil((w.to + 1) / d.envelope.dt));
+            env = { dt: d.envelope.dt, i0: i0, v: d.envelope.v.slice(i0, i1) };
+          }
+          var at = d.el === sc ? "$(" + JSON.stringify(c.id || idOf(sc)) + ")" : "$(" + JSON.stringify(idOf(d.el)) + ")";
+          head.push("X.stickState = " + JSON.stringify(d.state) + ";");
+          // The engine measures speech bubbles and props; HyperFrames hides a composition outside its window (display: none), where everything
+          // measures 0. While the engine builds or draws, the hidden ancestors are shown for that moment, so it measures as on the original page.
+          head.push("{ const host = " + at + "; const shown = (fn) => function () { const hid = []; for (let n = host; n && n !== document.documentElement; n = n.parentElement) if (getComputedStyle(n).display === 'none') { hid.push([n, n.style.display]); n.style.display = 'block'; } try { return fn.apply(this, arguments); } finally { hid.forEach(([n, v]) => { n.style.display = v; }); } };");
+          head.push("  shown(() => X.stick(host, " + JSON.stringify(d.sc) + ", { fromTo: (a, b, c, p) => ts.fromTo(a, b, { ...c, ...(c.onUpdate ? { onUpdate: shown(c.onUpdate) } : {}), ...(c.onStart ? { onStart: shown(c.onStart) } : {}) }, Math.max(0, p - " + w.from + ")), call: (f, a, p) => ts.call(shown(f), a, Math.max(0, p - " + w.from + ")) }, " +
+            JSON.stringify({ format: d.format, envelope: env }) + "))(); }");
+        });
+        lines = head.concat(lines);
+      }
       scenes.push({
         id: cid, file: key, html: c.outerHTML, tweens: lines.length,
         script: "{\n  const $ = (id) => document.getElementById(id);\n  const ts = gsap.timeline({ paused: true });\n  " + lines.join("\n  ") +

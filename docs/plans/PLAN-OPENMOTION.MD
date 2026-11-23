@@ -146,3 +146,12 @@ recordings, Claude Code over ACP. Our own editor stays for those until each live
   gateway's address; with no gateway they say so. Tests: tests/test_studio_gateway.py 4, e2e/studio-gateway.mjs 6/6 (the real Studio through
   the gateway, its event stream too), desktop-studio 19/19. Screen: docs/dev/spikes/html-shot/studio-gateway.png.
   Left of O8: stick-figure videos in HyperFrames, and the plan-level work (Director, shots) that has no place in the Studio.
+- **Stick figures in HyperFrames (2026-11-23, the second O8 blocker):** a stick scene's figures are drawn by code every frame (a pure function of
+  time), which no list of steps can hold. The bake now notes each call of the stick engine (the scene, its data as given, the props state carried
+  from earlier scenes, the steps it added) and makes the scene a composition that carries the engine and calls it on the scene's own timeline
+  (times shifted to the scene's start; the voice loudness for lip-sync cut to the scene's stretch). While the engine builds or draws, hidden
+  ancestors are shown for that moment, since HyperFrames hides compositions outside their window and the engine measures bubbles and props. The
+  engine's own text redraws are not taken for count-ups. Result: the e2e-stick sample bakes with nothing lost in 9:16, 16:9 and 1:1, all 36
+  sampled moments identical; the Studio opens stick videos and draws the figures. Tests: test_bake (a stick video's frames), e2e/studio-stick.mjs
+  3/3. Screen: docs/dev/spikes/html-shot/studio-stick.png.
+  Left of O8: plan-level work (the Director, shots) has no place in the Studio; then the old editor can go.

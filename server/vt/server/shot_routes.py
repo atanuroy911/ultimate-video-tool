@@ -262,3 +262,19 @@ def video_studio_close(pid: str, aspect: Optional[str] = None) -> dict[str, Any]
     if got.get("changed"):
         _changed(pid)
     return got
+
+
+@router.post("/api/projects/{pid}/studio/refresh")
+def video_studio_refresh(pid: str, aspect: Optional[str] = None) -> dict[str, Any]:
+    """The video changed (a word edit, a cut, a Director note): bake it again for the Studio and carry the Studio edits into it. An open Studio shows it."""
+    from ..compose.composer import compose_project
+    from .. import video_studio as VS
+
+    project, aspect, tag = _video_key(pid, aspect)
+    if not (VS.folder(project, tag) / "index.html").exists():
+        return {"baked": False}
+    try:
+        comp_dir = compose_project(project, aspect).parent
+    except Exception as e:                                          # noqa: BLE001
+        raise HTTPException(422, f"The video could not be put together for the Studio: {e}")
+    return _studio_call(VS.prepare, project, tag, comp_dir)

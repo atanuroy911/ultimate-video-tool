@@ -65,43 +65,79 @@ def info(project, tag: str, comp_dir: Optional[Path] = None) -> dict:
     return {"baked": True, "edited": edited, "current": current, "dir": str(d)}
 
 
+def _swap_in(src: Path, dst: Path) -> None:
+    """Move every file of `src` into `dst`, one by one with os.replace (a new directory entry: never a write through a hard-linked media file), so a
+    Studio watching `dst` reloads the new page. Files `dst` has that `src` lacks go (dot-folders, the Studio's own history, stay)."""
+    import os
+    import time as _time
+
+    keep = {p.relative_to(src) for p in src.rglob("*") if p.is_file()}
+    for rel in sorted(keep, key=lambda r: (r.name in ("index.html", "captions.html"), str(r))):      # the pages last, once their files are there
+        target = dst / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        for attempt in range(20):
+            try:
+                os.replace(src / rel, target)
+                break
+            except PermissionError:                                              # Windows: the Studio is reading it at this instant
+                if attempt == 19:
+                    raise
+                _time.sleep(0.05 * (attempt + 1))
+    for p in sorted(dst.rglob("*"), reverse=True):
+        rel = p.relative_to(dst)
+        if rel.parts[0].startswith(".") or p.name in (BASELINE, STAMP, *BASE_OF.values()):
+            continue
+        if p.is_file() and rel not in keep:
+            p.unlink(missing_ok=True)
+    shutil.rmtree(src, ignore_errors=True)
+
+
 def prepare(project, tag: str, comp_dir: Path, *, fresh: bool = False) -> dict:
-    """Bake the composition into the Studio folder, unless edits made on this same composition are already there (they are kept)."""
+    """Bake the composition for the Studio, unless edits made on this same composition are already there (they are kept). When the video changed since
+    the Studio edits, the edits are carried into the new bake where they still fit (a copy of the old ones stays in studio-<shape>.old). The new files
+    are moved into the Studio folder one by one, so an open Studio shows the new video."""
+    from .bake import _link_or_copy
+
     d = folder(project, tag)
     have = info(project, tag, comp_dir)
     if have["baked"] and have["current"] and not fresh:
         return {**have, "kept": True}
     earlier = {}
-    if have["edited"] and not have["current"]:                     # older edits: carried into the new bake where they still fit, and kept beside
+    if have["edited"] and not have["current"]:
         for f, b in BASE_OF.items():
             if (d / f).exists() and (d / b).exists():
                 earlier[f] = ((d / b).read_text(encoding="utf-8"), (d / f).read_text(encoding="utf-8"))
         old = project.dir / f"studio-{tag}.old"
         shutil.rmtree(old, ignore_errors=True)
-        shutil.move(str(d), str(old))
-    got = bake(comp_dir, d)
+        shutil.copytree(d, old, copy_function=_link_or_copy, ignore=shutil.ignore_patterns(".hyperframes", ".history"))
+    new = project.dir / f".studio-{tag}-bake"
+    got = bake(comp_dir, new)
     if got["lost_count"]:                                          # an export from this copy would not move like the video: never offer it
-        shutil.rmtree(d, ignore_errors=True)
+        shutil.rmtree(new, ignore_errors=True)
         raise ST.StudioError(f"This video has {got['lost_count']} animation step(s) the Studio cannot hold yet (for example stick figures, whose "
                              "limbs are drawn by code every frame). Edit it in Video Tool's own editor for now.")
     for f, b in BASE_OF.items():
-        if (d / f).exists():
-            shutil.copy(d / f, d / b)
-    (d / STAMP).write_text(json.dumps({"from": fingerprint(comp_dir), "lost": got["lost"][:20], "lost_count": got["lost_count"]}, indent=1), encoding="utf-8")
+        if (new / f).exists():
+            shutil.copy(new / f, new / b)
+    (new / STAMP).write_text(json.dumps({"from": fingerprint(comp_dir), "lost": got["lost"][:20], "lost_count": got["lost_count"]}, indent=1), encoding="utf-8")
     carried = missed = 0
     if not fresh:
         for f, (base, mine) in earlier.items():
-            if not (d / f).exists():
+            if not (new / f).exists():
                 continue
-            text, c, m = carry(base, mine, (d / f).read_text(encoding="utf-8"))
+            text, c, m = carry(base, mine, (new / f).read_text(encoding="utf-8"))
             if f == "index.html" and c:
                 from . import shots as SH
                 try:
                     SH.info_of("video", text, {})
                 except SH.ShotError:
-                    text, c, m = (d / f).read_text(encoding="utf-8"), 0, c + m
-            (d / f).write_text(text, encoding="utf-8")
+                    text, c, m = (new / f).read_text(encoding="utf-8"), 0, c + m
+            (new / f).write_text(text, encoding="utf-8")
             carried, missed = carried + c, missed + m
+    if d.exists():
+        _swap_in(new, d)
+    else:
+        new.rename(d)
     return {**info(project, tag, comp_dir), "kept": False, "lost_count": got["lost_count"], "carried": carried, "missed": missed}
 
 

@@ -658,3 +658,5 @@ C11: fast render for long recordings (vt/render/fast.py): 1321 s instead of 8103
 - O6: Claude Code edits the Studio selection: studio_parts / studio_part / studio_edit / studio_selection MCP tools; real Sonnet test in the desktop app 4/4 (the Studio shows the change live).
 - Owner said the Studio looked shrunk: Studio mode now gives it the whole window below the title bar (toolbar hidden, assistant closed in narrow windows, toggle in the Studio menu). The Studio's own ask-the-agent goes to the docked Claude Code. e2e desktop-studio 10/10.
 - Studio edits now survive plan changes (carried into the new bake; the export shows both kinds of change, checked end to end). Agent Studio edits are named entries in the Studio's history, undoable (studio_undo). HyperFrames update check and self-install off.
+- Timeline words (owner: overlapping): caption lines join until readable when zoomed out, split into words when zoomed in; double-click a caption word to edit it. No overlap (e2e).
+- O7: Words tab beside the Studio; changes to the video reach the open Studio by themselves with Studio edits carried. e2e desktop-studio 12/12.

@@ -53,6 +53,20 @@ try {
   check("the assistant is then docked beside the Studio", await page.locator(".wb-assistant-body").isVisible());
   if (await msg.count()) await msg.fill("");
 
+  // O7: the spoken words are a tab beside the Studio, and a change to the video reaches the open Studio by itself
+  await page.getByRole("tab", { name: "Words" }).click();
+  await page.waitForTimeout(800);
+  check("the Words tab shows the transcript beside the Studio", (await page.locator(".wb-assistant-body").innerText()).length > 50);
+  const api = (m, u, body) => page.evaluate(async ([m, u, body]) => (await fetch(u, { method: m, headers: { "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined })).json(), [m, u, body]);
+  const plan0 = (await api("GET", `/api/projects/${pid}/scenes`)).plan.scenes.find((x) => x.id === "s5");
+  const items0 = plan0.elements[0].items;
+  await api("PATCH", `/api/projects/${pid}/scenes/s5/elements/0`, { items: [{ ...items0[0], title: "App notifications" }, ...items0.slice(1)] });
+  const copyFile = path.join(process.env.VT_PROJECTS || "E:/UltimateVideoTool/scratch/c2-projects", pid, "studio-9x16", "index.html");
+  let reached = false;
+  for (let i = 0; i < 40 && !reached; i++) { await page.waitForTimeout(1000); reached = fs.readFileSync(copyFile, "utf8").includes("App notifications"); }
+  check("a change to the video reaches the open Studio's copy by itself", reached);
+  await api("PATCH", `/api/projects/${pid}/scenes/s5/elements/0`, { items: items0 });
+  await page.waitForTimeout(7000);
   await page.getByRole("button", { name: "Studio open" }).click();
   await page.getByRole("menuitem", { name: "Back to Video Tool's editor" }).click();
   await page.waitForTimeout(800);

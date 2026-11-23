@@ -122,3 +122,10 @@ recordings, Claude Code over ACP. Our own editor stays for those until each live
   takes it back). HyperFrames' update check and self-install are switched off (`HYPERFRAMES_NO_UPDATE_CHECK`, `HYPERFRAMES_NO_AUTO_INSTALL`).
   Checked end to end on c2-mix: a Studio edit on scene 4, then scene 5 changed in the editor; the export shows both.
 - The Director stays plan-level (it rewrites the plan; the Studio edits are then carried). Claude Code is the agent for Studio-level changes.
+- **O7 first part (2026-11-23):** in Studio mode the docked pane has a **Words** tab (the transcript: edit a word, cut or bring back a part). Any change
+  to the video while the Studio is open (a word edit, a cut, a Director note) is baked again on the server with the Studio edits carried over and moved
+  into the Studio folder file by file, so the open Studio shows it by itself (`POST /studio/refresh`; `video_studio._swap_in`). e2e desktop-studio 12/12.
+- **Words on our timeline, readable at any zoom (owner: "the words section is too much overlapping"):** zoomed out, caption lines too narrow to read
+  join into one block (a mark along the bottom where each word starts) and a block grows only until it can be read; zoomed in, each word gets its own
+  slot once every word has 22 px. Double-clicking a caption word opens it for editing, like the narration. `occ/bridge/captionLod.ts`,
+  tests/caption-lod.test.mjs, e2e/timeline-words.mjs (no overlap; double-click opens the word). Screens: docs/dev/spikes/html-shot/timeline-words-*.png.

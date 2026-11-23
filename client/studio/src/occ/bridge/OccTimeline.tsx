@@ -148,6 +148,12 @@ function Board({ base, layers, adapter, projectId, onSave, onUndo, onRedo, disab
     const el = (e.target as HTMLElement).closest<HTMLElement>('[data-item-id]');
     if (el?.dataset.itemId?.startsWith('cut:')) { onRestoreCut?.(Number(el.dataset.itemId.slice(4))); return; }
     if (!onWordAt) return;
+    const cue = (e.target as HTMLElement).closest<HTMLElement>('.cc-caption-track-cue');          // a caption line or word: the word under the pointer
+    if (cue && cue.dataset.startMs) {
+      const r = cue.getBoundingClientRect(), a0 = Number(cue.dataset.startMs), a1 = Number(cue.dataset.endMs);
+      onWordAt((a0 + Math.max(0, Math.min(1, (e.clientX - r.left) / Math.max(1, r.width))) * (a1 - a0)) / 1000);
+      return;
+    }
     const s = activeEditorState(docRef.current);
     const voiceTrack = s.items.find((i) => i.id === VOICE_ID)?.track ?? activeEditorState(base).items.find((i) => i.id === VOICE_ID)?.track;
     const item = el && s.items.find((i) => i.id === el.dataset.itemId);

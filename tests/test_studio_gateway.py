@@ -123,3 +123,22 @@ def test_an_edit_reaches_the_studio_and_the_same_address_opens_again(studio):
     assert again.status_code == 303, "a used ticket with the cookie: let in again"
     assert saved.status_code == 200 and saved.json() == {"ok": True}
     assert studio[-1] == {"path": "/api/projects/a/files/index.html", "body": b"<html>edited</html>"}
+
+
+def test_the_gateway_never_shares_a_port_with_another_program():
+    """Windows lets a server on 0.0.0.0 take a port another program already listens on at 127.0.0.1 (the installed server's gateway took a test
+    server's port, 2026-11-24): a port something answers on is skipped."""
+    import socket
+
+    from vt.server import studio_gateway as G
+
+    held = socket.socket()
+    held.bind(("127.0.0.1", 0))
+    held.listen(1)
+    port = held.getsockname()[1]
+    try:
+        got = G.start("127.0.0.1", port)
+        assert got != port
+    finally:
+        held.close()
+        G.GATE["port"] = None

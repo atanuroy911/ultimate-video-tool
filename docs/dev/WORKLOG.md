@@ -697,3 +697,7 @@ C11: fast render for long recordings (vt/render/fast.py): 1321 s instead of 8103
 
   Mp4 paths in the report. The remaining rows run after the usage window reset (04:30).
 - W15.6: pull request #3 (workbench -> main, 0.6.0) opened for the owner, with the screens and the tests; not merged.
+
+## 2026-11-24 morning (owner back)
+- Owner: testing with scripted videos and stand-in pages "does nothing for real videos"; decided: stop video runs (matrix stopped; memory note). HyperFrames only for HTML scenes; our editor is the main editor again (whole-video button and auto-open removed; scene menu offers HyperFrames only for a scene with a shot; e2e scene-hyperframes 7/7). Then: one editor, ours, with HyperFrames' parts inside (plan written, PLAN-ONE-EDITOR.MD).
+- Found: the installed server's HyperFrames gateway took port 8791 on 0.0.0.0 while a test server held 127.0.0.1:8791 (Windows allows both). The gateway now skips a port anything answers on (test).

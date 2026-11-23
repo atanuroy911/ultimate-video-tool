@@ -119,9 +119,11 @@ export default function ScenesPanel({ r, selected, onSelect, seek }: { r: Review
           >
             <MessageSquare size={14} /> Ask the assistant about this
           </button>
-          <button onClick={() => { window.dispatchEvent(new CustomEvent("vt-scene-hyperframes", { detail: menu.sid })); setMenu(null); }}>
-            <Clapperboard size={14} /> Edit this scene in HyperFrames
-          </button>
+          {scenes.find((x) => x.id === menu.sid)?.shot && (                 // only a scene made of HTML (a code-native shot) opens in HyperFrames
+            <button onClick={() => { window.dispatchEvent(new CustomEvent("vt-scene-hyperframes", { detail: menu.sid })); setMenu(null); }}>
+              <Clapperboard size={14} /> Edit this scene in HyperFrames
+            </button>
+          )}
           <button onClick={() => { window.dispatchEvent(new CustomEvent("vt-scene-pictures", { detail: menu.sid })); setMenu(null); }}>
             <ImagePlus size={14} /> Pictures for this scene
           </button>

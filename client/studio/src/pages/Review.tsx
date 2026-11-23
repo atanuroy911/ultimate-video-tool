@@ -123,7 +123,8 @@ function ReviewEditor() {
     return () => window.removeEventListener("vt-ask-scene", on);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   assistantTabRef.current = assistantTab;
-  const [shotEdit, setShotEdit] = useState<string | null>(null);   // a code-native shot open in the visual editor (PLAN-CODE-NATIVE-EDITOR C3)
+  const [shotEdit, setShotEdit] = useState<string | null>(null);
+  const [shotStudio, setShotStudio] = useState(false);                  // open the shot straight in HyperFrames   // a code-native shot open in the visual editor (PLAN-CODE-NATIVE-EDITOR C3)
   const lastT = useRef(0);
   const [tool, setTool] = useState<Tool>("select");
   const [snap, setSnap] = useState(true);
@@ -231,15 +232,14 @@ function ReviewEditor() {
   const [genScene, setGenScene] = useState<string | null>(null);            // G1: the scene whose pictures panel is open
   useEffect(() => {                                                      // S2 / G1: from a scene's menu
     const pics = (e: Event) => setGenScene(String((e as CustomEvent).detail || ""));
-    const hf = (e: Event) => {
-      const i = r.timing.scenes.findIndex((x) => x.id === (e as CustomEvent).detail);
-      if (i >= 0) setStudioScene(i);
-      window.dispatchEvent(new CustomEvent("vt-open-hyperframes"));
+    const hf = (e: Event) => {                                          // a scene made of HTML: its shot opens in HyperFrames (the shot editor's Studio tab)
+      const shot = r.plan?.scenes.find((x) => x.id === (e as CustomEvent).detail)?.shot;
+      if (shot) { setShotStudio(true); setShotEdit(shot); }
     };
     window.addEventListener("vt-scene-pictures", pics);
     window.addEventListener("vt-scene-hyperframes", hf);
     return () => { window.removeEventListener("vt-scene-pictures", pics); window.removeEventListener("vt-scene-hyperframes", hf); };
-  }, [r.timing.scenes]);
+  }, [r.timing.scenes, r.plan]);
   const [studioAt, setStudioAt] = useState<number | null>(null);            // O7: a moment picked in a panel (else the scene's start)
   const studioGo = (t: number) => {                                         // move the Studio to a moment; the scene bar follows to its scene
     const i = r.timing.scenes.findIndex((x) => t >= x.start - 0.01 && t < x.end);
@@ -636,8 +636,10 @@ function ReviewEditor() {
           <Tooltip text="Redo" keys="Ctrl+Shift+Z"><Button icon variant="ghost" size="sm" onClick={r.redo} disabled={!r.canRedo} aria-label="Redo"><Redo2 size={16}/></Button></Tooltip>
         </div>
         <Button size="sm" onClick={() => nav(`/p/${id}/script`)} aria-label="Director's script"><MessageSquareText size={15}/> Script</Button>
-        <StudioButton projectId={id} ready={!!r.plan?.scenes?.length && r.timing.scenes.length > 0} embedded={!!studioUrl} assistantShown={showAssistant} onAssistant={setShowAssistant}
-          onEmbed={(u) => { setStudioUrl(u); if (u) setShowAssistant(window.innerWidth >= 1500); else setAssistantTab((t) => (t === "video" ? "director" : t)); }} />
+        {/* The owner, 2026-11-24: HyperFrames is for scenes made of HTML only (a scene's menu, or its shot's editor). The whole-video HyperFrames
+            button is not offered; its code (StudioButton, the scene bar, the Video tab) stays unused until the owner wants it back. */}
+        {false && <StudioButton projectId={id} ready={!!r.plan?.scenes?.length && r.timing.scenes.length > 0} embedded={!!studioUrl} assistantShown={showAssistant} onAssistant={setShowAssistant}
+          onEmbed={(u) => { setStudioUrl(u); if (u) setShowAssistant(window.innerWidth >= 1500); else setAssistantTab((t) => (t === "video" ? "director" : t)); }} />}
         <Button size="sm" onClick={() => setAiOpen(true)} aria-label="AI assistant"><Sparkles size={15}/> AI</Button>
         <Button size="sm" variant="primary" onClick={exportNow}><Download size={15}/> Export</Button>
       </header>
@@ -715,7 +717,7 @@ function ReviewEditor() {
               <iframe title="HyperFrames Studio" src={studioSrc} allow="clipboard-read; clipboard-write" /></div>}
             {shotEdit ? (
               <Suspense fallback={<Spinner />}>
-                <ShotEditor projectId={id} shotId={shotEdit} onClose={() => { setShotEdit(null); r.reloadAll(); }} />
+                <ShotEditor projectId={id} shotId={shotEdit} startInStudio={shotStudio} onClose={() => { setShotEdit(null); setShotStudio(false); r.reloadAll(); }} />
               </Suspense>
             ) : <>
             {scene?.shot && <button className="btn sm shot-open" onClick={() => setShotEdit(scene.shot!)} title="Change this shot's text, colours, sizes and positions without touching its code">Edit shot</button>}

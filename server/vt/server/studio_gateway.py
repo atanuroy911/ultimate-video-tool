@@ -197,6 +197,10 @@ def start(host: str, port: int) -> int:
     import uvicorn
 
     for p in range(port, port + 20):
+        with socket.socket() as probe:                                   # something already answers there on this computer (Windows lets 0.0.0.0 bind
+            probe.settimeout(0.3)                                        # a port another program holds on 127.0.0.1: both would listen, 2026-11-24)
+            if probe.connect_ex(("127.0.0.1", p)) == 0:
+                continue
         with socket.socket() as s:
             try:
                 s.bind((host, p))

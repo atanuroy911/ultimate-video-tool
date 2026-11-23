@@ -16,7 +16,7 @@ type Drag = { kind: "move" | "scale" | "rotate"; id: string; start: E.ElementEdi
 
 const WEIGHTS = [300, 400, 500, 600, 700, 800, 900];
 
-export default function ShotEditor({ projectId, shotId, onClose }: { projectId: string; shotId: string; onClose: () => void }) {
+export default function ShotEditor({ projectId, shotId, onClose, startInStudio }: { projectId: string; shotId: string; onClose: () => void; startInStudio?: boolean }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const box = useRef<HTMLDivElement>(null);
   const [info, setInfo] = useState<ShotInfo | null>(null);
@@ -143,6 +143,7 @@ export default function ShotEditor({ projectId, shotId, onClose }: { projectId: 
       toast(`The Studio did not open: ${e.message}`, "err");
     }
   };
+  useEffect(() => { if (startInStudio) void openStudio(); }, []); // eslint-disable-line react-hooks/exhaustive-deps   -- a scene made of HTML, opened from its menu: straight into HyperFrames
   const saveStudio = async () => {
     setStudio((s) => ({ ...s, state: "saving" }));
     try {

@@ -165,3 +165,13 @@ recordings, Claude Code over ACP. Our own editor stays for those until each live
   shows our own canvas. The Video tab has every panel of the old editor (Elements added). Not done: deleting the old canvas and timeline code;
   the suites that test Video Tool's own editor (Claude Code in it, shots, media) turn the auto-open off for their run. Tests: desktop-studio 23/23,
   desktop-studio-agent 4/4 and desktop-agent 7/7 with the real Claude Code.
+
+## 6. The owner's decision, 2026-11-24 (replaces O5–O8 as written)
+
+"I thought the HyperFrames panel would open only for edits where HTML-based scenes were there ... what about my other types of video", and: "using
+2 different studio panels like this is not good ... why would a user need to know 2 studios ... reuse individual components from HyperFrames with our
+own UI. Think better."
+- Done the same day: Video Tool's own editor is the main editor again; the whole-video HyperFrames button and its auto-open are gone; a scene's menu
+  offers "Edit this scene in HyperFrames" only when the scene is made of HTML (a code-native shot). e2e/scene-hyperframes.mjs 7/7. The suites that
+  opened the whole video (desktop-studio, video-studio, studio-parts, studio-stick, desktop-studio-agent) are retired with that mode.
+- O8 ("retire our own editor") is withdrawn. Next: one editor, ours, using HyperFrames' parts inside it: docs/plans/PLAN-ONE-EDITOR.MD.

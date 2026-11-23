@@ -1,12 +1,26 @@
 # Handoff for Codex (and any other agent)
 
+> **Current state (2026-11-24, Claude), read this first; the older notes below are history.**
+> - Branch `workbench` (0.6.0), not yet in `main`: a pull request `workbench` → `main` waits for the owner (never merge it yourself).
+> - Editing is the HyperFrames Studio inside the app (docs/plans/PLAN-OPENMOTION.MD, O1–O8) plus scene tools and a Higgsfield-like pictures panel
+>   (docs/plans/PLAN-SCENE-TOOLS.MD). The newest entries of docs/dev/WORKLOG.md (bottom) and docs/dev/ISSUES.md say what is done and open.
+> - This PC: installed server and client 0.6.0 in `E:\UVT-Server`, `E:\UVT-Client` (server on 0.0.0.0:8790, its code in
+>   `%APPDATA%\Ultimate Video Tool Server\runtime`). ComfyUI is the installed server's copy (`E:\UltimateVideoTool\ServerData\data\engines\comfyui`,
+>   127.0.0.1:8188); start it with `VT_DATA=E:/UltimateVideoTool/ServerData/data` and `vt.engines.hub.start_services(["comfy"])`.
+> - Development: never the system Python. `E:/UltimateVideoTool/.tools/uv.exe run --no-sync --project server ...` with `UV_CACHE_DIR`,
+>   `UV_PYTHON_INSTALL_DIR`, `UV_PROJECT_ENVIRONMENT=E:/UltimateVideoTool/venv-workbench`. Scratch server: `VT_PROJECTS=E:/UltimateVideoTool/scratch/c2-projects
+>   VT_DATA=E:/UltimateVideoTool/scratch/c2-data VT_LOCAL_MCP=1 VT_STUDIO_GATEWAY=1 vt server --host 127.0.0.1 --port 8791`, Vite on 5174.
+> - Traps: a shell started from VS Code carries `ELECTRON_RUN_AS_NODE`; any Electron app (the installed server window too) then fails with
+>   "bad option"; start it with `env -u ELECTRON_RUN_AS_NODE`. Kill test servers by process name and `--port 8791`, never by a pattern that also matches
+>   your own shell. Never touch the GPU server 192.168.123.47.
+
 **Current state (2026-11-08): work is active; the 2026-11-03 stop was lifted long ago.** The newest entries are at the top of `WORKLOG.md`. Client and server are installed on the owner's PC at `E:\UVT-Client` and `E:\UVT-Server` (checked 2026-11-09; reinstall with `<installer>.exe /S /currentuser`, no `/D`) and tested there; the GPU server keeps its scratch copy for the browser suites. The old Claude handoff is history only: [docs/history/CLAUDE-HANDOFF-2026-11-03.md](../history/CLAUDE-HANDOFF-2026-11-03.md). Clutter removed from the checkout on 2026-11-08 sits in `E:\VideoTool-cleanup-2026-11-08` until the owner deletes it; `client/studio/e2e/out/` is no longer tracked (it was already in `.gitignore`).
 
 > **2026-11-09 (Claude):** small cards now get FLUX.2 Klein 4B squeezed to 4 or 3 bits (GGUF: `klein-4b-q4`, `klein-4b-q3` in fit.py) through the ComfyUI-GGUF add-on the installer adds; setup is one answer screen with one Install button and a check that draws a picture. Do not time GPU work while pytest runs: the tests take about 2 GB of the card. Details at the top of WORKLOG.md.
 
-> **2026-11-07, read this first: [docs/plans/CODEX-NEXT-STEPS.md](../plans/CODEX-NEXT-STEPS.md)** is the current hand-over (state of both machines, what Claude changed that is not yet verified, the open plan steps in order, the rules, and the traps found). The older sections below are history.
+> **2026-11-07, read this first: [docs/plans/CODEX-NEXT-STEPS.md](../history/CODEX-NEXT-STEPS.md)** is the current hand-over (state of both machines, what Claude changed that is not yet verified, the open plan steps in order, the rules, and the traps found). The older sections below are history.
 
-**2026-11-07 Codex continuation — Done by codex.** The next-steps file records the implementation and evidence added after Claude's handoff. The latest server reads showed an incomplete setup state and a timed-out Sonnet attempt with fallback. The workspace fixes, local judge and selected scratch browser checks are recorded separately from live acceptance. See [CODEX-NEXT-STEPS.md](../plans/CODEX-NEXT-STEPS.md).
+**2026-11-07 Codex continuation — Done by codex.** The next-steps file records the implementation and evidence added after Claude's handoff. The latest server reads showed an incomplete setup state and a timed-out Sonnet attempt with fallback. The workspace fixes, local judge and selected scratch browser checks are recorded separately from live acceptance. See [CODEX-NEXT-STEPS.md](../history/CODEX-NEXT-STEPS.md).
 
 The owner works with Claude Code and Codex interchangeably. Read this file first, then the tail of `WORKLOG.md` (newest entries at the
 bottom) for details of what was done. When you stop, update both: what you did, what you verified, what is left.

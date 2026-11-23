@@ -35,13 +35,25 @@ def _targets(script: dict, sc: dict) -> set[str]:
 
 
 # --------------------------------------------------------------------------- validation
-def validate_script(data: dict, tr: Transcript, beats: Beats, icons: Optional[set[str]] = None, media_ids: Optional[set[str]] = None) -> list[str]:
+def validate_script(data: dict, tr: Transcript, beats: Beats, icons: Optional[set[str]] = None, media_ids: Optional[set[str]] = None,
+                    shot_ids: Optional[set[str]] = None, frame: Optional[tuple[int, int]] = None) -> list[str]:
     """Plain-language problems (empty list = valid). `data` is the raw dict so unknown fields are reported, not hidden."""
     try:
         script = VideoScript.model_validate(data)
     except ValidationError as e:
         return [f"{'.'.join(str(x) for x in err['loc'])}: {err['msg']}" for err in e.errors()][:12]
     errs: list[str] = []
+    from .. import shots as SH
+
+    defined = [sh.id for sh in script.shots]
+    if len(defined) != len(set(defined)):
+        errs.append("two shots share an id")
+    for sh in script.shots:
+        errs += SH.problems(sh.id, sh.html, aspect_size=frame)
+    known = set(defined) | (shot_ids or set())
+    for s in script.scenes:
+        if s.shot and s.shot not in known:
+            errs.append(f"scene {s.id}: shot '{s.shot}' is not in `shots`" + (f" (the video has: {', '.join(sorted(shot_ids))})" if shot_ids else ""))
     words, beats_by = tr.by_id(), {b.id: b for b in beats.beats}
     expected = [b.id for b in beats.beats]
     seen = [b for s in script.scenes for b in s.beats]
@@ -198,7 +210,8 @@ def _truncate_overlay(o: dict) -> dict:
     return o
 
 
-def repair_script(data: dict, tr: Transcript, beats: Beats, kind: Optional[str] = None, dropped: Optional[list[str]] = None, notes: Optional[list[dict]] = None) -> dict:
+def repair_script(data: dict, tr: Transcript, beats: Beats, kind: Optional[str] = None, dropped: Optional[list[str]] = None, notes: Optional[list[dict]] = None,
+                  frame: Optional[tuple[int, int]] = None, known_shots: Optional[set[str]] = None) -> dict:
     """Fix what is safely fixable: synonyms, wrong word ids, over-long text, missing/misordered beats. Never invents content. An overlay it cannot keep is
     left out and, when `dropped` is given, reported there with the reason.
 
@@ -451,4 +464,29 @@ def repair_script(data: dict, tr: Transcript, beats: Beats, kind: Optional[str] 
             note("highlight words that are not in the scene, or more than three, were left out", False, i)
         sc["highlight_words"] = hl[:3]
     s["scenes"] = scenes
+    _repair_shots(s, note, frame, known_shots or set())
     return s
+
+
+def _repair_shots(s: dict, note, frame: Optional[tuple[int, int]], known: set[str]) -> None:
+    """A shot that cannot be used is left out and said so, with its reason, instead of sinking the whole script: the scene is then drawn like any other.
+    A strict director (Claude, Codex) gets the reason back as an error and fixes the shot; the local AI's script is used without it."""
+    from .. import shots as SH
+
+    shots_in = [x for x in (s.get("shots") or []) if isinstance(x, dict)]
+    good, seen = [], set()
+    for x in shots_in:
+        sid = str(x.get("id", ""))
+        why = SH.problems(sid, str(x.get("html", "")), aspect_size=frame) if sid not in seen else [f"shot {sid}: two shots share an id"]
+        if why:
+            note("a shot was left out and its scene drawn without it: " + "; ".join(why)[:400], True)
+        else:
+            good.append(x)
+            seen.add(sid)
+    if "shots" in s or shots_in:
+        s["shots"] = good
+    have = seen | known
+    for n, sc in enumerate(s.get("scenes", []), 1):
+        if isinstance(sc, dict) and sc.get("shot") and sc["shot"] not in have:
+            note(f'the scene names the shot "{sc["shot"]}", which is not in `shots`, so it is drawn without a shot', True, n)
+            sc["shot"] = None

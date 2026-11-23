@@ -6,6 +6,8 @@ server or an Electron process.
 """
 from __future__ import annotations
 
+import logging
+
 import base64
 import re
 import threading
@@ -124,7 +126,8 @@ class DirectorBroker:
         try:
             send(message)
             return True
-        except Exception:
+        except Exception as _e:  # noqa: BLE001 — a device that went away cannot be told
+            logging.getLogger(__name__).warning("a device that went away cannot be told: %s", _e, exc_info=True)
             return False
 
     def _note(self, rec: ConnectedDirector, *, gone: bool = False) -> None:
@@ -139,7 +142,8 @@ class DirectorBroker:
                 seen = _recent_seen(now)
                 seen[key] = {"device": rec.device_id, "assistant": rec.assistant, "name": rec.device_name, "version": rec.version, "last_seen": now_iso()}
                 write_json(_seen_path(), seen)
-            except Exception:
+            except Exception as _e:  # noqa: BLE001 — a list of old computers must never stop a connection
+                logging.getLogger(__name__).warning("a list of old computers must never stop a connection: %s", _e, exc_info=True)
                 pass                                                     # a list of old computers must never stop a connection
 
     def disconnect(self, device_id: str, send: Optional[Callable[[dict[str, Any]], None]] = None) -> None:
@@ -205,7 +209,8 @@ class DirectorBroker:
         try:
             if d is not None and d.send is not None:
                 d.send({"type": "cancel", "request": request})
-        except Exception:
+        except Exception as _e:  # noqa: BLE001 — a cancel to a device that went away
+            logging.getLogger(__name__).warning("a cancel to a device that went away: %s", _e, exc_info=True)
             pass
 
     def request(self, device_id: str, project: str, prompt: str, timeout: Optional[float], assistant: str = 'claude') -> dict[str, Any]:
@@ -222,7 +227,7 @@ class DirectorBroker:
             self._runs[run.id] = run
             try:
                 device.send(run.message)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — the run is dropped and the reason returned
                 self._runs.pop(run.id, None)
                 revoke(run.mcp_token)
                 return {"ok": False, "reason": f"The director request could not be sent ({type(e).__name__})."}
@@ -259,7 +264,7 @@ class DirectorBroker:
             self._runs[run.id] = run
             try:
                 device.send(run.message)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — the run is dropped and the reason returned
                 self._runs.pop(run.id, None)
                 return {"ok": False, "reason": f"The question could not be sent ({type(e).__name__}).", "error_kind": "other"}
         answered = run.event.wait(timeout + ASK_EXTRA_WAIT)
@@ -336,7 +341,7 @@ def _local_ready() -> tuple[bool, str]:
         if s.get("llm_mode") == "off":
             return False, "The local AI is turned off in Settings."
         return True, "Runs on this server."
-    except Exception as e:  # status must never make the New page fail
+    except Exception as e:  # noqa: BLE001 — status must never make the New page fail; the reason is shown
         return False, str(e)[:160]
 
 
@@ -345,7 +350,8 @@ def listing() -> dict[str, Any]:
     claude = ClaudeCLIProvider()
     try:
         server_ok = claude.available()
-    except Exception:
+    except Exception as _e:  # noqa: BLE001 — Claude on the server could not be checked
+        logging.getLogger(__name__).warning("Claude on the server could not be checked: %s", _e, exc_info=True)
         server_ok = False
     items: list[dict[str, Any]] = [
         {"id": "best", "kind": "best", "label": "Best available", "available": True,
@@ -382,6 +388,12 @@ def listing() -> dict[str, Any]:
                         "version": seen.get("version", ""), "last_seen": seen["last_seen"],
                         "note": "Not connected. Open Video Tool on that computer; its helper starts with it and reconnects by itself."})
     items.extend(sorted(offline, key=lambda d: d["device_name"].casefold()))
+    seen_labels: dict[str, int] = {}
+    for d in items:                                                      # one computer that connected under two identities (a reinstall, a second
+        seen_labels[d["label"]] = seen_labels.get(d["label"], 0) + 1     # app folder) is told apart, so the person sees two rows, not one row twice
+    for d in items:
+        if seen_labels[d["label"]] > 1 and d.get("device"):
+            d["label"] = f"{d['label']} ({str(d['device'])[:4]})"
     cfg = settings()
     return {"directors": items, **cfg, "claude_usage_today": usage_today()}
 

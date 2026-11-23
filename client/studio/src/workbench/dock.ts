@@ -155,3 +155,15 @@ export function withPaneSize(tree: DockNode, panel: DockPanel, size: number): Do
   if (side && 'panel' in side && side.panel === panel && range) return { ...tree, size: Math.max(range[0], Math.min(range[1], Math.round(size))) };
   return { ...tree, first: withPaneSize(tree.first, panel, size), second: withPaneSize(tree.second, panel, size) };
 }
+
+/** Drag a seam to `first` pixels of the `room` its split has (the split's own extent, less the one-pixel seam). A split with a fixed size keeps being fixed at the
+ *  new size (so the pane stays the width the person gave it when the window changes); any other split becomes a ratio. */
+export function resizeSeam(tree: DockNode, path: string, first: number, room: number): DockNode {
+  if ('panel' in tree) return tree;
+  if (path) return path[0] === '0' ? { ...tree, first: resizeSeam(tree.first, path.slice(1), first, room) } : { ...tree, second: resizeSeam(tree.second, path.slice(1), first, room) };
+  if (tree.size !== undefined) {
+    const size = tree.anchor === 'first' ? first : room - first;
+    return { ...tree, size: Math.max(80, Math.min(4000, Math.round(size))) };
+  }
+  return resizeDock(tree, '', room ? first / room : 0.5);
+}

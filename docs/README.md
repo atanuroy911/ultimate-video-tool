@@ -9,6 +9,7 @@ Everything about the project, organised so that an agent or a person can pick it
 | 2 | [STATUS.md](STATUS.md) | what is proven, how, and the honest list of gaps |
 | 3 | [plans/PLAN-WORKBENCH.MD](plans/PLAN-WORKBENCH.MD) | the step-by-step plan being carried out now (releases, security, tests, the new editor layout, Claude Code inside the app) |
 | 4 | [plans/PLAN-PERFECT.MD](plans/PLAN-PERFECT.MD) | the plan for video quality |
+| 5 | [plans/PLAN-CODE-NATIVE-EDITOR.MD](plans/PLAN-CODE-NATIVE-EDITOR.MD) | shots written as HTML by Claude Code / Codex and edited without code; generators by hardware tier |
 | 5 | [ROADMAP.md](ROADMAP.md), [TEST-PLAN.md](TEST-PLAN.md) | the phases, and how everything is tested |
 | 6 | [dev/](dev/) | measured baselines, the slow-test table, matrix findings, screenshots |
 
@@ -23,7 +24,7 @@ docs/
   GLOSSARY.md      the words used in the product
   DEVELOPMENT-INSTALL.md  running the client and server from source
   dev/             working notes: handoff, worklog, baselines, matrix findings, screenshots
-  plans/           the detailed plans (the current ones are PLAN-WORKBENCH and PLAN-PERFECT)
+  plans/           the detailed plans (the current ones are PLAN-WORKBENCH, PLAN-CODE-NATIVE-EDITOR and PLAN-PERFECT)
   ops/             the GPU server's runbook (kept for reference)
   research/        what the owner's example reels do, the best models for each job
   history/         earlier plans, audits and the old status ledger, word for word

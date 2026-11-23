@@ -19,7 +19,10 @@ export type SaveOp =
   | { kind: 'scene-edge'; scene: string; t: number }
   | { kind: 'scene-split'; scene: string; t: number }
   | { kind: 'scene-remove'; scene: string }
-  | { kind: 'voice-cut'; start: number; end: number };
+  | { kind: 'voice-cut'; start: number; end: number }
+  | { kind: 'action'; scene: string; index: number; body: { patch: { start: number; end: number } } | { delete: true } }
+  | { kind: 'voice-gain'; start: number; end: number; db: number }
+  | { kind: 'voice-mute'; start: number; end: number };
 
 export interface SavePlan { ops: SaveOp[]; ignored: string[] }
 
@@ -133,6 +136,17 @@ export function planSave(before: TimelineState, after: TimelineState, fps: numbe
   });
   ops.push(...sceneOps);
 
+  // stick-figure actions: timing, then deletes from the last index back (W11.1)
+  const actDeletes: SaveOp[] = [];
+  for (const id of before.items.filter(ours('act:')).map((i) => i.id)) {
+    const [, scene, k] = id.split(':');
+    const index = Number(k), a = was.get(id)!, b = now.get(id);
+    if (!b) { actDeletes.push({ kind: 'action', scene, index, body: { delete: true } }); continue; }
+    if (b.startFrame !== a.startFrame || b.durationInFrames !== a.durationInFrames)
+      ops.push({ kind: 'action', scene, index, body: { patch: { start: sec(b.startFrame, fps), end: sec(end(b), fps) } } });
+  }
+  ops.push(...actDeletes.sort((x, y) => (x.kind === 'action' && y.kind === 'action' && x.scene === y.scene ? y.index - x.index : 0)));
+
   // the narration. With words, OpenChatCut edits it as a word stream: a split gives each piece its own words, deleting words in its
   // transcript view marks them deleted. So a cut is the run of our words no longer played by any piece, from its first word to the next
   // word still played (the pause after a removed phrase goes with it). Without words, what a piece plays is [srcIn, srcIn + duration).
@@ -161,6 +175,24 @@ export function planSave(before: TimelineState, after: TimelineState, fps: numbe
       const plays = (s: TimelineState) => merge(s.items.filter((x) => x.track === voice.track && x.kind === 'audio')
         .map((x): [number, number] => [sec(x.srcInFrame ?? 0, fps), sec((x.srcInFrame ?? 0) + x.durationInFrames, fps)]));
       for (const [start, stop] of subtract(plays(before), plays(after)).reverse()) ops.push({ kind: 'voice-cut', start, end: stop });
+    }
+    // a narration piece whose volume changed: the same stretch of our voice gets that gain (0 = muted). The narration is the cut voice, so the
+    // piece's source range is output time. (W11.1: ported from the classic timeline's Mute and Volume of the selection.)
+    const beforeVol = new Map(before.items.filter((x) => x.track === voice.track && x.kind === 'audio').map((x) => [x.id, x.volume ?? 1]));
+    for (const x of pieces) {
+      const vol = x.volume ?? 1;
+      if (Math.abs(vol - (beforeVol.get(x.id) ?? 1)) < 1e-3) continue;
+      let start = sec(x.srcInFrame ?? 0, fps), stop = sec((x.srcInFrame ?? 0) + x.durationInFrames, fps);
+      if (hasOperationalTranscript(voice) && x.transcript?.length) {                 // a word stream: the piece plays its own words, not a source range
+        const deleted = new Set(x.deletedWordIdx ?? []);
+        const heard = x.transcript.filter((_, gi) => !deleted.has(gi));
+        if (!heard.length) continue;
+        start = Math.min(...heard.map((w) => w.start)) / 1000;
+        stop = Math.max(...heard.map((w) => w.end)) / 1000;
+      }
+      start = Math.round(start * 1000) / 1000; stop = Math.round(stop * 1000) / 1000;
+      if (vol <= 0.001) ops.push({ kind: 'voice-mute', start, end: stop });
+      else ops.push({ kind: 'voice-gain', start, end: stop, db: Math.round(20 * Math.log10(vol) * 10) / 10 });
     }
     const v = now.get(VOICE_ID);
     if (v && v.startFrame !== voice.startFrame && (v.srcInFrame ?? 0) === (voice.srcInFrame ?? 0)) ignored.push('moving the narration in time');

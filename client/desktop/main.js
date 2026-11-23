@@ -8,7 +8,7 @@ const helper=require('./helper-control'),helperPath=path.join(__dirname,'helper.
 const ensureHelper=()=>helper.ensure({home,helperPath,version});
 // "--helper" is what the start-with-the-computer entry runs: make sure the helper runs, then leave, before anything else loads (no window, no server connection).
 if(process.argv.includes('--helper')){app.whenReady().then(ensureHelper).catch(()=>{}).finally(()=>app.quit());return;}
-const discover=require('./discover'),assistants=require('./assistants'),keys=require('./server-keys');
+const discover=require('./discover'),assistants=require('./assistants'),keys=require('./server-keys'),acpAgents=require('./acp-agents');
 const {createTransport,serverURL}=require('./transport');
 let win=null,chooser=null,transport=null,selected='',selectedSession=null,changing=false;
 const connectionFile=path.join(home,'connection.json'),keysFile=path.join(home,'keys.json');
@@ -68,10 +68,34 @@ async function connect(address,typedKey){
     selected=target;transport=await createTransport({server:target,dist,key});
     const partition='persist:processing-'+crypto.createHash('sha256').update(target).digest('hex').slice(0,20);
     selectedSession=session.fromPartition(partition);
+    // O5: the HyperFrames Studio that the processing server started on this computer sits inside the editor. It forbids framing by any other page
+    // (X-Frame-Options, frame-ancestors); that is lifted only for a frame on 127.0.0.1 whose parent is this app's own page.
+    // A server on another computer offers its Studio through its gateway (the server's host, another port); the app sends the key there itself.
+    const serverUrl=(()=>{try{return new URL(target);}catch{return null;}})();
+    const isStudio=(u)=>{try{const x=new URL(String(u||''));if(x.origin===transport.origin)return false;if(/^http:\/\/127\.0\.0\.1:\d{2,5}\//.test(x.href))return true;return !!serverUrl&&x.protocol==='http:'&&x.hostname===serverUrl.hostname&&x.port!==serverUrl.port&&!/^(127\.0\.0\.1|localhost)$/.test(serverUrl.hostname);}catch{return false;}};
+    const isGateway=(u)=>isStudio(u)&&!/^http:\/\/127\.0\.0\.1:/.test(String(u));
+    if(key)selectedSession.webRequest.onBeforeSendHeaders((details,callback)=>{if(!isGateway(details.url))return callback({});callback({requestHeaders:{...details.requestHeaders,Authorization:'Bearer '+key}});});
+    selectedSession.webRequest.onHeadersReceived((details,callback)=>{
+      const own=details.resourceType==='subFrame'&&isStudio(details.url)&&details.frame&&details.frame.parent&&String(details.frame.parent.url||'').startsWith(transport.origin+'/');
+      if(!own)return callback({});
+      const h={};for(const [k,v] of Object.entries(details.responseHeaders||{})){const n=k.toLowerCase();if(n==='x-frame-options')continue;if(n==='content-security-policy'){const kept=v.map(x=>x.split(';').filter(d=>!/^\s*frame-ancestors\b/i.test(d)).join(';')).filter(x=>x.trim());if(kept.length)h[k]=kept;continue;}h[k]=v;}
+      callback({responseHeaders:h});
+    });
+    // The Studio inside the editor talks only to this computer: anything it would fetch from the internet (analytics, cloud) is refused.
+    selectedSession.webRequest.onBeforeRequest((details,callback)=>{
+      const fromStudio=details.frame&&isStudio(details.frame.url);
+      const local=/^(http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/|data:|blob:|devtools:)/.test(details.url)||isGateway(details.url);
+      if(fromStudio&&!local){log('Studio request kept on this computer (refused): '+details.url.slice(0,120));return callback({cancel:true});}
+      callback({});
+    });
+    // Inside the editor the Studio's own product buttons are hidden: Share (HeyGen's cloud: the video would leave this computer), Install the desktop
+    // app, and its Export (Video Tool's Export is the one that mixes the voice and music).
+    const studioTidy=`(()=>{if(window.__vtTidy)return;window.__vtTidy=1;const hide=()=>document.querySelectorAll('button,a').forEach(b=>{const t=(b.textContent||'').trim();if(t==='Share'||t==='Install the desktop app'||t==='Export'){b.style.display='none';b.setAttribute('aria-hidden','true');}});hide();new MutationObserver(hide).observe(document.documentElement,{childList:true,subtree:true});const ask=()=>window.parent.postMessage({vt:'studio-ask'},'*');const isAsk=n=>{for(let i=0;n&&i<5;i++,n=n.parentElement){const t=(n.textContent||'').trim();if(t.length<60&&/^[^A-Za-z]*(Ask agent about this element|Describe a change to the agent)/.test(t))return true;}return false;};['pointerdown','mousedown','click'].forEach(k=>document.addEventListener(k,e=>{if(isAsk(e.target)){e.preventDefault();e.stopImmediatePropagation();if(k==='click')ask();}},true));document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&!e.altKey&&e.key.toLowerCase()==='k'){e.preventDefault();e.stopImmediatePropagation();ask();}},true);})();`; /* O6: the Studio's own agent box opens the docked Claude Code instead */
+    const tidyFrames=(contents)=>contents.on('did-frame-finish-load',(_e,isMain,pid,rid)=>{if(isMain)return;try{const f=require('electron').webFrameMain.fromId(pid,rid);if(f&&isStudio(f.url)&&f.parent&&String(f.parent.url||'').startsWith(transport.origin+'/'))f.executeJavaScript(studioTidy).catch(()=>{});}catch{}});
     await selectedSession.cookies.set({url:transport.origin,name:'uvt_local_session',value:transport.secret,httpOnly:true,sameSite:'strict',path:'/'});
     win=new BrowserWindow({width:1360,height:880,minWidth:640,minHeight:540,title:'Ultimate Video Tool',icon:appIcon(),backgroundColor:'#f5f5f7',webPreferences:{partition,preload:path.join(__dirname,'main-preload.js'),contextIsolation:true,sandbox:true}});
-    const current=win;current.on('closed',()=>{if(win===current)win=null;});
-    current.webContents.setWindowOpenHandler(({url})=>{if(/^https?:/.test(url)&&!url.startsWith(transport.origin+'/'))shell.openExternal(url);return {action:'deny'};});
+    const current=win;current.on('closed',()=>{if(win===current)win=null;});tidyFrames(current.webContents);
+    current.webContents.setWindowOpenHandler(({url})=>{if(isStudio(url)&&/\/(\?vt_ticket=[\w-]+)?#project\/(studio(-(9x16|1x1|16x9))?|[\w-]+)$/.test(url))return {action:'allow',overrideBrowserWindowOptions:{width:1560,height:980,title:'HyperFrames Studio',autoHideMenuBar:true,webPreferences:{sandbox:true,contextIsolation:true,nodeIntegration:false}}};/* O2: the HyperFrames Studio the server started on this computer opens as an app window */if(/^https?:/.test(url)&&!url.startsWith(transport.origin+'/'))shell.openExternal(url);return {action:'deny'};});
     current.webContents.on('will-navigate',(event,url)=>{if(new URL(url).origin!==transport.origin){event.preventDefault();if(/^https?:/.test(url))shell.openExternal(url);}});
     selectedSession.setPermissionRequestHandler((contents,permission,callback)=>callback(contents===current.webContents&&contents.getURL().startsWith(transport.origin+'/')&&['media','audioCapture','fullscreen','clipboard-sanitized-write'].includes(permission)));
     await current.loadURL(transport.origin+'/');
@@ -90,6 +114,21 @@ ipcMain.on('use-this-computer',async()=>{for(const port of [8790,8765,8791,8792]
 ipcMain.handle('choose-processing-server',()=>chooseServer());
 ipcMain.handle('assistants-status',()=>assistants.status());
 ipcMain.handle('assistants-connect',(event,id,remote)=>{if(!win||event.sender!==win.webContents||!remote||!String(remote.url||'').startsWith(selected+'/'))throw new Error('That is not the selected processing server.');return assistants.connect(id,remote,{command:process.execPath,args:[path.join(__dirname,'mcp-bridge.js').replace('app.asar'+path.sep,'app.asar.unpacked'+path.sep)]});});
+// ---- Claude Code (and Codex, when set up) in the Assistant pane, over ACP (acp-agents.js). The window gets events, never a path or a key.
+let agents=null;
+const getAgents=()=>agents||(agents=acpAgents.createAgents({home,version,log,
+  emit:(conversationId,event)=>{if(win&&!win.isDestroyed())win.webContents.send('vt-agent:event',{conversationId,event});},
+  getServer:()=>selected,getKey:server=>keys.keyFor(keysFile,server),
+  bridge:path.join(__dirname,'mcp-bridge.js').replace(/app\.asar([\\/])/,'app.asar.unpacked$1'),
+  fake:(!app.isPackaged&&process.env.VT_ACP_FAKE)||''}));
+ipcMain.handle('vt-agent:status',onlyApp(kind=>getAgents().status(kind)));
+ipcMain.handle('vt-agent:open',onlyApp((kind,projectId,o)=>getAgents().open(kind,projectId,{resume:o&&o.resume,model:o&&o.model,title:o&&typeof o.title==='string'?o.title.slice(0,120):undefined})));
+ipcMain.handle('vt-agent:send',onlyApp((id,text,refs,images)=>getAgents().send(id,text,refs,images)));
+ipcMain.handle('vt-agent:stop',onlyApp(id=>getAgents().stop(id)));
+ipcMain.handle('vt-agent:permission',onlyApp((id,requestId,choice)=>getAgents().permission(id,requestId,choice)));
+ipcMain.handle('vt-agent:list',onlyApp(projectId=>getAgents().list(projectId)));
+ipcMain.handle('vt-agent:open-in-code',onlyApp(projectId=>getAgents().openInCode(projectId)));
+ipcMain.handle('vt-agent:signin',onlyApp(kind=>getAgents().signIn(kind)));
 ipcMain.handle('helper-status',onlyApp(helperState));
 ipcMain.handle('helper-start',onlyApp(async()=>{await ensureHelper();return helperState();}));
 ipcMain.handle('helper-stop',onlyApp(async()=>{await helper.request(home,'POST','/stop',{}).catch(()=>{});await stopped();return helperState();}));
@@ -107,5 +146,6 @@ app.whenReady().then(async()=>{
   if(saved&&saved!=='here'){try{const r=await connect(saved);if(!(r&&r.needsKey))return;log('The saved server now asks for its key.');}catch(e){log(e.message);}}
   chooseServer();
 }).catch(e=>{log(e.stack||e);dialog.showErrorBox('Client could not start',e.message);app.quit();});
-app.on('before-quit',()=>{transport?.close();});     // the helper is not stopped: it keeps Claude and Codex ready when the window is closed
+app.on('before-quit',()=>{transport?.close();agents?.closeAll();});     // the helper is not stopped: it keeps Claude and Codex ready when the window is closed
+process.once('exit',()=>{try{agents?.closeAll();}catch{}});
 app.on('window-all-closed',()=>{if(!changing)app.quit();});

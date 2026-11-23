@@ -1,0 +1,61 @@
+[
+ {
+  "text": "Make it bigger",
+  "refs": [],
+  "expected": "Make it bigger"
+ },
+ {
+  "text": "Fix [1]",
+  "refs": [
+   {
+    "kind": "scene",
+    "scene": "s3",
+    "from": 4,
+    "to": 6.1,
+    "label": "the hook"
+   }
+  ],
+  "expected": "Fix [1]\n\n<video_references>\n[1] scene s3 · 0:04.0–0:06.1 · vt://scene/s3 · \"the hook\"\n</video_references>"
+ },
+ {
+  "text": "Move [1] away from [2] and cut at [3]",
+  "refs": [
+   {
+    "kind": "element",
+    "scene": "s3",
+    "index": 2,
+    "from": 3.13,
+    "to": 9.03,
+    "label": "Small habits"
+   },
+   {
+    "kind": "time",
+    "t": 65.25
+   },
+   {
+    "kind": "range",
+    "from": 12.6,
+    "to": 17
+   }
+  ],
+  "expected": "Move [1] away from [2] and cut at [3]\n\n<video_references>\n[1] element s3#2 · 0:03.1–0:09.0 · vt://element/s3/2 · \"Small habits\"\n[2] time 1:05.3 · vt://t/65.25\n[3] time 0:12.6–0:17.0 · vt://range/12.6/17\n</video_references>"
+ },
+ {
+  "text": "Keep the caption out of [1]",
+  "refs": [
+   {
+    "kind": "region",
+    "scene": "s2",
+    "t": 5.2,
+    "box": {
+     "x": 0,
+     "y": 1500,
+     "w": 1080,
+     "h": 420
+    },
+    "label": "Region at 0:05.2"
+   }
+  ],
+  "expected": "Keep the caption out of [1]\n\n<video_references>\n[1] region at 0:05.2 · box x=0 y=1500 w=1080 h=420 · vt://t/5.2 · \"Region at 0:05.2\"\n</video_references>"
+ }
+]

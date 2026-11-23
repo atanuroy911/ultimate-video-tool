@@ -33,3 +33,16 @@ export async function walkToReady(page, text, { max = 12 } = {}) {
   }
   return make;
 }
+
+// Close a desktop app started by a test, and stop the helper it started: each test has its own home, so its helper would otherwise stay running
+// (by design the helper outlives the app). app.close() can hang after the window is gone, so it gets a time limit.
+export async function closeDesktop(app, home) {
+  const proc = app.process();
+  await Promise.race([app.close().catch(() => {}), new Promise((r) => setTimeout(r, 15000))]);
+  try { proc.kill(); } catch {}
+  try {
+    const { createRequire } = await import("node:module");
+    const { call, readJson } = createRequire(import.meta.url)(path.join(repo, "desktop", "helper.js"));
+    await call(readJson(path.join(home, "helper-run.json"), null), "POST", "/stop", {});
+  } catch {}
+}

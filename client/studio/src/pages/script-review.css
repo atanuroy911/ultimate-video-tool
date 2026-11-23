@@ -4,7 +4,7 @@
 .sr-head h1 { margin: 0 0 2px; }
 .sr-head p { margin: 0; }
 .sr-state { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 650; background: var(--fill); color: var(--muted); }
-.sr-state.ok { background: rgba(48, 209, 88, .16); color: #28a745; }
+.sr-state.ok { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); }
 .sr-whole { display: flex; flex-direction: column; gap: 10px; }
 .sr-whole h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 16px; }
 .sr-whole p { margin: 0; }
@@ -16,8 +16,8 @@
 .sr-ask { display: flex; gap: 8px; }
 .sr-ask input { flex: 1; min-width: 0; }
 .sr-note { display: flex; align-items: center; gap: 8px; margin: 0; padding: 9px 12px; border-radius: 12px; background: var(--fill); font-size: 13px; color: var(--muted); }
-.sr-note.ok { color: #28a745; background: rgba(48, 209, 88, .12); }
-.sr-note.bad { color: #e5392f; background: rgba(255, 69, 58, .12); }
+.sr-note.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, transparent); }
+.sr-note.bad { color: var(--err); background: color-mix(in srgb, var(--err) 12%, transparent); }
 .sr-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .sr-scene { border-radius: 18px; background: var(--panel); box-shadow: var(--shadow), inset 0 0 0 1.5px transparent; overflow: hidden; }
 .sr-scene.open { box-shadow: var(--shadow), inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 45%, transparent); }
@@ -57,7 +57,7 @@
 .sr-pre p { margin: 0; }
 .sr-issues { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
 .sr-issues li { padding: 10px 12px; border-radius: 12px; background: var(--fill); font-size: 13px; line-height: 1.45; border-left: 3px solid #ffd479; }
-.sr-issues li.error { border-left-color: #ff453a; }
+.sr-issues li.error { border-left-color: var(--err); }
 @media (max-width: 900px) { .sr-bar { left: 0; bottom: 64px; padding: 10px 16px; } .sr { padding-bottom: 150px; } }
 
 .sr-kept { display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow), inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 35%, transparent); }

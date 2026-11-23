@@ -11,6 +11,8 @@ github.com/zhuyansen/awesome-claude-video-skills. Retention is the measure every
 """
 from __future__ import annotations
 
+import logging
+
 import re
 from typing import Any, Optional
 
@@ -644,7 +646,8 @@ def fix_hook(sf, tr, project=None) -> Optional[str]:
         named = [e.name for e in (ctx.entities if ctx else []) if set(e.mentions) & opening_ids]
         if named:
             topic = [named[0]]
-    except Exception:
+    except Exception as _e:  # noqa: BLE001 — the topic of the opening could not be named
+        logging.getLogger(__name__).warning("the topic of the opening could not be named: %s", _e, exc_info=True)
         pass
     if not topic:
         return None

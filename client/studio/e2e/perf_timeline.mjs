@@ -10,6 +10,7 @@ const slow = Number((process.argv.find((a) => a.startsWith("--cpu-slowdown=")) |
 const browser = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 const ctx = await browser.newContext({ viewport: { width: 1500, height: 950 } });
 const page = await ctx.newPage();
+await page.addInitScript(() => { try { localStorage.setItem("vt-timeline", "classic"); } catch {} });          // this suite tests the Classic timeline (the New one is the default since W11.2)
 const cdp = await ctx.newCDPSession(page);
 await cdp.send("Performance.enable");
 if (slow > 1) await cdp.send("Emulation.setCPUThrottlingRate", { rate: slow });   // an older laptop

@@ -1,0 +1,148 @@
+"""Pictures for a scene (docs/plans/PLAN-SCENE-TOOLS.MD, G1/G4): the scene's runs, a new run as a job, choose one, forget one."""
+from __future__ import annotations
+
+from typing import Any, Optional
+
+from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel, Field
+
+from .. import scene_gen as G
+from .jobs import Cancelled, JobBusy
+from .modules_routes import project_or_404
+
+router = APIRouter(prefix="/api", tags=["scene pictures"])
+
+
+def _models() -> list[dict]:
+    from ..engines import fit
+
+    return [{"id": r.id, "label": r.label, "note": getattr(r, "note", ""), "seconds": getattr(r, "seconds", None)} for r in fit.PICTURES]
+
+
+@router.get("/projects/{pid}/scenes/{sid}/pictures")
+def scene_pictures(pid: str, sid: str) -> dict[str, Any]:
+    p = project_or_404(pid)
+    try:
+        return {**G.history(p, sid), "prompt": G.suggest_prompt(p, sid), "words": G.scene_words(p, sid), "models": _models(), "clip_models": G.clip_models()}
+    except G.GenError as e:
+        raise HTTPException(404, str(e))
+
+
+class GenBody(BaseModel):
+    prompt: str = Field(default="", max_length=600)
+    count: int = Field(default=4, ge=1, le=G.MAX_COUNT)
+    recipe: str = ""
+    prompts: list[str] = Field(default_factory=list, max_length=G.MAX_COUNT)
+    seed: Optional[int] = Field(default=None, ge=0, le=2**31 - 1)
+
+
+@router.post("/projects/{pid}/scenes/{sid}/pictures")
+def scene_pictures_generate(pid: str, sid: str, body: GenBody, request: Request) -> dict:
+    """Draw pictures for the scene: a job (progress per picture, cancel through /api/jobs/{id}). One picture job per video at a time."""
+    p = project_or_404(pid)
+    try:
+        G.scene_words(p, sid)
+    except G.GenError as e:
+        raise HTTPException(404, str(e))
+    if len(body.prompt.strip()) < 3 and not any(len(x.strip()) >= 3 for x in body.prompts):
+        raise HTTPException(422, "Write what the picture should show.")
+    jobs = request.app.state.jobs
+    mine: dict = {}
+
+    def work(cb):
+        try:
+            run = G.generate(p, sid, body.prompt, count=body.count, recipe=body.recipe, seed=body.seed, prompts=body.prompts, progress=lambda f, m: cb("pictures", f, m),
+                             cancelled=lambda: bool(mine.get("job") and mine["job"].cancel.is_set()))
+        except G.GenError as e:
+            raise RuntimeError(str(e)) from e
+        if mine.get("job") and mine["job"].cancel.is_set():
+            raise Cancelled()
+        hub = getattr(request.app.state, "hub", None)
+        if hub:
+            hub.emit({"type": "changed", "project": pid, "by": "person"})
+        return {"run": run["id"], "made": sum(1 for i in run["items"] if i.get("media")), "failed": sum(1 for i in run["items"] if i.get("error"))}
+
+    try:
+        mine["job"] = jobs.submit("pictures", pid, f"Pictures for scene {sid}", work, when_busy="refuse")
+    except JobBusy as e:
+        raise HTTPException(409, "Pictures are already being made for this video.") from e
+    return mine["job"].public()
+
+
+class PromptsBody(BaseModel):
+    count: int = Field(default=4, ge=1, le=G.MAX_COUNT)
+    note: str = Field(default="", max_length=300)
+
+
+@router.post("/projects/{pid}/scenes/{sid}/pictures/prompts")
+def scene_picture_prompts(pid: str, sid: str, body: PromptsBody) -> dict:
+    """G3: different picture prompts for the scene, written by the AI chosen in Settings; nothing is drawn until the person picks."""
+    p = project_or_404(pid)
+    try:
+        return {"prompts": G.write_prompts(p, sid, body.count, body.note)}
+    except G.GenError as e:
+        raise HTTPException(422, str(e))
+
+
+class MoveBody(BaseModel):
+    prompt: str = Field(default="", max_length=600)
+    workflow: str = ""
+    seconds: float = Field(default=3.0, ge=1.0, le=8.0)
+    seed: Optional[int] = Field(default=None, ge=0, le=2**31 - 1)
+
+
+@router.post("/projects/{pid}/scenes/{sid}/pictures/{media}/move")
+def scene_picture_move(pid: str, sid: str, media: str, body: MoveBody, request: Request) -> dict:
+    """G2: make one of the scene's pictures into a short clip (it is the first frame). A job, like the pictures."""
+    p = project_or_404(pid)
+    try:
+        G.scene_words(p, sid)
+    except G.GenError as e:
+        raise HTTPException(404, str(e))
+    if not any(m.id == media and m.kind == "image" for m in p.meta().media):
+        raise HTTPException(422, "Choose a picture to make move.")
+    jobs = request.app.state.jobs
+    mine: dict = {}
+
+    def work(cb):
+        try:
+            run = G.animate(p, sid, media, body.prompt, workflow=body.workflow, seconds=body.seconds, seed=body.seed, progress=lambda f, m: cb("pictures", f, m),
+                            cancelled=lambda: bool(mine.get("job") and mine["job"].cancel.is_set()))
+        except G.GenError as e:
+            raise RuntimeError(str(e)) from e
+        if mine.get("job") and mine["job"].cancel.is_set():
+            raise Cancelled()
+        hub = getattr(request.app.state, "hub", None)
+        if hub:
+            hub.emit({"type": "changed", "project": pid, "by": "person"})
+        return {"run": run["id"], "made": sum(1 for i in run["items"] if i.get("media"))}
+
+    try:
+        mine["job"] = jobs.submit("pictures", pid, f"A clip for scene {sid}", work, when_busy="refuse")
+    except JobBusy as e:
+        raise HTTPException(409, "Pictures or a clip are already being made for this video.") from e
+    return mine["job"].public()
+
+
+class UseBody(BaseModel):
+    media: str
+
+
+@router.post("/projects/{pid}/scenes/{sid}/pictures/use")
+def scene_pictures_use(pid: str, sid: str, body: UseBody) -> dict:
+    """Show the scene with this picture (a picture scene, as the Director makes it). Undoable like every edit."""
+    from .app import ReshowBody, scene_reshow
+
+    p = project_or_404(pid)
+    if not any(m.id == body.media for m in p.meta().media):
+        raise HTTPException(404, "That picture is not in the media bin any more.")
+    return scene_reshow(pid, sid, ReshowBody(archetype="media_hero", media=body.media))
+
+
+@router.delete("/projects/{pid}/scenes/{sid}/pictures/{media}")
+def scene_pictures_forget(pid: str, sid: str, media: str) -> dict:
+    p = project_or_404(pid)
+    try:
+        return G.forget(p, sid, media)
+    except G.GenError as e:
+        raise HTTPException(404, str(e))

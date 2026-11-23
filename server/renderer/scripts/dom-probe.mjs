@@ -6,7 +6,9 @@ import { pathToFileURL } from "node:url";
 import puppeteer from "puppeteer-core";
 
 const [, , chrome, compDir, time, expression, shot] = process.argv;
-const browser = await puppeteer.launch({ executablePath: chrome, headless: true, args: ["--no-sandbox", "--disable-gpu", "--allow-file-access-from-files"] });
+const browser = await puppeteer.launch({ executablePath: chrome, headless: true, args: ["--no-sandbox", "--disable-gpu", "--allow-file-access-from-files",
+  // the renderer's own text settings (HyperFrames starts Chrome this way): text measures the same here as in a render, so fitting ends the same
+  "--font-render-hinting=none", "--disable-lcd-text", "--force-device-scale-factor=1", "--force-color-profile=srgb"] });
 try {
   const page = await browser.newPage();
   const data = JSON.parse(await (await import("node:fs/promises")).readFile(path.join(compDir, "data.json"), "utf8"));

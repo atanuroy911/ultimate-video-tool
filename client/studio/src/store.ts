@@ -68,6 +68,43 @@ export const onCallEvent = (fn: (m: any) => void) => {
 };
 export const emitChanged = (project: string) => handlers.forEach((h) => h(project));
 
+/* W14.2: a change from outside (an agent, another tab) waits while the person drags or types in an editor field, and comes in once they let go.
+   The chat boxes do not hold it back: the person types there while the agent works. */
+export interface ChangeDetail { project: string; scenes: string[]; removed: string[]; by: string; what: string }
+const detailHandlers = new Set<(d: ChangeDetail) => void>();
+export const onChangeDetail = (fn: (d: ChangeDetail) => void) => { detailHandlers.add(fn); return () => { detailHandlers.delete(fn); }; };
+const pending = new Map<string, ChangeDetail | null>();
+let pointerDown = false;
+const NOT_TEXT = new Set(["range", "color", "checkbox", "radio", "button", "submit", "file"]);
+export function isEditing(): boolean {
+  if (pointerDown) return true;
+  const a = typeof document !== "undefined" ? (document.activeElement as HTMLElement | null) : null;
+  if (!a || a.closest(".agent-composer, .occ-chat-compose")) return false;
+  if (a instanceof HTMLTextAreaElement) return true;
+  if (a instanceof HTMLInputElement) return !NOT_TEXT.has(a.type);
+  return a.isContentEditable;
+}
+function deliver(project: string, d: ChangeDetail | null) {
+  emitChanged(project);
+  if (d) detailHandlers.forEach((h) => h(d));
+}
+export function flushChanges() {
+  if (isEditing() || !pending.size) return;
+  const all = [...pending];
+  pending.clear();
+  all.forEach(([p, d]) => deliver(p, d));
+}
+export function changedFromOutside(project: string, d: ChangeDetail | null) {
+  if (isEditing()) { pending.set(project, d || pending.get(project) || null); return; }
+  deliver(project, d);
+}
+if (typeof window !== "undefined") {
+  window.addEventListener("pointerdown", () => { pointerDown = true; }, true);
+  window.addEventListener("pointerup", () => { pointerDown = false; setTimeout(flushChanges, 0); }, true);
+  window.addEventListener("pointercancel", () => { pointerDown = false; setTimeout(flushChanges, 0); }, true);
+  window.addEventListener("focusout", () => setTimeout(flushChanges, 0), true);
+}
+
 export function useChanged(project: string | undefined, fn: () => void) {
   useEffect(() => {
     if (!project) return;
@@ -109,7 +146,15 @@ export function startRealtime() {
         const j = m.job as JobInfo;
         jobsStore.set((p) => ({ ...p, [j.id]: j }));
         if ((j.status === "done" || j.status === "error") && j.project && j.kind !== "thumbs") emitChanged(j.project);
-      } else if (m.type === "changed") emitChanged(m.project);
+      } else if (m.type === "changed") {
+        const detail: ChangeDetail | null = Array.isArray(m.scenes) ? { project: m.project, scenes: m.scenes, removed: m.removed || [], by: m.by || "", what: m.what || "" } : null;
+        changedFromOutside(m.project, detail);
+        if (typeof m.by === "string" && m.by.startsWith("mcp:") && Array.isArray(m.scenes)) {          // W14: say who changed what, in words
+          const who = m.by === "mcp:claude" ? "Claude" : m.by === "mcp:codex" ? "Codex" : "An assistant";
+          const n = m.scenes.length + (m.removed?.length || 0);
+          toast(`${who} changed ${n === 1 ? `scene ${m.scenes[0] || m.removed[0]}` : n > 1 ? `${n} scenes` : "the video"}${m.what ? ` (${m.what})` : ""}`, "ok");
+        }
+      }
       else if (m.type === "call" || m.type === "ticket" || m.type === "call_started") callHandlers.forEach((h) => h(m));
     };
   };

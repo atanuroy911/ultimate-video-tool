@@ -24,7 +24,7 @@ interface TimelineRulerProps {
   pickMode: boolean;
   startPick: (e: React.PointerEvent, origin: TimelinePickDrag['origin']) => void;
   seekTo: (clientX: number) => void;
-  rulerTimecodeRef: RefObject<HTMLSpanElement>;   // Video Tool: React 18 ref type
+  rulerTimecodeRef: RefObject<HTMLSpanElement | null>;
   playheadFrame: number;
   zoneIn: number | null;
   zoneOut: number | null;

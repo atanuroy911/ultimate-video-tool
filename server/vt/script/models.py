@@ -106,6 +106,24 @@ class ScriptScene(BaseModel):
                                                "{\"media\": \"<media id>\", \"motion\": \"kenburns\" | \"pan\" | \"none\"}. Leave it out when no media fits. "
                                                "A place (a room, a park; day or night) is not a backdrop: define it in `sets` and name it in this scene's `set`.")
     highlight_words: list[str] = Field(default_factory=list, max_length=3)
+    shot: Optional[str] = Field(default=None, pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+                                description="the id of a shot in `shots` (or one the video already has) drawn full-frame behind this scene; the captions stay on top")
+
+
+class ShotKnob(BaseModel):
+    model_config = STRICT
+    name: str = Field(pattern=r"^--[A-Za-z0-9][A-Za-z0-9_-]{0,63}$", description="a CSS variable the shot declares on :root")
+    label: str = Field(default="", max_length=40, description="what the person sees, e.g. Background")
+    kind: Literal["colour", "size", "text"] = "colour"
+
+
+class ShotDef(BaseModel):
+    """A code-native shot: a page of HTML/CSS/SVG with motion on a paused GSAP timeline (vt/shots.py). The person edits it afterwards without code."""
+    model_config = STRICT
+    id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
+    title: str = Field(default="", max_length=80)
+    html: str = Field(min_length=40, max_length=200_000)
+    knobs: list[ShotKnob] = Field(default_factory=list, max_length=12)
 
 
 class VideoScript(BaseModel):
@@ -116,4 +134,5 @@ class VideoScript(BaseModel):
     cast: list[Character] = Field(default_factory=list, max_length=8)
     sets: list[SetDef] = Field(default_factory=list, max_length=8)
     scenes: list[ScriptScene]
+    shots: list[ShotDef] = Field(default_factory=list, max_length=20, description="code-native shots the scenes name in `shot`")
     planner: Literal["rules", "llm", "claude", "assistant", "manual"] = "llm"

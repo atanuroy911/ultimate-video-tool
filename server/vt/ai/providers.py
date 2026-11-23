@@ -486,7 +486,7 @@ def ensure_ai(progress: Optional[Callable[[str, float, str], None]] = None) -> P
             raise AIUnavailable("The local AI is turned off in Settings.")
         try:
             llm.ensure_ready(progress or (lambda *a: None))
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — raised again as AIUnavailable
             raise AIUnavailable(str(e)) from e
     elif not p.available():
         raise AIUnavailable(p.why_not())
@@ -532,7 +532,7 @@ def validate(data: Any, schema: dict, model_cls: Any = None) -> list[str]:
     if not errs and model_cls is not None:
         try:
             model_cls.model_validate(data)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — the validation error is shown to the model to fix
             errs = [str(e)[:400]]
     return errs
 
@@ -561,7 +561,7 @@ def complete_json(prompt: str, schema: dict, images: Optional[Sequence[Image]] =
         began = time.time()
         try:
             raw = p.complete(system, ask, schema, images, max_tokens, timeout, temperature)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — recorded in the AI conversations log and raised again
             talk.record(p.name, p.model(), system=system, prompt=ask, schema=schema, seconds=time.time() - began, error=f"{type(e).__name__}: {e}", images=len(images), image_data=[_image_bytes(i) for i in images])
             raise
         talk.record(p.name, p.model(), system=system, prompt=ask, schema=schema, answer=raw, seconds=time.time() - began, images=len(images), image_data=[_image_bytes(i) for i in images])

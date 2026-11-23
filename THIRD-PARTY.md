@@ -49,6 +49,14 @@ Before you publish videos commercially, check the licence of every model you cho
 | [OpenFilm](https://github.com/openfilm/openfilm) (commit a1b8d75) | the docked editor layout and the assistant pane (files carry a header naming their source) | MIT, text below |
 | [OpenChatCut](https://github.com/0xsline/OpenChatCut) (commit 9242a95) | the multitrack timeline and chat components in `client/studio/src/occ/` | AGPL-3.0-or-later. See `client/studio/src/occ/NOTICE.md`. |
 
+## Libraries added for the code-native editor and the in-app agents
+
+| Library | Used for | Licence |
+|---|---|---|
+| [@agentclientprotocol/sdk](https://github.com/agentclientprotocol/typescript-sdk) 1.5.0 | the Agent Client Protocol, to run Claude Code inside the app | Apache-2.0 |
+| [@agentclientprotocol/claude-agent-acp](https://github.com/agentclientprotocol/claude-agent-acp) 0.81.2 | the adapter that lets the app talk to the person's own Claude Code | Apache-2.0 |
+| [CodeMirror 6](https://codemirror.net/) (codemirror 6.0.2, @codemirror/lang-html 6.4.12, view 6.43.15, state 6.7.6) | the code view of a shot | MIT |
+
 OpenFilm's licence text:
 
 ```text

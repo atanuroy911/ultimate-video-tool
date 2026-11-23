@@ -1,0 +1,4 @@
+{"title": "Sleep is a skill", "duration": 3, "width": 1920, "height": 1080,
+ "knobs": [{"name": "--bg", "label": "Background", "kind": "colour"}, {"name": "--ink", "label": "Text", "kind": "colour"},
+           {"name": "--accent", "label": "Accent", "kind": "colour"}, {"name": "--title-size", "label": "Title size", "kind": "size"}],
+ "made_by": "Claude (by hand, the spike)"}

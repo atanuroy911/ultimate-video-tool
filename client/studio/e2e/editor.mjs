@@ -11,6 +11,7 @@ const pid = process.env.VT_PROJECT || "reference";
 const browser = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 const ctx = await browser.newContext({ viewport: { width: 1500, height: 950 } });
 const page = await ctx.newPage();
+await page.addInitScript(() => { try { localStorage.setItem("vt-timeline", "classic"); } catch {} });          // this suite tests the Classic timeline (the New one is the default since W11.2)
 const errors = [];
 page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
 page.on("console", (m) => m.type() === "error" && errors.push("console: " + m.text()));
@@ -21,8 +22,8 @@ const api = async (p, opts) => (await fetch(base + p, opts)).json();
 const frame = () => page.frames().find((f) => f.url().includes("/composition/9x16/"));
 
 console.log("Editor window");
-await page.goto(`${base}/p/${pid}/pro`, { waitUntil: "networkidle" });
-await page.waitForSelector(".scene-card");
+await page.goto(`${base}/p/${pid}`, { waitUntil: "load" });
+await page.waitForSelector("[data-scene]", { timeout: 45000 });
 check("title bar has the Edit menu, Script, AI and Export", (await page.getByRole("button", { name: "Edit ▾" }).count()) >= 1 && (await page.getByRole("button", { name: "Export" }).count()) >= 1 && (await page.getByRole("button", { name: "Director's script" }).count()) === 1);
 check("nothing is selected at first: scene inspector shows the first scene", await page.getByRole("heading", { name: "Scene 1" }).isVisible());
 
@@ -32,8 +33,11 @@ await page.keyboard.press("Escape");
 check("Escape shows the video settings", await page.getByRole("heading", { name: "Video", exact: true }).isVisible());
 check("video settings have the drawing style", (await page.getByRole("group", { name: "Style" }).count()) === 1);
 
-// canvas selection: click an element in the preview
-await page.locator(".scene-card").nth(0).click();
+// canvas selection: click an element in the preview (the first scene with two or more elements: the old demo project is gone)
+const planNow = await (await fetch(base + `/api/projects/${pid}/scenes`)).json();
+const pickIdx = Math.max(0, planNow.plan.scenes.findIndex((s) => s.elements.length >= 2));
+const pickId = planNow.plan.scenes[pickIdx].id;
+await page.locator("[data-scene]").nth(pickIdx).click();
 await page.keyboard.press("ArrowRight");       // a moment inside scene 1 (at 0 s nothing is on screen yet)
 await page.keyboard.press("ArrowRight");
 await page.waitForTimeout(900);
@@ -41,13 +45,13 @@ const fr = frame();
 await fr.waitForSelector(".el");
 // elements take room only once they have entered: go to a moment when all of scene 1's elements are on screen
 const allIn = await fr.evaluate(() => { const D = window.__vt && window.__vt.timeline && window.__vt.timeline(); return D ? D.duration() : 0; });
-const lastAt = (await (await fetch(base + `/api/projects/${process.env.VT_PROJECT || "reference"}/scenes`)).json()).timing.scenes[0];
+const lastAt = planNow.timing.scenes[pickIdx];
 await fr.evaluate((t) => window.__vt.seek(t), Math.max(0.5, (lastAt ? lastAt.end : 2) - 0.4));
 await page.waitForTimeout(700);
 const first = await page.locator(".phone").boundingBox();
 await page.getByRole("button", { name: "Seek" }).count();
 // the second element of scene 1 (an icon): find where it is on the canvas and click it
-const info = await fr.evaluate(() => { const els = [...document.querySelectorAll(".scene[data-scene='s1'] .el")]; return els.map((e) => { const b = e.getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2, e.getAttribute("data-el")]; }); });
+const info = await fr.evaluate((sid) => { const els = [...document.querySelectorAll(`.scene[data-scene='${sid}'] .el`)]; return els.map((e) => { const b = e.getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2, e.getAttribute("data-el")]; }); }, pickId);
 check("elements carry an index for picking", info.length >= 2 && info.every((i) => i[2] !== null));
 const scale = first.width / 1080;
 const target = info[info.length - 1];
@@ -59,7 +63,7 @@ await page.screenshot({ path: out + "/e1-canvas-select.png" });
 
 // timeline
 const clips = page.locator(".tl-clip");
-check("timeline lists the scenes", (await clips.count()) === 3);
+check("timeline lists the scenes", (await clips.count()) === planNow.plan.scenes.length);
 check("timeline shows elements and words", (await page.locator(".tl-chip").count()) >= 5 && (await page.locator(".tl-word").count()) >= 20);
 await clips.nth(1).click();
 await page.waitForTimeout(500);
@@ -110,21 +114,7 @@ await page.getByRole("menuitem", { name: "Keyboard shortcuts" }).click();
 check("shortcuts sheet opens", await page.getByRole("dialog", { name: "Keyboard shortcuts" }).isVisible());
 await page.keyboard.press("Escape");
 
-// resizable panels, remembered
-const w0 = await page.locator(".ed-left").evaluate((e) => e.getBoundingClientRect().width);
-const sp = await page.getByRole("separator", { name: "Resize the editing tools" }).boundingBox();
-await page.mouse.move(sp.x + 3, sp.y + 200);
-await page.mouse.down();
-await page.mouse.move(sp.x + 103, sp.y + 200, { steps: 5 });
-await page.mouse.up();
-const w1 = await page.locator(".ed-left").evaluate((e) => e.getBoundingClientRect().width);
-check("dragging the splitter resizes the tools panel", w1 > w0 + 60, `${w0} -> ${w1}`);
-await page.reload({ waitUntil: "networkidle" });
-const w2 = await page.locator(".ed-left").evaluate((e) => e.getBoundingClientRect().width);
-check("the size is remembered", Math.abs(w2 - w1) < 3, `${w1} vs ${w2}`);
-await page.getByRole("separator", { name: "Resize the editing tools" }).dblclick();
-const w3 = await page.locator(".ed-left").evaluate((e) => e.getBoundingClientRect().width);
-check("double-click resets it", Math.abs(w3 - w0) < 3, `${w3} vs ${w0}`);
+// resizable panes, remembered sizes: covered by e2e/workbench.mjs (the docked workbench replaced the old splitter)
 
 await page.screenshot({ path: out + "/e2-ai-sheet.png" });
 await page.keyboard.press("Escape");
@@ -137,7 +127,9 @@ await page.getByRole("button", { name: /^OK/ }).click();                        
 await page.getByRole("button", { name: /^Style/ }).click();                             // the Style tile opens its choices
 check("New video offers stick figures", (await page.getByRole("radio", { name: /Stick figures/ }).count()) >= 1);
 await page.goto(`${base}/settings`, { waitUntil: "networkidle" });
-check("Settings shows the directors and the assistants", (await page.getByText("Use your own AI assistant").count()) === 1 && (await page.getByText("Server AI connection").count()) >= 1);
+await page.getByRole("button", { name: "Directors & assistants" }).or(page.getByRole("tab", { name: "Directors & assistants" })).first().click();          // Settings has sections now
+await page.waitForTimeout(800);
+check("Settings shows the directors and the assistants", (await page.getByText("Use your own AI assistant").count()) === 1 && (await page.locator('[aria-label="Server AI connection"]').count()) >= 1);
 await page.screenshot({ path: out + "/e3-settings-ai.png", fullPage: true });
 
 await browser.close();

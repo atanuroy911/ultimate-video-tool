@@ -6,6 +6,7 @@ import { base, chromePath } from "./common.mjs";
 const pid = process.env.VT_PROJECT || "reference";
 const browser = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 const page = await (await browser.newContext({ viewport: { width: 1500, height: 950 } })).newPage();
+await page.addInitScript(() => { try { localStorage.setItem("vt-timeline", "classic"); } catch {} });          // this suite tests the Classic timeline (the New one is the default since W11.2)
 const errors = [];
 page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
 let pass = 0, fail = 0;
@@ -17,8 +18,8 @@ const st = await api(`/api/projects/${pid}/sound-events`);
 check("the API says whether the listener is available", typeof st.available === "boolean");
 if (!st.available) { console.log("  skip: the listener (torch + transformers) is not installed"); process.exit(0); }
 check("a new project has not been listened to", st.analyzed === false);
-await page.goto(`${base}/p/${pid}/pro`, { waitUntil: "networkidle" });
-await page.waitForSelector(".tl-clip");
+await page.goto(`${base}/p/${pid}`, { waitUntil: "load" });
+await page.waitForSelector(".tl-clip", { timeout: 45000 });
 const btn = page.getByRole("button", { name: /Listen for laughter/ });
 check("the Sounds lane offers to listen", await btn.isVisible());
 await btn.click();

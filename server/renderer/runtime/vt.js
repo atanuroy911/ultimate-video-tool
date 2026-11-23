@@ -897,8 +897,9 @@
         if (typeof e.until === "number" && e.until < sc.end - 0.3) {
           // its line is over: it leaves and the picture behind gets the frame back (pacing.dwell; it used to stay until the scene ended)
           const out = Math.max(at + 0.6, e.until);
-          tl.to(w, { opacity: 0, scale: 0.96, duration: 0.28, ease: "power2.in" }, out);
-          tl.set(w, { visibility: "hidden" }, out + 0.29);
+          // autoAlpha: hidden at the end of the fade, shown again when the playhead goes back. A separate set(visibility: hidden) after it was not
+          // undone when HyperFrames seeks back from a later frame, so the card stayed hidden before its exit too (test_handback, 2026-11-24)
+          tl.to(w, { autoAlpha: 0, scale: 0.96, duration: 0.28, ease: "power2.in" }, out);
         }
       });
       if (sc.moves && window.VTX.motionScene) window.VTX.motionScene(sc.moves, tl, el, sc, W, H);         // opening, outro, camera and rhythm moves
@@ -991,7 +992,48 @@
     window.__timelines = window.__timelines || {};
     window.__timelines[D.comp_id || "root"] = tl;
     tl.time(0);
+    clipToWindow(root, D);
 
+
+
+  /* C11: one stretch of the video (window.__VT_WINDOW = {start, end}), so the renderer draws only the designed scenes of a long talk and the rest
+     is cut straight from the recording. The page lasts end - start; the whole timeline is played through a tween from start to end, and every
+     timed media element is moved by -start (trimmed at the edges), so frame t of this page is frame start + t of the whole video. */
+  function clipToWindow(root, D) {
+    // C11: one or more stretches of the video played back to back (window.__VT_WINDOWS = [{start, end}, ...], or window.__VT_WINDOW = {start, end}),
+    // so the renderer starts once for every designed stretch of a long talk. Timed media get one copy per stretch they show in.
+    const ws = (window.__VT_WINDOWS || (window.__VT_WINDOW ? [window.__VT_WINDOW] : [])).filter((w) => w && w.end > w.start);
+    window.__vtClipped = null;
+    if (!ws.length) return;
+    const offs = []; let total = 0;
+    for (const w of ws) { offs.push(total); total += w.end - w.start; }
+    root.setAttribute("data-duration", String(total));
+    root.querySelectorAll("[data-start]").forEach((el) => {
+      if (el === root) return;
+      const s0 = +el.getAttribute("data-start"), d0 = +(el.getAttribute("data-duration") || 0), m0 = +(el.getAttribute("data-media-start") || 0);
+      const parts = [];
+      ws.forEach((w, k) => {
+        const a = Math.max(s0, w.start), b = Math.min(s0 + d0, w.end);
+        if (b - a > 0.001) parts.push({ s: offs[k] + (a - w.start), d: b - a, ms: m0 + (a - s0) });
+      });
+      if (!parts.length) { el.remove(); return; }
+      parts.forEach((part, i) => {
+        const node = i === 0 ? el : el.cloneNode(true);
+        node.setAttribute("data-start", String(part.s));
+        node.setAttribute("data-duration", String(part.d));
+        if (el.hasAttribute("data-media-start")) node.setAttribute("data-media-start", String(part.ms));
+        if (i > 0) el.parentNode.insertBefore(node, el.nextSibling);
+      });
+    });
+    try {
+      const outer = gsap.timeline({ paused: true });
+      ws.forEach((w, k) => outer.add(tl.tweenFromTo(w.start, w.end, { duration: w.end - w.start, ease: "none", immediateRender: false }), offs[k]));
+      outer.set(root, { opacity: 1 }, Math.max(0, total - 0.001));
+      window.__timelines[D.comp_id || "root"] = outer;
+      window.__vtClipped = outer;                                   // the page registers window.__vt.timeline() again after the build
+      outer.time(0);
+    } catch (e) { console.error("clipToWindow", e && e.stack || e); }
+  }
 
     /* ---------- no empty frame: an element that has not entered yet takes no room ----------
        Layouts reserve a slot for every element of a scene, so the first element sat in the left half for seconds while the right half stayed empty until its word was spoken.
@@ -1302,7 +1344,7 @@
     }
   });
 
-  window.__vt = { build, seek, play, pause, timeline: () => tl, get duration() { return D ? D.duration : 0; }, get time() { return tl ? tl.time() : 0; } };
+  window.__vt = { build, seek, play, pause, timeline: () => window.__vtClipped || tl, get duration() { return D ? D.duration : 0; }, get time() { return tl ? tl.time() : 0; } };
 
   function boot() {
     if (window.__VT__) {
@@ -1314,8 +1356,15 @@
   }
   // The page starts the build explicitly (window.VTX.start()) after every runtime script has loaded: a renderer may run scripts when the
   // document is already "ready", and building earlier would skip the components the extension scripts add.
+  // Every font face is loaded before the build: text is fitted once, with the real fonts. Building first and fitting again when the fonts arrive
+  // ended differently depending on how fast they loaded (a different text size in one render than in another).
+  const fontsThenBoot = () => {
+    const faces = document.fonts ? [...document.fonts] : [];
+    if (!faces.length || document.fonts.status === "loaded" && faces.every((f) => f.status === "loaded")) return boot();
+    Promise.all(faces.map((f) => f.load().catch(() => null))).then(boot, boot);
+  };
   window.VTX.start = () => {
-    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
-    else boot();
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", fontsThenBoot);
+    else fontsThenBoot();
   };
 })();

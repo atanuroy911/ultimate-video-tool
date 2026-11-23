@@ -195,6 +195,12 @@ def review(p: Project, progress: Callable[[float, str], None] = lambda f, m: Non
                 kept, round_changed = trial, round_changed + 1
         if not round_changed:
             break
+        try:                                                                    # a slide recording stays clean after the director's revision too
+            from . import aroll as AR
+            AR.keep_screen_clear(kept, p)
+        except Exception as e:                                                  # noqa: BLE001 — the revision is valid without it
+            import logging
+            logging.getLogger(__name__).warning("keep_screen_clear after review: %s", e, exc_info=True)
         p.save_scenes(kept)
         report["changed"] += round_changed
         compose(p)
@@ -209,6 +215,23 @@ def review(p: Project, progress: Callable[[float, str], None] = lambda f, m: Non
     report["scenes_hash"] = file_hash(p.scenes_path)
     write_json(p.dir / REPORT, report)
     return report
+
+
+LAYOUT_WORDS = (" covers ", " overlaps ", "outside the frame", "runs off the frame")
+
+
+def layout_faults(p: Project) -> list[str]:
+    """Parts that cover each other or leave the frame in the cut as it now stands, one line per fault ("scene s5: element 2 (keyword) covers 68%
+    of element 1 (icon)."), measured on the real page. Used to see whether a revision broke the layout (W15.3 matrix, 2026-11-24: a viewer-test
+    revision added keywords on top of other parts and was kept because fewer viewers would leave)."""
+    from .render.hyperframes import frame_facts
+
+    tag = FORMATS[p.meta().aspect]["tag"]
+    times = _frame_times(p.comp_dir / tag, p.scenes())
+    if not times:
+        return []
+    facts = frame_facts(p.comp_dir / tag, [t for _, t in times])
+    return [f"scene {sid}: {f}" for sid, at in times for f in problems(facts.get(at)) if any(w in f for w in LAYOUT_WORDS)]
 
 
 def remeasure(p: Project) -> None:

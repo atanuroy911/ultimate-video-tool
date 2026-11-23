@@ -3,6 +3,24 @@
 Newest first. Every agent (Claude Code, Codex) adds an entry when it stops: what it did, what it verified, what is left. Read
 `CODEX-HANDOFF.md` first.
 
+## 2026-11-21 — 0.5.0 published; code-native shots C1 to C5 (Claude)
+
+Branch `workbench`. Plan: `docs/plans/PLAN-CODE-NATIVE-EDITOR.MD` (new; the owner asked for "VS Code as a video editor").
+
+- **Release:** the 0.5.0 release hung in the Docker step; fixed (time limit, publish no longer waits for the image), merged as PR #2 with the owner's approval. v0.5.0 is published with the evidence zip attached; the 1.0.0 release and tag are deleted. `main` merged back into `workbench`.
+- **Decision:** no VS Code fork and no bundled Marketplace extensions (terms; Codex is not on Open VSX). Instead: a shot is a folder of HTML written by an agent, edited visually through `overrides.json` only; Claude Code / Codex via ACP later (C6); "Open in VS Code" for power users (C8).
+- **C1** `server/vt/shots.py`: overrides checked value by value, written as CSS + a text script; CSP; build/render/frames. **C2** `Scene.shot`: the composer renders each shot once (cached by a fingerprint) and shows it full-frame behind its scene with no added decoration; endpoints in `server/vt/server/shot_routes.py`. **C3** `client/studio/src/review/ShotEditor.tsx`: click, drag, scale, rotate, text, colour, knobs, undo, autosave; the shot runs in a sandboxed frame with no origin (self-contained page + `vt-shot-bridge.js`). **C4** a Code tab (CodeMirror 6, loaded on demand). **C5** the Video Script carries `shots` and `scene.shot`; bad shots come back as errors the director can fix; the video's theme reaches shots as `--vt-*` variables; the director's instructions teach the format.
+- **Verified:** `tests/test_shots.py` (35, incl. real frames and the bridge in a sandboxed frame), the script/director suites, Studio unit tests 64/64, `client/studio/e2e/shot-editor.mjs` 17/17 against a dev server on 8791, a real 30 s video mixing two HTML shots with old scenes (`docs/dev/spikes/html-shot/c2-mixed-video.png`).
+- **Gotchas:** Git Bash heredocs mangle `` and `
+` in Python/JS edits (write a script file instead). Test data for the dev server: `VT_PROJECTS=E:/UltimateVideoTool/scratch/c2-projects VT_DATA=E:/UltimateVideoTool/scratch/c2-data` (copy a project's `auto-*` theme into `c2-data/themes`). The vite dev server re-optimises new packages on first use and reloads the page once.
+- **Claude test of C5:** Sonnet over MCP (`claude -p --model sonnet --mcp-config E:/UltimateVideoTool/scratch/c5-mcp.json`) directed the watch explainer with three shots of its own, checked frames and fixed a caption collision; 9 turns, 5.4 min, $0.82; the render is good (`docs/dev/spikes/html-shot/c5-claude-directed.png`). Its first attempt stopped cleanly because the test data lacked the project theme (fixed by copying it).
+- **Local AI and shots:** gemma4:e2b ignores optional shots and, when told to write one, produces pages without a timed root; a bad shot no longer fails the script (`repair_script` drops it with its reason).
+- **W12 / C6 (Claude):** `client/desktop/acp-agents.js` runs the person's Claude Code through the ACP adapter; our MCP tools are allowed at once, everything else raises a card (Allow once / for this chat / Deny); no full-access mode. Tested against a fake agent (`test-acp-agents.js`), the real adapter, and the real desktop app from source (`client/studio/e2e/desktop-agent.mjs`). Two bugs found in `mcp-bridge.js` (it is also the Claude Desktop path): CRLF event streams were never read, and a refused `server/discover` probe left a made-up session id that made the real `initialize` fail with 404. Claude Code tab in the Assistant pane (`client/studio/src/assistant/AgentChat.tsx`).
+- **More today:** `vt://` links in the agent's replies jump to a scene, a moment or an element (`assistant/links.ts`, hostile-input tests); MCP tools `list_shots`, `get_shot`, `write_shot`, `set_scene_shot`, `set_shot_edits`, `get_shot_frame` so Claude Code in the Assistant pane can draw and edit shots (`e2e/desktop-agent-shot.mjs` is the real-app test for that). Real-app result: asked in the Assistant pane, Claude Code read the shot rules, wrote a "battery" shot, set it behind scene 2, looked at frames, rewrote it once (its first write was blank), and the person can then edit it visually (`docs/dev/spikes/html-shot/c6-claude-code-draws-a-shot.png`; 5/5 checks). The shot editor is cramped inside the narrow viewer pane: give it more room. ComfyUI (FLUX.2 Klein Q4 set, 10.5 GB) was started on the installed server on E: through `POST /api/setup/install`; the model download runs at about 3 MB/s.
+- **ComfyUI on this PC (C7):** installed through `POST /api/setup/install`, started with `vt.engines.hub.start_services`; first picture 32 s, then 12 to 14 s, 3.4 GB of the card. **Mistake to know about:** a read-only status check from my test reached the owner's GPU server (192.168.123.47) because the code defaulted to that address when no ComfyUI address was set (`comfy_routes.DEFAULT_URL`, `modules/defs/plan.py`, `reel/plan.py`). Two GET requests, nothing generated there. Fixed: the default is now the connected engine, else this computer; a test guards against the address coming back.
+- **Gotchas:** the command tool here strips backslashes: write regex/escape-heavy edits with `chr(92)` or the Edit tool. `vt studio` does not serve `/mcp`; use `vt server --host 0.0.0.0 --port 8791` for tests that need MCP. Read-only shell commands (`dir`) are allowed by Claude Code itself, so use a file-writing command to test permission cards.
+- **Left:** Codex (not installed here; adapter not bundled), the model chooser, a rebuilt installer test (W12.6 on the installed app), W13 to W15. Catalogue scenes still clip text ("outdoo|") and draw a tiny icon: PLAN-PERFECT work, not shots. Then C7 (ComfyUI on E: and the generators as MCP tools, measured per card), C8, and PLAN-WORKBENCH W3.3/W3.5, W10–W15.
+
 ## 2026-11-20 — W0 to W2 of PLAN-WORKBENCH: 0.5.0, and the server stops trusting web pages (Claude, Sonnet)
 
 Branch `workbench` (never `main`: a push to main publishes a release). Plan: `docs/plans/PLAN-WORKBENCH.MD`.
@@ -563,3 +581,123 @@ Tests: tests/test_story_engine.py (8). Do not edit runtime/vt-story.js by hand. 
 - .mcp.json and .codex/config.toml PYTHONPATH made relative (`server`).
 - Release blockers found, not changed: server/assets/music techhouse-01, house-01/02, hiphop-01/02 are Logic Pro X exports (2019) of unknown licence, not in index.json and not used by code; docs/research/reels/*.png are screenshots of third-party reels; git history also contains them.
 - STATUS.md facts table regenerated (check_docs.py passes).
+
+## 2026-11-22 (C7)
+Agents got `make_picture` (ComfyUI on this laptop) and `speak` (Kokoro). Tried for real: picture 42 s cold, speech 2.2 s in 8 s. Owner said: skip Codex, finish the rest, note issues for later; they are in docs/dev/ISSUES.md.
+
+C8 first half: "Open in VS Code" button in the Claude Code tab opens the agent folder in the owner's VS Code (launched for real).
+C7 voices: Kokoro 1.5 s per second of speech; Chatterbox Turbo 17 s per second (too slow here). Numbers are in engines/fit.py VOICE_SPEED.
+W14 first part: change event carries rev/scenes/removed/by/what (tested); Studio toast.
+W14 toast seen in a real browser (e2e/agent-toast.mjs): "Claude changed scene s1 (update scene)".
+Model chooser in the Claude Code tab (Default, Sonnet, Opus, Haiku); e2e 16/16.
+C7: ask_local tool (small model on this computer); tried: 12.9 s.
+C8: small VS Code extension (preview a shot beside the code), helper test only.
+Fast suite: one test needed updating (client may depend on the two ACP packages); a stray backspace in this file was removed.
+
+## 2026-11-22 (C7 check)
+VT_LOCAL_MCP=1 lets a test server on 127.0.0.1 offer /mcp (same checks; for tests). Real Claude Code in the real app made a picture with ComfyUI and spoke a line with Kokoro through our tools: e2e/desktop-agent-media.mjs 5/5.
+W14.2: agent changes glow on both timelines and the scene list, wait while the person types or drags, keep the selection (e2e/agent-toast.mjs 6/6).
+W14.3: Ctrl+Z undoes an agent change and says so (7/7).
+W14.4: "Claude just changed this." with Undo in the inspector (9/9).
+W13: Ctrl+L points Claude Code at the selected scene or element (a pill, sent as a numbered reference with times and a vt:// link); assistant-agent e2e 20/20.
+W13.2: the Director chat takes references too; one wire format in JS and Python, byte-identical on a shared fixture (JS toFixed rounding matched). C10 added to PLAN-CODE-NATIVE-EDITOR: long talks get subtitles and look-ahead B-roll (owner recording copied to E:\UltimateVideoTool\scratch\c10). Six more wake-up timers set (every 5 h to Nov 23 22:50).
+C7 clips: Wan 2.2 TI2V 5B Q4 runs on the 6 GB card: 2 s at 640x352 in 1357 s (busy machine); frames in docs/dev/spikes/html-shot/c7-wan-clip.png. Speech recognition of the 16.5-min talk: 1660 s on the processor.
+C10: the outline of the owner's talk with gemma4:e4b: 135 sentences, 22 sections, 17 examples (Amazon warehouse, highway car, beetle, birds, Google Maps, obstacle inflation, experiment comparisons), 114 s. e2b unreliable for it. A-roll bug on another drive fixed.
+C10: a long talk with the speaker's picture is read ahead automatically before planning (talk_outline.ensure); its examples, by beat, go into every director's prompt (build_prompt look_ahead).
+C10 on the owner's talk (local AI): 17/17 examples with B-roll, 1 outside, opening and close on the speaker; sheet docs/dev/spikes/html-shot/c10-owner-talk-sheet.png; problems in ISSUES (slides covered by stickers, random keywords, garbled text in a picture).
+W4.3 (part): vt/notices.py; pipeline.py and talk_outline.py no longer swallow failures: each skipped extra is said on the video page ("N extras were skipped") and logged with its traceback; a remap catch narrowed to ValidationError; ruff BLE001 clean on those files.
+W4.3 rest: 31 broad catches in director/, directors.py, compose/, tts.py, ai/providers.py, script/, craft.py now log with traceback, narrow to ImportError, or carry their reason; ruff BLE001 clean; fast suite green. Mixed line endings from shell appends fixed in 4 files; a stray test screenshot removed and /client/studio/*.png ignored.
+C10 with Claude directing the owner's talk: 137 scenes, 35 B-roll, 0 outside examples, 16/17 examples covered, 38 min. Local AI run: 17/17, 1 outside. Render of the local version: 57% after 1 h 45 (slow; issue noted).
+W15.1: editor screenshots (2 sizes x 2 themes x 3 states), README updated, critique in docs/dev/shots/compare.md. Found: a shot drawn under the scene's old elements; set_scene_shot now lists them and can clear them (test updated).
+
+## 2026-11-22 morning (timer run)
+Done: W4.3 (no silent failures in the pipeline modules; notices on the video page), W15.1 screenshots and three layout fixes from the critique, set_scene_shot reports elements left over a shot, C10 with Claude directing (16/17 examples, 0 outside). Running: the render of the owner's talk (local-AI version) at 59%, E:\UltimateVideoTool\scratch\c10\projects\2026-11-22-beetle-talk\exports. Next: watch that video; Claude version frames; W4.2 (split app.py) with fresh context; W11 (one timeline); W10; C8 extension run in VS Code; W15.6 PR for the owner.
+C11: fast render for long recordings (vt/render/fast.py): 1321 s instead of 8103 s for the owner's 14-min talk; caption order bug fixed (frame-100 before frame-11), re-render running to confirm.
+
+## 2026-11-22 midday
+- C11 fast render: the owner's 14-minute talk in 22 min instead of 2 h 15 m (plain speaker stretches cut with ffmpeg and the runtime's own captions keyed over them; designed stretches from a clipped, pruned page). Encoding already used NVENC; capture in Chrome was the bottleneck.
+- W11.1: New timeline gained narration mute/volume, stick actions, the sounds track, Listen for sounds, double-click a word to edit it; parity table docs/dev/timeline-parity.md (one row left: restoring a cut).
+- W15.2: edge, export, context, sounds, dashboard suites rewritten and passing; journey moved to a fresh English Kokoro sample (running).
+- Bugs fixed: copied project folders shared an id (stale dashboard cards; the folder name is now the id). Finding: in the dev environment speech recognition runs on the processor because CUDA cuBLAS is missing (processor-only torch), not because of ComfyUI.
+
+## 2026-11-22 afternoon
+- W15.2: all 8 old-layout browser suites rewritten and passing (editor 20, journey 16, export 8, context 5, sounds 5, edge 9, stick 9, dashboard 10).
+- Bugs found by them and fixed: speech recognition hung for ever without CUDA cuBLAS (now checked first; the installed server still uses the card); the module workspace failed a file replace Windows refused (compose error); copied project folders shared one id; two directors with the same name are told apart.
+- W10: starter suggestions, New conversation, steps fold into "Worked 12s · 3 steps", Markdown replies (parsed to data), Try again on failures.
+- W13: a scene's menu, Alt-drag on the picture (with the cut-out picture for Claude Code, server route /frame-crop) and Shift-drag on the ruler all point the assistant; the region box is in both wire formats (shared fixture).
+- W14.1: change events say who (person, director, agent).
+- Fast suite green (a test updated for the cuBLAS check).
+
+## 2026-11-22 evening
+- W12.6: the packaged client (dist/win-unpacked, own AppData) passes the real Claude Code test 7/7. Installer build needed winCodeSign unpacked by hand (ISSUES). Claude Code's own tool names now in plain words.
+- C10 with Claude: frames looked at (better graphics than the local AI). Fixed: on a slide recording a real graphic gets the theme background (also after the director's review); a director that can rewrite is told once what the repair would cut (labels with "...").
+- C11: the owner's talk renders in 15.6 min (was 2 h 15 m): all designed stretches on one page in one render, 6 workers, stretches cut 3 at a time.
+- Next: re-run the talk's plan with the latest fixes and watch it; W4.2; W11 last row (restore a cut); W15.3 matrix on rebuilt installed apps; W15.6 PR for the owner.
+
+## 2026-11-22 night
+- W11.1 done: the New timeline brings a cut back by double-clicking its mark (Cuts track; unit test + e2e/timeline-cuts.mjs). Parity table complete.
+- W11.2 step 1: the New timeline is the default; the 10 suites that test Classic pin it.
+- speak puts the line in the media bin as a sound. Auto themes: 4,000 text pairs checked, all 4.69:1 or better; a test guards it.
+- Running: the owner's talk re-planned with today's fixes (local AI), then the fast render.
+
+
+## 2026-11-23 early morning
+- Owner: "We need EXACTLY this kind of editing" (OpenMotion). Found that OpenMotion's editor is the HyperFrames Studio (we already render with HyperFrames); plan docs/plans/PLAN-OPENMOTION.MD (O1-O8).
+- O1: renderer on HyperFrames 0.9.81 (tests pass).
+- O2: shot editor **Studio** tab opens the HyperFrames Studio on the shot (own window; it refuses frames), edits come back on Save to video / Done / close; changes made elsewhere meanwhile are never overwritten. pytest 4/4, browser suite 10/10 (retype in the Studio's Design panel reaches the shot). A canvas drag on an animated title became a GSAP keyframe; our renderer drew it.
+- Next: O3 (bake runtime scenes into HyperFrames source), then O4 (whole video as a HyperFrames project).
+- O3 part 1: `vt/bake.py` + `runtime/vt-bake.js` turn a runtime-drawn video into plain HyperFrames source (built DOM with readable ids + the timeline as GSAP code). The c2-mix sample: nothing lost, identical frames at 15 moments; it opens in the HyperFrames Studio with every scene as a clip at its time and every part selectable. tests/test_bake.py.
+- Next: O3 b-d (captions as their own composition, callbacks, more video kinds), then O4: "Edit the whole video in the Studio" from the editor (bake -> Studio session like O2 -> render from the edited baked page).
+
+## 2026-11-23 morning
+- O4: the whole video in the HyperFrames Studio. Editor header **Studio** button -> server bakes the current video into studio-<shape>/ and opens the Studio (own window); Studio edits go into the export while they fit the current video (else a notice, old edits kept aside). Shot and video Studios share one process manager. pytest 7 (bake, shot, video Studio), e2e video-studio 9/9 with a real export whose frame shows the Studio edit; shot-studio still 10/10.
+- Next: captions as their own composition (O3 b), then O5 (the Studio inside our app with our assistant docked).
+- O3 b: captions baked as their own composition; one Studio copy serves exports with and without captions; no HyperFrames lint errors on the baked sample; real render of the baked page matches the original. e2e video-studio 9/9 again.
+- O3 d: the 14-minute talk bakes with nothing lost and matches the original at 16 of 17 moments (timeline written from GSAP's live timeline, ease names kept, count-ups sampled, free-visual windows, measuring-time styles ignored). Runtime fix for every render: fonts load before the build (the text fit depended on font loading speed). The page probe uses the renderer's Chrome text flags. The whole-video Studio refuses videos whose bake loses steps (stick figures). Full suite: one failure, pre-existing (test_handback), logged.
+- O5: the HyperFrames Studio inside the desktop app's editor with the assistant docked (frame rule lifted only for the local Studio; its cloud/product buttons hidden; off-computer requests refused). e2e desktop-studio 7/7.
+- O6: Claude Code edits the Studio selection: studio_parts / studio_part / studio_edit / studio_selection MCP tools; real Sonnet test in the desktop app 4/4 (the Studio shows the change live).
+- Owner said the Studio looked shrunk: Studio mode now gives it the whole window below the title bar (toolbar hidden, assistant closed in narrow windows, toggle in the Studio menu). The Studio's own ask-the-agent goes to the docked Claude Code. e2e desktop-studio 10/10.
+- Studio edits now survive plan changes (carried into the new bake; the export shows both kinds of change, checked end to end). Agent Studio edits are named entries in the Studio's history, undoable (studio_undo). HyperFrames update check and self-install off.
+- Timeline words (owner: overlapping): caption lines join until readable when zoomed out, split into words when zoomed in; double-click a caption word to edit it. No overlap (e2e).
+- O7: Words tab beside the Studio; changes to the video reach the open Studio by themselves with Studio edits carried. e2e desktop-studio 12/12.
+- Owner asked for a Higgsfield-like generation panel and clearer HyperFrames controls: plan docs/plans/PLAN-SCENE-TOOLS.MD. Done: "Edit in HyperFrames", a scene bar above the Studio (scene by scene, words, Pictures / Director / Back), scene menu entries, and the scene pictures panel (generate N, redraw, use, forget; history per scene). pytest 3, e2e scene-pictures 7/7, desktop-studio and video-studio pass. Real pictures need a ComfyUI on this PC.
+
+## 2026-11-23 evening (timer run)
+- S3: the scene bar lists the scene's parts in plain words ("Definition term", "Backdrop shade", "Bar value 2"; anonymous boxes left out). Picking one selects it in HyperFrames: its address hash takes `selFile`/`selId` (found in the Studio's own source), no reload. New route `GET /api/projects/{pid}/studio/parts?scene=`. e2e studio-parts 5/5 (HyperFrames' own `--selection` answers the part), desktop-studio 16/16.
+- G2: "Make it move" on each picture in the scene pictures panel: the picture becomes the first frame of a 3 or 5 s clip (Wan 2.2 / LTX-2.3 workflows already there; "Any that runs" picks the first the engine can run). Clips sit next to their picture in the grid, play on hover and large on the left; "Use" shows a clip behind the scene like a picture. `scene_gen.animate`, `POST .../pictures/{media}/move`. pytest test_scene_gen 4/4 (stand-in engine), e2e scene-pictures 9/9. Real clips not tried: no ComfyUI here.
+- Test hygiene: every desktop e2e run left its helper running (each test has its own home); 17 were stopped. `closeDesktop()` in e2e/common.mjs now closes the app with a time limit and stops its helper; all five desktop suites use it.
+- Next: G3 (prompts written for the scene by the Director / Claude Code), S4 (each scene its own composition), then W15.3 and the 0.6.0 PR.
+- G3: "Write N prompts for me" in the scene pictures panel: the AI chosen in Settings writes different, drawable prompts from the scene's words and its neighbours (rules from the drawable-prompts note); editable cards with Use / Draw one; "Draw all N" draws one picture per prompt in one run (each picture keeps its prompt). Real Sonnet run: 4 distinct prompts in 7 s. pytest test_scene_gen 6/6, e2e scene-pictures 12/12.
+- S4: each scene its own HyperFrames composition (scenes/<id>.html, one per scene page), timed from its own start; scenes that share a step with another or hold a timed clip stay in the root page. Captions moved to compositions/captions.html and baselines to .baked/ (one page at the top: HyperFrames' lint error gone). Older copies carried over. Talk: 64 scene pages, nothing lost, frames as before (16/17). Bake no longer fails when the editor saves mid-copy. Tests: pytest bake+studio+shot+scene_gen 22/22; e2e video-studio 9/9, studio-parts 6/6, desktop-studio 16/16.
+- Next: O7 (retention, outline/B-roll, notices as panels beside HyperFrames), then O8; W15.3 and the 0.6.0 PR.
+- O7: Outline and Checks tabs beside HyperFrames (talk sections and examples with B-roll status; retention of the newest export with its risky moments; skipped extras); each time moves HyperFrames there. `GET /insights`. e2e desktop-studio 19/19. Tab row fits five tabs. O8 recorded as waiting on stick-figure bake, remote Studio access and plan-level work.
+- Studio gateway: HyperFrames reachable from another computer through the server (port + 1): ticket -> cookie for browsers, key header from the desktop app, web pages from elsewhere refused. Desktop app frames and keys the gateway. Embed address keeps its page (ticket) and changes only the hash. pytest test_studio_gateway 4/4, e2e studio-gateway 6/6, desktop-studio 19/19.
+- Stick figures bake: stick scenes become compositions that run the stick engine (data as given, props state, full format, loudness slice; shown while measuring). e2e-stick bakes with 0 lost in all three shapes, frames identical; HyperFrames opens stick videos. pytest 33/33 (bake, studio, gateway, stick, scene_gen, shot_studio); e2e studio-stick 3/3, video-studio 9/9. Gotcha found: the engine reads D.format.width; passing only the aspect put bubbles at the left edge.
+
+## 2026-11-24 night (owner: run ComfyUI on this PC, keep working; wake-up at 4:30 AM)
+- ComfyUI started on this PC from the installed server's data (E:\UltimateVideoTool\ServerData\data\engines\comfyui, 127.0.0.1:8188) the way the app does (`hub.start_services`). Real G1 test: 4 pictures for c2-mix scene s4 with FLUX.2 Klein 4B (small), 40 s for the first (model load), 12 s each after; all four usable (docs/dev/spikes/html-shot/g1-real.png).
+- G2 on this card: no clip workflow fit the installed Wan 2.2 TI2V 5B (only the 14B files were described). New workflow `wan22_5b_i2v` (GGUF 5B + umt5 Q4, the picture as the first frame, 24 fps); "Any that runs" picks it. Real clip running.
+- O8 step: a **Scenes** tab beside HyperFrames (the plan's scenes with their menu: pictures, Director, change, split, delete, edit in HyperFrames); picking a scene moves HyperFrames there. desktop-studio 21/21. Suggested picture prompt no longer ends in "..".
+- Real clip: Wan 2.2 5B, 3 s vertical in 242 s, it moves. Workflow marked verified. Failed attempts can be cleared. The panel test runs with a real engine (12/12) and keeps the scene's real history (it lost it once; rebuilt).
+- O8: one Video tab beside HyperFrames with the old editor's panels as views (Scenes, Direction, Words, Script, Sound, Media, Outline, Checks); desktop-studio 22/22.
+- O8: Elements view beside HyperFrames (adds a text, shape or diagram to the scene HyperFrames is on, through the plan; HyperFrames shows it after its refresh). Found and fixed: a change within 4 s of a refresh never reached HyperFrames, and two refreshes could overlap (server lock per Studio folder; app runs one refresh at a time, then one more if a change came meanwhile). desktop-studio 23/23 twice.
+- O8: videos open in HyperFrames by themselves in the desktop app (menu: open in Video Tool's editor instead). Claude Code steps in plain words again ("ToolSearch" -> "Looking for the right tool"; the check was too lax). desktop-studio 23/23, desktop-studio-agent 4/4, desktop-agent 7/7 (real Claude Code).
+- Found while checking the old test_handback failure: in HyperFrames renders a card over a picture that leaves after its sentence never showed at all (Chrome showed it). The exit now fades with autoAlpha; test_handback 7/7, bake and stick tests pass. Other set(visibility) uses noted in ISSUES. Installers rebuilt for 0.6.0 after this fix.
+- **W15.3 matrix on the rebuilt installed apps (0.6.0, E:\UVT-Server and E:\UVT-Client, Claude on this laptop directing through the client's helper)**, E:\UltimateVideoTool\matrix\2026-11-24-claude:
+
+  | row | kind | format | lang | director | make | export | length | verdict |
+  |---|---|---|---|---|---|---|---|---|
+  | story-lighthouse | story | 9:16 | en | Claude | 563 s | 88 s | 28.8 s | good (watched: scenes, characters, captions clear) |
+  | stick-monday | stick | 9:16 | en | Claude | 876 s | 76 s | 23.5 s | good |
+  | explainer-bn-payment | explainer | 9:16 | bn | Claude | 909 s | 96 s | 21.8 s | good (Bangla text right; two moments mid-fade) |
+  | explainer-watch | explainer | 9:16 | en | Claude | 891 s | 92 s | 30.1 s | made (first try failed: .module_cache.json read refused by Windows; fixed) |
+  | infographic-coffee | infographic | 16:9 | en | Claude | 836 s | 72 s | 25.8 s | good, some sparse moments |
+  | cartoon-leaves | cartoon | 16:9 | en | Claude | 1222 s | 84 s | 26.2 s | faults: titles on top of a list and a chip (from the viewer-test revision; fixed for future videos) |
+  | emoji-sleep | emoji | 9:16 | en | rules (Claude's usage limit) | 507 s | 72 s | 22.1 s | fell back; to redo |
+
+  Mp4 paths in the report. The remaining rows run after the usage window reset (04:30).
+- W15.6: pull request #3 (workbench -> main, 0.6.0) opened for the owner, with the screens and the tests; not merged.
+
+## 2026-11-24 morning (owner back)
+- Owner: testing with scripted videos and stand-in pages "does nothing for real videos"; decided: stop video runs (matrix stopped; memory note). HyperFrames only for HTML scenes; our editor is the main editor again (whole-video button and auto-open removed; scene menu offers HyperFrames only for a scene with a shot; e2e scene-hyperframes 7/7). Then: one editor, ours, with HyperFrames' parts inside (plan written, PLAN-ONE-EDITOR.MD).
+- Found: the installed server's HyperFrames gateway took port 8791 on 0.0.0.0 while a test server held 127.0.0.1:8791 (Windows allows both). The gateway now skips a port anything answers on (test).

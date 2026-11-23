@@ -832,6 +832,8 @@ class Scene(BaseModel):
     caption: SceneCaption = Field(default_factory=SceneCaption)
     stick: Optional[dict] = Field(default=None, description="stick-figure timeline compiled from a Video Script (set, camera, cast, timed actions); see vt/script/compile.py")
     sfx: list[dict] = Field(default_factory=list, description="sound cues [{at_word, id}] from a Video Script")
+    shot: Optional[str] = Field(default=None, pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$",
+                                description="a code-native shot (shots/<id>/index.html, vt/shots.py) drawn full-frame behind this scene; the scene's elements and captions stay on top")
 
 
 class ScenesFile(BaseModel):

@@ -41,6 +41,27 @@ Structure
 
 PLACEMENT = "Every overlay may also carry x and y (its centre, as a fraction of the frame, 0 to 1 from the left and from the top), scale, and rotation: you decide where it sits. Without them it is laid out in the middle of the frame, on top of whoever stands there. The captions take the bottom of the frame. A character in a cartoon may take arrive (seconds after the cartoon appears; 0 is already there, and give characters the same value to arrive together). An element with entrance \"none\" is already in place, with no fade. caption.y on a scene moves that scene's captions."
 
+SHOT_SIZES = {"9:16": (1080, 1920), "1:1": (1080, 1080), "16:9": (1920, 1080)}
+
+SHOT_RULES = """\
+SHOTS (optional): when no overlay above can show what is said (a process that moves, a metaphor that animates, a diagram of your own, a chart in a style
+the catalogue lacks), you may draw that scene yourself as a shot: one HTML page with CSS and inline SVG, its motion on a GSAP timeline. Put it in `shots`
+and name it in that scene's `shot`; it fills the frame behind the scene and the captions stay on top. Scenes without a shot are drawn as usual. A person
+will change your shot afterwards without code (select, move, recolour, retype), so build it for that:
+- The root: <div id="root" data-composition-id="root" data-start="0" data-duration="<the scene's length in seconds>" data-width="{w}" data-height="{h}">.
+  html and body are exactly {w}x{h} pixels, overflow hidden, with a background.
+- Every text and every main shape has its own data-vt-id ("title", "arrow", "step-2" ...) and position: absolute. A text element holds only text (no child elements).
+- Colours and sizes you may want changed are CSS variables on :root (--bg, --accent, --title-size ...); list them in the shot's `knobs` with a label.
+  The video's theme is available as var(--vt-bg), var(--vt-ink), var(--vt-accent), var(--vt-accent2), var(--vt-card), var(--vt-font-headline), var(--vt-font-body):
+  start from them so the shot matches the other scenes.
+- Motion: <script src="runtime/gsap.min.js"></script>, then one paused timeline: const tl = gsap.timeline({{paused: true}}); ... window.__timelines = {{root: tl}};
+  Animate transform (x, y, scale, rotation) and opacity; time things to the words (seconds from the scene start). Use tl.addLabel('name', t) for the beats.
+  No setTimeout, setInterval, requestAnimationFrame, Date or Math.random: every frame must come out the same each time.
+- Offline: no web address, @import, fetch or font link other than <link rel="stylesheet" href="fonts/fonts.css"> (Inter, Fraunces, Hind Siliguri, Noto Sans Bengali and
+  the theme's fonts are there). Pictures are inline SVG or CSS.
+- Keep text inside the frame and clear of the bottom fifth (the captions), large enough to read on a phone, and not more than a short line or two.
+"""
+
 OUTPUT = """\
 OUTPUT
 Return ONLY one JSON object (no commentary, no code fence) that matches the JSON schema below. Times are word ids, never seconds.
@@ -94,8 +115,8 @@ def examples_text() -> str:
 
 def build_prompt(tr: Transcript, beats: Beats, *, kind: str = "stick", language: str = "en", audience: str = "", tone: str = "", aspect: str = "9:16",
                  draft: Optional[dict] = None, hint: str = "", schema: Optional[dict] = None, with_examples: bool = True,
-                 compact: bool = False) -> tuple[str, str]:
-    """(system, user) for complete_json."""
+                 compact: bool = False, look_ahead: str = "") -> tuple[str, str]:
+    """(system, user) for complete_json. `look_ahead`: the outline of a long talk (vt/talk_outline.py), when there is one."""
     system = ROLE.format(kind_text=KIND_TEXT.get(kind, "explainer")) + "\n\n" + CRAFT_RULES
     from ..visuals.choices import prompt as visual_choices
 
@@ -118,8 +139,13 @@ def build_prompt(tr: Transcript, beats: Beats, *, kind: str = "stick", language:
         if kind == "cartoon":
             user.append("A `cartoon` overlay is used exactly as you write it: you choose its set, each character (who, name, pose, expression, x), framing \"scene\" to fill the frame, "
                         "and the bubble. Keep one person looking the same in every scene.")
+    if kind in ("explainer", "infographic", "mixed"):
+        w, h = SHOT_SIZES.get(aspect, SHOT_SIZES["9:16"])
+        user.append("\n" + SHOT_RULES.format(w=w, h=h))
     if draft:
         user.append("\nDRAFT from the rule planner (improve it, keep what is good):\n" + json.dumps(draft, ensure_ascii=False)[:6000])
+    if look_ahead:
+        user.append("\n" + look_ahead)
     if hint:
         user.append(f"\nUSER HINT: {hint}")
     if with_examples:

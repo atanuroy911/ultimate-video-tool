@@ -11,6 +11,7 @@ const pid = process.env.VT_PROJECT;
 if (!pid) { console.log("skip: set VT_PROJECT to a stick-figure project"); process.exit(0); }
 const browser = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 const page = await (await browser.newContext({ viewport: { width: 1500, height: 950 } })).newPage();
+await page.addInitScript(() => { try { localStorage.setItem("vt-timeline", "classic"); } catch {} });          // this suite tests the Classic timeline (the New one is the default since W11.2)
 const errors = [];
 page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
 page.on("response", (r) => r.status() >= 500 && errors.push(r.status() + " " + r.url()));
@@ -25,7 +26,7 @@ const plan0 = (await api(`/api/projects/${pid}/scenes`)).plan.scenes;
 check("the plan has stick-figure scenes", plan0.every((s) => s.stick && s.stick.actions.length > 0));
 check("the timeline has an Actions lane with chips", (await page.getByRole("group", { name: "Actions" }).getByRole("button").count()) >= 3);
 await page.locator(".inspector").getByText(/^Characters/).click();          // characters and their actions have their own tab
-check("stick actions are listed in the inspector", (await page.getByText(/^Actions \(\d+\)/).count()) === 1);
+check("stick actions are listed in the inspector", (await page.getByText(/Actions & Poses \(\d+\)/).count()) === 1);
 await page.locator(".cast-head").first().click();
 
 // characters
@@ -60,7 +61,7 @@ check("undo puts the action back", Math.abs(plan2[0].stick.actions.find((a) => a
 
 // delete from the list
 const n = plan2[0].stick.actions.length;
-await page.locator(".scene-card").nth(0).click();          // undo may have moved the selection: delete from scene 1, which is what is counted
+await page.locator("[data-scene]").nth(0).click();          // undo may have moved the selection: delete from scene 1, which is what is counted
 await page.waitForTimeout(500);
 await page.getByRole("button", { name: /^Delete action/ }).first().click();
 await page.waitForTimeout(1500);

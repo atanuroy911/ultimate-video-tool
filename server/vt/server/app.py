@@ -98,10 +98,56 @@ async def _startup() -> None:
     asyncio.create_task(_watch_files())
 
 
+@app.on_event("shutdown")
+def _shutdown() -> None:
+    from ..shot_studio import close as close_studio          # a shot open in the HyperFrames Studio keeps its edits when the server stops
+
+    try:
+        close_studio()
+    except Exception:                                        # noqa: BLE001
+        pass
+
+
+
+def scene_hashes(p: Project) -> dict[str, str]:
+    import hashlib
+    import json as _json
+    sf = p.scenes()
+    return {s.id: hashlib.sha1(_json.dumps(s.model_dump(exclude_none=True), sort_keys=True, default=str).encode()).hexdigest()[:12] for s in (sf.scenes if sf else [])}
+
+
+def change_event(p: Project, state: dict[str, dict]) -> dict:
+    """One 'changed' event: which scenes changed or went away, a number that grows with each change, and who did it when the MCP server just did
+    (W14.1). `state` is the watcher's memory of each project's scenes."""
+    import time as _time
+
+    from .. import paths
+    from ..util import read_json
+    now = scene_hashes(p)
+    before = state.get(p.id)
+    state[p.id] = now
+    rev = state.setdefault("_rev", {})
+    rev[p.id] = rev.get(p.id, 0) + 1
+    ev: dict = {"type": "changed", "project": p.id, "rev": rev[p.id], "scenes": [], "removed": [], "by": "", "what": ""}
+    if before is not None:
+        ev["scenes"] = sorted(i for i, h in now.items() if before.get(i) != h)
+        ev["removed"] = sorted(i for i in before if i not in now)
+    seen = read_json(paths.mcp_seen_path(), {}) or {}
+    try:
+        from datetime import datetime
+        age = _time.time() - datetime.fromisoformat(str(seen.get("at", ""))).timestamp()
+    except Exception:
+        age = 999.0
+    if age < 4:
+        ev["by"] = f"mcp:{seen.get('client', 'assistant')}"
+        ev["what"] = str(seen.get("tool", "")).replace("_", " ")
+    return ev
+
 
 async def _watch_files() -> None:
     """Tell the browser when something outside it (Claude via MCP, the CLI) changed a project."""
     seen: dict[str, tuple] = {}
+    scene_state: dict[str, dict] = {}
     while True:
         try:
             for p in Project.list_all():
@@ -111,8 +157,10 @@ async def _watch_files() -> None:
                     ((p.dir / "plan_doc.json").stat().st_mtime if (p.dir / "plan_doc.json").exists() else 0),
                     tuple(sorted((f.name, f.stat().st_mtime) for f in p.requests_dir.glob("*.json"))) if p.requests_dir.exists() else (),
                 )
+                if p.id not in seen:
+                    scene_state[p.id] = scene_hashes(p)
                 if p.id in seen and seen[p.id] != sig:
-                    hub.emit({"type": "changed", "project": p.id})
+                    hub.emit(change_event(p, scene_state))
                 seen[p.id] = sig
         except Exception:
             pass
@@ -175,8 +223,9 @@ def proj(pid: str) -> Project:
     return p
 
 
-def changed(pid: str) -> None:
-    hub.emit({"type": "changed", "project": pid})
+def changed(pid: str, by: str = "person") -> None:
+    """A project changed through the API: by the person (the Studio), or by the director (W14.1). Agents' changes come from the file watcher."""
+    hub.emit({"type": "changed", "project": pid, "by": by})
 
 
 def project_summary(p: Project) -> dict:
@@ -198,6 +247,7 @@ def project_summary(p: Project) -> dict:
         "usecase_used": read_json(p.dir / "usecase.json"),
         "ai_notice": (lambda n: n if n and n.get("message") else None)(read_json(p.dir / "ai_notice.json")),
         "ai_brief": (read_json(p.dir / "ai_notice.json") or {}).get("brief"),
+        "notices": (read_json(p.dir / "notices.json", []) or [])[-8:],          # optional extras that were skipped, and why (vt/notices.py, W4.3)
         "video_kind": (read_json(p.dir / "script_kind.json", {}) or {}).get("kind") or "explainer",
         "source_mode": (read_json(p.dir / "source.json", {}) or {}).get("mode") or "audio",
         "active_job": (jobs.active_for(p.id).public() if jobs.active_for(p.id) else None),
@@ -1324,6 +1374,16 @@ def watch_and_revise(p: Project, card: dict, first: Path, cb, qa: Optional[dict]
     saved = {n: read_json(p.dir / n) for n in ("scenes.json", "video_script.json", "director.json")}
     notes = "; ".join([f"at {w['t0']:.1f}-{w['t1']:.1f} s: {w['message']}" for w in card["worst"][:4]]
                       + [f"scene {s['id']} (at {s['t']:.1f} s): " + ", ".join(QA_WORDS.get(x, x) for x in s["problems"]) + (f" ({s['fix_hint']})" if s.get("fix_hint") else "") for s in seen[:5]])
+    from ..director_review import layout_faults
+
+    def faults() -> Optional[list[str]]:
+        try:
+            return layout_faults(p)
+        except Exception as e:                                   # noqa: BLE001  no measurement: decided on the viewer score alone, as before
+            log.warning("could not measure the layout of %s: %s", p.id, e)
+            return None
+
+    before = faults()                                            # the first cut's overlaps: a revision must not add to them
     cb("check", 0.3, "Fixing the slow moments")
     try:
         res = chat.talk(p, author="viewer test", message="A viewer test found moments where people would scroll away. Fix only these, keep everything else: " + notes)
@@ -1331,15 +1391,39 @@ def watch_and_revise(p: Project, card: dict, first: Path, cb, qa: Optional[dict]
         return False
     if not res["ok"]:
         return False
-    r2 = export(p, a, quality="looks", gpu=True, music="__project__", fps=30, short_side=None, captions=True, clean_voice=False,
-                progress=lambda stage, f, msg="": cb("render", f, "Rendering the improved cut"))
-    f2 = Path(r2["video"])
-    card2 = RT.scorecard(f2, a, read_json(p.comp_dir / FORMATS[a]["tag"] / "data.json"), p.cut_audio if p.cut_audio.exists() else None)
-    if card2["risk"] < card["risk"] or (seen and card2["risk"] <= card["risk"] + 2):      # better, or the flagged frames fixed without losing viewers
+
+    def cut(label: str):
+        r = export(p, a, quality="looks", gpu=True, music="__project__", fps=30, short_side=None, captions=True, clean_voice=False,
+                   progress=lambda stage, f, msg="": cb("render", f, label))
+        fv = Path(r["video"])
+        return fv, RT.scorecard(fv, a, read_json(p.comp_dir / FORMATS[a]["tag"] / "data.json"), p.cut_audio if p.cut_audio.exists() else None)
+
+    f2, card2 = cut("Rendering the improved cut")
+    after = faults() if before is not None else None
+    added = [f for f in (after or []) if f not in (before or [])]
+    layout_worse = False
+    if before is not None and after is not None and len(after) > len(before):
+        # The revision put parts on top of each other (or off the frame). The director is shown exactly what and gets one try to fix it; the AI
+        # decides how. If the cut still has more such faults than the first one, the first cut stays.
+        cb("check", 0.6, "Fixing parts the change put on top of each other")
+        try:
+            fix = chat.talk(p, author="viewer test", message="Your last change made parts cover each other or leave the frame: " + "; ".join(added[:8])
+                            + ". Move or resize only these so nothing covers anything; keep everything else.")
+        except ai.AIUnavailable:
+            fix = {"ok": False}
+        if fix.get("ok"):
+            _remove(f2)
+            f2, card2 = cut("Rendering the fixed cut")
+            after = faults()
+        if after is None or len(after) > len(before):
+            log.info("viewer-test revision of %s dropped: %d layout faults before, %s after", p.id, len(before), "?" if after is None else len(after))
+            layout_worse = True                                  # never kept: the first cut comes back below
+    layout = {"before": len(before), "after": None if after is None else len(after)} if before is not None else None
+    if not layout_worse and (card2["risk"] < card["risk"] or (seen and card2["risk"] <= card["risk"] + 2)):      # better, or the flagged frames fixed without losing viewers
         RT.save(f2.with_suffix(".retention.json"), card2)
-        for f in (first, first.with_suffix(".retention.json"), first.with_suffix(".srt")):
+        for f in (first, first.with_suffix(".retention.json"), first.with_suffix(".srt"), first.with_suffix(".vtt")):
             _remove(f)
-        write_json(p.dir / "revise.json", {"before": card["risk"], "after": card2["risk"], "notes": notes, "kept": True})
+        write_json(p.dir / "revise.json", {"before": card["risk"], "after": card2["risk"], "notes": notes, "kept": True, "layout_faults": layout})
         try:
             from ..director_review import remeasure
 
@@ -1351,9 +1435,10 @@ def watch_and_revise(p: Project, card: dict, first: Path, cb, qa: Optional[dict]
         if d is not None:
             write_json(p.dir / n, d)
     compose_all(p)
-    for f in (f2, f2.with_suffix(".srt")):
+    for f in (f2, f2.with_suffix(".srt"), f2.with_suffix(".vtt")):
         _remove(f)
-    write_json(p.dir / "revise.json", {"before": card["risk"], "after": card2["risk"], "notes": notes, "kept": False})
+    write_json(p.dir / "revise.json", {"before": card["risk"], "after": card2["risk"], "notes": notes, "kept": False, "layout_faults": layout,
+                                        **({"why": "the change put parts on top of each other"} if layout_worse else {})})
     return False
 
 
@@ -1454,6 +1539,7 @@ def restore_decisions(pid: str, body: RestoreBody) -> dict:
 
 class DirectorMessage(BaseModel):
     message: str
+    refs: list[dict] = []          # what the person pointed at (W13.2), written in as <video_references>
 
 
 @app.get("/api/projects/{pid}/director")
@@ -1470,6 +1556,7 @@ def director_chat(pid: str, body: DirectorMessage) -> dict:
     """Ask the director for a change in plain words. A job: the AI rewrites the script, the critic checks it, the plan is applied
     (undo keeps the previous one) and, when the video was already rendered, it is rendered again."""
     from .. import ai
+    from ..assistant_refs import with_refs
     from ..script import chat
 
     p = proj(pid)
@@ -1482,10 +1569,10 @@ def director_chat(pid: str, body: DirectorMessage) -> dict:
 
     def work(cb):
         try:
-            res = chat.talk(p, body.message, say=lambda f, m: cb("director", 0.6 * f, m))
+            res = chat.talk(p, with_refs(body.message, body.refs), say=lambda f, m: cb("director", 0.6 * f, m))
         except ai.AIUnavailable as e:
             raise RuntimeError(f"No AI could answer ({e}). Choose one in Settings > AI.") from e
-        changed(pid)
+        changed(pid, by="director")
         if res["ok"] and p.exports_dir.exists() and any(p.exports_dir.glob("*.mp4")):
             autopilot_finish(p, lambda s, f, m="": cb(s, 0.6 + 0.4 * f, m), again=True)
         return res
@@ -2374,6 +2461,14 @@ class ReqBody(BaseModel):
     alternatives: int = 1
 
 
+@app.delete("/api/projects/{pid}/notices")
+def clear_notices(pid: str) -> dict:
+    """The person read what was skipped (vt/notices.py)."""
+    write_json(proj(pid).dir / "notices.json", [])
+    changed(pid)
+    return {"ok": True}
+
+
 @app.delete("/api/projects/{pid}/plan-notice")
 def clear_plan_notice(pid: str) -> dict:
     (proj(pid).dir / "plan_notice.json").unlink(missing_ok=True)
@@ -2941,7 +3036,7 @@ def list_exports(pid: str) -> list[dict]:
         for f in sorted(p.exports_dir.glob("*.mp4"), key=lambda x: x.stat().st_mtime, reverse=True):
             if f.name.startswith('.'):continue
             out.append({"name": f.name, "size": f.stat().st_size, "url": f"/media/{pid}/exports/{f.name}",
-                        "srt": f"/media/{pid}/exports/{f.stem}.srt" if f.with_suffix(".srt").exists() else None,
+                        "srt": f"/media/{pid}/exports/{f.stem}.srt" if f.with_suffix(".srt").exists() else None, "vtt": f"/media/{pid}/exports/{f.stem}.vtt" if f.with_suffix(".vtt").exists() else None,
                         "credits": f.with_suffix(".credits.txt").read_text("utf-8") if f.with_suffix(".credits.txt").exists() else "",
                         "modified": time.strftime("%Y-%m-%d %H:%M", time.localtime(f.stat().st_mtime)), "path": str(f),
                         "retention": _retention_summary(f), "judges": _judges_summary(f),
@@ -3272,6 +3367,12 @@ from .script_review_routes import router as script_review_router
 app.include_router(script_review_router)
 from .story_routes import router as story_router
 app.include_router(story_router)
+from .shot_routes import router as shot_router  # code-native shots (PLAN-CODE-NATIVE-EDITOR C2)
+app.include_router(shot_router)
+from .gen_routes import router as gen_router  # pictures for a scene (PLAN-SCENE-TOOLS G1)
+app.include_router(gen_router)
+from .insight_routes import router as insight_router  # outline, retention and notices beside the Studio (O7)
+app.include_router(insight_router)
 from .reel_routes import router as reel_router
 app.include_router(reel_router)
 from .direction_routes import router as direction_router

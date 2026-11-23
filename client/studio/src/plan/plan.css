@@ -1,7 +1,7 @@
 /* The plan review: the existing step sheet, wider on a desktop, with the cards, the strip and the board. Colours are paired with words and icons; nothing relies on colour alone. */
 .ios-sheet.wide { width: min(880px, 100%); }
 .pl-m-made { --pl: #d63384; --pl-soft: rgb(214 51 132 / .12); }
-.pl-m-repeat { --pl: #b25000; --pl-soft: rgb(255 159 10 / .16); }
+.pl-m-repeat { --pl: var(--warn); --pl-soft: color-mix(in srgb, var(--warn) 16%, transparent); }
 .pl-m-card { --pl: #5f5f64; --pl-soft: rgb(120 120 128 / .16); }
 [data-theme="dark"] .pl-m-made { --pl: #ff7ab8; --pl-soft: rgb(255 122 184 / .18); }
 [data-theme="dark"] .pl-m-repeat { --pl: #ffb84d; --pl-soft: rgb(255 184 77 / .18); }

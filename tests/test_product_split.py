@@ -19,7 +19,7 @@ def test_server_never_serves_the_client_workspace():
 def test_product_manifests_do_not_cross_bundle():
     client=json.loads((ROOT/'client/desktop/package.json').read_text())
     server=json.loads((ROOT/'server/desktop/package.json').read_text())
-    assert client['dependencies']=={'ws':'^8.18.0'}
+    assert set(client['dependencies'])=={'ws','@agentclientprotocol/sdk','@agentclientprotocol/claude-agent-acp'}   # Claude Code in the Assistant pane (W12)
     assert not any('bootstrap' in file or 'server-manager' in file for file in client['build']['files'])
     assert {'from':'../studio/dist','to':'studio','filter':['**/*']} in client['build']['extraResources']
     assert all((ROOT/'client/desktop'/item['from']).resolve().is_relative_to(ROOT/'client') for item in client['build']['extraResources'])

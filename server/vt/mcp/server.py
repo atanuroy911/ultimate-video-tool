@@ -748,6 +748,257 @@ def preview_frames(project: str, times: list[float], aspect: Optional[str] = Non
     return [Image(path=str(f)) for f in files]
 
 
+# ------------------------------------------------------------------ code-native shots (PLAN-CODE-NATIVE-EDITOR C2 to C5)
+def _frame_of(p: Project) -> Optional[tuple[int, int]]:
+    f = FORMATS.get(p.meta().aspect)
+    return (f["width"], f["height"]) if f else None
+
+
+@tool
+def list_shots(project: str) -> list[dict]:
+    """The video's code-native shots: id, title, size, duration, and the knobs the person can change. A shot is an HTML page with its own animation, drawn behind one scene."""
+    from .. import shots as SH
+
+    return SH.list_shots(_proj(project))
+
+
+@tool
+def get_shot(project: str, shot_id: str) -> dict:
+    """One shot: its HTML (html), the ids a person can select (ids), the knobs (knobs) and the person's visual edits (overrides: text, position, colour ... kept apart from the code)."""
+    from .. import shots as SH
+
+    d = SH.shot_dir(_proj(project), shot_id)
+    if not (d / "index.html").exists():
+        raise ValueError(f"no shot '{shot_id}'; list_shots shows what the video has")
+    html = (d / "index.html").read_text(encoding="utf-8")
+    return {**SH.info(d), "html": html, "ids": SH.ids_in(html), "overrides": SH.check_overrides(SH.read_json(d / "overrides.json", {}))}
+
+
+@tool
+def write_shot(project: str, shot_id: str, html: str, title: str = "", knobs: Optional[list[dict]] = None) -> dict:
+    """Create or replace a shot's HTML. Follow the SHOTS rules in get_script_task: a root with data-composition-id/data-start/data-duration/data-width/data-height matching this video's frame,
+    data-vt-id on every text and main shape, motion only on a paused GSAP timeline in window.__timelines, no network. knobs: [{name: '--accent', label: 'Ring', kind: 'colour'}].
+    Returns {ok, errors}; fix exactly those and write again. The person's visual edits are kept. Then use set_scene_shot to show it behind a scene."""
+    from .. import shots as SH
+    from ..script.models import ShotKnob
+
+    p = _proj(project)
+    errs = SH.problems(shot_id, html, aspect_size=_frame_of(p))
+    try:
+        ks = [ShotKnob.model_validate(k).model_dump() for k in (knobs or [])]
+    except Exception as e:                                          # noqa: BLE001  a validation error is the answer
+        errs.append(f"knobs: {str(e)[:200]}")
+        ks = []
+    if errs:
+        return {"ok": False, "errors": errs}
+    d = SH.shot_dir(p, shot_id)
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "index.html").write_text(html, encoding="utf-8")
+    meta = SH.read_json(d / "shot.json", {})
+    meta.update(title=title or meta.get("title") or shot_id, knobs=ks if knobs is not None else meta.get("knobs", []), made_by=os.environ.get("VT_MCP_CLIENT", "assistant"))
+    write_json(d / "shot.json", meta)
+    if any(s.shot == shot_id for s in (p.scenes().scenes if p.scenes() else [])):
+        compose_all(p)
+    return {"ok": True, "ids": SH.ids_in(html)}
+
+
+@tool
+def set_scene_shot(project: str, scene_id: str, shot_id: Optional[str] = None, clear_elements: bool = False) -> dict:
+    """Show a shot full-frame behind a scene (the scene's captions stay on top), or pass no shot_id to draw the scene the usual way again.
+    The scene's own elements (titles, icons, cards) still draw ON TOP of the shot. When the shot replaces them, pass clear_elements=true
+    (Ctrl+Z in the editor brings them back); the answer lists the elements left on top so you can decide."""
+    from .. import shots as SH
+
+    p = _proj(project)
+    sf = p.scenes()
+    if not sf:
+        raise ValueError("no plan yet")
+    if scene_id not in {s.id for s in sf.scenes}:
+        raise ValueError(f"no scene '{scene_id}'")
+    if shot_id and not (SH.shot_dir(p, shot_id) / "index.html").exists():
+        raise ValueError(f"no shot '{shot_id}'; write_shot first")
+    write_json(p.dir / "scenes.prev.json", sf.model_dump(exclude_none=True))
+    change = {"shot": shot_id or None, **({"elements": []} if clear_elements and shot_id else {})}
+    p.save_scenes(sf.model_copy(update={"scenes": [s.model_copy(update=change) if s.id == scene_id else s for s in sf.scenes],
+                                         "planner": "manual" if sf.planner == "rules" else sf.planner}))
+    compose_all(p)
+    left = [] if (clear_elements or not shot_id) else [f"{getattr(e, 'type', '')}: {str(getattr(e, 'text', '') or getattr(e, 'label', '') or '')[:40]}"
+                                                         for e in next(s for s in sf.scenes if s.id == scene_id).elements]
+    return {"ok": True, **({"elements_on_top": left, "note": "These still draw over the shot. If the shot replaces them, call again with clear_elements=true."} if left else {})}
+
+
+@tool
+def set_shot_edits(project: str, shot_id: str, overrides: dict) -> dict:
+    """Change a shot the way the person does in the editor, without touching its code: {knobs: {'--accent': '#22c55e'}, elements: {'title': {text, x, y, scale, rotate, hidden, style: {color, fontSize,
+    fontWeight, opacity}}}}. Replaces all of the shot's edits (read them with get_shot first to keep the person's)."""
+    from .. import shots as SH
+
+    p = _proj(project)
+    d = SH.shot_dir(p, shot_id)
+    if not (d / "index.html").exists():
+        raise ValueError(f"no shot '{shot_id}'")
+    try:
+        saved = SH.save_overrides(d, overrides)
+    except SH.ShotError as e:
+        return {"ok": False, "errors": [str(e)]}
+    if any(s.shot == shot_id for s in (p.scenes().scenes if p.scenes() else [])):
+        compose_all(p)
+    return {"ok": True, "overrides": saved}
+
+
+@tool
+def get_shot_frame(project: str, shot_id: str, time_seconds: float = 0.0) -> Image:
+    """A PNG of one shot on its own at a moment (seconds from the shot's start), with the person's edits. Look at it after write_shot."""
+    from .. import shots as SH
+
+    p = _proj(project)
+    d = SH.shot_dir(p, shot_id)
+    if not (d / "index.html").exists():
+        raise ValueError(f"no shot '{shot_id}'")
+    dur = SH.info(d)["duration"]
+    got = SH.frames(d, d / "frames", [min(max(0.0, float(time_seconds)), max(0.0, dur - 0.001))], theme=SH.theme_vars(p))
+    if not got:
+        raise RuntimeError("could not capture a frame")
+    return Image(path=str(got[0]))
+
+
+# ---- O6 (docs/plans/PLAN-OPENMOTION.MD): the video as the person edits it in the HyperFrames Studio ----
+
+def _studio(project: str, aspect: Optional[str] = None):
+    from ..compose import FORMATS
+
+    p = _proj(project)
+    aspect = aspect or p.meta().aspect
+    return p, FORMATS[aspect]["tag"]
+
+
+@tool
+def studio_parts(project: str, scene: Optional[str] = None, aspect: Optional[str] = None) -> dict:
+    """The parts of the video's Studio copy (the HyperFrames source the person edits in the Studio): id, scene, tag and the start of the text.
+    Makes the copy first if the video has none. Ids read like 's4-defn-term' (scene s4, the definition's term). Use studio_part to see one, studio_edit to change it."""
+    from .. import video_studio as VS
+    from ..compose.composer import compose_project
+
+    p, tag = _studio(project, aspect)
+    if not (VS.folder(p, tag) / "index.html").exists():
+        VS.prepare(p, tag, compose_project(p, aspect).parent)
+    have = VS.info(p, tag, p.comp_dir / tag)
+    return {"parts": VS.parts(p, tag, scene), "edited": have["edited"], "fits_current_video": have["current"]}
+
+
+@tool
+def studio_part(project: str, part_id: str, aspect: Optional[str] = None) -> dict:
+    """One part of the Studio copy: its opening tag (styles), what is inside it, and its animation lines (GSAP calls that address it by id, with times in seconds)."""
+    from .. import video_studio as VS
+
+    p, tag = _studio(project, aspect)
+    return VS.part(p, tag, part_id)
+
+
+@tool
+def studio_edit(project: str, find: str, replace: str, label: str = "", file: str = "index.html", aspect: Optional[str] = None) -> dict:
+    """Change the Studio copy: replace one exact piece of its code (it must appear exactly once; copy it from studio_part). Text, styles and GSAP lines can all
+    be changed this way. label: what you changed in a few plain words ("Bigger title"); it is the entry the person sees in the Studio's history and can undo.
+    The Studio, if open, reloads at once; the export draws the edited copy. file: the page the part is in (studio_part says: index.html, compositions/captions.html or scenes/<scene>.html). studio_undo takes it back."""
+    from .. import video_studio as VS
+
+    p, tag = _studio(project, aspect)
+    got = VS.recorded_edit(p, tag, find, replace, file, who="Claude Code", label=label)
+    try:
+        from ..server.app import changed
+        changed(p.id, by="agent")
+    except Exception:                                                  # noqa: BLE001
+        pass
+    return got
+
+
+@tool
+def studio_undo(project: str, aspect: Optional[str] = None) -> dict:
+    """Take back your newest change to the Studio copy that is still in effect (the person can also undo it in the Studio's history)."""
+    from .. import video_studio as VS
+
+    p, tag = _studio(project, aspect)
+    got = VS.undo(p, tag, who="Claude Code")
+    try:
+        from ..server.app import changed
+        changed(p.id, by="agent")
+    except Exception:                                                  # noqa: BLE001
+        pass
+    return got
+
+
+@tool
+def studio_selection(project: str, aspect: Optional[str] = None) -> dict:
+    """What the person has selected in the open HyperFrames Studio right now: the part's id, label, text, the moment (seconds) and its place on the frame.
+    When they say "this" or "make it bigger" while the Studio is open, look here first."""
+    from .. import video_studio as VS
+
+    p, tag = _studio(project, aspect)
+    return VS.selection(p, tag)
+
+
+@tool
+def make_picture(project: str, prompt: str, aspect: str = "", seed: int = 1) -> dict:
+    """Draw one picture with the picture engine on this computer (ComfyUI) and put it in the project's media bin. About 15 s on a 6 GB card, 30 s the first time.
+    Say what it shows in plain words. Use the returned media id in a shot (assets) or a scene (show_scene_as). Fails in words when no picture engine runs."""
+    from ..comfy import ComfyClient, ComfyError, generate_still, picture_workflow
+    from ..server.comfy_routes import comfy_url
+
+    p = _proj(project)
+    client = ComfyClient(comfy_url())
+    try:
+        try:
+            item, rec = generate_still(p, client, picture_workflow(object_info=client.object_info()), prompt.strip()[:600], aspect=aspect or p.meta().aspect, seed=int(seed), caption=prompt[:80])
+        except ComfyError as e:
+            return {"ok": False, "error": str(e)[:300]}
+    finally:
+        client.close()
+    return {"ok": True, "media": item.id, "file": item.file if hasattr(item, "file") else "", "seconds": rec.get("seconds_taken"), "size": rec.get("size")}
+
+
+@tool
+def speak(project: str, text: str, voice: str = "af_heart", engine: str = "kokoro", rate: float = 1.0) -> dict:
+    """Speak English text with a voice on this computer (Kokoro by default; voices such as af_heart, am_michael, bf_emma). Saves a WAV in the project's
+    agent_audio folder, adds it to the media bin as a sound (its id comes back as `media`, for a layer's audio track) and returns its path and
+    duration. About 1.5x real time on the processor, 20 s the first time."""
+    import re
+
+    from .. import tts
+
+    p = _proj(project)
+    out_dir = p.dir / "agent_audio"
+    out_dir.mkdir(exist_ok=True)
+    name = re.sub(r"[^a-z0-9]+", "-", text.lower())[:30].strip("-") or "speech"
+    out = out_dir / f"{name}-{voice}.wav"
+    try:
+        res = tts.synthesize(text, out, engine=engine, voice=voice, rate=float(rate), language="en")
+    except tts.TTSError as e:
+        return {"ok": False, "error": str(e)[:300]}
+    media_id = ""
+    try:                                                              # in the media bin as a sound, ready for a layer's audio track (it was only a file before)
+        from ..director.media import add_sound
+        media_id = add_sound(p, out, caption=text[:80], source="kokoro" if engine == "kokoro" else engine).id
+    except Exception as e:                                            # noqa: BLE001 — the WAV is still there
+        import logging
+        logging.getLogger(__name__).warning("speak: could not add the sound to the media bin: %s", e)
+    return {"ok": True, "file": str(out.relative_to(p.dir)), "media": media_id, "duration": res.get("duration"), "engine": res.get("engine"), "voice": res.get("voice")}
+
+
+@tool
+def ask_local(question: str, context: str = "") -> dict:
+    """Ask the small language model on this computer (Ollama) a short question: rewrite a line, shorten a caption, name something, translate a sentence.
+    Free and private, but small: do not ask it to write shots or plan a video. Fails in words when Ollama is not running."""
+    from .. import llm
+
+    try:
+        out = llm.chat_json([{"role": "system", "content": "Answer briefly and plainly. Reply as JSON with one field, answer."},
+                             {"role": "user", "content": (context.strip()[:4000] + chr(10) * 2 if context.strip() else "") + question.strip()[:2000]}],
+                            {"type": "object", "properties": {"answer": {"type": "string"}}, "required": ["answer"]}, num_ctx=4096, max_tokens=600, timeout=180)
+    except llm.LLMUnavailable as e:
+        return {"ok": False, "error": str(e)[:300]}
+    return {"ok": True, "answer": str(out.get("answer", ""))[:2000], "model": llm.model_name()}
+
+
 @server.prompt(name="plan_this_video", description="Plan every pending video request")
 def plan_this_video() -> str:
     return ("Plan all pending Video Tool requests: call list_pending_requests; for each, get_planning_task, then submit_scenes (fix returned errors "

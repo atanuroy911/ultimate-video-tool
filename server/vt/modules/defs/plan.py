@@ -162,7 +162,9 @@ def _make_still(project, plan, m, prompt: str) -> tuple[str, str]:
     from ...util import read_json
     from ... import paths
 
-    url = str((read_json(paths.SETTINGS, {}) or {}).get("comfy_url") or "http://192.168.123.47:8188")
+    from ...server.comfy_routes import comfy_url
+
+    url = comfy_url()
     client, why = reachable(url)
     if client is None:
         return "", f"Words only: the picture server does not answer ({why})."

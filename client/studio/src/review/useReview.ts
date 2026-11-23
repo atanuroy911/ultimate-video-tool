@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { del, patch, post, put } from "../api";
 import { useFetch, useProject } from "../hooks";
-import { jobsStore, toast, useChanged, useStore } from "../store";
+import { jobsStore, onChangeDetail, toast, useChanged, useStore } from "../store";
 import type { Beat, PlanRequest, Plan, ScenesResponse, TranscriptData, Word } from "../types";
 
 type ThumbsResp = { hash: string | null; scenes: Record<string, string> };
@@ -51,6 +51,17 @@ export function useReview(id: string) {
     setRev((r) => r + 1);
   }, [project.refetch, tr.refetch, sc.refetch, rq.refetch, aud.refetch]); // eslint-disable-line react-hooks/exhaustive-deps
   useChanged(id, reloadAll);
+  /* W14.3: an agent's change is a step in the same undo history, so Ctrl+Z takes it back and says so. */
+  const agentSteps = useRef(new WeakMap<Plan, string>());
+  useEffect(() => onChangeDetail((d) => {
+    const before = planRef.current;
+    if (d.project !== id || !d.by.startsWith("mcp:") || !before) return;
+    agentSteps.current.set(before, d.by === "mcp:claude" ? "Claude" : d.by === "mcp:codex" ? "Codex" : "the assistant");
+    setPast((p) => [...p.slice(-49), before]);
+    setFuture([]);
+    setOrder((o) => [...o.slice(-99), "plan"]);
+    setOfut([]);
+  }), [id]);
 
   const plan = sc.data?.plan ?? null;
   const planRef = useRef(plan);                                  // the last plan that was on screen: an edit made while the plan is reloading must still be undoable
@@ -158,6 +169,8 @@ export function useReview(id: string) {
     const prev = past[past.length - 1];
     try {
       await put(`/api/projects/${id}/scenes`, prev);
+      const who = agentSteps.current.get(prev);
+      if (who) toast(`Undid ${who}'s change`, "ok");
       setPast((p) => p.slice(0, -1));
       setFuture((f) => [...f, plan]);
       await reloadAll();

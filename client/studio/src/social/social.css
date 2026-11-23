@@ -34,7 +34,7 @@
 .account-choice.on { border-color: var(--accent); background: var(--accent-soft); }
 .account-choice small { display: block; color: var(--muted); font-size: 11px; }
 .platform-mark { width: 36px; height: 36px; flex: 0 0 36px; display: grid; place-items: center; border-radius: 11px; color: var(--text); background: var(--fill); font-size: 20px; font-weight: 700; }
-.platform-youtube { background: #ffeded; color: #c90020; } .platform-instagram { background: #fbeafa; color: #a52183; } .platform-facebook { background: #e9f1ff; color: #1564cf; }
+.platform-youtube { background: #ffeded; color: var(--err); } .platform-instagram { background: #fbeafa; color: #a52183; } .platform-facebook { background: #e9f1ff; color: #1564cf; }
 .platform-mock { background: var(--ok-soft); color: var(--ok); }
 .post-platform { border: 1px solid var(--border); border-radius: 12px; display: grid; gap: 12px; padding: 16px; }
 .post-platform legend { padding: 0 6px; font-weight: 600; }

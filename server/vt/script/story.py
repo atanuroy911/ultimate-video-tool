@@ -12,6 +12,8 @@ The same structure is what the AI passes fill in (vt/script/director.py); this v
 """
 from __future__ import annotations
 
+import logging
+
 import hashlib
 import re
 from dataclasses import dataclass, field
@@ -179,7 +181,7 @@ def build_cast(tr: Transcript, beats: Beats, ctx, rng: Rng) -> list[Who]:
     people = []
     try:
         from wordfreq import zipf_frequency as _zf
-    except Exception:                                            # pragma: no cover
+    except ImportError:                                            # pragma: no cover
         _zf = None
     product_like = ctx is not None and ctx.mood in ("tech", "business", "finance")
 
@@ -201,7 +203,7 @@ def build_cast(tr: Transcript, beats: Beats, ctx, rng: Rng) -> list[Who]:
     # names the reading of the video dropped because they are said once ("Rafi found a wallet"): a first name, or a rare capitalised word, is a person
     try:
         from wordfreq import zipf_frequency
-    except Exception:                                    # pragma: no cover
+    except ImportError:                                    # pragma: no cover
         zipf_frequency = None
     from ..context import STOP_CAPS
 
@@ -354,7 +356,8 @@ def _known_things() -> tuple:
             from ..visuals.search import _docs
 
             stick = {str(d["en"]).split(";")[0].strip().lower() for d in _docs() if d["kind"] == "sticker"}
-        except Exception:                                        # pragma: no cover
+        except Exception as _e:  # noqa: BLE001 — the sticker list could not be read
+            logging.getLogger(__name__).warning("the sticker list could not be read: %s", _e, exc_info=True)
             stick = set()
         _KNOWN["v"] = (drawn, stick)
     return _KNOWN["v"]

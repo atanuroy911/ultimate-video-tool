@@ -1,7 +1,7 @@
 /* Keep selected primary actions legible through the shared pressed and hover rules. */
 .ed-workspace-bar .btn.primary[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
 .ed-workspace-bar .btn.primary[aria-pressed="true"]:hover { background: var(--accent-strong); }
-[data-theme="dark"] .ed-workspace-bar .btn.primary[aria-pressed="true"] { background: #0071e3; }
+[data-theme="dark"] .ed-workspace-bar .btn.primary[aria-pressed="true"] { background: var(--accent); }
 
 .editor-advanced { border-top: 1px solid var(--border); padding-top: 10px; }
 .editor-advanced > summary { cursor: pointer; font-weight: 600; color: var(--muted); }
@@ -40,3 +40,15 @@
 @media (max-width: 799px) {
   .tl-chip.tl-element { font-size: 12px; }
 }
+
+/* W14.2: a scene an agent or the Director just changed glows for a moment (Classic timeline and scene list). */
+.vt-changed { outline: 2px solid var(--ok); outline-offset: -2px; animation: vt-changed 900ms ease-in-out 3; }
+@keyframes vt-changed { 50% { outline-color: color-mix(in srgb, var(--ok) 40%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .vt-changed { animation: none; } }
+.vt-agent-touched { display: flex; align-items: center; gap: var(--sp-2); margin: var(--sp-2); }
+
+/* W15.1 critique: the pane switches are used rarely; when on they are quiet grey, not orange pills */
+.ed-panel-actions .btn.selected { background: var(--bg-selected); color: var(--fg); border-color: transparent; box-shadow: none; }
+.ed-panel-actions .btn { border-color: transparent; }
+.vt-region-box { position: fixed; z-index: 9999; border: 2px dashed var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); pointer-events: none; }
+.tl-ask-range { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--accent) 25%, transparent); border-left: 2px solid var(--accent); border-right: 2px solid var(--accent); pointer-events: none; }

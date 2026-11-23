@@ -134,3 +134,53 @@ test('words removed from the narration become a cut, up to the next word still h
   const tl = fromProject(view).timelines[0];
   assert.equal(tl.tracks.C1.locked, true, 'the captions track is locked: edited in the Captions panel for now');
 });
+
+test('a narration piece turned down or muted becomes the same gain or mute on our voice (W11.1, ported from the classic timeline)', () => {
+  const quieter = edit((c, d) => {
+    c.splitItem(VOICE_ID, 30);
+    const right = d.getState().items.find((i) => i.track === 'A1' && i.id !== VOICE_ID);
+    c.setItemVolume(right.id, 0.5);
+  }).ops;
+  assert.equal(quieter.length, 1);
+  assert.equal(quieter[0].kind, 'voice-gain');
+  assert.equal(quieter[0].start, 1.48, 'from the first word the piece plays');
+  assert.equal(quieter[0].db, -6);
+  const muted = edit((c) => c.setItemVolume(VOICE_ID, 0)).ops;
+  assert.deepEqual(muted.map((o) => o.kind), ['voice-mute']);
+});
+
+test('stick-figure actions are a track; moving or deleting one is saved as the same action edit as on the classic timeline (W11.1)', () => {
+  const stick = { cast: [], actions: [{ who: 'A', do: 'wave', at_word: 'w1', start: 0.5, end: 1.5 }, { who: 'B', do: 'jump', at_word: 'w2', start: 1.6, end: 2.0 }] };
+  const withActs = { ...view, plan: { ...view.plan, scenes: view.plan.scenes.map((s, i) => (i === 0 ? { ...s, stick } : s)) } };
+  const doc = fromProject(withActs);
+  const items = doc.timelines[0].items.filter((i) => i.id.startsWith('act:'));
+  assert.deepEqual(items.map((i) => [i.id, i.name]), [['act:s1:0', 'A wave'], ['act:s1:1', 'B jump']]);
+  const draft = makeDraft(doc);
+  draft.commands.removeItem('act:s1:1');
+  draft.commands.moveItem('act:s1:0', { startFrame: 30 });
+  const { ops } = planSave(activeEditorState(doc), draft.getState(), 30, withActs.layers);
+  assert.deepEqual(ops.filter((o) => o.kind === 'action'), [
+    { kind: 'action', scene: 's1', index: 0, body: { patch: { start: 1, end: 2 } } },
+    { kind: 'action', scene: 's1', index: 1, body: { delete: true } },
+  ]);
+});
+
+test('sounds heard in the voice are a locked track that saves nothing (W11.1)', () => {
+  const doc = fromProject({ ...view, sounds: [{ label: 'laughter', emoji: '😂', start: 1, end: 1.5 }] });
+  const tl = doc.timelines[0];
+  assert.equal(tl.tracks.A9.locked, true);
+  assert.deepEqual(tl.items.filter((i) => i.id.startsWith('snd:')).map((i) => i.name), ['😂 laughter']);
+  const draft = makeDraft(doc);
+  draft.commands.selectItem('snd:0');
+  assert.deepEqual(planSave(activeEditorState(doc), draft.getState(), 30, view.layers).ops, []);
+});
+
+test('the cuts in the voice are a locked track of marks that save nothing (W11.1)', () => {
+  const doc = fromProject({ ...view, cuts: [{ index: 0, o: 1.2, len: 0.8 }, { index: 1, o: 3, len: 0 }] });
+  const tl = doc.timelines[0];
+  assert.equal(tl.tracks.A8.locked, true);
+  assert.deepEqual(tl.items.filter((i) => i.id.startsWith('cut:')).map((i) => [i.id, i.name]), [['cut:0', '✂ 0.8 s']]);
+  const draft = makeDraft(doc);
+  draft.commands.selectItem('cut:0');
+  assert.deepEqual(planSave(activeEditorState(doc), draft.getState(), 30, view.layers).ops, []);
+});

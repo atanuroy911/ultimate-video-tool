@@ -255,8 +255,19 @@ export default function Timeline({ r, duration, seek, selected, onSelect, select
   }, []);
 
   /* ---------- scrubbing (ruler and empty lane space) ---------- */
+  const [askRange, setAskRange] = useState<{ a: number; b: number } | null>(null);
   const scrub = (e: React.PointerEvent) => {
     e.preventDefault();
+    if (e.shiftKey) {                                                       // W13.3: Shift-drag on the ruler points the assistant at a stretch of time
+      const a = tAt(e.clientX);
+      setAskRange({ a, b: a });
+      drag(e, (ev) => setAskRange({ a, b: tAt(ev.clientX) }), (ev) => {
+        const b = tAt(ev.clientX);
+        setAskRange(null);
+        if (Math.abs(b - a) >= 0.2) window.dispatchEvent(new CustomEvent("vt-ask-range", { detail: { from: Math.min(a, b), to: Math.max(a, b) } }));
+      }, () => setAskRange(null));
+      return;
+    }
     const go = (cx: number, _alt: boolean) => seek(tAt(cx));
     go(e.clientX, e.altKey);
     drag(e, (ev) => go(ev.clientX, ev.altKey), () => {});
@@ -558,6 +569,7 @@ export default function Timeline({ r, duration, seek, selected, onSelect, select
       <div className={`tl-scroll ${tool === "blade" ? "blade" : ""}`} style={{pointerEvents: r.audioSaving ? "none" : undefined}} aria-busy={r.audioSaving} ref={scroller} onPointerMove={onHover} onPointerLeave={() => hover.current && (hover.current.style.display = "none")}>
         <div className="tl-inner" style={{ width }}>
           <div className="tl-ruler" onPointerDown={scrub} aria-label="Ruler: click or drag to move the playhead">
+            {askRange && <div className="tl-ask-range" style={{ left: x(Math.min(askRange.a, askRange.b)), width: Math.abs(x(askRange.b) - x(askRange.a)) }} />}
             {ticks.map((k) => (
               <div key={k.t} className={`tl-tick ${k.big ? "big" : ""}`} style={{ left: x(k.t) }}>{k.big ? stamp(k.t, major) : ""}</div>
             ))}
@@ -575,7 +587,7 @@ export default function Timeline({ r, duration, seek, selected, onSelect, select
               const th = thumbs[s.id];
               const w = (t.end - t.start) * pps;
               return (
-                <div key={s.id} role="button" tabIndex={0} aria-label={`Scene ${i + 1}`} aria-pressed={selected === s.id} className={`tl-clip ${selected === s.id ? "sel" : ""} ${edge && edge.land == null ? "live" : ""}`}
+                <div key={s.id} data-scene-clip={s.id} role="button" tabIndex={0} aria-label={`Scene ${i + 1}`} aria-pressed={selected === s.id} className={`tl-clip ${selected === s.id ? "sel" : ""} ${edge && edge.land == null ? "live" : ""}`}
                   style={{ left: x(t.start), width: Math.max(8, w - 2) }}
                   onClick={(e) => { if (tool === "blade") return bladeScene(s.id, e.clientX, e.clientY); onSelect(s.id); seek(t.start); }}
                   onKeyDown={(e) => e.key === "Enter" && (onSelect(s.id), seek(t.start))}>

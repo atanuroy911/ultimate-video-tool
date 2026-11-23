@@ -38,6 +38,7 @@ def compile_script(script: VideoScript, tr: Transcript, beats: Beats, theme: str
             "caption": {"highlight_words": sc.highlight_words},
             "stick": _timeline(sc, script, tr, beats_by) if script.kind in ("stick", "cartoon") or sc.actions else None,
             "sfx": [c.model_dump() for c in sc.sfx],
+            **({"shot": sc.shot} if sc.shot else {}),
         }))
     return ScenesFile(theme=theme, planner=script.planner, scenes=scenes)
 
@@ -50,7 +51,7 @@ def script_from_scenes(sf: ScenesFile, language: str = "en", aspect: str = "9:16
         scenes.append(ScriptScene.model_validate({
             "id": s.id, "beats": s.beats, "layout": s.layout, "transition_in": s.transition_in, "tone": s.tone, "archetype": s.archetype,
             "role": s.role, "overlays": d.get("elements", []), "backdrop": d.get("backdrop"),
-            "highlight_words": s.caption.highlight_words, "sfx": s.sfx}))
+            "highlight_words": s.caption.highlight_words, "sfx": s.sfx, **({"shot": s.shot} if s.shot else {})}))
     return VideoScript.model_validate({"version": VERSION, "kind": "explainer", "meta": {"title": title, "language": language, "aspect": aspect},
                                        "scenes": [x.model_dump(by_alias=True) for x in scenes], "planner": sf.planner})
 

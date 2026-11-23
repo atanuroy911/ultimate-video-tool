@@ -68,7 +68,7 @@ export default function CommandPalette({ commands, onClose }: { commands: Comman
 
 export const SHORTCUTS: [string, string][] = [
   ["Space", "Play / pause"], ["← →", "Previous / next word"], ["J  K", "Previous / next scene"], ["E", "Edit the word at the playhead"], ["H", "Highlight the word"],
-  ["R", "Ask the AI to redo this scene"], ["Ctrl+K", "Command palette"], ["Ctrl+Z / Ctrl+Shift+Z", "Undo / redo"], ["Ctrl+Enter", "Export"],
+  ["R", "Ask the AI to redo this scene"], ["Ctrl+K", "Command palette"], ["Ctrl+Shift+B", "Show or hide the library"], ["Ctrl+Alt+B", "Show or hide the assistant"], ["Ctrl+J", "Show or hide the timeline"], ["Ctrl+Alt+I", "Show or hide the details"], ["Ctrl+L", "Type to the assistant"], ["Ctrl+Z / Ctrl+Shift+Z", "Undo / redo"], ["Ctrl+Enter", "Export"],
   ["Ctrl+wheel (timeline)", "Zoom around the pointer (pinch works too)"], ["V  B  N", "Timeline: select tool, split tool, snapping"], ["Ctrl+B", "Split the selected clip, or the voice, at the playhead"],
   ["Delete", "Remove the selected clip or voice range"], ["M", "Mute / unmute the selected voice range"], ["\\", "Fit the whole video in the timeline"], ["Drag on the voice", "Select a range"], ["Drag a voice edge", "Shorten the video, or restore previously removed voice"], ["Drag an added clip edge", "Trim that clip; the rest of the video stays in place"], ["Alt while dragging", "Ignore snapping"], ["Drag a scene edge", "Move where a scene ends; hold Alt to ignore snapping"], ["Click the canvas", "Select the element under the pointer"], ["Esc", "Cancel a drag or clear the selection"],
 ];

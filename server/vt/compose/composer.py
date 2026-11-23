@@ -5,6 +5,8 @@ Word ids are resolved to seconds here and nowhere else.
 """
 from __future__ import annotations
 
+import logging
+
 import json
 import re
 import shutil
@@ -255,6 +257,15 @@ def to_srt(chunks: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def to_vtt(chunks: list[dict]) -> str:
+    """The same captions as WebVTT (web players, YouTube): a header, and a dot before the milliseconds."""
+    lines = ["WEBVTT\n"]
+    for c in chunks:
+        text = " ".join(w["text"] for w in c["words"])
+        lines.append(f"{_srt_time(c['start']).replace(',', '.')} --> {_srt_time(c['end']).replace(',', '.')}\n{text}\n")
+    return "\n".join(lines)
+
+
 # --------------------------------------------------------------------------- resolve
 
 
@@ -324,7 +335,8 @@ def _prop_art(st: dict) -> dict:
 
                     hits = search((c.get("name") or c["id"]).replace("_", " "), "sticker", 1)
                     key = hits[0]["id"].split(":", 1)[-1] if hits else None
-                except Exception:
+                except Exception as _e:  # noqa: BLE001 — a cast sticker search failed; the figure is drawn without one
+                    logging.getLogger(__name__).warning("a cast sticker search failed; the figure is drawn without one: %s", _e, exc_info=True)
                     key = None
             svg = emo.svg(key) if key else None
             if svg:
@@ -347,7 +359,8 @@ def _prop_art(st: dict) -> dict:
             svg = emo.svg(key) if key else None
             if svg:
                 out[n] = svg
-        except Exception:
+        except Exception as _e:  # noqa: BLE001 — one icon could not be read; it is left out
+            logging.getLogger(__name__).warning("one icon could not be read; it is left out: %s", _e, exc_info=True)
             continue
     return out
 
@@ -509,7 +522,7 @@ CARD_TYPES = {"title", "big_number", "value_card", "quote", "question", "cta", "
 def _hand_cards_back(scenes: list[dict]) -> None:
     """A card scene marked `_card_out` borrows the nearest picture (the one before it, else the one after), which fades in at that time
     while the card's parts leave. Only in a video that has pictures: a video made of cards keeps its cards."""
-    pictured = [i for i, s in enumerate(scenes) if s.get("backdrop")]
+    pictured = [i for i, s in enumerate(scenes) if s.get("backdrop") and not str(s["backdrop"].get("media", "")).startswith("shot:")]   # a shot is its own scene's, never borrowed
     for i, s in enumerate(scenes):
         out = s.pop("_card_out", None)
         if out is None or not pictured:
@@ -865,7 +878,8 @@ def _beat_sync(data: dict, music_id: str) -> None:
         known = next((m.get("bpm") for m in read_json(paths.MUSIC / "index.json", []) or [] if m.get("file") == track.name), None)
         bpm, offset = beatsync.grid_for(track, known)
         beatsync.apply(data, bpm, offset)
-    except Exception:
+    except Exception as _e:  # noqa: BLE001 — the music beat grid could not be worked out; cuts are not moved to the beat
+        logging.getLogger(__name__).warning("the music beat grid could not be worked out; cuts are not moved to the beat: %s", _e, exc_info=True)
         pass
 
 
@@ -913,7 +927,13 @@ def compose_project(project, aspect: Optional[str] = None, duration: Optional[fl
     icons = read_json(paths.ICONS / "lucide.json", {})
     from ..director.media import composition_media, speech_envelope
 
-    data = resolve_composition(sf, tr, beats, theme, aspect, duration, icons, media=composition_media(project),
+    media = composition_media(project)
+    if any(sc.shot for sc in sf.scenes):
+        from .. import shots as SH
+
+        sf, shot_media = SH.place_on_scenes(project, sf, aspect)
+        media.update(shot_media)
+    data = resolve_composition(sf, tr, beats, theme, aspect, duration, icons, media=media,
                                envelope=speech_envelope(project.cut_audio) if project.cut_audio.exists() else None, language=meta.language)
     if not captions:
         data["captions_enabled"] = False

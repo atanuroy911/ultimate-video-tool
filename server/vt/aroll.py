@@ -227,7 +227,7 @@ def build(project, progress=None, force: bool = False) -> Optional[MediaItem]:
         meta.media=[m for m in meta.media if m.id!='aroll']+[item];project.save_meta(meta)
         project.mark_stage('aroll',h,seconds=item.duration,faces=0)
         return item
-    with tempfile.TemporaryDirectory() as d:
+    with tempfile.TemporaryDirectory(dir=project.dir) as d:       # on the project's own drive: a file cannot be moved from C:\ temp to a project on E:\ (WinError 17)
         script = Path(d) / "cut.txt"
         tmp = Path(d) / "aroll.mp4"                                # written here first, moved into the media bin only when the cut succeeded
         script.write_text(filter_script([(a, b) for a, b in cuts.keep], MAX_LONG_SIDE, info["width"], info["height"]), encoding="utf-8")
@@ -394,7 +394,8 @@ def apply_speaker(sf, project, beats, aspect: str, item: Optional[MediaItem] = N
             run = 0
             continue
         t0, t1 = span
-        keep = [e for e in sc.elements if getattr(e, "type", "") in ("keyword", "title", "sticker")][:1]
+        screen = not item.faces                                         # no face anywhere: a screen or slide recording, whose own picture is the content
+        keep = [] if screen else [e for e in sc.elements if getattr(e, "type", "") in ("keyword", "title", "sticker")][:1]
         sc.elements = keep
         sc.layout = "lower" if item.fy < 0.45 else "upper"             # the text goes where the face is not: in the band above the captions when the head is high in the picture, above the head when it is low
         punch = (not punched_last) and shown % 2 == 1 and bool(item.faces)
@@ -409,3 +410,20 @@ def apply_speaker(sf, project, beats, aspect: str, item: Optional[MediaItem] = N
         run += 1
         shown += 1
     return shown
+
+
+def keep_screen_clear(sf, project) -> int:
+    """A screen or slide recording (no face in the speaker's picture) is the content itself: on every scene that shows it, nothing but the
+    captions. Later passes may have added a word or a sticker after the speaker was chosen; this runs last, just before the plan is saved."""
+    item = next((m for m in project.meta().media if m.id == "aroll" and m.role == "a_roll"), None)
+    if item is None or item.faces:
+        return 0
+    n = 0
+    for sc in sf.scenes:
+        if sc.backdrop is not None and sc.backdrop.media == item.id and sc.elements:
+            if any(getattr(e, "type", "") not in WEAK for e in sc.elements):
+                sc.backdrop = None                                       # a real graphic (a card, a flow, a chart): it gets the theme's own background,
+            else:                                                        # never the slide showing through it (C10, Claude's "Obstacle inflation" card)
+                sc.elements = []                                         # a stray word or sticker: the recording stays clean
+            n += 1
+    return n

@@ -13,7 +13,7 @@ export interface PlayerAdapter extends PlayerRef {
   fps: number;
 }
 
-export function makePlayerAdapter(handle: RefObject<PlayerHandle>, fps: number): PlayerAdapter {
+export function makePlayerAdapter(handle: RefObject<PlayerHandle | null>, fps: number): PlayerAdapter {
   const listeners: { [K in keyof CallbackEvents]: Set<CallbackListener<K>> } = {
     frameupdate: new Set(), play: new Set(), pause: new Set(), ended: new Set(), seeked: new Set(),
   };

@@ -4,6 +4,8 @@ question -> think; number -> hold a sign; definition -> point at the board; firs
 """
 from __future__ import annotations
 
+import logging
+
 import re
 
 from ..schema import Beats, ScenesFile, Transcript
@@ -81,7 +83,8 @@ def rules_script(tr: Transcript, beats: Beats, sf: ScenesFile, *, kind: str = "s
             out = story_script(tr, beats, sf, kind=kind, language=language, aspect=aspect, title=title, ctx=ctx)
             if not validate_script(out.model_dump(by_alias=True), tr, beats):
                 return out
-        except Exception:                                                  # never lose a video to the director: fall back to the plain one below
+        except Exception as _e:  # noqa: BLE001 — the stick director failed; the plain plan below is used
+            logging.getLogger(__name__).warning("the stick director failed; the plain plan below is used: %s", _e, exc_info=True)
             pass
     script = script_from_scenes(sf, language, aspect, title)
     script.planner = "rules"

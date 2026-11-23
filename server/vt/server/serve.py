@@ -17,6 +17,7 @@ from __future__ import annotations
 import hmac
 import ipaddress
 import json
+import os
 import re
 import socket
 import subprocess
@@ -359,7 +360,7 @@ def install_mcp(app) -> None:
 
     @app.on_event("startup")
     async def _mcp_up() -> None:
-        if not STATE["exposed"]:
+        if not STATE["exposed"] and os.environ.get("VT_LOCAL_MCP") != "1":   # VT_LOCAL_MCP=1: a test server that stays on this computer still offers /mcp (only for tests; the same checks apply)
             return
         from mcp.server.transport_security import TransportSecuritySettings
 

@@ -37,11 +37,13 @@ function mount() {
     resolve(new Response(JSON.stringify(status===200 ? {doc,duration:10,can_undo:true,can_redo:false} : {detail:'Rejected edit'}),{status}));
   }}));
   const render=() => {
-    const internals=React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
-    const previous=internals.ReactCurrentDispatcher.current;
-    index=0; internals.ReactCurrentDispatcher.current=dispatcher;
+    // the hook runs outside a component through React's own dispatcher (React 19 keeps it in .H; React 18 in ReactCurrentDispatcher.current)
+    const r19=React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
+    const slot=r19 ? {get:()=>r19.H,set:v=>{r19.H=v;}} : (internals=>({get:()=>internals.ReactCurrentDispatcher.current,set:v=>{internals.ReactCurrentDispatcher.current=v;}}))(React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED);
+    const previous=slot.get();
+    index=0; slot.set(dispatcher);
     try { value=useLayers('qa',()=>edits++); }
-    finally { internals.ReactCurrentDispatcher.current=previous; }
+    finally { slot.set(previous); }
     effects.splice(0).forEach(fn=>fn());
     return value;
   };

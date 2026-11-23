@@ -44,8 +44,26 @@ def cuda_available() -> bool:
         return False
     try:
         import ctranslate2
-        return ctranslate2.get_cuda_device_count() > 0
-    except Exception:
+        if ctranslate2.get_cuda_device_count() <= 0:
+            return False
+    except Exception:                                                   # noqa: BLE001 — no CTranslate2 CUDA build: the processor listens
+        return False
+    return cuda_libraries_load()
+
+
+def cuda_libraries_load() -> bool:
+    """Whether the CUDA libraries CTranslate2 needs can be loaded. When cuBLAS is missing (a processor-only torch, 2026-11-22), CTranslate2
+    builds the model on the card and then waits for ever in its first encode instead of raising, so this is checked before choosing the card."""
+    import sys
+
+    if sys.platform != "win32":
+        return True
+    import ctypes
+
+    try:
+        ctypes.WinDLL("cublas64_12.dll")
+        return True
+    except OSError:
         return False
 
 
@@ -162,6 +180,28 @@ def looped(words: list[str], run: int = 3) -> bool:
     return any(n[i] and n[i] == n[i + 1] == n[i + 2] for i in range(len(n) - run + 1))
 
 
+def free_card() -> list[str]:
+    """Before speech recognition loads on the card: a picture engine (ComfyUI) or the local AI (Ollama) on this same computer may hold most of it,
+    and the model would then fall back to the processor (16 minutes of talk took over 40 minutes that way, 2026-11-22). Ask both to let go;
+    they load again on their next job. Best effort; returns who was asked."""
+    asked: list[str] = []
+    try:
+        import httpx
+
+        from .. import llm
+        from ..server.comfy_routes import comfy_url
+
+        url = comfy_url()
+        if url and llm.is_local(url):
+            httpx.post(url.rstrip("/") + "/free", json={"unload_models": True, "free_memory": True}, timeout=10)
+            asked.append("comfyui")
+        if llm.is_local(llm.settings()["ollama_url"]) and llm.release():
+            asked.append("ollama")
+    except Exception:                                                                      # noqa: BLE001
+        pass
+    return asked
+
+
 def transcribe(wav: Path, *, model: str = "bn-medium", language: str = "bn",
                progress: Callable[[str, float, str], None] = noop_progress, device: Optional[str] = None,
                chunks: Optional[list[tuple[float, float]]] = None) -> dict:
@@ -192,6 +232,8 @@ def _transcribe(wav: Path, *, model: str = "bn-medium", language: str = "bn",
 
     path = ensure_model(model, progress)
     use_cuda = (device == "cuda") or (device is None and cuda_available())
+    if use_cuda:
+        free_card()
     progress("asr", 0.02, "loading model on " + ("GPU" if use_cuda else "CPU"))
     try:
         from .. import gpuassign

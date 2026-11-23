@@ -3,6 +3,8 @@ files are downloaded into the project's media bin on request, with provider, pho
 next to every export). Keys live in settings.json on this computer and are only ever sent to the provider they belong to."""
 from __future__ import annotations
 
+import logging
+
 import re
 import tempfile
 from pathlib import Path
@@ -177,7 +179,8 @@ def suggest(project, limit: int = 6) -> list[str]:
                         v = getattr(e, key, None)
                         if isinstance(v, str) and re.fullmatch(r"[A-Za-z][A-Za-z -]{2,24}", v.strip()):
                             out.append(v.strip().lower())
-        except Exception:
+        except Exception as _e:  # noqa: BLE001 — stock search words from the context are optional
+            logging.getLogger(__name__).warning("stock search words from the context are optional: %s", _e, exc_info=True)
             pass
     try:
         from wordfreq import zipf_frequency
@@ -185,7 +188,8 @@ def suggest(project, limit: int = 6) -> list[str]:
         words = [w.text.strip(".,!?;:\"'").lower() for w in project.transcript().words]
         cand = {w for w in words if re.fullmatch(r"[a-z]{4,}", w)}
         out += sorted(cand, key=lambda w: zipf_frequency(w, "en"))[:limit * 2]
-    except Exception:
+    except Exception as _e:  # noqa: BLE001 — word frequencies are optional
+        logging.getLogger(__name__).warning("word frequencies are optional: %s", _e, exc_info=True)
         pass
     seen: list[str] = []
     for q in out:
@@ -201,5 +205,6 @@ def zipf_ok(q: str) -> bool:
 
         f = zipf_frequency(q.split()[0], "en")
         return 2.0 <= f <= 5.2
-    except Exception:
+    except Exception as _e:  # noqa: BLE001 — word frequencies are optional; any query is allowed
+        logging.getLogger(__name__).warning("word frequencies are optional; any query is allowed: %s", _e, exc_info=True)
         return True

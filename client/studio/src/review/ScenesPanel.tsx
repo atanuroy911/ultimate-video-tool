@@ -1,4 +1,4 @@
-import { ArrowDown, Copy, GitMerge, MoreHorizontal, Trash2 } from "lucide-react";
+import { ArrowDown, Copy, GitMerge, MessageSquare, Clapperboard, ImagePlus, MoreHorizontal, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { fmtTime } from "../api";
 import { Menu, Modal } from "../ui";
@@ -19,8 +19,8 @@ export default function ScenesPanel({ r, selected, onSelect, seek }: { r: Review
     const c = panel.current?.parentElement;
     const el = selected ? (panel.current?.querySelector(`[data-scene="${selected}"]`) as HTMLElement | null) : null;
     if (!c || !el) return;
-    const top = el.offsetTop - c.scrollTop, bottom = top + el.offsetHeight;
-    if (top < 56 || bottom > c.clientHeight) c.scrollTo({ top: Math.max(0, el.offsetTop - c.clientHeight * 0.25), behavior: "smooth" });
+    const top = el.getBoundingClientRect().top - c.getBoundingClientRect().top, bottom = top + el.offsetHeight;   // on screen, in the list: offsetTop counts from another parent
+    if (top < 64 || bottom > c.clientHeight) c.scrollTo({ top: Math.max(0, c.scrollTop + top - Math.max(64, c.clientHeight * 0.25)), behavior: "smooth" });   // clear of the sticky SCENES header
   }, [selected]);
   const timing = new Map(r.timing.scenes.map((s) => [s.id, s]));
   const thumbs = r.th.data?.scenes ?? {};
@@ -110,6 +110,22 @@ export default function ScenesPanel({ r, selected, onSelect, seek }: { r: Review
             }}
           >
             <GitMerge size={14} /> Merge with next
+          </button>
+          <button
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent("vt-ask-scene", { detail: menu.sid }));          // W13.3: point the assistant at this scene
+              setMenu(null);
+            }}
+          >
+            <MessageSquare size={14} /> Ask the assistant about this
+          </button>
+          {scenes.find((x) => x.id === menu.sid)?.shot && (                 // only a scene made of HTML (a code-native shot) opens in HyperFrames
+            <button onClick={() => { window.dispatchEvent(new CustomEvent("vt-scene-hyperframes", { detail: menu.sid })); setMenu(null); }}>
+              <Clapperboard size={14} /> Edit this scene in HyperFrames
+            </button>
+          )}
+          <button onClick={() => { window.dispatchEvent(new CustomEvent("vt-scene-pictures", { detail: menu.sid })); setMenu(null); }}>
+            <ImagePlus size={14} /> Pictures for this scene
           </button>
           <button
             onClick={() => {

@@ -104,7 +104,8 @@ def test_decisions_are_listed_and_can_be_put_back(ref, monkeypatch):
     assert m.target_length == "keep" and m.remove_retakes is False and started == [("tighten", True), ("cuts", True)]
 
 
-def _risky(ref, monkeypatch, risk_after):
+def _risky(ref, monkeypatch, risk_after, faults=None):
+    import vt.director_review as DR
     import vt.server.app as A
     from vt import retention as RT
     from vt.ai import providers as AIP
@@ -126,6 +127,8 @@ def _risky(ref, monkeypatch, risk_after):
         p.dir.joinpath("scenes.json").write_text(before_scenes + " ", encoding="utf-8")          # the director changed the plan
         return {"ok": True, "reply": "Changed 1 of 3 scenes."}
     monkeypatch.setattr(chat, "talk", talk)
+    seq = list(faults or [[], []])                                         # the layout faults measured before, after the revision, after a fix
+    monkeypatch.setattr(DR, "layout_faults", lambda p: seq.pop(0) if seq else [])
     p.exports_dir.mkdir(parents=True, exist_ok=True)
     first = p.exports_dir / "first.mp4"
     first.write_bytes(b"x")
@@ -138,7 +141,8 @@ def test_watch_and_revise_keeps_a_better_cut(ref, monkeypatch):
     p, kept, calls, first, _ = _risky(ref, monkeypatch, risk_after=20)
     talk = next(c for c in calls if c[0] == "talk")
     assert kept and talk[1] == "viewer test" and "4.5-6.7 s" in talk[2] and not first.exists()
-    assert read_json(p.dir / "revise.json") == {"before": 60, "after": 20, "notes": "at 4.5-6.7 s: Most of the screen is empty for 2.2 s.", "kept": True}
+    assert read_json(p.dir / "revise.json") == {"before": 60, "after": 20, "notes": "at 4.5-6.7 s: Most of the screen is empty for 2.2 s.", "kept": True,
+                                                 "layout_faults": {"before": 0, "after": 0}}
 
 
 def test_watch_and_revise_rolls_back_a_worse_cut(ref, monkeypatch):
@@ -208,3 +212,18 @@ def test_frames_the_vision_model_flags_are_sent_to_the_director_even_when_the_sc
                      {"id": "s3", "t": 8.0, "ok": False, "problems": ["overlap"], "source": "vlm"}]}
     kept = A.watch_and_revise(p, {"risk": 10, "worst": []}, p.exports_dir / "first.mp4", lambda *a, **k: None, qa)
     assert kept and "scene s2 (at 4.0 s): something is cut off at the screen edge (the desk is cut)" in sent[0] and "scene s3" in sent[0]
+
+
+def test_a_revision_that_puts_parts_on_top_of_each_other_is_fixed_or_dropped(ref, monkeypatch):
+    """W15.3 matrix (2026-11-24): a viewer-test revision added keywords on top of other parts and was kept because fewer viewers would leave.
+    Now the director is shown the new overlaps and gets one try; if the cut still has more than the first one, the first cut stays."""
+    overlap = "scene s5: element 2 (keyword) covers 68% of element 1 (icon)."
+    p, kept, calls, first, _ = _risky(ref, monkeypatch, risk_after=20, faults=[[], [overlap], []])
+    talks = [c for c in calls if c[0] == "talk"]
+    assert kept and len(talks) == 2 and overlap.split(": ", 1)[1] in talks[1][2] and "cover each other" in talks[1][2]
+    assert read_json(p.dir / "revise.json")["layout_faults"] == {"before": 0, "after": 0}
+
+    p, kept, calls, first, before = _risky(ref, monkeypatch, risk_after=20, faults=[[], [overlap], [overlap]])
+    assert not kept and first.exists() and p.dir.joinpath("scenes.json").read_text(encoding="utf-8").strip() == before.strip()
+    r = read_json(p.dir / "revise.json")
+    assert r["kept"] is False and r["layout_faults"] == {"before": 0, "after": 1} and "on top of each other" in r["why"]

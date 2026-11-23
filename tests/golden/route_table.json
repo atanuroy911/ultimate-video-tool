@@ -827,6 +827,13 @@
 "replan_auto"
 ],
 [
+"/api/projects/{pid}/notices",
+[
+"DELETE"
+],
+"clear_notices"
+],
+[
 "/api/projects/{pid}/plan-notice",
 [
 "DELETE"
@@ -1192,6 +1199,11 @@
 "/bundled",
 [],
 "bundled"
+],
+[
+"",
+[],
+""
 ],
 [
 "",

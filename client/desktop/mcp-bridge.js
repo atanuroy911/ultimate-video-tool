@@ -19,13 +19,14 @@ function send(line) {
   const headers = { "Content-Type": "application/json", Accept: "application/json, text/event-stream", ...(token ? { Authorization: `Bearer ${token}` } : {}), "Content-Length": body.length };
   if (session) headers["Mcp-Session-Id"] = session;
   const req = lib.request(url, { method: "POST", headers }, (res) => {
-    if (res.headers["mcp-session-id"]) session = res.headers["mcp-session-id"];
+    if (res.headers["mcp-session-id"] && res.statusCode < 400) session = res.headers["mcp-session-id"];     // not from an error: a refused probe names a session that does not exist
     let buf = "";
     res.setEncoding("utf8");
     const sse = /text\/event-stream/.test(res.headers["content-type"] || "");
     res.on("data", (chunk) => {
       buf += chunk;
       if (!sse) return;
+      buf = buf.replace(/\r\n/g, "\n");                           // the server's event stream ends lines with CRLF; events are split on a blank line
       let i;
       while ((i = buf.indexOf("\n\n")) >= 0) {                     // one event at a time: its data lines are one message
         const event = buf.slice(0, i);

@@ -1,0 +1,45 @@
+/* Claude Code in the Assistant pane (AgentChat.tsx). Tokens only. */
+.agent-chat { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.agent-log { flex: 1; min-height: 0; overflow: auto; padding: var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-3); }
+.agent-empty { padding: var(--sp-4); color: var(--text-muted); display: flex; flex-direction: column; gap: var(--sp-2); align-items: flex-start; }
+.agent-empty p { margin: 0; font-size: var(--fs-13); }
+.agent-note { margin: 0; }
+.agent-link { border: 0; background: transparent; color: var(--accent-text); padding: 0; font: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.agent-turn p { margin: 0; white-space: pre-wrap; font-size: var(--fs-13); line-height: 1.5; }
+.agent-turn.me { align-self: flex-end; max-width: 88%; background: var(--bg-selected); border-radius: 10px; padding: var(--sp-2) var(--sp-3); }
+.agent-steps { list-style: none; margin: 0 0 var(--sp-2); padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-12); color: var(--text-muted); }
+.agent-steps li { display: flex; align-items: center; gap: 6px; }
+.agent-steps .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); opacity: .5; flex: none; }
+.agent-steps li.completed .dot { background: var(--ok); opacity: 1; }
+.agent-steps li.failed .dot { background: var(--err); opacity: 1; }
+.agent-card { border: 1px solid var(--border-strong); border-radius: 10px; padding: var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-2); background: var(--bg-raised); }
+.agent-card code { font-family: var(--font-mono); font-size: var(--fs-12); word-break: break-all; max-height: 120px; overflow: auto; background: var(--bg-field); padding: 6px 8px; border-radius: 6px; }
+.agent-card .row { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+.agent-problem { background: var(--err-soft); color: var(--err); border-radius: 8px; border-left: 3px solid var(--err); padding: var(--sp-2) var(--sp-3); font-size: var(--fs-13); display: flex; gap: var(--sp-2); align-items: center; justify-content: space-between; }
+.agent-composer { display: flex; gap: var(--sp-2); align-items: flex-end; padding: var(--sp-3); border-top: 1px solid var(--border); }
+.agent-composer textarea { flex: 1; resize: none; }
+.wb-assistant-tabs { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin-left: var(--sp-2); }
+.wb-assistant-tabs button { border: 0; background: transparent; color: var(--text-muted); padding: 2px 10px; font: inherit; font-size: var(--fs-12); cursor: pointer; }
+.wb-assistant-tabs button.on { background: var(--bg-selected); color: var(--fg); }
+.agent-vscode { align-self: flex-start; }
+.agent-model { display: flex; align-items: center; gap: var(--sp-2); }
+.agent-pills { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; }
+.agent-pills-draft { padding: var(--sp-2) var(--sp-3) 0; border-top: 1px solid var(--border); }
+.agent-pill { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-12); background: var(--bg-selected); color: var(--fg); border-radius: 999px; padding: 2px 8px; }
+.agent-pill button { border: 0; background: transparent; color: var(--text-muted); cursor: pointer; padding: 0 2px; font: inherit; }
+.agent-starters { display: flex; flex-wrap: wrap; gap: 6px; }
+.agent-worked { margin-bottom: var(--sp-2); font-size: var(--fs-12); color: var(--text-muted); }
+.agent-worked > summary { cursor: pointer; list-style: none; }
+.agent-worked > summary::after { content: " ›"; }
+.agent-worked[open] > summary::after { content: " ⌄"; }
+.agent-worked .agent-steps { margin-top: 6px; }
+.agent-reply { display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-13); line-height: 1.55; }
+.agent-reply p { margin: 0; white-space: normal; }
+.agent-reply ul, .agent-reply ol { margin: 0; padding-left: 20px; }
+.agent-reply code { font-family: var(--font-mono); font-size: var(--fs-12); background: var(--bg-field); padding: 1px 4px; border-radius: 4px; }
+.agent-bar { display: flex; justify-content: flex-end; padding: 4px var(--sp-3) 0; }
+/* beside the Studio there are five tabs: the names stay on one line, the row scrolls if the pane is narrow, and the pane's own label steps aside */
+.wb-assistant-tabs { min-width: 0; overflow-x: auto; scrollbar-width: none; flex: 0 1 auto; }
+.wb-assistant-tabs button { white-space: nowrap; flex: none; }
+.wb-pane-heading:has(.wb-assistant-tabs button:nth-child(4)) > strong { display: none; }
+.wb-pane-heading:has(.wb-assistant-tabs button:nth-child(4)) .wb-assistant-tabs { margin-left: 0; }

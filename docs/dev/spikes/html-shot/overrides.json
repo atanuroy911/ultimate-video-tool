@@ -1,0 +1,4 @@
+{"knobs": {"--accent": "#22c55e", "--bg": "#fffaf0", "--ink": "#1b1b1f"},
+ "elements": {"title": {"text": "Sleep is a habit", "x": 0, "y": -40},
+              "orb": {"x": -140, "scale": 0.8},
+              "sub": {"style": {"fontWeight": "700"}}}}

@@ -1,6 +1,8 @@
 """Project-level glue for Video Scripts: the task handed to an assistant over MCP, and applying a script an assistant (or the app's AI) produced."""
 from __future__ import annotations
 
+import logging
+
 from typing import Any, Optional
 
 from .. import paths
@@ -30,16 +32,23 @@ def script_task(p: Project, kind: Optional[str] = None, hint: str = "", *, compa
     tr, beats = p.transcript(), p.beats()
     sf = p.scenes()
     system, user = build_prompt(tr, beats, kind=kind, language=meta.language, aspect=meta.aspect, hint=hint,
-                                draft=None, schema=None, with_examples=not compact, compact=compact)
+                                draft=None, schema=None, with_examples=not compact, compact=compact, look_ahead=_look_ahead(p, beats))
     return {
         "instructions": system, "task": user, "schema": to_json_schema(), "kind": kind,
         "project": {"id": p.id, "title": meta.title, "language": meta.language, "aspect": meta.aspect, "theme": load_theme(meta.theme).name},
-        "media_bin": [{"id": m.id, "kind": m.kind, "caption": m.caption, "role": m.role} for m in meta.media],
-        "aroll_direction": "If media id 'aroll' is present, use it as scene backdrop media to keep the recorded speaker visible; place overlays around the face.",
+        "media_bin": [{"id": m.id, "kind": m.kind, "caption": m.caption, "role": m.role, **({"faces": len(m.faces or [])} if m.role == "a_roll" else {})} for m in meta.media],
+        "aroll_direction": "If media id 'aroll' is present, use it as scene backdrop media to keep the recorded speaker visible; place overlays around the face. When it has no face (faces 0: a screen or slide recording), its picture is the content: put nothing over it except the captions.",
         "has_draft": bool(sf), "has_current_script": (p.dir / "video_script.json").is_file(),
         **_craft_and_style(p, meta.theme, include_draft_report=not compact),
         "submit": "Call submit_script(project, script=<the JSON object>). If it returns errors, fix exactly those and call it again until ok is true.",
     }
+
+
+def _look_ahead(p: Project, beats, say=lambda f, m: None) -> str:
+    """A long talk with the speaker's picture is read ahead first (C10, vt/talk_outline.py); its examples go into the director's task."""
+    from .. import talk_outline
+
+    return talk_outline.look_ahead_text(talk_outline.ensure(p, progress=say), beats)
 
 
 def _craft_and_style(p: Project, theme: str, *, include_draft_report: bool = True) -> dict[str, Any]:
@@ -74,11 +83,16 @@ def apply_script(p: Project, data: dict, *, planner: str = "claude", compose: bo
     tr, beats = p.transcript(), p.beats()
     media = {m.id for m in meta.media}
     icons = all_icon_names()
-    before = validate_script(data, tr, beats, icons, media) if isinstance(data, dict) else ["the script must be a JSON object"]
+    from .. import shots as SH
+    from ..compose.composer import FORMATS
+
+    have_shots = {s["id"] for s in SH.list_shots(p) if "error" not in s}
+    frame = (FORMATS[meta.aspect]["width"], FORMATS[meta.aspect]["height"]) if meta.aspect in FORMATS else None
+    before = validate_script(data, tr, beats, icons, media, have_shots, frame) if isinstance(data, dict) else ["the script must be a JSON object"]
     dropped: list[str] = []
     notes: list[dict] = []
-    fixed = repair_script(data, tr, beats, dropped=dropped, notes=notes) if isinstance(data, dict) else data
-    errs = validate_script(fixed, tr, beats, icons, media) if isinstance(fixed, dict) else before
+    fixed = repair_script(data, tr, beats, dropped=dropped, notes=notes, frame=frame, known_shots=have_shots) if isinstance(data, dict) else data
+    errs = validate_script(fixed, tr, beats, icons, media, have_shots, frame) if isinstance(fixed, dict) else before
     if strict:                                                 # a director that can answer is told, instead of finding its picture gone or its words changed
         errs = REPAIRS.meaning(notes) + errs
     if errs:
@@ -99,7 +113,8 @@ def apply_script(p: Project, data: dict, *, planner: str = "claude", compose: bo
 
     try:
         sf = refresh_scrims(p, sf)
-    except Exception:
+    except Exception as _e:  # noqa: BLE001 — scrims could not be refreshed; the plan keeps its old ones
+        logging.getLogger(__name__).warning("scrims could not be refreshed; the plan keeps its old ones: %s", _e, exc_info=True)
         pass
     errs = validate_scenes(sf, tr, beats, icons, media)
     if errs:
@@ -113,6 +128,11 @@ def apply_script(p: Project, data: dict, *, planner: str = "claude", compose: bo
                     "errors": ["The video was edited while the director was working. The newer edits were kept; send the request again."]}
         if cur:
             write_json(p.dir / "scenes.prev.json", cur.model_dump(exclude_none=True))
+        for sh in script.shots:                               # the director's shots; the person's visual edits (overrides.json) are kept
+            d = SH.shot_dir(p, sh.id)
+            d.mkdir(parents=True, exist_ok=True)
+            (d / "index.html").write_text(sh.html, encoding="utf-8")
+            write_json(d / "shot.json", {"title": sh.title or sh.id, "knobs": [k.model_dump() for k in sh.knobs], "made_by": planner})
         write_json(p.dir / "video_script.json", script.model_dump(by_alias=True, exclude_none=True))
         write_json(p.dir / SCRIPT_PLAN, sf.model_dump(exclude_none=True))
         p.save_scenes(sf)
@@ -177,7 +197,8 @@ def direct(p: Project, sf: ScenesFile, say=None, want_ai: bool = False) -> tuple
 
     notes: list[dict] = []                                                                  # what repairing the AI's script changed in it (script/repairs.py)
     script, how = plan_script(tr, beats, draft=sf, use_ai=use_ai, kind=kind if kind != "explainer" else "explainer", language=meta.language, aspect=meta.aspect, hint=taste.director_hint(),
-                              media_ids={m.id for m in meta.planner_media()}, progress=say, ctx=CX.load(p), notes=notes)
+                              media_ids={m.id for m in meta.planner_media()}, progress=say, ctx=CX.load(p), notes=notes,
+                              look_ahead=_look_ahead(p, beats, say))
     if how.startswith("rules") and kind not in ("stick", "emoji", "cartoon"):           # the AI could not write it: an explainer keeps its rule draft as it is
         return sf, how
     out = compile_script(script, tr, beats, sf.theme)

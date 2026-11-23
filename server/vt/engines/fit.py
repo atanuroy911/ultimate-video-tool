@@ -351,3 +351,19 @@ def compute_of(name: str) -> float:
         if key in n:
             return cc
     return 0.0
+
+# ----- the voices, MEASURED on one laptop (RTX 4050 Laptop 6 GB, 2026-11-22): seconds of work for one second of speech, after the first load.
+# Kokoro runs on the processor and is quick enough for a one-minute video; the cloning voice is not (it needs the speaker's own audio and a stronger machine).
+VOICE_SPEED = {
+    "kokoro": {"seconds_per_second": 1.5, "first_load_s": 20, "device": "processor (int8)", "note": "7.4 s for 4.8 s of English"},
+    "chatterbox-turbo": {"seconds_per_second": 17.0, "first_load_s": 15, "device": "ONNX, processor or card (the same either way here)", "note": "56 s for 3.2 s of speech; use only for short lines or on a stronger machine"},
+}
+
+# ----- short clips, MEASURED on one laptop (RTX 4050 Laptop 6 GB, 32 GB RAM, 2026-11-22): Wan 2.2 TI2V 5B at Q4 (GGUF) with the umt5 encoder at Q4 runs
+# on 6 GB, but slowly: a 2 s clip at 640x352 (49 frames, 20 steps) took 1357 s while speech recognition used every processor core. Recognisable motion, some
+# stray objects (docs/dev/spikes/html-shot/c7-wan-clip.png). Not for a whole video on such a card; CLIPS_CARD_GB stays the rule for offering clips by default.
+CLIP_SPEED = {"wan2.2-ti2v-5b-q4": {"card_gb": 6, "seconds": 1357, "clip_s": 2.0, "size": "640x352", "steps": 20, "note": "machine busy; re-time on a quiet machine"}}
+
+# Reading a long talk ahead (vt/talk_outline.py, C10) needs judgement more than speed: measured 2026-11-22 on the owner's 14-minute talk, gemma4:e2b found
+# 2 to 13 examples from run to run and misnumbered them, gemma4:e4b found 17 good ones in 114 s (part of it on the processor). The first one installed is used.
+READING_MODELS = ("gemma4:e4b", "qwen3.5:4b")

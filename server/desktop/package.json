@@ -1,7 +1,7 @@
 {
   "name": "ultimate-video-tool-server",
   "productName": "Ultimate Video Tool Server",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Processing API, engine management and native server controls. Install the editor client separately.",
   "author": "Ultimate Video Tool",
   "license": "AGPL-3.0-or-later",
@@ -20,7 +20,7 @@
     "ffprobe-static": "^3.1.0"
   },
   "devDependencies": {
-    "electron": "^33.2.0",
+    "electron": "44.10.2",
     "electron-builder": "^25.1.8"
   },
   "build": {

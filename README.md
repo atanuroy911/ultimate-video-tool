@@ -60,12 +60,15 @@ It also cuts **short clips** from long recordings, writes a **publishing kit** (
 
 <table>
 <tr>
-<td width="50%"><img src="docs/assets/screens/editor.png" alt="The editor: scenes on the left, live preview in the middle, the inspector on the right, and a multitrack timeline below"><br><sub><b>Editor.</b> Scenes, live preview, inspector and a multitrack timeline.</sub></td>
+<td width="50%"><img src="docs/assets/screens/editor.png" alt="The editor: scenes on the left, live preview in the middle, the inspector on the right, and a multitrack timeline below"><br><sub><b>Editor.</b> Scenes, live preview, inspector, the assistant and a multitrack timeline.</sub></td>
 <td width="50%"><img src="docs/assets/screens/new-video.png" alt="The New video page with automatic choices for language, style, director, look, music, captions and voice"><br><sub><b>New video.</b> Every choice is automatic until you change it.</sub></td>
 </tr>
 <tr>
 <td><img src="docs/assets/screens/looks.png" alt="The Look page with looks and palettes and a live sample"><br><sub><b>Look.</b> 10 looks × 18 palettes, fonts, motion and captions, with a live preview.</sub></td>
 <td><img src="docs/assets/screens/plan-review.png" alt="Reviewing the director's plan, scene by scene, before the video is made"><br><sub><b>Plan review.</b> See and change what the director decided before anything is drawn.</sub></td>
+</tr>
+<tr>
+<td colspan="2"><img src="docs/assets/screens/assistant.png" alt="The editor with Claude Code in the Assistant pane: the steps it took and its reply, with a link back to scene 2"><br><sub><b>Claude Code inside the app.</b> Ask in your own words; it works through Video Tool's own tools and shows each step.</sub></td>
 </tr>
 </table>
 
@@ -90,6 +93,18 @@ Video Tool is also an [MCP](https://modelcontextprotocol.io) server. Claude Code
 - **Settings → Use your own AI assistant** sets up each assistant with one click or one copy-paste.
 - In this repository, `.mcp.json` already registers the `video-tool` server for Claude Code. Run `/vt-plan` to plan every video waiting for Claude.
 - Remote assistants can use the token-protected HTTP endpoint: `vt-mcp --http --port 8766`.
+
+## Claude Code inside the app
+
+The editor's Assistant pane has a **Claude Code** tab next to the Director. It uses the Claude Code already signed in on your computer (no key to paste) and works on the open video through Video Tool's own tools:
+
+- Ask for a change in your own words: it edits scenes, captions and the look, and the timeline glows where it changed. Ctrl+Z takes its change back.
+- It can **write a shot**: a scene drawn as HTML and CSS with its own animation. Open it with **Edit shot** to move, resize, recolour or retype any part without touching code, or switch to **Code** to edit the HTML.
+- It can draw a picture (ComfyUI), speak a line (Kokoro) and ask the small local model (Ollama) on your own computer.
+- Anything other than Video Tool's tools (a shell command, a file write) asks you first, with **Deny** as the default.
+- **Open in VS Code** opens the video's agent folder in your own VS Code; the extension in `client/vscode/` previews a shot beside your code.
+
+Codex is not built in yet.
 
 ## How it works
 

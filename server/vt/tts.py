@@ -12,6 +12,8 @@ Engines
 """
 from __future__ import annotations
 
+import logging
+
 import asyncio
 import os
 import re
@@ -173,7 +175,7 @@ def _synth_edge(text: str, voice: str, rate: float, out_wav: Path) -> None:
                     _ffmpeg_to_wav(mp3, out_wav)
                     return
                 last = TTSError("the service returned no audio")
-            except Exception as e:                                   # network, throttling...
+            except Exception as e:  # noqa: BLE001 — network or throttling: retried, and the last error is raised
                 last = e
         raise TTSError(f"The online voice could not be reached ({type(last).__name__}). Check the internet connection, or choose the offline voice.") from last
 
@@ -195,7 +197,7 @@ def _synth_mms(text: str, voice: str, rate: float, out_wav: Path) -> None:
         try:
             _mms["tok"] = AutoTokenizer.from_pretrained(name)
             _mms["m"] = VitsModel.from_pretrained(name).eval()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — raised again as a plain TTSError
             raise TTSError("The offline voice has to be downloaded once (about 140 MB). Connect to the internet and try again.") from e
     model, tok = _mms["m"], _mms["tok"]
     model.speaking_rate = float(rate)
@@ -325,7 +327,8 @@ def _elevenlabs_model(key: str, language: str) -> str:
     default = "eleven_multilingual_v2"
     try:
         models = [m for m in _elevenlabs_get("/models", key) if m.get("can_do_text_to_speech")]
-    except Exception:
+    except Exception as _e:  # noqa: BLE001 — the ElevenLabs model list did not load; the default model is used
+        logging.getLogger(__name__).warning("the ElevenLabs model list did not load; the default model is used: %s", _e, exc_info=True)
         return default
     speaks = [m["model_id"] for m in models if any(x.get("language_id") == language[:2] for x in m.get("languages") or [])]
     return default if default in speaks or not speaks else speaks[0]
@@ -364,7 +367,7 @@ def _elevenlabs_listing(e: dict) -> tuple[dict, bool, str]:
         return e, False, "add your ElevenLabs API key in Settings, Voice & speech"
     try:
         rows = _elevenlabs_get("/voices", key)
-    except Exception as err:
+    except Exception as err:  # noqa: BLE001 — the reason is returned to the Settings page
         return e, False, f"ElevenLabs did not answer ({type(err).__name__}); check the key"
     voices = []
     for v in rows:

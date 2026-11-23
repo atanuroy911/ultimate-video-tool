@@ -36,14 +36,14 @@ Tested only on Windows (the owner's decision). Linux installers are built by the
 | sfx files (assets/sfx) | 4 |
 | cartoon characters / scenes (assets/cartoon) | 4, 4 |
 | ComfyUI workflow assets | breeze_clone.json, breeze_design.json, breeze_direction.json, klein_t2i.json, ltx23_i2v.json, omnivoice_clone.json, omnivoice_design.json, qwen21_t2i.json, wan22_i2v.json, zimage_t2i.json |
-| MCP tools / prompts | 43, 4 |
-| REST API | api routes: 269, methods: 273 |
+| MCP tools / prompts | 49, 4 |
+| REST API | api routes: 275, methods: 279 |
 | downloadable models (vt/models.py) | 3 |
-| python source | files: 256, lines: 48735 |
-| renderer runtime (js+css) lines | 4578 |
-| studio source | files: 336, lines: 43920, pages: AIAssistants, ComfySettings, DesignStudio, DirectorSettings, Engines, Export, LocalAI, MyVoices, New, NewOptions, Progress, Projects, Result, Review, ScriptReview, Server, Settings, ShortsExtractor, SocialHub, StockKeys, StyleThumbnails, Themes |
-| browser suites (studio/e2e, not helpers) | 75 |
-| pytest files | 194 |
+| python source | files: 258, lines: 49487 |
+| renderer runtime (js+css) lines | 4659 |
+| studio source | files: 343, lines: 44721, pages: AIAssistants, ComfySettings, DesignStudio, DirectorSettings, Engines, Export, LocalAI, MyVoices, New, NewOptions, Progress, Projects, Result, Review, ScriptReview, Server, Settings, ShortsExtractor, SocialHub, StockKeys, StyleThumbnails, Themes |
+| browser suites (studio/e2e, not helpers) | 80 |
+| pytest files | 195 |
 <!-- facts:end -->
 
 ## Known gaps (honest list)

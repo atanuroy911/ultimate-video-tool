@@ -119,3 +119,19 @@ test('a saved tree that is damaged or incomplete is refused, not trusted', () =>
   const deep = (n) => n === 0 ? { panel: 'a' + n } : { axis: 'x', ratio: 0.5, first: deep(n - 1), second: { panel: 'b' + n } };
   assert.equal(D.readDockTree(deep(30)), null, 'absurd depth');
 });
+
+test('dragging a seam of a fixed-size pane keeps it fixed at the dragged size', () => {
+  const tree = D.defaultDockTree();
+  const { seams } = D.dockFrames(tree, view, all);
+  const outer = seams.find((s) => s.path === '');
+  const room = outer.parent.width - 1;
+  const dragged = D.resizeSeam(tree, '', room - 500, room);            // the assistant, anchored second: 500 wide
+  assert.equal(dragged.size, 500);
+  const wider = D.dockFrames(dragged, { width: 1800, height: 900 }, all).panels;
+  assert.equal(wider.assistant.width, 500, 'a bigger window does not change the width the person chose');
+  const ratio = D.resizeSeam(D.resizeDock(tree, '', 0.5), '', 300, room);   // no fixed size left: a ratio
+  assert.equal(ratio.size, undefined);
+  assert.ok(Math.abs(ratio.ratio - 300 / room) < 1e-9);
+  const inner = D.resizeSeam(tree, '00', 350, 800);                        // the library | viewer split: fixed size, anchored first
+  assert.equal(D.paneSizeOf(inner, 'library'), 350);
+});

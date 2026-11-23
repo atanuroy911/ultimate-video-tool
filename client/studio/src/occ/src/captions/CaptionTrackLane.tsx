@@ -22,6 +22,7 @@ import {
 import { translateLines } from './translate';
 import { droppedFiles, hasExternalFiles } from '../media/externalFileDrop';
 import { manualCueTargets, useCaptionTrim, useCaptionMove, useCaptionSelectionMove, type ManualCueTarget, type CaptionCueMove } from './useCaptionCueGestures';
+import { mergeNarrow, wordSpots, wordTicks } from '../../bridge/captionLod';          // Video Tool: words readable at every zoom
 
 function cueText(words: Array<{ text: string }>): string {
   return words.map((word) => word.text.trim()).filter(Boolean).join(' ');
@@ -71,7 +72,7 @@ function CaptionCueBlock({
     }}
   /> : null;
   return (
-    <div className={`cc-caption-track-cue${selected ? ' selected' : ''}`} data-caption-selection-owner="timeline-cue"
+    <div className={`cc-caption-track-cue${selected ? ' selected' : ''}`} data-caption-selection-owner="timeline-cue" data-start-ms={startMs} data-end-ms={endMs}
       title={text} tabIndex={selectionRef && !locked ? 0 : undefined}
       style={{ left: startFrame * px, width: Math.max(18, durationFrames * px),
         transform: move.drag?.key === key && moveOffsetY ? `translate3d(0, ${moveOffsetY}px, 0)` : undefined,
@@ -106,7 +107,13 @@ function CaptionCueBlock({
         event.preventDefault();
         onDelete(target);
       }}>
-      {handle('start')}<span>{text}</span>{handle('end')}
+      {handle('start')}{(() => {
+        // Video Tool: a block with room shows each word at its time; a narrow one shows its text with a tick where each word starts
+        const pxPerMs = px * fps / 1000;
+        const spots = locked ? wordSpots(page, pxPerMs) : null;
+        if (spots) return spots.map((w, i) => <span key={w.id ?? i} className="vt-cue-word" style={{ left: w.left, width: w.width }} title={w.text}>{w.text}</span>);
+        return <>{locked && wordTicks(page, pxPerMs).map((x) => <i key={x} className="vt-cue-tick" style={{ left: x }} />)}<span>{text}</span></>;
+      })()}{handle('end')}
     </div>
   );
 }
@@ -301,7 +308,7 @@ export function CaptionTrackLane({
         onTrackContextMenu({ trackId, x: event.clientX, y: event.clientY, frame: frameFromClientX(event.clientX) });
       }}>
       {!pages.length && <span className="cc-caption-track-empty">{t('字幕轨道为空')}</span>}
-      {pages.map((page, index) => {
+      {(locked ? mergeNarrow(pages, px * state.fps / 1000) as typeof pages : pages).map((page, index) => {
         const target = page.words.length === 1 && page.words[0]?.id ? targets.get(page.words[0].id) : undefined;
         const cueId = target ? page.words[0]?.id : undefined;
         const key = target ? `${target.laneId}:${cueId ?? 'unresolved'}` : `${page.start}:${index}`;

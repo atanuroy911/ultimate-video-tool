@@ -27,8 +27,10 @@ const created = [];
 console.log("Upload -> progress -> review (real speech model)");
 await fetch(base + "/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ autopilot: false }) });   // this suite checks the editor; simple.mjs covers autopilot
 await page.goto(base + "/new", { waitUntil: "networkidle" });
-await page.getByLabel("Choose a file").setInputFiles(path.join(repo, "..", "samples", "audio", "bn_plain.mp3"));
-check("file name shown", (await page.getByText("bn_plain.mp3").count()) > 0);
+// a short English recording made on this PC with Kokoro (the old "yield" Bangla sample is retired): 4 sentences, about 11 s
+const sample = process.env.VT_SAMPLE || "E:/UltimateVideoTool/scratch/samples/en_robots.mp3";
+await page.getByLabel("Choose a file").setInputFiles(sample);
+check("file name shown", (await page.getByText(path.basename(sample)).count()) > 0);
 for (let i = 0; i < 6 && !(await page.getByRole("button", { name: "Make my video" }).count()); i++) await page.locator(".tf-nav .btn.primary").first().click();   // OK through the screens
 await page.locator("input[placeholder='The app can name it for you']").fill("UI upload test");                                                     // the last screen's video name
 const gen = page.getByRole("button", { name: "Make my video" });
@@ -41,17 +43,16 @@ check("navigated to the progress screen", true);
 await page.waitForSelector("h1", { timeout: 10000 });
 check("the making screen shows one plain-words step", /…$/.test((await page.locator("h1").innerText()).trim()));
 await page.screenshot({ path: out + "/g1-progress.png" });
-await page.waitForURL(new RegExp(`/p/${pid}$`), { timeout: 120000 });
+await page.waitForURL(new RegExp(`/p/${pid}$`), { timeout: 900000 });          // a laptop makes even a short video in several minutes
 check("auto-opened the review screen when done", true);
-await page.waitForSelector(".scene-card");
+await page.waitForSelector(".wb .wb-viewer", { timeout: 45000 });
 await page.waitForTimeout(1500);
-check("scenes were drafted (the 4-sentence clip becomes 2-3 scenes)", (await page.locator(".scene-card").count()) >= 2);
-await page.getByRole("tab", { name: /^Words/ }).click();
-await page.waitForTimeout(500);
-const nWords = await page.locator(".w").count();
-check(`transcript shown (${nWords} words)`, nWords >= 26);
-check("first word is correct and in Latin letters (default policy)", (await page.locator(".w").first().innerText()) === "yield");
-check("preview iframe is live", !!page.frames().find((f) => f.url().includes("/composition/9x16/")));
+const plan = await api(`/api/projects/${pid}/scenes`);
+check("scenes were drafted (the 4-sentence clip becomes 2 or more scenes)", (plan.plan?.scenes?.length ?? 0) >= 2, String(plan.plan?.scenes?.length));
+const words = (await api(`/api/projects/${pid}/transcript`)).transcript.words;
+check(`transcript has the words (${words.length})`, words.length >= 25);
+check("first word is right", /^small$/i.test(words[0].text.replace(/[^A-Za-z]/g, "")), words[0].text);
+check("the preview is live", (await page.locator(".wb .wb-viewer").count()) === 1);
 const proj = await api(`/api/projects/${pid}`);
 check("project is ready with a duration", proj.status === "planned" && proj.duration > 8 && proj.has_transcript, JSON.stringify({ s: proj.status, d: proj.duration }));
 await page.screenshot({ path: out + "/g2-review.png" });
@@ -61,7 +62,7 @@ await browser.close();
 console.log("Record with no speech -> clear error (fake microphone plays a noise file)");
 const browser2 = await chromium.launch({
   executablePath: exe,
-  args: ["--disable-gpu", "--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream", "--use-file-for-fake-audio-capture=" + path.join(repo, "..", "samples", "audio", "noise.wav") + ""],
+  args: ["--disable-gpu", "--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream", "--use-file-for-fake-audio-capture=" + (process.env.VT_NOISE || "E:/UltimateVideoTool/scratch/samples/noise.wav") + ""],
 });
 const ctx2 = await browser2.newContext({ viewport: { width: 1500, height: 950 }, permissions: ["microphone"] });
 const page2 = await ctx2.newPage();
@@ -74,6 +75,7 @@ check("recording timer runs", /0:0[2-9]/.test(await page2.locator("text=/0:0\\d/
 await page2.getByRole("button", { name: "Stop recording" }).click();
 await page2.waitForSelector("audio[controls]");
 check("recorded clip can be played back", true);
+for (let i = 0; i < 6 && !(await page2.getByRole("button", { name: "Make my video" }).count()); i++) await page2.locator(".tf-nav .btn.primary").first().click().catch(() => {});   // OK through the screens
 const gen2 = page2.getByRole("button", { name: "Make my video" });
 check("Make enabled after recording", await gen2.isEnabled());
 await gen2.click();
@@ -81,13 +83,14 @@ await page2.waitForURL(/\/p\/[^/]+\/progress/, { timeout: 15000 });
 created.push(page2.url().split("/p/")[1].split("/")[0]);
 await page2.getByText(/No speech was found/).waitFor({ timeout: 90000 });
 check("no-speech error is shown in plain language", true);
-check("retry and start-over buttons offered", (await page2.getByRole("button", { name: "Retry this step" }).count()) === 1);
+check("retry and start-over buttons offered", (await page2.getByRole("button", { name: "Try again" }).count()) === 1 && (await page2.getByRole("button", { name: "Start over" }).count()) === 1);
 await page2.screenshot({ path: out + "/g3-nospeech.png" });
 
 console.log("Delete from the projects list");
 await page2.goto(base + "/", { waitUntil: "networkidle" });
 const before = (await api("/api/projects")).length;
-await page2.locator("article", { hasText: "UI upload test" }).getByRole("button", { name: /Delete/ }).click();
+await page2.locator("article.dash2-card", { hasText: "UI upload test" }).first().getByRole("button", { name: /Actions for/ }).click();
+await page2.getByRole("menuitem", { name: /Delete/ }).click();
 await page2.getByRole("dialog").getByRole("button", { name: "Delete" }).click();
 await page2.waitForTimeout(1200);
 check("project deleted", (await api("/api/projects")).length === before - 1);

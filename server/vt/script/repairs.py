@@ -18,11 +18,11 @@ from .validate import repair_script
 FIX = "The script is used as it became. If the change is not what you want, edit the scene, or ask the director again and it will rewrite the scene."
 
 
-def repairer(tr: Transcript, beats: Beats, kind: Optional[str], notes: list[dict]) -> Callable[[Any], Any]:
+def repairer(tr: Transcript, beats: Beats, kind: Optional[str], notes: list[dict], frame: Optional[tuple[int, int]] = None) -> Callable[[Any], Any]:
     """The `repair=` of ai.complete_json: repairs the reply and keeps the notes of the answer that is finally used (the last one repaired) in `notes`."""
     def repair(data: Any) -> Any:
         mine: list[dict] = []
-        out = repair_script(data, tr, beats, kind, notes=mine) if isinstance(data, dict) else data
+        out = repair_script(data, tr, beats, kind, notes=mine, frame=frame) if isinstance(data, dict) else data
         notes[:] = mine
         return out
     return repair

@@ -101,7 +101,7 @@ export default function TranscriptPanel(props: {
         const info = sceneOfBeat.get(beat.id);
         const prevScene = info && info.first && info.index > 0 ? scenes[info.index - 1] : null;
         return (
-          <div key={beat.id} ref={(el) => (beatRefs.current[beat.id] = el)} className={`beat ${info?.first ? "sceneStart" : ""} ${curBeat === beat.id ? "cur" : ""}`}>
+          <div key={beat.id} ref={(el) => { beatRefs.current[beat.id] = el; }} className={`beat ${info?.first ? "sceneStart" : ""} ${curBeat === beat.id ? "cur" : ""}`}>
             <div className="gutter">
               {info?.first && <strong style={{ color: "var(--accent)" }}>Scene {info.index + 1}</strong>}
               <span>{fmtTime(beat.start)}</span>

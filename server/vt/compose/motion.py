@@ -158,7 +158,8 @@ def apply(data: dict, level: str = "auto", seed: str = "vt") -> dict:
             if sc.get("transition_effect", "auto") == "auto": sc["tx"] = tx
             last_tx.append(tx)
         moves = []
-        if level == "auto":
+        shot = str((sc.get("backdrop") or {}).get("media", "")).startswith("shot:")   # a code-native shot draws its own picture and motion: no move or decoration on top
+        if level == "auto" and not shot:
             if i == 0:
                 moves.append(_pick(OPENINGS, [], seed, "open"))
             elif i == n - 1:

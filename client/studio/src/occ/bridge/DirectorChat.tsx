@@ -3,6 +3,7 @@
 // POST …/director/chat), run by whichever AI is chosen in Settings. While it works, each step it reports shows as a line, the current one
 // live; when it is done its reply says what changed, and the project (timeline, preview) reloads.
 import { useEffect, useMemo, useRef, useState } from 'react';
+import '../../assistant/assistant.css';
 import { get, post } from '../../api';
 import '../occ.css';
 import { ChatMessage } from '../src/components/chat/ChatMessage';
@@ -41,6 +42,12 @@ export default function DirectorChat({ projectId, onStarted, onChanged, onRunnin
 }) {
   const [said, setSaid] = useState<Said[]>([]);
   const [draft, setDraft] = useState('');
+  const [refs, setRefs] = useState<{ kind: string; label?: string }[]>([]);      // W13: what the person pointed at with Ctrl+L
+  useEffect(() => {
+    const on = (e: Event) => { const r = (e as CustomEvent).detail; if (r?.kind) setRefs((all) => (all.some((x) => JSON.stringify(x) === JSON.stringify(r)) ? all : [...all, r].slice(-8))); };
+    window.addEventListener('vt-ask-director', on);
+    return () => window.removeEventListener('vt-ask-director', on);
+  }, []);
   const [job, setJob] = useState<Job | null>(null);
   const [steps, setSteps] = useState<string[]>([]);
   const [error, setError] = useState('');
@@ -111,7 +118,8 @@ export default function DirectorChat({ projectId, onStarted, onChanged, onRunnin
     const token = onStarted();
     turnToken.current = token;
     try {
-      const j = await post<Job>(`/api/projects/${projectId}/director/chat?quiet=1`, { message: text });   // the chat shows the steps itself; editing goes on
+      const j = await post<Job>(`/api/projects/${projectId}/director/chat?quiet=1`, { message: text, refs });
+      setRefs([]);   // the chat shows the steps itself; editing goes on
       setSaid((s) => [...s, { from: 'person', text }]);
       setDraft('');
       setSteps([]);
@@ -166,6 +174,8 @@ export default function DirectorChat({ projectId, onStarted, onChanged, onRunnin
           </div>
         )}
       </div>
+      {refs.length > 0 && <div className="agent-pills agent-pills-draft" aria-label="What you are pointing at">{refs.map((r, j) => (
+        <span key={j} className="agent-pill">[{j + 1}] {r.label || r.kind}<button type="button" aria-label={`Remove ${r.label || r.kind}`} onClick={() => setRefs((all) => all.filter((_, k) => k !== j))}>×</button></span>))}</div>}
       <form className="occ-chat-compose" onSubmit={(e) => { e.preventDefault(); void send(); }}>
         <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={3} aria-label="Message to the director" data-cc-shortcut-surface="agent-input"
           placeholder={running ? 'The director is working…' : 'Tell the director what to change'} disabled={running}

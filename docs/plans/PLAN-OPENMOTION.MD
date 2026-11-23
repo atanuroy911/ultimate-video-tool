@@ -81,3 +81,15 @@ recordings, Claude Code over ACP. Our own editor stays for those until each live
   matches the original's within encoding noise (same render time, 54 s vs 55 s).
 - **O3 left:** each scene as its own sub-composition (HyperFrames suggests it: `nested_structure_needs_subcomposition`), callbacks (count-ups), and
   baking stick-figure, cartoon and long-talk videos.
+- **O3 (d) long talk and fidelity (2026-11-23):** the owner's 14-minute talk (Claude-directed, 16:9, 2,171 animated parts) bakes in 7 s to a 466 kB page
+  with **nothing lost**, matching the original at 16 of 17 sampled moments. What it took:
+  - the baked timeline is now written from GSAP's own timeline after the build (tweens the runtime killed or moved are left out or moved), with each
+    tween's options from the call that made it;
+  - GSAP gets the runtime's own option objects (the runtime reads them back); an ease GSAP turned into a function is written by its name again;
+  - count-ups (callbacks on a number) are sampled 30 times a second into plain text steps;
+  - free visuals end their window where they hide themselves (`visibility: hidden`), since HyperFrames shows a timed element for its whole window;
+  - styles written while the runtime plays its timeline to measure layout are not taken as built styles; a direct `gsap.set` is part of the built page;
+  - **runtime fix (all renders):** every font loads before the page builds (`vt.js` `fontsThenBoot`), so text is fitted once with the real fonts;
+    before, the fit depended on how fast fonts arrived; the page probe now starts Chrome with the renderer's text settings (`--font-render-hinting=none` ...).
+  Left: the mosaic transition scene at 405 s (the original keeps its card hidden for ~4 s after the mosaic; the baked page shows it as designed) and a
+  small difference at 640.95 s; stick figures (their limbs are drawn by callbacks: 17 steps lost; the Studio refuses such videos until they bake).

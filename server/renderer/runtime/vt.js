@@ -1355,8 +1355,15 @@
   }
   // The page starts the build explicitly (window.VTX.start()) after every runtime script has loaded: a renderer may run scripts when the
   // document is already "ready", and building earlier would skip the components the extension scripts add.
+  // Every font face is loaded before the build: text is fitted once, with the real fonts. Building first and fitting again when the fonts arrive
+  // ended differently depending on how fast they loaded (a different text size in one render than in another).
+  const fontsThenBoot = () => {
+    const faces = document.fonts ? [...document.fonts] : [];
+    if (!faces.length || document.fonts.status === "loaded" && faces.every((f) => f.status === "loaded")) return boot();
+    Promise.all(faces.map((f) => f.load().catch(() => null))).then(boot, boot);
+  };
   window.VTX.start = () => {
-    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
-    else boot();
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", fontsThenBoot);
+    else fontsThenBoot();
   };
 })();

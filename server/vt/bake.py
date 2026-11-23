@@ -43,17 +43,31 @@ def _with_recorder(comp_dir: Path, work: Path) -> Path:
     html = page.read_text(encoding="utf-8")
     if GSAP_TAG not in html:
         raise BakeError("The composition page does not load GSAP the usual way; it cannot be baked.")
-    page.write_text(html.replace(GSAP_TAG, GSAP_TAG + '\n<script src="runtime/vt-bake.js"></script>', 1), encoding="utf-8")
+    html = html.replace(GSAP_TAG, GSAP_TAG + '\n<script src="runtime/vt-bake.js"></script>', 1)
+    page.write_text(html, encoding="utf-8")
     return work
 
 
-def page_of(original: str, root_html: str, script: str) -> str:
-    """The baked page: the original head (fonts, the runtime's style sheets), the built root, GSAP and the timeline code. No runtime scripts."""
+FONTS_LINK = '<link rel="stylesheet" href="fonts/fonts.css">'
+
+
+def page_of(original: str, root_html: str, script: str, fonts_css: str = "") -> str:
+    """The baked page: the original head (fonts, the runtime's style sheets), the built root, GSAP and the timeline code. No runtime scripts.
+    Our @font-face rules go into the page itself: HyperFrames fetches its own copy of any font a page names without declaring it in the page
+    (a linked style sheet does not count), and its Inter is wider than ours, so text would wrap and fit differently."""
     head = re.search(r"^.*?</head>", original, re.S | re.I)
     if not head:
         raise BakeError("The composition page has no head.")
+    head_html = head.group(0)
+    if fonts_css and FONTS_LINK in head_html:
+        inline = re.sub(r"url\((['\"]?)\./", r"url(\1fonts/", fonts_css).replace("</style", "<\\/style")
+        head_html = head_html.replace(FONTS_LINK, '<style id="vt-fonts">\n' + inline + "\n</style>", 1)
     safe = script.replace("</script", "<\\/script")
-    return (head.group(0) + "\n<body>\n" + root_html + "\n" + GSAP_TAG + "\n<script>\n" + safe + "\n</script>\n</body>\n</html>\n")
+    return (head_html + "\n<body>\n" + root_html + "\n" + GSAP_TAG + "\n<script>\n" + safe + "\n</script>\n</body>\n</html>\n")
+
+
+def _read(p: Path) -> str:
+    return p.read_text(encoding="utf-8") if p.exists() else ""
 
 
 def captions_page(cap: dict) -> str:
@@ -80,7 +94,8 @@ def bake(comp_dir: Path, out_dir: Path) -> dict:
     if out_dir.exists():
         shutil.rmtree(out_dir)
     shutil.copytree(comp_dir, out_dir, copy_function=_link_or_copy, ignore=shutil.ignore_patterns("baked", ".bake-*", "index.html"))
-    (out_dir / "index.html").write_text(page_of((comp_dir / "index.html").read_text(encoding="utf-8"), got["html"], got["script"]), encoding="utf-8")
+    (out_dir / "index.html").write_text(page_of((comp_dir / "index.html").read_text(encoding="utf-8"), got["html"], got["script"],
+                                                         (comp_dir / "fonts" / "fonts.css").read_text(encoding="utf-8") if (comp_dir / "fonts" / "fonts.css").exists() else ""), encoding="utf-8")
     cap = got.get("captions")
     if cap:
         (out_dir / "captions.html").write_text(captions_page(cap), encoding="utf-8")

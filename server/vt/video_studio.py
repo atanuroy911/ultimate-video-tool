@@ -75,6 +75,10 @@ def prepare(project, tag: str, comp_dir: Path, *, fresh: bool = False) -> dict:
         shutil.rmtree(old, ignore_errors=True)
         shutil.move(str(d), str(old))
     got = bake(comp_dir, d)
+    if got["lost_count"]:                                          # an export from this copy would not move like the video: never offer it
+        shutil.rmtree(d, ignore_errors=True)
+        raise ST.StudioError(f"This video has {got['lost_count']} animation step(s) the Studio cannot hold yet (for example stick figures, whose "
+                             "limbs are drawn by code every frame). Edit it in Video Tool's own editor for now.")
     shutil.copy(d / "index.html", d / BASELINE)
     (d / STAMP).write_text(json.dumps({"from": fingerprint(comp_dir), "lost": got["lost"][:20], "lost_count": got["lost_count"]}, indent=1), encoding="utf-8")
     return {**info(project, tag, comp_dir), "kept": False, "lost_count": got["lost_count"]}

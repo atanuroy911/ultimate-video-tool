@@ -79,3 +79,23 @@ def test_an_export_without_captions_keeps_the_studio_edits(video, tmp_path):
     html = (where / "index.html").read_text(encoding="utf-8")
     assert "Each minute" in html and "data-composition-src" not in html and not (where / "captions.html").exists()
     assert VS.for_render(proj, "9x16", comp)[0] == d, "with captions the Studio folder itself is drawn"
+
+
+def test_a_video_the_bake_cannot_hold_is_not_offered(tmp_path, monkeypatch):
+    from vt import shot_studio as ST
+    from vt import video_studio as VS
+
+    proj = SimpleNamespace(id="s", dir=tmp_path / "s")
+    comp = proj.dir / "composition" / "9x16"
+    comp.mkdir(parents=True)
+    (comp / "data.json").write_text("{}", encoding="utf-8")
+
+    def fake_bake(src, out):
+        out.mkdir(parents=True)
+        (out / "index.html").write_text("<html></html>", encoding="utf-8")
+        return {"lost": [{"what": "a callback on a tween"}] * 17, "lost_count": 17}
+
+    monkeypatch.setattr(VS, "bake", fake_bake)
+    with pytest.raises(ST.StudioError, match="17 animation step"):
+        VS.prepare(proj, "9x16", comp)
+    assert not VS.folder(proj, "9x16").exists(), "nothing is left for an export to draw"

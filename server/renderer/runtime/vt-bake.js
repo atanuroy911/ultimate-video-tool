@@ -20,10 +20,14 @@
     if (typeof t === "object" && t.length != null) { var out = []; for (var i = 0; i < t.length; i++) out = out.concat(els(t[i])); return out; }
     return [];
   }
+  function isEase(fn) { try { return typeof fn === "function" && fn.length <= 1 && typeof fn(0.5) === "number" && fn(0) === 0 && Math.abs(fn(1) - 1) < 1e-9; } catch (e) { return false; } }
   function hasFn(v, d) {
     if (d > 4 || v == null) return false;
-    if (typeof v === "function") return true;
-    if (typeof v === "object" && !v.nodeType) { for (var k in v) if (hasFn(v[k], d + 1)) return true; }
+    if (typeof v === "function") return !easeNames.has(v) && !isEase(v);
+    if (typeof v === "object" && !v.nodeType) {
+      if (typeof v.totalDuration === "function") return false;                // a timeline or tween GSAP linked in: not an option
+      for (var k in v) if (k !== "parent" && k.charAt(0) !== "_" && hasFn(v[k], d + 1)) return true;
+    }
     return false;
   }
   var props = new WeakMap();              // element -> the CSS properties GSAP animates on it (only these go back to their built value)
@@ -63,7 +67,15 @@
     if (v == null || typeof v !== "object" || v.nodeType || d > 6) return v;
     if (Array.isArray(v)) return v.map(function (x) { return snap(x, d + 1); });
     if (Object.getPrototypeOf(v) !== Object.prototype) return v;         // a timeline, a tween: kept as it is
-    var o = {}; for (var k in v) o[k] = snap(v[k], d + 1); return o;
+    var o = {}; for (var k in v) o[k] = k === "ease" && typeof v[k] === "function" && easeNames.has(v[k]) ? easeNames.get(v[k]) : snap(v[k], d + 1); return o;
+  }
+  var easeNames = new Map(), allArgs = [];
+  // The runtime plays its timeline while it builds (it measures where things land), which writes animation states into inline styles. The style of
+  // every element just before the first play is its built style; an element made later is read when GSAP first touches it.
+  function freezeAll() {
+    var r = document.querySelector("[data-composition-id]");
+    if (!r) return;
+    r.querySelectorAll("*").forEach(function (el) { if (!firstStyle.has(el)) firstStyle.set(el, el.getAttribute("style")); });
   }
   function wrap(tl) {
     calls.set(tl, []);
@@ -76,12 +88,24 @@
           rec.targets = els(a[0]);
           remember(rec.targets, a[1]);
           if (m === "fromTo") remember(rec.targets, a[2]);
-          if (hasFn(a.slice(1), 0)) rec.fn = true;
+          if (hasFn(a.slice(1), 0)) { rec.fn = true; rec.fnKeys = a.slice(1).reduce(function (k, v) { if (v && typeof v === "object") for (var x in v) if (x !== "parent" && x.charAt(0) !== "_" && hasFn(v[x], 1)) k.push(x); return k; }, []); }
         }
         if (m === "call") rec.fn = true;
         calls.get(tl).push(rec);
-        return orig.apply(null, a);
+        allArgs.push(rec.args);
+        var before = tl._recent;
+        // GSAP gets the runtime's own objects (the runtime reads some back after GSAP changed them). GSAP turns an ease name into a function in the
+        // object it is given; the name is kept for that function, so a later copy of the object still writes the name.
+        var out = orig.apply(null, a);
+        a.forEach(function (x, i) { var r = rec.args[i]; if (i && x && r && typeof r === "object" && typeof r.ease === "string" && typeof x.ease === "function") easeNames.set(x.ease, r.ease); });
+        if (tl._recent && tl._recent !== before) rec.child = tl._recent;      // the tween or timeline this call put on the timeline (GSAP keeps the latest one)
+        return out;
       };
+    });
+    ["time", "totalTime", "progress", "totalProgress", "seek", "play", "restart"].forEach(function (m) {   // the first time any timeline is played,
+      var orig = tl[m];                                                                                   // every element's style is still as built
+      if (typeof orig !== "function") return;
+      tl[m] = function () { if (arguments.length || m === "play" || m === "restart") freezeAll(); return orig.apply(tl, arguments); };
     });
     ["tweenFromTo", "tweenTo"].forEach(function (m) {
       var orig = tl[m].bind(tl);
@@ -95,7 +119,19 @@
     g[m] = function () {
       var a = [].slice.call(arguments);
       if (m !== "set") lost.push({ what: "gsap." + m + " outside a timeline", el: (els(a[0])[0] || {}).className || "" });
-      return orig.apply(null, a);
+      var out = orig.apply(null, a);
+      if (m === "set") {                                                       // applied at once, so part of the built page: the remembered built style takes it in
+        var touchedProps = new Set();
+        cssOf(a[1], touchedProps, 0);
+        els(a[0]).forEach(function (el) {
+          if (!firstStyle.has(el)) return;                                     // not animated yet: its built style is read later, with this in it
+          var b = document.createElement("div");
+          b.setAttribute("style", firstStyle.get(el) || "");
+          touchedProps.forEach(function (p) { var v = el.style.getPropertyValue(p); if (v) b.style.setProperty(p, v); else b.style.removeProperty(p); });
+          firstStyle.set(el, b.getAttribute("style"));
+        });
+      }
+      return out;
     };
   });
 
@@ -120,59 +156,93 @@
     d = d || 0;
     if (v == null || typeof v === "number" || typeof v === "boolean") return v === undefined ? "undefined" : JSON.stringify(v);
     if (typeof v === "string") return JSON.stringify(v);
-    if (typeof v === "function") return "undefined";
+    if (typeof v === "function") {
+      if (easeNames.has(v)) return JSON.stringify(easeNames.get(v));
+      if (isEase(v)) lost.push({ what: "an ease without a name (GSAP's default is used)" });
+      return "undefined";
+    }
     if (v.nodeType === 1) return "$(" + JSON.stringify(idOf(v)) + ")";
     if (d > 6) return "null";
     if (Array.isArray(v)) return "[" + v.map(function (x) { return js(x, d + 1); }).join(",") + "]";
     if (made.has(v)) return null;                                           // handled by the caller
-    return "{" + Object.keys(v).filter(function (k) { return typeof v[k] !== "function"; }).map(function (k) { return JSON.stringify(k) + ":" + js(v[k], d + 1); }).join(",") + "}";
+    // GSAP keeps its own links in an options object the runtime may reuse (parent, _-fields, timelines): they are not options and never written
+    var gsapOwn = function (x) { return x && typeof x === "object" && typeof x.totalDuration === "function"; };
+    return "{" + Object.keys(v).filter(function (k) { return typeof v[k] !== "function" && k !== "parent" && k.charAt(0) !== "_" && !gsapOwn(v[k]); }).map(function (k) { return JSON.stringify(k) + ":" + js(v[k], d + 1); }).join(",") + "}";
   }
 
   window.__vtBake = function () {
+    // every ease name the page used (and GSAP's own), parsed by GSAP: a function GSAP put in place of a name is written as that name again
+    var seenNames = new Set(["none", "linear"]);
+    ["power0", "power1", "power2", "power3", "power4", "back", "elastic", "bounce", "circ", "expo", "sine"].forEach(function (b) { ["in", "out", "inOut"].forEach(function (d) { seenNames.add(b + "." + d); }); });
+    (function walk(v, d) { if (!v || d > 6) return; if (typeof v === "string") return; if (Array.isArray(v)) return v.forEach(function (x) { walk(x, d + 1); }); if (typeof v === "object" && !v.nodeType && Object.getPrototypeOf(v) === Object.prototype) for (var k in v) { if (k === "ease" && typeof v[k] === "string") seenNames.add(v[k]); else walk(v[k], d + 1); } })(allArgs, 0);
+    seenNames.forEach(function (n) { try { var fn = gsap.parseEase(n); if (typeof fn === "function" && !easeNames.has(fn)) easeNames.set(fn, n); } catch (e) { /* not an ease */ } });
     var root = window.__timelines && (window.__timelines.root || window.__timelines[Object.keys(window.__timelines)[0]]);
     if (!root) return { error: "the page made no timeline" };
-    var names = new Map(), order = [], code = [];
-    function name(tl) { if (!names.has(tl)) { names.set(tl, "t" + names.size); order.push(tl); } return names.get(tl); }
-    name(root);
-    for (var i = 0; i < order.length; i++) {                                // a timeline added into another is written too (in the order met)
-      (calls.get(order[i]) || []).forEach(function (c) {
-        if (c.m === "add" && c.args[0] && typeof c.args[0] === "object") {
-          var src = made.get(c.args[0]);
-          if (src) name(src.of); else if (calls.has(c.args[0])) name(c.args[0]);
-        }
-      });
-    }
-    var touched = new Set();
+    var names = new Map(), code = [], touched = new Set();
     var capLayer = document.querySelector("[data-composition-id] .cap-layer"), capCode = [];
-    order.slice().reverse().forEach(function (tl) {                          // children first, so the parent can add them
-      var me = names.get(tl);
-      code.push("const " + me + " = gsap.timeline({ paused: true });");
-      (calls.get(tl) || []).forEach(function (c) {
-        if (c.fn) { lost.push({ what: c.m + " with a callback", el: c.targets && c.targets[0] ? (c.targets[0].className || c.targets[0].tagName) : "" }); }
-        if (c.m === "call") return;
-        if (c.m === "add") {
-          var x = c.args[0], pos = c.args.length > 1 ? "," + js(c.args[1]) : "";
-          if (typeof x === "string") { code.push(me + ".add(" + JSON.stringify(x) + pos + ");"); return; }
-          var src = x && made.get(x);
-          if (src) { code.push(me + ".add(" + names.get(src.of) + "." + src.m + "(" + src.args.map(function (a) { return js(a); }).join(",") + ")" + pos + ");"); return; }
-          if (x && calls.has(x)) { code.push(me + ".add(" + names.get(x) + pos + ");"); return; }
-          lost.push({ what: "add of something that is not a timeline" });
+    var isTL = function (x) { return x && typeof x.getChildren === "function"; };
+    var isEl = function (x) { return x && x.nodeType === 1; };
+    var at3 = function (n) { return Math.round(n * 10000) / 10000; };
+    function clean(vars) {                                                   // the tween's options as GSAP holds them now, without its own links and timing
+      var o = {};
+      for (var k in vars) { if (k === "delay" || k === "parent" || k.charAt(0) === "_" || typeof vars[k] === "function" || k === "data") continue; o[k] = vars[k]; }
+      return o;
+    }
+    // A count-up redraws a number from a callback on a plain object. Its effect is sampled: the root timeline is stepped through the tween 30 times a
+    // second while the text it writes is watched, and each change becomes a plain text step at that moment.
+    function sample(tw) {
+      var keep = root.time(), from = tw.startTime(), dur = tw.duration(), seen = new Map(), last = new Map(), steps = [];
+      var watchRoot = document.querySelector("[data-composition-id]");
+      var obs = new MutationObserver(function () {});
+      obs.observe(watchRoot, { characterData: true, childList: true, subtree: true });
+      for (var k = 0; k <= Math.ceil(dur * 30) + 1; k++) {
+        var t = from + Math.min(dur, k / 30);
+        root.time(t);
+        obs.takeRecords().forEach(function (m) { var el = m.type === "characterData" ? m.target.parentElement : m.target; if (isEl(el)) seen.set(el, el.textContent); });
+        seen.forEach(function (txt, el) { if (last.get(el) !== txt) { last.set(el, txt); steps.push([el, t, txt]); } });
+        seen.clear();
+      }
+      obs.disconnect();
+      root.time(keep);
+      return steps;
+    }
+    function define(tl) {                                                    // writes a timeline (its children first when they are timelines) and returns its name
+      if (names.has(tl)) return names.get(tl);
+      var me = "t" + names.size;
+      names.set(tl, me);
+      var v = clean(tl.vars || {});
+      if (tl !== root) v.paused = !!(tl.vars && tl.vars.paused);
+      code.push("const " + me + " = gsap.timeline(" + (tl === root ? "{ paused: true }" : js(v)) + ");");
+      var done = new Set(), list = [], recOf = new Map();
+      (calls.get(tl) || []).forEach(function (c) { if (c.child && !done.has(c.child)) { done.add(c.child); list.push(c.child); recOf.set(c.child, c); } });
+      tl.getChildren(false, true, true).forEach(function (ch) { if (!done.has(ch)) { done.add(ch); list.push(ch); } });   // made some other way
+      var noDelay = function (o) { if (!o || typeof o !== "object" || Array.isArray(o)) return o; var r = {}; for (var k in o) if (k !== "delay") r[k] = o[k]; return r; };
+      list.forEach(function (ch) {
+        if (ch.parent !== tl) return;                                        // killed or moved since (settleEntrance replaces some entrances with a set)
+        var start = at3(ch.startTime());                                     // where it is now (the runtime moves some tweens after making them)
+        if (isTL(ch)) { code.push(me + ".add(" + define(ch) + "," + start + ");"); return; }
+        var src = made.get(ch);
+        if (src) { code.push(me + ".add(" + define(src.of) + "." + src.m + "(" + src.args.map(function (a) { return js(a); }).join(",") + ")," + start + ");"); return; }
+        var targets = ch.targets(), rec = recOf.get(ch);
+        if (!targets.length) { lost.push({ what: "a call", keys: "callback" }); return; }
+        if (!targets.every(isEl)) {                                          // a plain object: a count-up
+          var steps = tl === root ? sample(ch) : [];
+          if (steps.length) steps.forEach(function (s) { touched.add(s[0]); code.push(me + ".set([" + JSON.stringify(idOf(s[0])) + "].map($)," + JSON.stringify({ textContent: s[2] }) + "," + at3(s[1]) + ");"); });
+          else lost.push({ what: "a tween of something that is not on the page", keys: (rec && rec.fnKeys || []).join(",") });
           return;
         }
-        if (c.m === "addLabel") { code.push(me + ".addLabel(" + c.args.map(function (a) { return js(a); }).join(",") + ");"); return; }
-        if (!c.targets.length) return;
-        c.targets.forEach(function (el) { touched.add(el); });
-        var tg = "[" + c.targets.map(function (el) { return JSON.stringify(idOf(el)); }).join(",") + "].map($)";
-        var rest = c.args.slice(1).map(function (a) { return js(a); });
-        // a tween of caption parts only, at a fixed time on the root timeline, goes to the captions' own composition (same time: it starts at 0)
-        var last = c.args[c.args.length - 1];
-        if (capLayer && tl === root && c.args.length >= (c.m === "fromTo" ? 4 : 3) && typeof last === "number" && c.targets.every(function (el) { return capLayer.contains(el); })) {
-          capCode.push("tc." + c.m + "(" + tg + "," + rest.join(",") + ");");
-          return;
-        }
-        code.push(me + "." + c.m + "(" + tg + "," + rest.join(",") + ");");
+        if (!rec || !/^(to|from|fromTo|set)$/.test(rec.m)) { lost.push({ what: "a tween made another way", el: targets[0].className || targets[0].tagName }); return; }
+        if (rec.fn) lost.push({ what: "a callback on a tween", keys: (rec.fnKeys || []).join(","), el: targets[0].className || targets[0].tagName });
+        targets.forEach(function (el) { touched.add(el); });
+        var opts = rec.args.slice(1, rec.m === "fromTo" ? 3 : 2).map(noDelay);     // the options as the runtime gave them (GSAP turns eases into functions in its copy)
+        var line = "." + rec.m + "([" + targets.map(function (el) { return JSON.stringify(idOf(el)); }).join(",") + "].map($)," + opts.map(function (o) { return js(o); }).join(",") + "," + start + ");";
+        // a tween of caption parts only goes to the captions' own composition (same times: it starts at 0)
+        if (capLayer && tl === root && targets.every(function (el) { return capLayer.contains(el); })) { capCode.push("tc" + line); return; }
+        code.push(me + line);
       });
-    });
+      return me;
+    }
+    define(root);
     // the page as built, before the timeline moved anything: GSAP-set styles, attributes and text go back to what the builder wrote
     // (done on a copy of the page: the live page keeps the nodes the timeline holds)
     var rootEl = document.querySelector("[data-composition-id]");
@@ -210,7 +280,7 @@
         to = Math.max(to, tw.endTime());
       });
       if (!isFinite(from) || i === 0) from = 0;
-      var hidden = direct.some(function (tw) { return tw.targets().indexOf(sc) >= 0 && tw.vars && (tw.vars.opacity === 0 || tw.vars.autoAlpha === 0); });
+      var hidden = direct.some(function (tw) { return tw.targets().indexOf(sc) >= 0 && tw.vars && (tw.vars.opacity === 0 || tw.vars.autoAlpha === 0 || tw.vars.visibility === "hidden"); });
       if (!hidden || !isFinite(to)) to = total;
       to = Math.min(total, to + 1 / 30);                                     // one frame more: never cut the last frame of a fade
       c.setAttribute("data-start", String(Math.round(from * 1000) / 1000));
@@ -246,6 +316,6 @@
     }
     var html = copy.outerHTML;
     var script = "const $ = (id) => document.getElementById(id);\n" + code.join("\n") + "\nwindow.__timelines = window.__timelines || {};\nwindow.__timelines[" + JSON.stringify(rootEl.getAttribute("data-composition-id") || "root") + "] = t0;";
-    return { html: html, script: script, captions: captions, lost: lost, timelines: order.length, elements: touched.size };
+    return { html: html, script: script, captions: captions, lost: lost, timelines: names.size, elements: touched.size };
   };
 })();

@@ -897,8 +897,9 @@
         if (typeof e.until === "number" && e.until < sc.end - 0.3) {
           // its line is over: it leaves and the picture behind gets the frame back (pacing.dwell; it used to stay until the scene ended)
           const out = Math.max(at + 0.6, e.until);
-          tl.to(w, { opacity: 0, scale: 0.96, duration: 0.28, ease: "power2.in" }, out);
-          tl.set(w, { visibility: "hidden" }, out + 0.29);
+          // autoAlpha: hidden at the end of the fade, shown again when the playhead goes back. A separate set(visibility: hidden) after it was not
+          // undone when HyperFrames seeks back from a later frame, so the card stayed hidden before its exit too (test_handback, 2026-11-24)
+          tl.to(w, { autoAlpha: 0, scale: 0.96, duration: 0.28, ease: "power2.in" }, out);
         }
       });
       if (sc.moves && window.VTX.motionScene) window.VTX.motionScene(sc.moves, tl, el, sc, W, H);         // opening, outro, camera and rhythm moves

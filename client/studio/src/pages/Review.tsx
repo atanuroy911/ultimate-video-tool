@@ -248,7 +248,8 @@ function ReviewEditor() {
     const sc = r.timing.scenes[studioScene];
     const t = studioAt ?? (sc ? Math.max(0, sc.start + 0.05) : 0);
     const sel = studioSel ? `&selFile=${encodeURIComponent(studioSel.file)}&selId=${encodeURIComponent(studioSel.id)}` : "";   // the Studio reads its selection from the address too
-    return studioUrl.split("?")[0] + "?t=" + t.toFixed(2) + sel;
+    const [page, hash = ""] = studioUrl.split("#");                       // the page (a gateway's carries its ticket) stays; only the hash changes
+    return page + "#" + hash.split("?")[0] + "?t=" + t.toFixed(2) + sel;
   }, [studioUrl, studioScene, studioSel, studioAt, r.timing.scenes]);
   // O7: while the Studio is open, a change to the video (a word edit, a cut, a Director note) is baked again with the Studio edits carried over;
   // the open Studio reloads by itself. A short pause gathers several changes; the refresh's own composing is not taken as a change.

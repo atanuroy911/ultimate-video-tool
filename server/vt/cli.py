@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -437,6 +438,13 @@ def _serve(host: str, port: Optional[int], name: str, services: dict[str, str], 
     serve.configure(key=ident["key"], name=name or ident.get("name", "") or socket.gethostname() or "Video Tool", services=services, exposed=exposed,
                     argv=again + ["--port", str(port)] if again else None, trust_network=serve.saved_trust_network())
     serve.STATE["port"] = port                                       # for addresses handed to assistants on other computers (prepare_upload)
+    if exposed or os.environ.get("VT_STUDIO_GATEWAY") == "1":         # the HyperFrames Studio for people on other computers (VT_STUDIO_GATEWAY=1: tests on this one)
+        from .server import studio_gateway
+
+        try:
+            console.print(f"  HyperFrames Studio for other computers: port {studio_gateway.start(host, port + 1)}")
+        except OSError as e:
+            console.print(f"  [yellow]The Studio cannot be offered to other computers: {e}[/yellow]")
     if start_at_login:
         for line in serve.autostart(True)["done"]:
             console.print(f"  start by itself: {line}")

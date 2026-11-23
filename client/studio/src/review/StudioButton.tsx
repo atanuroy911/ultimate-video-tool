@@ -20,7 +20,12 @@ export default function StudioButton({ projectId, embedded, onEmbed, assistantSh
   const open = async (fresh = false) => {
     setState("starting");
     try {
-      const s = await post<{ url: string; kept?: boolean; lost_count?: number }>(`${base}${fresh ? "?fresh=1" : ""}`);
+      const s = await post<{ url: string | null; why?: string; kept?: boolean; lost_count?: number }>(`${base}${fresh ? "?fresh=1" : ""}`);
+      if (!s.url) {                                                       // a server on another computer that does not offer its Studio
+        setState("off");
+        toast(s.why || "HyperFrames runs on the server's computer and cannot be opened from here.", "err");
+        return;
+      }
       setUrl(s.url);
       setState("open");
       show(s.url);

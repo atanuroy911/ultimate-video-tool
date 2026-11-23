@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 from typing import Any, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
 
@@ -156,6 +156,17 @@ def frame_crop(pid: str, t: float, x: int = 0, y: int = 0, w: int = 0, h: int = 
 
 # ---- O2: edit a shot in the HyperFrames Studio (docs/plans/PLAN-OPENMOTION.MD) ----
 
+def _for_caller(request: Request, out: dict) -> dict:
+    """The Studio listens on this computer only; a caller on another computer gets its address through the server's Studio gateway (with a ticket)."""
+    from .serve import is_this_computer
+    from .studio_gateway import address_for
+
+    if isinstance(out, dict) and out.get("url") and not is_this_computer(request.scope):
+        there = address_for(next((v.decode("latin-1") for k, v in request.scope.get("headers") or [] if k == b"host"), ""), out["url"])
+        out = {**out, "url": there} if there else {**out, "url": None, "why": "The Studio runs on the server's computer, and this server does not offer it to other computers."}
+    return out
+
+
 def _studio_call(fn, *a, **k):
     from .. import shot_studio as ST
 
@@ -166,20 +177,20 @@ def _studio_call(fn, *a, **k):
 
 
 @router.post("/api/projects/{pid}/shots/{sid}/studio")
-def studio_open(pid: str, sid: str) -> dict[str, Any]:
-    """Start the HyperFrames Studio on this shot (one shot at a time; another open one is saved and closed). Returns the Studio's local address."""
+def studio_open(pid: str, sid: str, request: Request) -> dict[str, Any]:
+    """Start the HyperFrames Studio on this shot (one shot at a time; another open one is saved and closed). Returns the Studio's address."""
     from .. import shot_studio as ST
 
     d = _shot(pid, sid)
-    return _studio_call(ST.open_shot, f"{pid}/{sid}", d, SH.theme_vars(project_or_404(pid)))
+    return _for_caller(request, _studio_call(ST.open_shot, f"{pid}/{sid}", d, SH.theme_vars(project_or_404(pid))))
 
 
 @router.get("/api/projects/{pid}/shots/{sid}/studio")
-def studio_status(pid: str, sid: str) -> dict[str, Any]:
+def studio_status(pid: str, sid: str, request: Request) -> dict[str, Any]:
     from .. import shot_studio as ST
 
     s = ST.status()
-    return s if s.get("key") == f"{pid}/{sid}" else {"open": False}
+    return _for_caller(request, s) if s.get("key") == f"{pid}/{sid}" else {"open": False}
 
 
 @router.post("/api/projects/{pid}/shots/{sid}/studio/save")
@@ -228,7 +239,7 @@ def _video_key(pid: str, aspect: Optional[str]) -> tuple[Any, str, str]:
 
 
 @router.post("/api/projects/{pid}/studio")
-def video_studio_open(pid: str, aspect: Optional[str] = None, fresh: bool = False) -> dict[str, Any]:
+def video_studio_open(request: Request, pid: str, aspect: Optional[str] = None, fresh: bool = False) -> dict[str, Any]:
     """Open the whole video in the HyperFrames Studio: the current composition is baked into plain source (earlier Studio edits on the same video are
     kept; fresh=1 starts over). Only one Studio runs at a time."""
     from ..compose.composer import compose_project
@@ -239,18 +250,18 @@ def video_studio_open(pid: str, aspect: Optional[str] = None, fresh: bool = Fals
         comp_dir = compose_project(project, aspect).parent
     except Exception as e:                                          # noqa: BLE001
         raise HTTPException(422, f"The video could not be put together for the Studio: {e}")
-    return _studio_call(VS.open_video, project, tag, comp_dir, fresh=fresh)
+    return _for_caller(request, _studio_call(VS.open_video, project, tag, comp_dir, fresh=fresh))
 
 
 @router.get("/api/projects/{pid}/studio")
-def video_studio_status(pid: str, aspect: Optional[str] = None) -> dict[str, Any]:
+def video_studio_status(request: Request, pid: str, aspect: Optional[str] = None) -> dict[str, Any]:
     from .. import shot_studio as ST
     from .. import video_studio as VS
 
     project, aspect, tag = _video_key(pid, aspect)
     s = ST.status()
     have = VS.info(project, tag, project.comp_dir / tag)
-    return {**(s if s.get("key") == f"{pid}/video/{tag}" else {"open": False}), "edited": have["edited"], "current": have["current"]}
+    return {**(_for_caller(request, s) if s.get("key") == f"{pid}/video/{tag}" else {"open": False}), "edited": have["edited"], "current": have["current"]}
 
 
 @router.delete("/api/projects/{pid}/studio")

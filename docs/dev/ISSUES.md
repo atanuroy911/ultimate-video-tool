@@ -69,4 +69,5 @@ Result: all 17 examples the reader found got B-roll (10 pictures drawn on this l
   atomic save's temporary file came and went. The bake skips temporary files and tries the copy again.
 - **HyperFrames' linter flags a tween of `left` on the talk** (`gsap_non_transform_motion`: layout properties snap to whole pixels in frame-by-frame
   capture). It comes from one of our runtime's motions, not from the bake; moving that motion to `x` would make it smoother. Minor.
+- **Once, a page error in the Studio through the gateway (2026-11-23)** on the first run right after the server started; three runs after it were clean. Watch for it (e2e/studio-gateway.mjs prints page errors).
 - **Desktop e2e runs left their helper running (found and fixed 2026-11-23):** 17 orphaned `helper.js` processes from test runs; the tests now stop it (`closeDesktop`). `app.close()` could also hang after the window closed; it has a time limit now.

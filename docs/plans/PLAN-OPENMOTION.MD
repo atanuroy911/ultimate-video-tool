@@ -137,3 +137,12 @@ recordings, Claude Code over ACP. Our own editor stays for those until each live
 - **O8 not yet:** our own editor is still needed where HyperFrames cannot go: videos it cannot hold (stick figures, whose limbs are drawn by code
   every frame), a web browser on another computer than the server (the Studio is bound to the server's own computer), and scene-level work the
   Studio has no place for (the Director's plan, shots). Retiring it waits for those three.
+- **HyperFrames from another computer (2026-11-23, one of O8's three blockers):** when the server listens beyond this computer it also opens the
+  **Studio gateway** (`vt/server/studio_gateway.py`, the server's port + 1). Every request there goes to the open Studio on 127.0.0.1, event streams
+  and saves included. Who gets through: this computer; a browser that came with a one-time ticket (two minutes) that our server hands only to a
+  caller it already let in, swapped for a cookie of this run (the key never goes into an address); or the desktop app, which sends the key as a
+  header for gateway requests (inside the app the Studio is on another site than the app's page, where a cookie would not be sent). Web pages from
+  elsewhere are refused (same Host/Origin rule as the server); only Video Tool may frame it. The Studio routes give a caller on another computer the
+  gateway's address; with no gateway they say so. Tests: tests/test_studio_gateway.py 4, e2e/studio-gateway.mjs 6/6 (the real Studio through
+  the gateway, its event stream too), desktop-studio 19/19. Screen: docs/dev/spikes/html-shot/studio-gateway.png.
+  Left of O8: stick-figure videos in HyperFrames, and the plan-level work (Director, shots) that has no place in the Studio.

@@ -1,0 +1,29 @@
+# Plan: scene-level HyperFrames editing and a scene generation panel
+
+Owner, 2026-11-23: "for image/video generation using some models, we should have a panel where we can generate multiple images for a scene (not
+initially done by the director, but we can through prompts and manual edits). Think of Higgsfield." And: "the Studio button is vague; we have
+HyperFrames inside our own Studio, so if we are editing via HyperFrames for a particular scene there should be more granular and intuitive controls."
+Reference picture: a three-column generation page (result player with versions; a grid of generated frames, each with "Redraw"; a setup column with
+reference images, style and quality presets Low / Normal / High / Ultra / Ultra Max, a progress list and one "Send" button).
+
+## Part S: HyperFrames per scene (granular, named for what it does)
+
+| # | Step | Done when |
+|---|---|---|
+| S1 | **Name it.** The header button says "Edit in HyperFrames"; inside the Studio a **scene bar** sits above it: ◀ Scene 3 of 7 ▶, the scene's words, and buttons *Pictures for this scene*, *Redo with the Director*, *Back to the editor*. ◀ ▶ move the Studio's playhead to that scene. | Moving scene by scene in the bar moves the Studio; each button does its one thing. |
+| S2 | **Open a scene, not the video.** Every scene card's menu and the scene inspector get *Edit this scene in HyperFrames*: the Studio opens at that scene's start with the scene's clip selected. | From scene 4's menu the Studio opens on scene 4. |
+| S3 | **The scene's parts in our words.** The scene bar lists the scene's parts (title, card, picture...) by their readable ids; clicking one selects it in the Studio (through its Layers panel). | Clicking "Term" in the bar selects S4 Defn Term in the Studio. |
+| S4 | **One scene as its own composition** (HyperFrames' own advice, `nested_structure_needs_subcomposition`): bake each scene to `scenes/<id>.html` mounted by the root, so the Studio can open one scene alone. | The Studio's Compositions panel lists one entry per scene; frames stay identical. |
+
+## Part G: a generation panel for a scene (Higgsfield-like)
+
+| # | Step | Done when |
+|---|---|---|
+| G1 | **Generate pictures for a scene.** A panel with three columns: the scene playing (left), the candidates grid (middle: each picture with *Use*, *Redraw*, *Variations*), the setup (right: prompt prefilled from the scene's words and the Director's note, reference pictures from the media bin, quality Draft / Normal / High / Ultra, how many 1-8, the picture model). *Generate* makes the pictures one after another (a job with progress per picture); each lands in the scene's candidates and in the media bin. *Use* puts the picture behind the scene (the same as the Director's picture backdrop). | Four pictures for scene 3 from a prompt; one used; the scene shows it; the others stay as candidates. |
+| G2 | **Clip from a picture.** A candidate's *Make it move* turns it into a short clip (the Wan 2.2 / LTX image-to-video workflows already there), shown in the grid as a clip; *Use* works the same. | A 3 s clip from a candidate plays behind the scene. |
+| G3 | **Prompt help.** *Write prompts for me*: the Director (or Claude Code) proposes N different prompts for the scene from its words and the video's look; the person edits them before generating. | Four distinct prompts appear and can be edited. |
+| G4 | **History per scene.** Every run is kept (prompt, seed, model, quality, time taken); *Redraw* reuses all of it with a new seed; candidates can be deleted. | Reopening the panel shows earlier runs; Redraw keeps the prompt. |
+
+Rules: the pictures come from the picture engine the person chose (ComfyUI on this computer or their own server address); nothing goes to a cloud
+service unless the person adds one in Settings. When no engine answers, the panel says so in one sentence and links to Settings. English UI.
+Order: S1, S2, G1, G4, S3, G2, G3, S4.

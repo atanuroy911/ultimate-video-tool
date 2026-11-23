@@ -99,3 +99,30 @@ def test_a_video_the_bake_cannot_hold_is_not_offered(tmp_path, monkeypatch):
     with pytest.raises(ST.StudioError, match="17 animation step"):
         VS.prepare(proj, "9x16", comp)
     assert not VS.folder(proj, "9x16").exists(), "nothing is left for an export to draw"
+
+
+def test_agents_read_and_change_the_studio_copy(video, tmp_path):
+    import shutil
+
+    from vt import shot_studio as ST
+    from vt import video_studio as VS
+
+    proj0, comp0 = video
+    proj = SimpleNamespace(id="a", dir=tmp_path / "a")
+    comp = proj.dir / "composition" / "9x16"
+    shutil.copytree(comp0, comp)
+    VS.prepare(proj, "9x16", comp)
+    ps = VS.parts(proj, "9x16")
+    term = next(x for x in ps if x["id"] == "s1-defn-term")
+    assert term["scene"] == "s1" and "minute" in term["text"]
+    assert any(x["file"] == "captions.html" for x in ps), "caption parts are listed too"
+    one = VS.part(proj, "9x16", "s1-defn-term")
+    assert one["animation"] and all('"s1-defn-term"' in ln for ln in one["animation"])
+    old = term["text"].split()[0]
+    got = VS.edit(proj, "9x16", f">{old} minute<", ">Each minute<")
+    assert got["ok"] and got["edited"]
+    with pytest.raises(ST.StudioError, match="exactly once"):
+        VS.edit(proj, "9x16", "no such text", "x")
+    with pytest.raises(ST.StudioError, match="timing"):
+        VS.edit(proj, "9x16", 'data-composition-id="root"', 'data-x="root"')
+    assert VS.selection(proj, "9x16")["selected"] is False

@@ -6,6 +6,7 @@ function instructions({ title, projectId }) {
     "Change the video only through the `video-tool` MCP tools. The person sees every change.",
     "Prefer small, precise changes to what they point at.",
     "When the message has a <video_references> block, [1], [2] ... in the text refer to its lines.",
+    "The person may be editing the video in the HyperFrames Studio (inside the editor). Then \"this\", \"it\" or \"the selected part\" means what they selected there: read studio_selection first, see the part with studio_part and change it with studio_edit (the Studio shows your change at once).",
     "When you mention a scene, a moment or an element in your reply, link it as a Markdown link whose target is vt://scene/s3 (text \"scene 3\"), vt://t/12.5 (text \"0:12.5\") or vt://element/s3/2 (text \"the title\").",
     "Never undo a change the person made by hand unless they ask.",
     "Keep replies short: say what you changed.",

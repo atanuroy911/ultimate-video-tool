@@ -862,6 +862,65 @@ def get_shot_frame(project: str, shot_id: str, time_seconds: float = 0.0) -> Ima
     return Image(path=str(got[0]))
 
 
+# ---- O6 (docs/plans/PLAN-OPENMOTION.MD): the video as the person edits it in the HyperFrames Studio ----
+
+def _studio(project: str, aspect: Optional[str] = None):
+    from ..compose import FORMATS
+
+    p = _proj(project)
+    aspect = aspect or p.meta().aspect
+    return p, FORMATS[aspect]["tag"]
+
+
+@tool
+def studio_parts(project: str, scene: Optional[str] = None, aspect: Optional[str] = None) -> dict:
+    """The parts of the video's Studio copy (the HyperFrames source the person edits in the Studio): id, scene, tag and the start of the text.
+    Makes the copy first if the video has none. Ids read like 's4-defn-term' (scene s4, the definition's term). Use studio_part to see one, studio_edit to change it."""
+    from .. import video_studio as VS
+    from ..compose.composer import compose_project
+
+    p, tag = _studio(project, aspect)
+    if not (VS.folder(p, tag) / "index.html").exists():
+        VS.prepare(p, tag, compose_project(p, aspect).parent)
+    have = VS.info(p, tag, p.comp_dir / tag)
+    return {"parts": VS.parts(p, tag, scene), "edited": have["edited"], "fits_current_video": have["current"]}
+
+
+@tool
+def studio_part(project: str, part_id: str, aspect: Optional[str] = None) -> dict:
+    """One part of the Studio copy: its opening tag (styles), what is inside it, and its animation lines (GSAP calls that address it by id, with times in seconds)."""
+    from .. import video_studio as VS
+
+    p, tag = _studio(project, aspect)
+    return VS.part(p, tag, part_id)
+
+
+@tool
+def studio_edit(project: str, find: str, replace: str, file: str = "index.html", aspect: Optional[str] = None) -> dict:
+    """Change the Studio copy: replace one exact piece of its code (it must appear exactly once; copy it from studio_part). Text, styles and GSAP lines can all
+    be changed this way. The Studio, if open, reloads at once and the person sees it; the export draws the edited copy. file: index.html or captions.html."""
+    from .. import video_studio as VS
+
+    p, tag = _studio(project, aspect)
+    got = VS.edit(p, tag, find, replace, file)
+    try:
+        from ..server.app import changed
+        changed(p.id, by="agent")
+    except Exception:                                                  # noqa: BLE001
+        pass
+    return got
+
+
+@tool
+def studio_selection(project: str, aspect: Optional[str] = None) -> dict:
+    """What the person has selected in the open HyperFrames Studio right now: the part's id, label, text, the moment (seconds) and its place on the frame.
+    When they say "this" or "make it bigger" while the Studio is open, look here first."""
+    from .. import video_studio as VS
+
+    p, tag = _studio(project, aspect)
+    return VS.selection(p, tag)
+
+
 @tool
 def make_picture(project: str, prompt: str, aspect: str = "", seed: int = 1) -> dict:
     """Draw one picture with the picture engine on this computer (ComfyUI) and put it in the project's media bin. About 15 s on a 6 GB card, 30 s the first time.

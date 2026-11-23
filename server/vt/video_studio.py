@@ -108,3 +108,101 @@ def for_render(project, tag: str, comp_dir: Path, captions: bool = True) -> tupl
         return Path(have["dir"]), None
     return comp_dir, ("The video changed after it was edited in the Studio, so those Studio edits are not in this export. "
                       "Open the Studio again to edit the new version (the old edits are kept in the project folder).")
+
+
+# ---- O6: agents work on the same copy the person edits in the Studio ----
+
+_ID_TAG = re.compile(r'<([a-zA-Z][\w-]*)\b([^>]*?)\sid="([^"]+)"([^>]*)>')
+FILES = ("index.html", "captions.html")
+
+
+def _page(project, tag: str, file: str = "index.html") -> Path:
+    if file not in FILES:
+        raise ST.StudioError(f"The Studio copy has {' and '.join(FILES)}; '{file}' is not one of them.")
+    p = folder(project, tag) / file
+    if not p.exists():
+        raise ST.StudioError("This video has no Studio copy yet: open it in the Studio first (or call studio_parts, which makes one).")
+    return p
+
+
+def parts(project, tag: str, scene: Optional[str] = None, limit: int = 400) -> list[dict]:
+    """Every part with an id in the Studio copy: its id, the scene it belongs to, its tag and the start of its text."""
+    out = []
+    for file in FILES:
+        p = folder(project, tag) / file
+        if not p.exists():
+            continue
+        html = p.read_text(encoding="utf-8")
+        body = html[html.find("<body"):] if "<body" in html else html
+        for m in _ID_TAG.finditer(body):
+            pid = m.group(3)
+            sc = re.match(r"(s\d+[a-z0-9]*)-", pid)
+            if scene and (not sc or sc.group(1) != scene):
+                continue
+            first = body[m.end(): m.end() + 400].split("</div>", 1)[0]            # its own first text (a part's children come before its end)
+            text = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", first)).strip()[:60]
+            out.append({"id": pid, "file": file, "scene": sc.group(1) if sc else None, "tag": m.group(1), "text": text})
+            if len(out) >= limit:
+                return out
+    return out
+
+
+def part(project, tag: str, part_id: str) -> dict:
+    """One part: its opening tag, the start of what is inside it, and every animation line on it (GSAP code addressing its id)."""
+    for file in FILES:
+        p = folder(project, tag) / file
+        if not p.exists():
+            continue
+        html = p.read_text(encoding="utf-8")
+        m = re.search(r'<[a-zA-Z][\w-]*\b[^>]*\sid="' + re.escape(part_id) + r'"[^>]*>', html)
+        if not m:
+            continue
+        inside = html[m.end(): m.end() + 1500]
+        lines = [ln.strip() for ln in html.splitlines() if f'"{part_id}"' in ln and ".map($)" in ln][:40]
+        return {"id": part_id, "file": file, "tag": m.group(0), "inside": inside, "animation": lines}
+    raise ST.StudioError(f"No part '{part_id}' in the Studio copy; studio_parts lists them.")
+
+
+def edit(project, tag: str, find: str, replace: str, file: str = "index.html") -> dict:
+    """Replace one exact piece of the Studio copy (it must appear exactly once). The page must stay a timed composition. The open Studio reloads it."""
+    p = _page(project, tag, file)
+    html = p.read_text(encoding="utf-8")
+    n = html.count(find) if find else 0
+    if n != 1:
+        raise ST.StudioError(f"The text to replace appears {n} times; give a piece that appears exactly once (studio_part shows a part's exact code).")
+    new = html.replace(find, replace, 1)
+    if file == "index.html":
+        from . import shots as SH
+        try:
+            SH.info_of("video", new, {})
+        except SH.ShotError as e:
+            raise ST.StudioError(f"That change would break the video's timing: {e}")
+    tmp = p.with_name(p.name + ".tmp")
+    tmp.write_text(new, encoding="utf-8")
+    tmp.replace(p)
+    return {"ok": True, "file": file, "edited": info(project, tag)["edited"]}
+
+
+def selection(project, tag: str) -> dict:
+    """What the person has selected in the open Studio right now (id, label, text, time, place), or why there is nothing."""
+    import json as _json
+    import subprocess
+
+    from .render.hyperframes import _env, hyperframes_cmd
+
+    s = ST.status()
+    if not s.get("open") or s.get("key") != f"{project.id}/video/{tag}":
+        return {"selected": False, "reason": "The video is not open in the Studio."}
+    try:
+        out = subprocess.run(hyperframes_cmd("preview", "--selection", "--json", "--port", str(s["port"]), str(folder(project, tag))),
+                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30, env=_env()).stdout
+        got = _json.loads(out[out.index("{"): out.rindex("}") + 1])
+    except Exception as e:                                           # noqa: BLE001
+        return {"selected": False, "reason": f"The Studio did not answer: {str(e)[:120]}"}
+    sel = got.get("selection")
+    if not got.get("ok") or not sel:
+        return {"selected": False, "reason": (got.get("error") or {}).get("message", "Nothing is selected in the Studio.")}
+    t = sel.get("target") or {}
+    box = sel.get("boundingBox") or {}
+    return {"selected": True, "id": t.get("id"), "selector": t.get("selector"), "label": sel.get("label"), "text": (sel.get("textContent") or "")[:200],
+            "file": sel.get("sourceFile"), "time": sel.get("currentTime"), "box": [round(box.get(k, 0)) for k in ("x", "y", "width", "height")]}

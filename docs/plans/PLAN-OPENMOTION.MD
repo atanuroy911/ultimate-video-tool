@@ -102,3 +102,12 @@ recordings, Claude Code over ACP. Our own editor stays for those until each live
   our panels inside the Studio's own layout; today the Studio runs unchanged, so its updates come with `npm install`.
   Tested: `client/studio/e2e/desktop-studio.mjs` 7/7 in the real desktop app.
 - **Next: O6** (the Studio's "Describe a change to the agent" goes to our Claude Code / Director; our MCP tools read and write the baked video).
+- **O6 done for Claude Code (2026-11-23):** new MCP tools `studio_parts`, `studio_part`, `studio_edit` (one exact replacement, checked to keep the video
+  timed) and `studio_selection` (what the person selected in the open Studio, read from HyperFrames' own `preview --selection --json`), in
+  `vt/video_studio.py`. Claude Code's instructions say "this / the selected part" means the Studio selection. Real test with Claude Sonnet in the desktop
+  app (`e2e/desktop-studio-agent.mjs` 4/4): the person selects "S4 Defn Term" in the embedded Studio and asks Claude Code to change "the selected part";
+  it reads the selection, the part and edits it in 11 s; the Studio reloads by itself with the new words and the part still selected
+  (docs/dev/spikes/html-shot/o6-claude-in-the-studio.png).
+- **O6 left:** the Studio's own "Ask agent about this element" / "Describe a change to the agent" box still talks to HeyGen's agent flow, not ours
+  (route it to the docked Claude Code); the Director chat does not have the studio tools yet; whether an agent's file edit is undoable in the Studio's
+  history is not checked yet.

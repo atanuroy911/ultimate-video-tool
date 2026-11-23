@@ -24,7 +24,7 @@ await page.goto(`${base}/p/${pid}`, { waitUntil: "load" });
 await page.waitForSelector(".wb .wb-viewer", { timeout: 45000 });
 
 const popup = ctx.waitForEvent("page", { timeout: 120000 }).catch(() => null);
-await page.getByRole("button", { name: "Edit in the Studio" }).click();
+await page.getByRole("button", { name: "Edit in HyperFrames" }).click();
 const studio = await popup;
 check("the Studio button opens the whole video in the Studio's own window", !!studio);
 if (!studio) { await browser.close(); process.exit(1); }
@@ -33,7 +33,7 @@ await studio.waitForLoadState("load").catch(() => {});
 await studio.waitForTimeout(6000);
 const text = await studio.locator("body").innerText();
 check("its timeline shows the scenes as clips", /S2 Scene/.test(text) && /S4 Scene/.test(text));
-check("the editor shows the Studio is open", await page.getByRole("button", { name: "Studio open" }).isVisible());
+check("the editor shows the Studio is open", await page.getByRole("button", { name: "HyperFrames open" }).isVisible());
 
 const at = Number(process.env.VT_AT || 15);                  // Layers opens the scene under the playhead: put it in the part's scene (ruler: 0 s at x 85, 41.7 px a second here)
 await studio.mouse.click(85 + at * 41.7, 723);
@@ -78,7 +78,7 @@ const log = await (await fetch(`${base}/api/jobs/${job.id || job.job_id || job.j
 check("the export finished", (j?.status || j?.state) === "done", JSON.stringify(j).slice(0, 200));
 check("the export drew the video as edited in the Studio", /edited in the Studio/.test(log) || /edited in the Studio/.test(JSON.stringify(j)));
 
-await page.getByRole("button", { name: "Studio open" }).click();
+await page.getByRole("button", { name: "HyperFrames open" }).click();
 await page.getByRole("menuitem", { name: "Close the Studio" }).click();
 await page.waitForTimeout(2000);
 check("closing stops the Studio", (await api("GET", `/api/projects/${pid}/studio`)).open === false);

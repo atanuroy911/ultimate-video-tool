@@ -34,6 +34,8 @@ const CANVAS: Record<string, { width: number; height: number }> = { "9:16": { wi
 import CaptionLook from "../review/CaptionLook";
 import TranscriptPanel from "../review/TranscriptPanel";
 import StudioButton from "../review/StudioButton";
+import StudioSceneBar from "../review/StudioSceneBar";
+import ScenePictures from "../review/ScenePictures";
 import VideoInspector from "../review/VideoInspector";
 import { useReview, type DirectorState } from "../review/useReview";
 import type { LClip, MediaItem, SoundEvents, UseCase } from "../types";
@@ -219,6 +221,25 @@ function ReviewEditor() {
   const [directorMounted, setDirectorMounted] = useState(true);          // the assistant pane keeps the director conversation and its job poll alive
   const [showAssistant, setShowAssistant] = useState(() => window.innerWidth >= 1180);
   const [studioUrl, setStudioUrl] = useState<string | null>(null);          // O5: the HyperFrames Studio inside the editor (desktop app)
+  const [studioScene, setStudioScene] = useState(0);                        // S1: the scene the Studio is on (the scene bar moves it)
+  const [genScene, setGenScene] = useState<string | null>(null);            // G1: the scene whose pictures panel is open
+  useEffect(() => {                                                      // S2 / G1: from a scene's menu
+    const pics = (e: Event) => setGenScene(String((e as CustomEvent).detail || ""));
+    const hf = (e: Event) => {
+      const i = r.timing.scenes.findIndex((x) => x.id === (e as CustomEvent).detail);
+      if (i >= 0) setStudioScene(i);
+      window.dispatchEvent(new CustomEvent("vt-open-hyperframes"));
+    };
+    window.addEventListener("vt-scene-pictures", pics);
+    window.addEventListener("vt-scene-hyperframes", hf);
+    return () => { window.removeEventListener("vt-scene-pictures", pics); window.removeEventListener("vt-scene-hyperframes", hf); };
+  }, [r.timing.scenes]);
+  const studioSrc = useMemo(() => {                                         // a new hash moves the Studio's playhead without reloading it
+    if (!studioUrl) return null;
+    const sc = r.timing.scenes[studioScene];
+    const t = sc ? Math.max(0, sc.start + 0.05) : 0;
+    return studioUrl.split("?")[0] + "?t=" + t.toFixed(2);
+  }, [studioUrl, studioScene, r.timing.scenes]);
   // O7: while the Studio is open, a change to the video (a word edit, a cut, a Director note) is baked again with the Studio edits carried over;
   // the open Studio reloads by itself. A short pause gathers several changes; the refresh's own composing is not taken as a change.
   const studioQuiet = useRef(0), studioTimer = useRef<number | undefined>(undefined);
@@ -594,6 +615,8 @@ function ReviewEditor() {
         <Button size="sm" onClick={() => setAiOpen(true)} aria-label="AI assistant"><Sparkles size={15}/> AI</Button>
         <Button size="sm" variant="primary" onClick={exportNow}><Download size={15}/> Export</Button>
       </header>
+      {genScene && <ScenePictures projectId={id} sceneId={genScene} sceneLabel={String(r.timing.scenes.findIndex((s) => s.id === genScene) + 1 || genScene)}
+        onClose={() => setGenScene(null)} onUsed={r.reloadAll} />}
       <div className="ed-workspace-bar" hidden={!!studioUrl}>
         <div className="ed-panel-actions">
           <button className={`btn sm ${showBrowser ? "selected" : ""}`} aria-pressed={showBrowser} onClick={() => setShowBrowser(!showBrowser)}><PanelLeftClose size={15}/> Tools</button>
@@ -658,7 +681,12 @@ function ReviewEditor() {
           </aside>),
 
           viewer: (<section className="ed-canvas" aria-label="Canvas">
-            {studioUrl && <div className="studio-embed"><iframe title="HyperFrames Studio" src={studioUrl} allow="clipboard-read; clipboard-write" /></div>}
+            {studioUrl && studioSrc && <div className="studio-embed">
+              <StudioSceneBar scenes={r.timing.scenes} words={r.words} index={Math.min(studioScene, Math.max(0, r.timing.scenes.length - 1))} onGo={setStudioScene}
+                onPictures={(sid) => setGenScene(sid)}
+                onDirector={(sid) => { setShowAssistant(true); setAssistantTab("director"); setTimeout(() => window.dispatchEvent(new CustomEvent("vt-ask-director", { detail: { kind: "scene", scene: sid } })), 300); }}
+                onBack={() => setStudioUrl(null)} />
+              <iframe title="HyperFrames Studio" src={studioSrc} allow="clipboard-read; clipboard-write" /></div>}
             {shotEdit ? (
               <Suspense fallback={<Spinner />}>
                 <ShotEditor projectId={id} shotId={shotEdit} onClose={() => { setShotEdit(null); r.reloadAll(); }} />

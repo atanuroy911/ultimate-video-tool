@@ -27,3 +27,16 @@ reference images, style and quality presets Low / Normal / High / Ultra / Ultra 
 Rules: the pictures come from the picture engine the person chose (ComfyUI on this computer or their own server address); nothing goes to a cloud
 service unless the person adds one in Settings. When no engine answers, the panel says so in one sentence and links to Settings. English UI.
 Order: S1, S2, G1, G4, S3, G2, G3, S4.
+
+## Progress
+
+- **S1 done (2026-11-23):** the header button says **Edit in HyperFrames** ("HyperFrames open" while it is). Above the Studio a scene bar: ◀ Scene n of N ▶
+  (the Studio's playhead moves to the scene: its address hash `t=` is set without reloading it), the scene's words, *Pictures for this scene*, *Redo with
+  the Director* (opens the Director on that scene), *Back to the editor*. Screen: docs/dev/spikes/html-shot/s1-scene-bar.png.
+- **S2 done:** every scene card's menu has *Edit this scene in HyperFrames* (the Studio opens on that scene) and *Pictures for this scene*.
+- **G1 done (and G4's history):** `vt/scene_gen.py`, routes in `server/gen_routes.py` (list, generate as a job, use, forget), panel
+  `review/ScenePictures.tsx` (three columns: chosen picture with *Use for this scene*; every picture made for the scene with *Use*, *Redraw*, *Forget*;
+  the setup: prompt from the scene's words or the last run, model from the picture sets, how many 1-8, *Generate n*, progress). Runs are kept in
+  `gen/<scene>.json`. With no picture engine the panel says so in one sentence. Tests: tests/test_scene_gen.py (3, stand-in engine),
+  e2e/scene-pictures.mjs 7/7. Screen: docs/dev/spikes/html-shot/g1-scene-pictures.png. Not tried with real pictures: no ComfyUI on this PC (ISSUES).
+- Next: S3 (the scene's parts in the scene bar), G2 (make a picture move), G3 (prompts written by the Director / Claude Code), S4.

@@ -28,7 +28,7 @@ try {
   await page.goto(`${origin}/p/${pid}`, { waitUntil: "load" });
   await page.waitForSelector(".wb .wb-viewer", { timeout: 60000 });
 
-  await page.getByRole("button", { name: "Edit in the Studio" }).click();
+  await page.getByRole("button", { name: "Edit in HyperFrames" }).click();
   const frameEl = await page.waitForSelector(".studio-embed iframe", { timeout: 120000 }).catch(() => null);
   check("the Studio opens inside the editor's canvas pane", !!frameEl);
   const frame = frameEl ? await frameEl.contentFrame() : null;
@@ -40,9 +40,18 @@ try {
   check("in a window this size the Studio gets the room: our toolbar and the assistant step aside", !(await page.locator(".ed-workspace-bar").isVisible()) && !(await page.locator(".wb-assistant-body").isVisible().catch(() => false)));
   const studioBox = await frameEl.boundingBox();
   const win = await page.evaluate(() => [window.innerWidth, window.innerHeight]);
-  check("the Studio fills the window below the title bar", studioBox.width >= win[0] - 4 && studioBox.height >= win[1] - 60, JSON.stringify([studioBox.width, studioBox.height, win]));
+  check("the Studio fills the window below the title bar", studioBox.width >= win[0] - 4 && studioBox.height >= win[1] - 110, JSON.stringify([studioBox.width, studioBox.height, win]));
   check("the editor's own panels step aside", (await page.locator(".ed-left").count()) === 0 || !(await page.locator(".ed-left").isVisible()));
   await page.screenshot({ path: path.join(repo, "studio", "e2e", "out", "o5-studio-in-the-app.png") });
+  // S1: the scene bar above the Studio moves it scene by scene
+  const bar = page.getByRole("toolbar", { name: "Scene in HyperFrames" });
+  check("a scene bar sits above the Studio", /Scene 1 of \d+/.test(await bar.innerText()), (await bar.innerText()).slice(0, 60));
+  const clockOf = async () => ((await frame.locator("body").innerText()).match(/(\d\d):(\d\d)\s*\/\s*\d\d:\d\d/) || []).slice(1).map(Number);
+  await bar.getByRole("button", { name: "Next scene" }).click();
+  await page.waitForTimeout(1500);
+  const scenes = (await page.evaluate(async (u) => (await fetch(u)).json(), `/api/projects/${pid}/scenes`)).timing.scenes;
+  const c = await clockOf();
+  check("Next scene moves the Studio to scene 2", /Scene 2 of/.test(await bar.innerText()) && c.length === 2 && Math.abs(c[0] * 60 + c[1] - Math.floor(scenes[1].start + 0.05)) <= 1, JSON.stringify([c, scenes[1].start]));
   // the Studio's own agent box opens our Claude Code, started with a note about the selection
   await frame.getByText("Describe a change to the agent").first().click().catch(() => {});
   await page.waitForTimeout(800);
@@ -67,11 +76,10 @@ try {
   check("a change to the video reaches the open Studio's copy by itself", reached);
   await api("PATCH", `/api/projects/${pid}/scenes/s5/elements/0`, { items: items0 });
   await page.waitForTimeout(7000);
-  await page.getByRole("button", { name: "Studio open" }).click();
-  await page.getByRole("menuitem", { name: "Back to Video Tool's editor" }).click();
+  await bar.getByRole("button", { name: "Back to the editor" }).click();
   await page.waitForTimeout(800);
   check("Back to the editor shows Video Tool's canvas again", (await page.locator(".studio-embed").count()) === 0);
-  await page.getByRole("button", { name: "Studio open" }).click();
+  await page.getByRole("button", { name: "HyperFrames open" }).click();
   await page.getByRole("menuitem", { name: "Close the Studio" }).click();
   await page.waitForTimeout(2000);
   const st = await page.evaluate(async (u) => (await fetch(u)).json(), `/api/projects/${pid}/studio`);

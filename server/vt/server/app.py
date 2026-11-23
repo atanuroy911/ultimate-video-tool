@@ -3334,6 +3334,8 @@ from .story_routes import router as story_router
 app.include_router(story_router)
 from .shot_routes import router as shot_router  # code-native shots (PLAN-CODE-NATIVE-EDITOR C2)
 app.include_router(shot_router)
+from .gen_routes import router as gen_router  # pictures for a scene (PLAN-SCENE-TOOLS G1)
+app.include_router(gen_router)
 from .reel_routes import router as reel_router
 app.include_router(reel_router)
 from .direction_routes import router as direction_router

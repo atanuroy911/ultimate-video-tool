@@ -2,7 +2,7 @@
 // and starts the Studio on this computer; the Studio saves its own edits, and the export draws them. The Studio refuses to sit inside another page's
 // frame, so it opens as its own window (an app window in the desktop app).
 import { Clapperboard } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { del, post } from "../api";
 import { toast } from "../store";
 import { Button, MenuItem, Popover } from "../ds";
@@ -24,30 +24,35 @@ export default function StudioButton({ projectId, embedded, onEmbed, assistantSh
       setUrl(s.url);
       setState("open");
       show(s.url);
-      toast(s.kept ? "The video is open in the Studio with your earlier Studio edits. They go into the export."
-        : "The video is open in the Studio. Select anything to move, retype or animate it; your edits go into the export.");
+      toast(s.kept ? "The video is open in HyperFrames with your earlier edits there. They go into the export."
+        : "The video is open in HyperFrames. Select anything to move, retype or animate it; your edits go into the export.");
       if (s.lost_count) toast(`${s.lost_count} animation step(s) could not be carried into the Studio (they use code it cannot show).`, "err");
     } catch (e: any) {
       setState("off");
-      toast(`The Studio did not open: ${e.message}`, "err");
+      toast(`HyperFrames did not open: ${e.message}`, "err");
     }
   };
+  useEffect(() => {                                                      // S2: a scene's menu opens HyperFrames (the editor already moved to that scene)
+    const on = () => { if (state === "open" && url) show(url); else if (state === "off") void open(); };
+    window.addEventListener("vt-open-hyperframes", on);
+    return () => window.removeEventListener("vt-open-hyperframes", on);
+  });
   const close = async () => {
     try { await del(base); } catch { /* already stopped */ }
     setState("off");
     onEmbed?.(null);
-    toast("The Studio is closed. Its edits stay with the video.");
+    toast("HyperFrames is closed. Its edits stay with the video.");
   };
 
   if (state !== "open")
     return (
-      <Button size="sm" onClick={() => open()} disabled={state === "starting"} aria-label="Edit in the Studio"
+      <Button size="sm" onClick={() => open()} disabled={state === "starting"} aria-label="Edit in HyperFrames"
               title="Edit the whole video in the HyperFrames Studio: every scene on a timeline, every part selectable, keyframes and motion paths">
-        <Clapperboard size={15} /> {state === "starting" ? "Opening…" : "Studio"}
+        <Clapperboard size={15} /> {state === "starting" ? "Opening…" : "Edit in HyperFrames"}
       </Button>
     );
   return (
-    <Popover label="Studio" align="right" trigger={<><Clapperboard size={15} /> Studio open</>}>
+    <Popover label="HyperFrames" align="right" trigger={<><Clapperboard size={15} /> HyperFrames open</>}>
       {embedded ? <MenuItem onClick={() => onEmbed?.(null)}>Back to Video Tool's editor</MenuItem> : <MenuItem onClick={() => show(url)}>Show the Studio</MenuItem>}
       {embedded && onAssistant && <MenuItem onClick={() => onAssistant(!assistantShown)}>{assistantShown ? "Hide the assistant (more room for the Studio)" : "Show the assistant beside the Studio"}</MenuItem>}
       <MenuItem onClick={() => open(true)}>Start over from the current video</MenuItem>

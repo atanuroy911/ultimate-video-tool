@@ -27,7 +27,7 @@ try {
   const origin = new URL(page.url()).origin;
   await page.goto(`${origin}/p/${pid}`, { waitUntil: "load" });
   await page.waitForSelector(".wb .wb-viewer", { timeout: 60000 });
-  await page.getByRole("button", { name: "Edit in the Studio" }).click();
+  await page.getByRole("button", { name: "Edit in HyperFrames" }).click();
   const frameEl = await page.waitForSelector(".studio-embed iframe", { timeout: 120000 });
   const studio = await frameEl.contentFrame();
   for (let i = 0; i < 30 && !/S\d Scene/.test(await studio.locator("body").innerText().catch(() => "")); i++) await page.waitForTimeout(1000);
@@ -58,7 +58,7 @@ try {
   for (let i = 0; i < 15 && !shown.includes(words); i++) { await page.waitForTimeout(1000); shown = await studio.frameLocator("iframe").first().locator("body").innerText().catch(() => "") + (await studio.locator("body").innerText().catch(() => "")); }
   check("the Studio shows the new words without a reload by hand", shown.includes(words));
   await page.screenshot({ path: path.join(repo, "studio", "e2e", "out", "o6-claude-in-the-studio.png") });
-  await page.getByRole("button", { name: "Studio open" }).click();
+  await page.getByRole("button", { name: "HyperFrames open" }).click();
   await page.getByRole("menuitem", { name: "Close the Studio" }).click();
   await page.waitForTimeout(1500);
 } finally {

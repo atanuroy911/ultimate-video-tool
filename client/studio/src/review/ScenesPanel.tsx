@@ -1,4 +1,4 @@
-import { ArrowDown, Copy, GitMerge, MessageSquare, MoreHorizontal, Trash2 } from "lucide-react";
+import { ArrowDown, Copy, GitMerge, MessageSquare, Clapperboard, ImagePlus, MoreHorizontal, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { fmtTime } from "../api";
 import { Menu, Modal } from "../ui";
@@ -118,6 +118,12 @@ export default function ScenesPanel({ r, selected, onSelect, seek }: { r: Review
             }}
           >
             <MessageSquare size={14} /> Ask the assistant about this
+          </button>
+          <button onClick={() => { window.dispatchEvent(new CustomEvent("vt-scene-hyperframes", { detail: menu.sid })); setMenu(null); }}>
+            <Clapperboard size={14} /> Edit this scene in HyperFrames
+          </button>
+          <button onClick={() => { window.dispatchEvent(new CustomEvent("vt-scene-pictures", { detail: menu.sid })); setMenu(null); }}>
+            <ImagePlus size={14} /> Pictures for this scene
           </button>
           <button
             onClick={() => {

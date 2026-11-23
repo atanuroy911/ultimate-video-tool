@@ -21,7 +21,7 @@ export interface OccTimelineProps {
   view: ProjectView;
   /** changes when our project changes on the server: the view is rebuilt from it */
   revision: string;
-  player: RefObject<PlayerHandle>;
+  player: RefObject<PlayerHandle | null>;
   playing: boolean;
   /** applies the edits to our project (the same calls the classic timeline makes); resolves when they are saved */
   onSave: (ops: SaveOp[]) => Promise<void>;

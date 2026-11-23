@@ -20,7 +20,7 @@ type Mode = "here" | "own" | "remote" | "off";
 interface Here { existing: string[]; own_possible: boolean; own_installed: boolean; own_url: string }
 const HERE_ENGINES = ["ollama", "comfy"];
 const isHere = (u: string) => /^https?:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/.test(u);
-const ICON: Record<string, JSX.Element> = { llm: <MessageSquare size={18} />, image: <ImageIcon size={18} />, voice: <Mic size={18} /> };
+const ICON: Record<string, React.JSX.Element> = { llm: <MessageSquare size={18} />, image: <ImageIcon size={18} />, voice: <Mic size={18} /> };
 const WORDS: Record<string, string> = {
   "llm.chat": "writes and reads", "llm.vision": "looks at pictures", "image.generate": "draws pictures", "video.generate": "makes short clips",
   "voice.speak": "speaks", "voice.list": "lists voices", "voice.clone": "clones a voice", "voice.design": "designs a voice",

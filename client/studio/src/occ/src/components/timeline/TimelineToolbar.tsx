@@ -111,7 +111,7 @@ interface TimelineToolbarProps {
   canRecord: boolean;
   playing: boolean;
   /** painted imperatively by the playhead painter */
-  timecodeRef: RefObject<HTMLSpanElement>;   // Video Tool: React 18 ref type
+  timecodeRef: RefObject<HTMLSpanElement | null>;
   playheadFrame: number;
   total: number;
   captionsVisible: boolean;

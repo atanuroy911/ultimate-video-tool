@@ -696,3 +696,4 @@ C11: fast render for long recordings (vt/render/fast.py): 1321 s instead of 8103
   | emoji-sleep | emoji | 9:16 | en | rules (Claude's usage limit) | 507 s | 72 s | 22.1 s | fell back; to redo |
 
   Mp4 paths in the report. The remaining rows run after the usage window reset (04:30).
+- W15.6: pull request #3 (workbench -> main, 0.6.0) opened for the owner, with the screens and the tests; not merged.

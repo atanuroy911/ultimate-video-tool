@@ -963,3 +963,25 @@ def test_revise_script_adapter_keeps_exact_existing_revision(ref, monkeypatch):
     result = Executor(ref.dir).call("direct.revise_script", {"notes": "Keep the opening active."})
     assert result.ok, result.fix
     assert result.output == {"changed": False, "scenes": len(original.scenes)}
+
+
+def test_a_workspace_file_being_replaced_is_read_after_a_moment(tmp_path, monkeypatch):
+    """Windows refuses to read a file another step is replacing at that instant: the read waits and tries again (a matrix video failed at its
+    first step on .module_cache.json this way, 2026-11-24)."""
+    import pathlib
+
+    from vt.modules.workspace import _read_json
+
+    f = tmp_path / ".module_cache.json"
+    f.write_text('{"a": 1}', encoding="utf-8")
+    real, refused = pathlib.Path.read_text, []
+
+    def flaky(self, *a, **k):
+        if self == f and len(refused) < 2:
+            refused.append(1)
+            raise PermissionError(13, "Permission denied")
+        return real(self, *a, **k)
+
+    monkeypatch.setattr(pathlib.Path, "read_text", flaky)
+    assert _read_json(f) == {"a": 1} and len(refused) == 2
+    assert _read_json(tmp_path / "missing.json", {}) == {}

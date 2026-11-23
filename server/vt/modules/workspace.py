@@ -90,6 +90,22 @@ def _bytes(path: Path) -> int:
     return sum(file.stat().st_size for file in path.rglob("*") if file.is_file()) if path.is_dir() else path.stat().st_size
 
 
+def _read_json(path: Path, default: Any = None) -> Any:
+    """Read a JSON file another step may be replacing this instant: Windows refuses the read for that moment (PermissionError), so wait and try
+    again (a video failed at its first step this way, 2026-11-24). A file that is not there gives `default`."""
+    for attempt in range(20):
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            if default is not None:
+                return default
+            raise
+        except PermissionError:
+            if attempt == 19:
+                raise
+            time.sleep(0.05 * (attempt + 1))
+
+
 def _atomic_json(path: Path, value: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temp = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
@@ -138,12 +154,12 @@ class Workspace:
             return False
 
     def read_json(self, artifact_type: str) -> Any:
-        return json.loads(self.path_for(artifact_type).read_text(encoding="utf-8"))
+        return _read_json(self.path_for(artifact_type))
 
     def index(self) -> dict[str, list[dict[str, Any]]]:
         if not self.index_path.exists():
             return {}
-        return json.loads(self.index_path.read_text(encoding="utf-8"))
+        return _read_json(self.index_path)
 
     def ref(self, artifact_type: str) -> dict[str, Any] | None:
         if not self.exists(artifact_type):
@@ -184,7 +200,7 @@ class Workspace:
         return self.ref(artifact_type) or ref
 
     def _clear_redo(self, artifact_type: str) -> None:
-        redo = json.loads(self.redo_path.read_text(encoding="utf-8")) if self.redo_path.exists() else {}
+        redo = _read_json(self.redo_path, {})
         if artifact_type in redo:
             redo.pop(artifact_type, None)
             _atomic_json(self.redo_path, redo)
@@ -215,7 +231,7 @@ class Workspace:
         removed = entries[-1]
         index[artifact_type] = entries[:-1]
         _atomic_json(self.index_path, index)
-        redo = json.loads(self.redo_path.read_text(encoding="utf-8")) if self.redo_path.exists() else {}
+        redo = _read_json(self.redo_path, {})
         redo.setdefault(artifact_type, []).append(removed)
         redo[artifact_type] = redo[artifact_type][-20:]
         _atomic_json(self.redo_path, redo)
@@ -223,7 +239,7 @@ class Workspace:
 
     def redo(self, artifact_type: str) -> dict[str, Any]:
         """Restore the version most recently removed by undo."""
-        redo = json.loads(self.redo_path.read_text(encoding="utf-8")) if self.redo_path.exists() else {}
+        redo = _read_json(self.redo_path, {})
         entries = redo.get(artifact_type, [])
         if not entries:
             raise ValueError(f"no later version of {artifact_type}")

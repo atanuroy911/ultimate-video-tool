@@ -16,7 +16,7 @@ from .budget import Budget
 from .envelope import CallResult
 from .registry import get_module, list_modules
 from .resources import acquire
-from .workspace import Workspace, _atomic_json, _digest
+from .workspace import Workspace, _atomic_json, _digest, _read_json
 from ..util import Cancelled
 
 
@@ -122,7 +122,7 @@ class Executor:
         settings_hash = _digest(project_settings) if project_settings.is_file() else None
         key_data = [spec.id, spec.version, inputs.model_dump(mode="json"), required_refs, settings_hash]
         cache_key = hashlib.sha256(json.dumps(key_data, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
-        cache = json.loads(self.cache_path.read_text(encoding="utf-8")) if self.cache_path.exists() else {}
+        cache = _read_json(self.cache_path, {})                     # another step may be replacing it this instant (Windows)
         cached = cache.get(cache_key)
         cache_safe = spec.effects == "none" or bool(spec.produces)
         if cache_safe and not spec.native_outputs and not force and cached and all(self.ws.exists(kind) and not self.ws.stale(kind) and

@@ -683,3 +683,16 @@ C11: fast render for long recordings (vt/render/fast.py): 1321 s instead of 8103
 - O8: Elements view beside HyperFrames (adds a text, shape or diagram to the scene HyperFrames is on, through the plan; HyperFrames shows it after its refresh). Found and fixed: a change within 4 s of a refresh never reached HyperFrames, and two refreshes could overlap (server lock per Studio folder; app runs one refresh at a time, then one more if a change came meanwhile). desktop-studio 23/23 twice.
 - O8: videos open in HyperFrames by themselves in the desktop app (menu: open in Video Tool's editor instead). Claude Code steps in plain words again ("ToolSearch" -> "Looking for the right tool"; the check was too lax). desktop-studio 23/23, desktop-studio-agent 4/4, desktop-agent 7/7 (real Claude Code).
 - Found while checking the old test_handback failure: in HyperFrames renders a card over a picture that leaves after its sentence never showed at all (Chrome showed it). The exit now fades with autoAlpha; test_handback 7/7, bake and stick tests pass. Other set(visibility) uses noted in ISSUES. Installers rebuilt for 0.6.0 after this fix.
+- **W15.3 matrix on the rebuilt installed apps (0.6.0, E:\UVT-Server and E:\UVT-Client, Claude on this laptop directing through the client's helper)**, E:\UltimateVideoTool\matrix\2026-11-24-claude:
+
+  | row | kind | format | lang | director | make | export | length | verdict |
+  |---|---|---|---|---|---|---|---|---|
+  | story-lighthouse | story | 9:16 | en | Claude | 563 s | 88 s | 28.8 s | good (watched: scenes, characters, captions clear) |
+  | stick-monday | stick | 9:16 | en | Claude | 876 s | 76 s | 23.5 s | good |
+  | explainer-bn-payment | explainer | 9:16 | bn | Claude | 909 s | 96 s | 21.8 s | good (Bangla text right; two moments mid-fade) |
+  | explainer-watch | explainer | 9:16 | en | Claude | 891 s | 92 s | 30.1 s | made (first try failed: .module_cache.json read refused by Windows; fixed) |
+  | infographic-coffee | infographic | 16:9 | en | Claude | 836 s | 72 s | 25.8 s | good, some sparse moments |
+  | cartoon-leaves | cartoon | 16:9 | en | Claude | 1222 s | 84 s | 26.2 s | faults: titles on top of a list and a chip (from the viewer-test revision; fixed for future videos) |
+  | emoji-sleep | emoji | 9:16 | en | rules (Claude's usage limit) | 507 s | 72 s | 22.1 s | fell back; to redo |
+
+  Mp4 paths in the report. The remaining rows run after the usage window reset (04:30).

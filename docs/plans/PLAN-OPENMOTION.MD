@@ -129,3 +129,11 @@ recordings, Claude Code over ACP. Our own editor stays for those until each live
   join into one block (a mark along the bottom where each word starts) and a block grows only until it can be read; zoomed in, each word gets its own
   slot once every word has 22 px. Double-clicking a caption word opens it for editing, like the narration. `occ/bridge/captionLod.ts`,
   tests/caption-lod.test.mjs, e2e/timeline-words.mjs (no overlap; double-click opens the word). Screens: docs/dev/spikes/html-shot/timeline-words-*.png.
+- **O7 done (2026-11-23):** beside HyperFrames the docked pane has **Words**, **Outline** and **Checks** tabs. Outline: the talk's sections and
+  examples, each marked with B-roll or "on the speaker" (with what the outline says could be shown); Checks: the retention check of the newest
+  export (score, verdict, the moments where viewers may leave; "Check again") and the skipped extras (notices, "Got it"). Every time is a button
+  that moves HyperFrames there (the scene bar follows). Server: `GET /api/projects/{pid}/insights` (`server/insight_routes.py`). Voice cuts and
+  restores are in the Words tab. Tests: test_scene_gen (outline view), e2e desktop-studio 19/19. Screen: docs/dev/spikes/html-shot/o7-outline-checks.png.
+- **O8 not yet:** our own editor is still needed where HyperFrames cannot go: videos it cannot hold (stick figures, whose limbs are drawn by code
+  every frame), a web browser on another computer than the server (the Studio is bound to the server's own computer), and scene-level work the
+  Studio has no place for (the Director's plan, shots). Retiring it waits for those three.

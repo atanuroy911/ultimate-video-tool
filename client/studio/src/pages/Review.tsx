@@ -35,6 +35,7 @@ import CaptionLook from "../review/CaptionLook";
 import TranscriptPanel from "../review/TranscriptPanel";
 import StudioButton from "../review/StudioButton";
 import StudioSceneBar from "../review/StudioSceneBar";
+import StudioInsights from "../review/StudioInsights";
 import ScenePictures from "../review/ScenePictures";
 import VideoInspector from "../review/VideoInspector";
 import { useReview, type DirectorState } from "../review/useReview";
@@ -65,7 +66,7 @@ function ReviewEditor() {
   const icons = useIconPack();
   const player = useRef<PlayerHandle>(null);
   const [time, setTime] = useState(0);
-  const [assistantTab, setAssistantTab] = useState<"director" | "claude" | "words">("director");   // which conversation the Assistant pane shows
+  const [assistantTab, setAssistantTab] = useState<"director" | "claude" | "words" | "outline" | "checks">("director");   // which conversation the Assistant pane shows
   const assistantTabRef = useRef(assistantTab);
   /** W13.3: open the assistant and give it what the person pointed at, as a pill: Claude Code in the desktop app, else the Director */
   const pointAssistant = (ref: Record<string, unknown> | null) => {
@@ -236,13 +237,19 @@ function ReviewEditor() {
     window.addEventListener("vt-scene-hyperframes", hf);
     return () => { window.removeEventListener("vt-scene-pictures", pics); window.removeEventListener("vt-scene-hyperframes", hf); };
   }, [r.timing.scenes]);
+  const [studioAt, setStudioAt] = useState<number | null>(null);            // O7: a moment picked in a panel (else the scene's start)
+  const studioGo = (t: number) => {                                         // move the Studio to a moment; the scene bar follows to its scene
+    const i = r.timing.scenes.findIndex((x) => t >= x.start - 0.01 && t < x.end);
+    if (i >= 0 && i !== studioScene) setStudioScene(i);
+    setStudioAt(Math.max(0, t));
+  };
   const studioSrc = useMemo(() => {                                         // a new hash moves the Studio's playhead without reloading it
     if (!studioUrl) return null;
     const sc = r.timing.scenes[studioScene];
-    const t = sc ? Math.max(0, sc.start + 0.05) : 0;
+    const t = studioAt ?? (sc ? Math.max(0, sc.start + 0.05) : 0);
     const sel = studioSel ? `&selFile=${encodeURIComponent(studioSel.file)}&selId=${encodeURIComponent(studioSel.id)}` : "";   // the Studio reads its selection from the address too
     return studioUrl.split("?")[0] + "?t=" + t.toFixed(2) + sel;
-  }, [studioUrl, studioScene, studioSel, r.timing.scenes]);
+  }, [studioUrl, studioScene, studioSel, studioAt, r.timing.scenes]);
   // O7: while the Studio is open, a change to the video (a word edit, a cut, a Director note) is baked again with the Studio edits carried over;
   // the open Studio reloads by itself. A short pause gathers several changes; the refresh's own composing is not taken as a change.
   const studioQuiet = useRef(0), studioTimer = useRef<number | undefined>(undefined);
@@ -614,7 +621,7 @@ function ReviewEditor() {
         </div>
         <Button size="sm" onClick={() => nav(`/p/${id}/script`)} aria-label="Director's script"><MessageSquareText size={15}/> Script</Button>
         <StudioButton projectId={id} embedded={!!studioUrl} assistantShown={showAssistant} onAssistant={setShowAssistant}
-          onEmbed={(u) => { setStudioUrl(u); if (u) setShowAssistant(window.innerWidth >= 1500); else setAssistantTab((t) => (t === "words" ? "director" : t)); }} />
+          onEmbed={(u) => { setStudioUrl(u); if (u) setShowAssistant(window.innerWidth >= 1500); else setAssistantTab((t) => (t === "words" || t === "outline" || t === "checks" ? "director" : t)); }} />
         <Button size="sm" onClick={() => setAiOpen(true)} aria-label="AI assistant"><Sparkles size={15}/> AI</Button>
         <Button size="sm" variant="primary" onClick={exportNow}><Download size={15}/> Export</Button>
       </header>
@@ -685,7 +692,7 @@ function ReviewEditor() {
 
           viewer: (<section className="ed-canvas" aria-label="Canvas">
             {studioUrl && studioSrc && <div className="studio-embed">
-              <StudioSceneBar projectId={id} selected={studioSel?.id} onSelect={(p) => setStudioSel(p ? { id: p.id, file: p.file } : null)} scenes={r.timing.scenes} words={r.words} index={Math.min(studioScene, Math.max(0, r.timing.scenes.length - 1))} onGo={setStudioScene}
+              <StudioSceneBar projectId={id} selected={studioSel?.id} onSelect={(p) => setStudioSel(p ? { id: p.id, file: p.file } : null)} scenes={r.timing.scenes} words={r.words} index={Math.min(studioScene, Math.max(0, r.timing.scenes.length - 1))} onGo={(i) => { setStudioAt(null); setStudioScene(i); }}
                 onPictures={(sid) => setGenScene(sid)}
                 onDirector={(sid) => { setShowAssistant(true); setAssistantTab("director"); setTimeout(() => window.dispatchEvent(new CustomEvent("vt-ask-director", { detail: { kind: "scene", scene: sid } })), 300); }}
                 onBack={() => setStudioUrl(null)} />
@@ -808,8 +815,8 @@ function ReviewEditor() {
         </section>),
 
           assistant: (<div className="wb-assistant-body" aria-label="Assistant">
-            <div className="wb-pane-heading"><strong>Assistant</strong><div className="wb-assistant-tabs" role="tablist" aria-label="Who to talk to"><button role="tab" aria-selected={assistantTab === "director"} className={assistantTab === "director" ? "on" : ""} onClick={() => setAssistantTab("director")}>Director</button><button role="tab" aria-selected={assistantTab === "claude"} className={assistantTab === "claude" ? "on" : ""} onClick={() => setAssistantTab("claude")}>Claude Code</button>{studioUrl && <button role="tab" aria-selected={assistantTab === "words"} className={assistantTab === "words" ? "on" : ""} onClick={() => setAssistantTab("words")} title="The spoken words: edit a word, cut or bring back a part. The Studio shows the new video.">Words</button>}</div><span className="grow" /><button className="btn ghost icon sm" aria-label="Close the assistant" onClick={() => setShowAssistant(false)}><X size={16} /></button></div>
-            <div className="wb-assistant-scroll">{assistantTab === "words" && studioUrl && <TranscriptPanel r={r} time={time} playing={playing} seek={seek} selected={selected} onSelectScene={pickScene} editingId={editingId} setEditingId={setEditingId} />}{assistantTab === "claude" && <Suspense fallback={<div className="row muted" style={{ padding: 12 }}><Spinner /> Opening…</div>}><AgentChat projectId={id} title={p.title || id} onChanged={r.reloadAll} onLink={(l) => { if (l.kind === "time") seek(l.t); else if (l.kind === "range") seek(l.from); else if (l.kind === "scene") { pickScene(l.scene); const s = r.timing.scenes.find((x) => x.id === l.scene); if (s) seek(s.start); } else { pickScene(l.scene); setSelEl({ scene: l.scene, index: l.index }); setShowInspector(true); } }} /></Suspense>}{directorMounted && <div style={{ height: "100%", display: assistantTab === "director" ? undefined : "none" }}><Suspense fallback={<div className="row muted" style={{ padding: 12 }}><Spinner /> Opening the chat…</div>}><DirectorChat projectId={id}
+            <div className="wb-pane-heading"><strong>Assistant</strong><div className="wb-assistant-tabs" role="tablist" aria-label="Who to talk to"><button role="tab" aria-selected={assistantTab === "director"} className={assistantTab === "director" ? "on" : ""} onClick={() => setAssistantTab("director")}>Director</button><button role="tab" aria-selected={assistantTab === "claude"} className={assistantTab === "claude" ? "on" : ""} onClick={() => setAssistantTab("claude")}>Claude Code</button>{studioUrl && <button role="tab" aria-selected={assistantTab === "words"} className={assistantTab === "words" ? "on" : ""} onClick={() => setAssistantTab("words")} title="The spoken words: edit a word, cut or bring back a part. The Studio shows the new video.">Words</button>}{studioUrl && <button role="tab" aria-selected={assistantTab === "outline"} className={assistantTab === "outline" ? "on" : ""} onClick={() => setAssistantTab("outline")} title="The talk's sections and examples, and which examples have pictures">Outline</button>}{studioUrl && <button role="tab" aria-selected={assistantTab === "checks"} className={assistantTab === "checks" ? "on" : ""} onClick={() => setAssistantTab("checks")} title="Will viewers stay (the newest export), and extras that were skipped">Checks</button>}</div><span className="grow" /><button className="btn ghost icon sm" aria-label="Close the assistant" onClick={() => setShowAssistant(false)}><X size={16} /></button></div>
+            <div className="wb-assistant-scroll">{(assistantTab === "outline" || assistantTab === "checks") && studioUrl && <StudioInsights projectId={id} view={assistantTab} version={r.rev} onSeek={studioGo} />}{assistantTab === "words" && studioUrl && <TranscriptPanel r={r} time={time} playing={playing} seek={seek} selected={selected} onSelectScene={pickScene} editingId={editingId} setEditingId={setEditingId} />}{assistantTab === "claude" && <Suspense fallback={<div className="row muted" style={{ padding: 12 }}><Spinner /> Opening…</div>}><AgentChat projectId={id} title={p.title || id} onChanged={r.reloadAll} onLink={(l) => { if (l.kind === "time") seek(l.t); else if (l.kind === "range") seek(l.from); else if (l.kind === "scene") { pickScene(l.scene); const s = r.timing.scenes.find((x) => x.id === l.scene); if (s) seek(s.start); } else { pickScene(l.scene); setSelEl({ scene: l.scene, index: l.index }); setShowInspector(true); } }} /></Suspense>}{directorMounted && <div style={{ height: "100%", display: assistantTab === "director" ? undefined : "none" }}><Suspense fallback={<div className="row muted" style={{ padding: 12 }}><Spinner /> Opening the chat…</div>}><DirectorChat projectId={id}
                 onStarted={r.beginDirectorChange}
                 onRunningChange={setDirectorRunning}
                 onChanged={async (result, token) => {

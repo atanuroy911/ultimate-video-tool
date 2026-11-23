@@ -85,3 +85,14 @@
 .scene-pics-idea { display: flex; flex-direction: column; gap: 4px; }
 .scene-pics-idea textarea { width: 100%; resize: vertical; font-size: 12px; }
 .scene-pics-setup > * { flex: none; }
+/* O7: outline and checks beside the Studio */
+.studio-insights { padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; }
+.studio-insights section { display: flex; flex-direction: column; gap: 6px; }
+.studio-insights ul, .studio-insights ol { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.studio-outline > li { border-top: 1px solid var(--border); padding-top: 6px; }
+.studio-examples { padding-left: 14px !important; }
+.studio-examples li.none { border-left: 2px solid var(--warn, #c98a00); padding-left: 6px; }
+.studio-examples li.has { border-left: 2px solid var(--ok, #2e9e5b); padding-left: 6px; }
+.studio-show { padding-left: 52px; }
+.studio-time { font-variant-numeric: tabular-nums; min-width: 46px; justify-content: flex-start; }
+.studio-insights .row { align-items: center; gap: 6px; }

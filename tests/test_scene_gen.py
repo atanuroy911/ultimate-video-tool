@@ -160,3 +160,23 @@ def test_one_picture_from_each_written_prompt(ref, engine):
     run = G.generate(ref, sid, "", prompts=["a red kite over a field", "  ", "a boy reading under a tree"], seed=10)
     assert run["count"] == 2 and [i["prompt"] for i in run["items"]] == ["a red kite over a field", "a boy reading under a tree"]
     assert [m.caption for m in ref.meta().media if m.id in {i["media"] for i in run["items"]}] == ["a red kite over a field", "a boy reading under a tree"]
+
+
+def test_the_outline_beside_the_studio_says_which_examples_have_b_roll(ref):
+    """O7: the talk's examples with their scenes, and whether any of those scenes shows B-roll (else the example stays on the speaker)."""
+    from vt.server.insight_routes import outline_view, retention_view
+    from vt.util import write_json
+
+    assert outline_view(ref) is None, "no outline: nothing to show"
+    sf = ref.scenes()
+    beats = {b.id: b for b in ref.beats().beats}
+    first = sf.scenes[0]
+    t0, t1 = beats[first.beats[0]].start, beats[first.beats[-1]].end
+    write_json(ref.dir / "talk_outline.json", {"sections": [{"first": 1, "last": 3, "point": "The opening", "start": t0, "end": t1}],
+                                               "examples": [{"kind": "case", "about": "A watch", "show": "a watch on a wrist", "start": t0, "end": t1}],
+                                               "keep_on_speaker": [], "summary": "s"})
+    o = outline_view(ref)
+    assert o["sections"][0]["point"] == "The opening"
+    assert o["examples"][0]["scenes"][0] == first.id and isinstance(o["examples"][0]["broll"], bool)
+    assert o["covered"] == sum(1 for e in o["examples"] if e["broll"])
+    assert retention_view(ref) is None or "checked" in retention_view(ref)

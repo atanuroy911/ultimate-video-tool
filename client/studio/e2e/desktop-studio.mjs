@@ -79,6 +79,28 @@ try {
   await page.getByRole("tab", { name: "Words" }).click();
   await page.waitForTimeout(800);
   check("the Words tab shows the transcript beside the Studio", (await page.locator(".wb-assistant-body").innerText()).length > 50);
+  // O7: the talk's outline and the checks are tabs beside the Studio; a time in them moves the Studio there
+  {
+    const sc = (await page.evaluate(async (u) => (await fetch(u)).json(), `/api/projects/${pid}/scenes`)).timing.scenes;
+    const outFile = path.join(process.env.VT_PROJECTS || "E:/UltimateVideoTool/scratch/c2-projects", pid, "talk_outline.json");
+    const ex = sc[Math.min(3, sc.length - 1)];
+    fs.writeFileSync(outFile, JSON.stringify({ sections: [{ first: 1, last: 9, point: "Why the battery dies", start: 0, end: sc[sc.length - 1].end }],
+      examples: [{ kind: "case", about: "Always-on display", show: "a watch face glowing at night", start: ex.start + 0.2, end: ex.end }], keep_on_speaker: [], summary: "" }));
+    try {
+      await page.getByRole("tab", { name: "Outline" }).click();
+      const pane = page.locator(".wb-assistant-body");
+      await pane.getByText("Always-on display").waitFor({ timeout: 10000 }).catch(() => {});
+      check("the Outline tab lists the talk's sections and examples", /Why the battery dies/.test(await pane.innerText()) && /Always-on display/.test(await pane.innerText()));
+      await pane.locator(".studio-examples li", { hasText: "Always-on display" }).getByRole("button").first().click();
+      await page.waitForTimeout(1500);
+      const c2 = ((await frame.locator("body").innerText()).match(/(\d\d):(\d\d)\s*\/\s*\d\d:\d\d/) || []).slice(1).map(Number);
+      check("a time in the outline moves the Studio there", c2.length === 2 && Math.abs(c2[0] * 60 + c2[1] - Math.floor(ex.start + 0.2)) <= 1, JSON.stringify([c2, ex.start]));
+      await page.getByRole("tab", { name: "Checks" }).click();
+      await pane.getByText("Skipped extras").waitFor({ timeout: 10000 }).catch(() => {});
+      check("the Checks tab shows the retention check and the skipped extras", /Will viewers stay/.test(await pane.innerText()) && /Skipped extras/.test(await pane.innerText()));
+      await page.screenshot({ path: path.join(repo, "studio", "e2e", "out", "o7-outline-checks.png") });
+    } finally { fs.rmSync(outFile, { force: true }); }
+  }
   const api = (m, u, body) => page.evaluate(async ([m, u, body]) => (await fetch(u, { method: m, headers: { "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined })).json(), [m, u, body]);
   const plan0 = (await api("GET", `/api/projects/${pid}/scenes`)).plan.scenes.find((x) => x.id === "s5");
   const items0 = plan0.elements[0].items;

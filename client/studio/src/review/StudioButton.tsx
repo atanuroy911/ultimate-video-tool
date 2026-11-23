@@ -2,7 +2,7 @@
 // and starts the Studio on this computer; the Studio saves its own edits, and the export draws them. The Studio refuses to sit inside another page's
 // frame, so it opens as its own window (an app window in the desktop app).
 import { Clapperboard } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { del, post } from "../api";
 import { toast } from "../store";
 import { Button, MenuItem, Popover } from "../ds";
@@ -10,8 +10,12 @@ import { Button, MenuItem, Popover } from "../ds";
 // In the desktop app the Studio sits inside the editor (the app lets this one local page be framed); in a browser it opens its own window.
 const canEmbed = () => typeof window !== "undefined" && !!(window as any).vtDesktop;
 
-export default function StudioButton({ projectId, embedded, onEmbed, assistantShown, onAssistant }: { projectId: string; embedded?: boolean; onEmbed?: (url: string | null) => void;
-  assistantShown?: boolean; onAssistant?: (on: boolean) => void }) {
+// O8: in the desktop app a video opens in HyperFrames by itself (the person may turn that off from the HyperFrames menu; remembered on this computer)
+const AUTO_KEY = "vt-open-in-hyperframes";
+const autoOn = () => { try { return localStorage.getItem(AUTO_KEY) !== "off"; } catch { return true; } };
+
+export default function StudioButton({ projectId, embedded, onEmbed, assistantShown, onAssistant, ready }: { projectId: string; embedded?: boolean; onEmbed?: (url: string | null) => void;
+  assistantShown?: boolean; onAssistant?: (on: boolean) => void; ready?: boolean }) {
   const [state, setState] = useState<"off" | "starting" | "open">("off");
   const [url, setUrl] = useState("");
   const base = `/api/projects/${encodeURIComponent(projectId)}/studio`;
@@ -42,6 +46,14 @@ export default function StudioButton({ projectId, embedded, onEmbed, assistantSh
     window.addEventListener("vt-open-hyperframes", on);
     return () => window.removeEventListener("vt-open-hyperframes", on);
   });
+  const [auto, setAuto] = useState(autoOn);
+  const tried = useRef("");
+  useEffect(() => {                                                      // open by itself once per video, when it has a plan to show
+    if (!ready || !auto || !canEmbed() || !onEmbed || state !== "off" || tried.current === projectId) return;
+    tried.current = projectId;
+    void open();
+  }, [ready, auto, projectId, state]); // eslint-disable-line react-hooks/exhaustive-deps
+  const setAutoOpen = (on: boolean) => { setAuto(on); try { localStorage.setItem(AUTO_KEY, on ? "on" : "off"); } catch { /* not remembered */ } };
   const close = async () => {
     try { await del(base); } catch { /* already stopped */ }
     setState("off");
@@ -61,6 +73,7 @@ export default function StudioButton({ projectId, embedded, onEmbed, assistantSh
       {embedded ? <MenuItem onClick={() => onEmbed?.(null)}>Back to Video Tool's editor</MenuItem> : <MenuItem onClick={() => show(url)}>Show the Studio</MenuItem>}
       {embedded && onAssistant && <MenuItem onClick={() => onAssistant(!assistantShown)}>{assistantShown ? "Hide the assistant (more room for the Studio)" : "Show the assistant beside the Studio"}</MenuItem>}
       <MenuItem onClick={() => open(true)}>Start over from the current video</MenuItem>
+      {canEmbed() && <MenuItem onClick={() => setAutoOpen(!auto)}>{auto ? "Open videos in Video Tool's editor instead" : "Open videos in HyperFrames"}</MenuItem>}
       <MenuItem onClick={close}>Close the Studio</MenuItem>
     </Popover>
   );

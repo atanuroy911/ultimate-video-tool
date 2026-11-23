@@ -28,6 +28,7 @@ try {
   page.on("pageerror", (e) => errors.push(String(e).slice(0, 200)));
   await page.waitForLoadState("load");
   const origin = new URL(page.url()).origin;
+  await page.evaluate(() => localStorage.setItem("vt-open-in-hyperframes", "off"));   // this suite tests Video Tool's own editor (videos open in HyperFrames otherwise)
   await page.goto(`${origin}/p/${pid}`, { waitUntil: "load" });
   await page.waitForSelector(".wb .wb-assistant-body", { timeout: 60000 });
   await page.getByRole("tab", { name: "Claude Code" }).click();
@@ -38,7 +39,7 @@ try {
   await box.fill("Using your Video Tool tools, tell me the title of this video and how many scenes it has. One short sentence.");
   await page.keyboard.press("Enter");
   await page.locator(".agent-steps li").first().waitFor({ timeout: 120000 });
-  check("a step shows while it works, named in plain words", /[A-Z][a-z]+( [a-z]+)*/.test(await page.locator(".agent-steps li").first().textContent()), await page.locator(".agent-steps li").first().textContent());
+  { const step = (await page.locator(".agent-steps li").first().textContent()) || ""; check("a step shows while it works, named in plain words", /[A-Z][a-z]+ [a-z]+/.test(step) && !/\b[A-Z][a-z]+[A-Z][a-z]+\b/.test(step), step); }   // "Looking for the right tool", not "ToolSearch"
   await page.locator(".agent-turn.agent p").first().waitFor({ timeout: 180000 });
   await page.getByRole("button", { name: "Send" }).waitFor({ timeout: 180000 });
   const answer = await page.locator(".agent-turn.agent p").last().textContent();

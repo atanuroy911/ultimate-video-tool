@@ -28,9 +28,9 @@ try {
   await page.goto(`${origin}/p/${pid}`, { waitUntil: "load" });
   await page.waitForSelector(".wb .wb-viewer", { timeout: 60000 });
 
-  await page.getByRole("button", { name: "Edit in HyperFrames" }).click();
+  // O8: in the app a video opens in HyperFrames by itself
   const frameEl = await page.waitForSelector(".studio-embed iframe", { timeout: 120000 }).catch(() => null);
-  check("the Studio opens inside the editor's canvas pane", !!frameEl);
+  check("the video opens in HyperFrames by itself, inside the editor's canvas pane", !!frameEl);
   const frame = frameEl ? await frameEl.contentFrame() : null;
   let text = "";
   for (let i = 0; frame && i < 30 && !/S\d Scene/.test(text); i++) { await page.waitForTimeout(1000); text = await frame.locator("body").innerText().catch(() => ""); }

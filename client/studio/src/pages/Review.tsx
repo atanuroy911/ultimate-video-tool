@@ -636,7 +636,7 @@ function ReviewEditor() {
           <Tooltip text="Redo" keys="Ctrl+Shift+Z"><Button icon variant="ghost" size="sm" onClick={r.redo} disabled={!r.canRedo} aria-label="Redo"><Redo2 size={16}/></Button></Tooltip>
         </div>
         <Button size="sm" onClick={() => nav(`/p/${id}/script`)} aria-label="Director's script"><MessageSquareText size={15}/> Script</Button>
-        <StudioButton projectId={id} embedded={!!studioUrl} assistantShown={showAssistant} onAssistant={setShowAssistant}
+        <StudioButton projectId={id} ready={!!r.plan?.scenes?.length && r.timing.scenes.length > 0} embedded={!!studioUrl} assistantShown={showAssistant} onAssistant={setShowAssistant}
           onEmbed={(u) => { setStudioUrl(u); if (u) setShowAssistant(window.innerWidth >= 1500); else setAssistantTab((t) => (t === "video" ? "director" : t)); }} />
         <Button size="sm" onClick={() => setAiOpen(true)} aria-label="AI assistant"><Sparkles size={15}/> AI</Button>
         <Button size="sm" variant="primary" onClick={exportNow}><Download size={15}/> Export</Button>

@@ -160,3 +160,8 @@ recordings, Claude Code over ACP. Our own editor stays for those until each live
   Sound, Media (the bin, pictures for the scene, picture tools), Outline and Checks. e2e desktop-studio 22/22. Screen: o8-video-views.png.
   What the old editor still has that this does not: the Elements panel (adding a text, shape or diagram to a scene through our plan) and our own
   inspector for a plan element; in HyperFrames parts are added and changed directly. Next: decide those two, then make HyperFrames the editor.
+- **O8, HyperFrames is where a video opens (2026-11-24):** in the desktop app a video with a plan opens in HyperFrames by itself (once per video
+  opened). The HyperFrames menu has "Open videos in Video Tool's editor instead" (remembered on this computer); "Back to the editor" still
+  shows our own canvas. The Video tab has every panel of the old editor (Elements added). Not done: deleting the old canvas and timeline code;
+  the suites that test Video Tool's own editor (Claude Code in it, shots, media) turn the auto-open off for their run. Tests: desktop-studio 23/23,
+  desktop-studio-agent 4/4 and desktop-agent 7/7 with the real Claude Code.

@@ -27,7 +27,7 @@ try {
   const origin = new URL(page.url()).origin;
   await page.goto(`${origin}/p/${pid}`, { waitUntil: "load" });
   await page.waitForSelector(".wb .wb-viewer", { timeout: 60000 });
-  await page.getByRole("button", { name: "Edit in HyperFrames" }).click();
+  // O8: the video opens in HyperFrames by itself in the app
   const frameEl = await page.waitForSelector(".studio-embed iframe", { timeout: 120000 });
   const studio = await frameEl.contentFrame();
   for (let i = 0; i < 30 && !/S\d Scene/.test(await studio.locator("body").innerText().catch(() => "")); i++) await page.waitForTimeout(1000);
@@ -52,7 +52,8 @@ try {
   await page.locator(".agent-turn.agent").last().waitFor({ timeout: 300000 });
   const steps = (await page.locator(".agent-steps li").allTextContents()).join(" | ");
   check("Claude Code looked at the selection", /studio selection/i.test(steps), steps.slice(0, 200));
-  const copy = fs.readFileSync(path.join(projects, pid, "studio-9x16", "index.html"), "utf8");
+  const dir = path.join(projects, pid, "studio-9x16");                    // the root page and each scene's own page (S4)
+  const copy = [path.join(dir, "index.html"), ...(fs.existsSync(path.join(dir, "scenes")) ? fs.readdirSync(path.join(dir, "scenes")).map((f) => path.join(dir, "scenes", f)) : [])].map((f) => fs.readFileSync(f, "utf8")).join("\n");
   check("Claude Code changed the selected part in the Studio copy", copy.includes(`>${words}<`));
   let shown = "";
   for (let i = 0; i < 15 && !shown.includes(words); i++) { await page.waitForTimeout(1000); shown = await studio.frameLocator("iframe").first().locator("body").innerText().catch(() => "") + (await studio.locator("body").innerText().catch(() => "")); }

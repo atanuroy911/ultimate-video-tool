@@ -127,7 +127,7 @@ class Session {
     if (u.sessionUpdate === "agent_message_chunk" && u.content?.type === "text") this.emit({ type: "text", text: u.content.text });
     else if (u.sessionUpdate === "tool_call" || u.sessionUpdate === "tool_call_update") {
       const name = toolName(u);
-      this.emit({ type: "step", id: String(u.toolCallId || ""), title: u.title && !/^mcp__/.test(u.title) ? String(u.title).slice(0, 200) : humanTitle(name || u.title), tool: name || undefined,
+      this.emit({ type: "step", id: String(u.toolCallId || ""), title: u.title && !/^mcp__/.test(u.title) && /\s/.test(String(u.title).trim()) ? String(u.title).slice(0, 200) : humanTitle(name || u.title), tool: name || undefined,
                   status: u.status || (u.sessionUpdate === "tool_call" ? "in_progress" : "pending") });
     } else if (u.sessionUpdate === "plan") this.emit({ type: "plan", entries: (u.entries || []).map((e) => ({ text: String(e.content || "").slice(0, 200), status: e.status })) });
   }

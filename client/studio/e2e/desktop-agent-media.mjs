@@ -23,6 +23,7 @@ try {
   await page.waitForLoadState("load");
   const origin = new URL(page.url()).origin;
   const api = (method, url, body) => page.evaluate(async ([m, u, b]) => { const r = await fetch(u, { method: m, headers: { "content-type": "application/json" }, body: b ? JSON.stringify(b) : undefined }); return r.json(); }, [method, url, body]);
+  await page.evaluate(() => localStorage.setItem("vt-open-in-hyperframes", "off"));   // this suite tests Video Tool's own editor (videos open in HyperFrames otherwise)
   await page.goto(`${origin}/p/${pid}`, { waitUntil: "load" });
   await page.waitForSelector(".wb .wb-assistant-body", { timeout: 60000 });
   await page.getByRole("tab", { name: "Claude Code" }).click();

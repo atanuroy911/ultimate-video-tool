@@ -52,4 +52,15 @@ Order: S1, S2, G1, G4, S3, G2, G3, S4.
   for *Redraw*. `scene_gen.write_prompts`, `POST .../pictures/prompts`. Real test: Sonnet wrote 4 distinct prompts for c2-mix s4 in 7 s. Tests:
   test_scene_gen 6/6, scene-pictures 12/12. Screen: g3-written-prompts.png.
 - Left: reference pictures in the setup (not built), S4, and real pictures/clips once a picture engine runs here.
-- Next: S4.
+- **S4 done:** each scene is its own composition, `scenes/<id>.html` (a scene with several pages gets one file per page: s2, s2-2), mounted by a host
+  in the root page at the scene's window; its animation is timed from the scene's start, and its window starts at its earliest step, so nothing
+  is moved or cut. A scene stays in the root page when it holds a timed clip (HyperFrames' rule) or shares a step with another scene (a transition
+  that moves two scenes). The captions moved to `compositions/captions.html` and the baselines into `.baked/`, so the copy has one page at the top
+  (HyperFrames' `multiple_root_compositions` error is gone; lint: 0 errors on the sample). Older Studio copies are carried over (their edits find
+  their new page). Frames: the 3-scene test identical; the owner's 14-minute talk bakes to 64 scene pages, nothing lost, 16 of 17 moments identical
+  (the one difference predates S4). HyperFrames' Compositions panel lists one entry per scene; picking a part in the scene bar selects it inside
+  its scene's page. Tests: test_bake 5, test_video_studio 9, e2e video-studio 9/9, studio-parts 6/6, desktop-studio 16/16. Screen:
+  docs/dev/spikes/html-shot/s4-compositions.png.
+- Also fixed on the way: a bake could fail when the editor saved the composition while it was being copied (a temporary file vanished); the
+  bake skips temporary files and tries again.
+- Left of this plan: reference pictures in the pictures setup, and real pictures and clips once a picture engine runs on this computer.

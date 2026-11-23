@@ -12,11 +12,11 @@ let pass = 0, fail = 0;
 const check = (name, ok, extra = "") => { (ok ? pass++ : fail++); console.log(`${ok ? "ok  " : "FAIL"} ${name}${extra ? "  " + extra : ""}`); };
 const api = async (method, url) => (await fetch(base + url, { method })).json();
 
+const s = await api("POST", `/api/projects/${pid}/studio`);                // opening bakes the copy the parts come from
+check("the Studio is open", !!s.url, s.url);
 const parts = await api("GET", `/api/projects/${pid}/studio/parts?scene=${sid}`);
 check("the scene's parts are listed by id", Array.isArray(parts) && parts.some((p) => p.id === want), parts.map?.((p) => p.id).join(", "));
 check("only this scene's parts", parts.every((p) => p.scene === sid));
-const s = await api("POST", `/api/projects/${pid}/studio`);
-check("the Studio is open", !!s.url, s.url);
 const browser = await chromium.launch({ executablePath: chromePath(), args: ["--disable-gpu"] });
 const page = await (await browser.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
 const errors = [];
@@ -30,7 +30,9 @@ const selected = () => {
   return j.selection?.target?.id || null;
 };
 const loads = await page.evaluate(() => performance.getEntriesByType("navigation").length);
-await page.evaluate((id) => { location.hash = location.hash.split("?")[0] + `?t=15&selFile=index.html&selId=${id}`; }, want);
+const file = parts.find((p) => p.id === want)?.file || "index.html";
+check("a scene part is in its scene's own page (S4)", /^scenes\/s\d+/.test(file), file);
+await page.evaluate(([id, file]) => { location.hash = location.hash.split("?")[0] + `?t=15&selFile=${encodeURIComponent(file)}&selId=${id}`; }, [want, file]);
 await page.waitForTimeout(2500);
 const got = selected();
 check("the Studio selects the part named in its address", got === want, `selected: ${got}`);

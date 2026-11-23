@@ -83,9 +83,10 @@ try {
   const plan0 = (await api("GET", `/api/projects/${pid}/scenes`)).plan.scenes.find((x) => x.id === "s5");
   const items0 = plan0.elements[0].items;
   await api("PATCH", `/api/projects/${pid}/scenes/s5/elements/0`, { items: [{ ...items0[0], title: "App notifications" }, ...items0.slice(1)] });
-  const copyFile = path.join(process.env.VT_PROJECTS || "E:/UltimateVideoTool/scratch/c2-projects", pid, "studio-9x16", "index.html");
+  const copyDir = path.join(process.env.VT_PROJECTS || "E:/UltimateVideoTool/scratch/c2-projects", pid, "studio-9x16");
+  const copyText = () => [path.join(copyDir, "index.html"), ...(fs.existsSync(path.join(copyDir, "scenes")) ? fs.readdirSync(path.join(copyDir, "scenes")).map((f) => path.join(copyDir, "scenes", f)) : [])].map((f) => fs.readFileSync(f, "utf8")).join("\n");   // the root and each scene page (S4)
   let reached = false;
-  for (let i = 0; i < 40 && !reached; i++) { await page.waitForTimeout(1000); reached = fs.readFileSync(copyFile, "utf8").includes("App notifications"); }
+  for (let i = 0; i < 40 && !reached; i++) { await page.waitForTimeout(1000); reached = copyText().includes("App notifications"); }
   check("a change to the video reaches the open Studio's copy by itself", reached);
   await api("PATCH", `/api/projects/${pid}/scenes/s5/elements/0`, { items: items0 });
   await page.waitForTimeout(7000);

@@ -899,7 +899,7 @@ def studio_part(project: str, part_id: str, aspect: Optional[str] = None) -> dic
 def studio_edit(project: str, find: str, replace: str, label: str = "", file: str = "index.html", aspect: Optional[str] = None) -> dict:
     """Change the Studio copy: replace one exact piece of its code (it must appear exactly once; copy it from studio_part). Text, styles and GSAP lines can all
     be changed this way. label: what you changed in a few plain words ("Bigger title"); it is the entry the person sees in the Studio's history and can undo.
-    The Studio, if open, reloads at once; the export draws the edited copy. file: index.html or captions.html. studio_undo takes it back."""
+    The Studio, if open, reloads at once; the export draws the edited copy. file: the page the part is in (studio_part says: index.html, compositions/captions.html or scenes/<scene>.html). studio_undo takes it back."""
     from .. import video_studio as VS
 
     p, tag = _studio(project, aspect)

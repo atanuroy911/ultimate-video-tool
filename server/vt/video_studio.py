@@ -17,9 +17,29 @@ from typing import Optional
 from . import shot_studio as ST
 from .bake import bake
 
-BASELINE = ".baked.html"           # the page as baked, to tell edits from no edits
-BASE_OF = {"index.html": BASELINE, "captions.html": ".baked-captions.html"}
+BASES = ".baked"                   # each page as baked, to tell edits from no edits (.baked/index.html, .baked/scenes/s4.html...); a dot-folder, so
+                                   # HyperFrames never takes a copy for a second root page
 STAMP = ".baked.json"              # what it was baked from
+CAPTIONS = "compositions/captions.html"
+# Studio copies made before 2026-11-23 kept the baselines beside the pages and the captions at the top: read where they are, moved on the next bake
+_LEGACY = {".baked.html": "index.html", ".baked-captions.html": "captions.html"}
+
+
+def pages(d: Path) -> list[str]:
+    """The pages of a Studio copy: the root, the captions and (S4) one per scene, as paths inside it."""
+    out = [f for f in ("index.html", CAPTIONS, "captions.html") if (d / f).exists()]
+    return out + sorted(f"scenes/{p.name}" for p in (d / "scenes").glob("*.html")) if (d / "scenes").is_dir() else out
+
+
+def base_of(page: str, d: Optional[Path] = None) -> str:
+    """Where the page's baked baseline is (in an older copy, where it was)."""
+    if d is not None:
+        old = next((k for k, v in _LEGACY.items() if v == page), None)
+        if old and (d / old).exists() and not (d / BASES / page).exists():
+            return old
+        if page.startswith("scenes/") and (d / ".baked-scenes" / page[7:]).exists() and not (d / BASES / page).exists():
+            return f".baked-scenes/{page[7:]}"
+    return f"{BASES}/{page}"
 
 
 def folder(project, tag: str) -> Path:
@@ -33,10 +53,10 @@ def fingerprint(comp_dir: Path) -> str:
     except (OSError, ValueError):
         return ""
     data.pop("captions_enabled", None)
-    return hashlib.sha1(b"v2" + json.dumps(data, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()[:16]
+    return hashlib.sha1(b"v4" + json.dumps(data, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()[:16]
 
 
-HOST = re.compile(r'<div id="captions"[^>]*data-composition-src="captions\.html"[^>]*></div>')
+HOST = re.compile(r'<div id="captions"[^>]*data-composition-src="(?:compositions/)?captions\.html"[^>]*></div>')
 
 
 def without_captions(src: Path, dst: Path) -> Path:
@@ -45,7 +65,7 @@ def without_captions(src: Path, dst: Path) -> Path:
 
     if dst.exists():
         shutil.rmtree(dst)
-    shutil.copytree(src, dst, copy_function=_link_or_copy, ignore=shutil.ignore_patterns(BASELINE, BASE_OF["captions.html"], STAMP, "captions.html"))
+    shutil.copytree(src, dst, copy_function=_link_or_copy, ignore=shutil.ignore_patterns(BASES, ".baked-scenes", *_LEGACY, STAMP, "captions.html"))
     page = dst / "index.html"
     page.write_text(HOST.sub("", page.read_text(encoding="utf-8")), encoding="utf-8")
     return dst
@@ -54,9 +74,9 @@ def without_captions(src: Path, dst: Path) -> Path:
 def info(project, tag: str, comp_dir: Optional[Path] = None) -> dict:
     """Whether this shape has Studio edits, and whether they still fit the current composition."""
     d = folder(project, tag)
-    if not (d / "index.html").exists() or not (d / BASELINE).exists():
+    if not (d / "index.html").exists() or not (d / base_of("index.html", d)).exists():
         return {"baked": False, "edited": False, "current": False}
-    edited = any((d / f).exists() and (d / b).exists() and (d / f).read_bytes() != (d / b).read_bytes() for f, b in BASE_OF.items())
+    edited = any((d / base_of(f, d)).exists() and (d / f).read_bytes() != (d / base_of(f, d)).read_bytes() for f in pages(d))
     try:
         stamp = json.loads((d / STAMP).read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -72,7 +92,7 @@ def _swap_in(src: Path, dst: Path) -> None:
     import time as _time
 
     keep = {p.relative_to(src) for p in src.rglob("*") if p.is_file()}
-    for rel in sorted(keep, key=lambda r: (r.name in ("index.html", "captions.html"), str(r))):      # the pages last, once their files are there
+    for rel in sorted(keep, key=lambda r: (r.suffix == ".html" and not r.parts[0].startswith("."), r.as_posix() == "index.html", str(r))):  # pages last, the root last of all
         target = dst / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         for attempt in range(20):
@@ -85,7 +105,13 @@ def _swap_in(src: Path, dst: Path) -> None:
                 _time.sleep(0.05 * (attempt + 1))
     for p in sorted(dst.rglob("*"), reverse=True):
         rel = p.relative_to(dst)
-        if rel.parts[0].startswith(".") or p.name in (BASELINE, STAMP, *BASE_OF.values()):
+        if rel.as_posix() in _LEGACY or rel.parts[0] == ".baked-scenes":    # an older copy's baselines: the new ones are in .baked/
+            if p.is_file():
+                p.unlink(missing_ok=True)
+            else:
+                shutil.rmtree(p, ignore_errors=True)
+            continue
+        if rel.parts[0].startswith(".") or p.name == STAMP:              # dot-folders (the baselines, HyperFrames' own history) stay
             continue
         if p.is_file() and rel not in keep:
             p.unlink(missing_ok=True)
@@ -104,9 +130,9 @@ def prepare(project, tag: str, comp_dir: Path, *, fresh: bool = False) -> dict:
         return {**have, "kept": True}
     earlier = {}
     if have["edited"] and not have["current"]:
-        for f, b in BASE_OF.items():
-            if (d / f).exists() and (d / b).exists():
-                earlier[f] = ((d / b).read_text(encoding="utf-8"), (d / f).read_text(encoding="utf-8"))
+        for f in pages(d):
+            if (d / base_of(f, d)).exists():
+                earlier[f] = ((d / base_of(f, d)).read_text(encoding="utf-8"), (d / f).read_text(encoding="utf-8"))
         old = project.dir / f"studio-{tag}.old"
         shutil.rmtree(old, ignore_errors=True)
         shutil.copytree(d, old, copy_function=_link_or_copy, ignore=shutil.ignore_patterns(".hyperframes", ".history"))
@@ -116,24 +142,24 @@ def prepare(project, tag: str, comp_dir: Path, *, fresh: bool = False) -> dict:
         shutil.rmtree(new, ignore_errors=True)
         raise ST.StudioError(f"This video has {got['lost_count']} animation step(s) the Studio cannot hold yet (for example stick figures, whose "
                              "limbs are drawn by code every frame). Edit it in Video Tool's own editor for now.")
-    for f, b in BASE_OF.items():
-        if (new / f).exists():
-            shutil.copy(new / f, new / b)
+    for f in pages(new):
+        (new / base_of(f)).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(new / f, new / base_of(f))
     (new / STAMP).write_text(json.dumps({"from": fingerprint(comp_dir), "lost": got["lost"][:20], "lost_count": got["lost_count"]}, indent=1), encoding="utf-8")
     carried = missed = 0
-    if not fresh:
-        for f, (base, mine) in earlier.items():
-            if not (new / f).exists():
-                continue
-            text, c, m = carry(base, mine, (new / f).read_text(encoding="utf-8"))
-            if f == "index.html" and c:
-                from . import shots as SH
-                try:
-                    SH.info_of("video", text, {})
-                except SH.ShotError:
-                    text, c, m = (new / f).read_text(encoding="utf-8"), 0, c + m
-            (new / f).write_text(text, encoding="utf-8")
+    if not fresh and earlier:
+        texts = {f: (new / f).read_text(encoding="utf-8") for f in pages(new)}
+        for f, (base, mine) in earlier.items():                       # a change goes to the page it came from, else to the page that holds its code now
+            texts, c, m = carry_many(base, mine, texts, prefer=f)       # (a scene's part moved from the root page into scenes/<id>.html in S4)
             carried, missed = carried + c, missed + m
+        if "index.html" in texts:
+            from . import shots as SH
+            try:
+                SH.info_of("video", texts["index.html"], {})
+            except SH.ShotError:                                          # the carried root would not be a timed video: start from the new bake
+                texts["index.html"] = (new / "index.html").read_text(encoding="utf-8")
+        for f, text in texts.items():
+            (new / f).write_text(text, encoding="utf-8")
     if d.exists():
         _swap_in(new, d)
     else:
@@ -180,12 +206,10 @@ def for_render(project, tag: str, comp_dir: Path, captions: bool = True) -> tupl
 # ---- O6: agents work on the same copy the person edits in the Studio ----
 
 _ID_TAG = re.compile(r'<([a-zA-Z][\w-]*)\b([^>]*?)\sid="([^"]+)"([^>]*)>')
-FILES = ("index.html", "captions.html")
-
-
 def _page(project, tag: str, file: str = "index.html") -> Path:
-    if file not in FILES:
-        raise ST.StudioError(f"The Studio copy has {' and '.join(FILES)}; '{file}' is not one of them.")
+    have = pages(folder(project, tag))
+    if file not in have:
+        raise ST.StudioError(f"The Studio copy has {', '.join(have) or 'no pages'}; '{file}' is not one of them.")
     p = folder(project, tag) / file
     if not p.exists():
         raise ST.StudioError("This video has no Studio copy yet: open it in the Studio first (or call studio_parts, which makes one).")
@@ -195,7 +219,7 @@ def _page(project, tag: str, file: str = "index.html") -> Path:
 def parts(project, tag: str, scene: Optional[str] = None, limit: int = 400) -> list[dict]:
     """Every part with an id in the Studio copy: its id, the scene it belongs to, its tag and the start of its text."""
     out = []
-    for file in FILES:
+    for file in pages(folder(project, tag)):
         p = folder(project, tag) / file
         if not p.exists():
             continue
@@ -216,7 +240,7 @@ def parts(project, tag: str, scene: Optional[str] = None, limit: int = 400) -> l
 
 def part(project, tag: str, part_id: str) -> dict:
     """One part: its opening tag, the start of what is inside it, and every animation line on it (GSAP code addressing its id)."""
-    for file in FILES:
+    for file in pages(folder(project, tag)):
         p = folder(project, tag) / file
         if not p.exists():
             continue
@@ -238,6 +262,8 @@ def edit(project, tag: str, find: str, replace: str, file: str = "index.html") -
     if n != 1:
         raise ST.StudioError(f"The text to replace appears {n} times; give a piece that appears exactly once (studio_part shows a part's exact code).")
     new = html.replace(find, replace, 1)
+    if file != "index.html" and 'data-composition-id="' not in new:
+        raise ST.StudioError("That change would remove the page's composition; keep its data-composition-id.")
     if file == "index.html":
         from . import shots as SH
         try:
@@ -315,31 +341,48 @@ _TOKEN = re.compile(r"(?<=>)|(?<=\n)")
 
 
 def carry(base: str, mine: str, new: str, context: int = 3) -> tuple[str, int, int]:
+    """carry_many for one page."""
+    got, c, m = carry_many(base, mine, {"page": new}, prefer="page", context=context)
+    return got["page"], c, m
+
+
+def carry_many(base: str, mine: str, news: dict, prefer: str = "", context: int = 3) -> tuple[dict, int, int]:
     """Apply the changes made from `base` to `mine` onto `new` (a fresh bake of a changed video). Each change is found in `new` by the code
     around it (a few tags or lines before and after, and what it replaced); it is applied only where that is found exactly once.
     Returns the new text, how many changes were carried and how many found no place."""
     from difflib import SequenceMatcher
 
-    a, b, n = [t for t in _TOKEN.split(base) if t], [t for t in _TOKEN.split(mine) if t], [t for t in _TOKEN.split(new) if t]
-    plan, missed = [], 0
+    split = lambda t: [x for x in _TOKEN.split(t) if x]                     # noqa: E731
+    a, b = split(base), split(mine)
+    targets = {k: split(v) for k, v in news.items()}
+    order = sorted(targets, key=lambda k: k != prefer)
+    plans: dict = {k: [] for k in targets}
+    missed = 0
     for op, i1, i2, j1, j2 in SequenceMatcher(None, a, b, autojunk=False).get_opcodes():
         if op == "equal":
             continue
         before, removed, after = a[max(0, i1 - context): i1], a[i1:i2], a[i2: i2 + context]
-        start = None
+        found = None
         for lead, tail in ((before, after), (before, []), ([], after)):        # the code around it, or only what comes before, or only after
             need = lead + removed + tail
             if not lead and not tail:
                 continue
-            hits = [p for p in range(len(n) - len(need) + 1) if n[p: p + len(need)] == need]
-            if len(hits) == 1:
-                start = hits[0] + len(lead)
+            for k in order:                                                   # its own page first, then the others
+                n = targets[k]
+                hits = [p for p in range(len(n) - len(need) + 1) if n[p: p + len(need)] == need]
+                if len(hits) == 1:
+                    found = (k, hits[0] + len(lead))
+                    break
+            if found:
                 break
-        if start is None:
+        if found is None:
             missed += 1
             continue
-        plan.append((start, start + len(removed), b[j1:j2]))
-    plan.sort(key=lambda x: x[0], reverse=True)
-    for s0, s1, put in plan:
-        n[s0:s1] = put
-    return "".join(n), len(plan), missed
+        k, start = found
+        plans[k].append((start, start + len(removed), b[j1:j2]))
+    out = {}
+    for k, n in targets.items():
+        for s0, s1, put in sorted(plans[k], key=lambda x: x[0], reverse=True):
+            n[s0:s1] = put
+        out[k] = "".join(n)
+    return out, sum(len(p) for p in plans.values()), missed

@@ -39,7 +39,7 @@ def baked(tmp_path_factory):
 def test_nothing_is_lost_and_every_part_is_in_the_source(baked):
     comp, out, got = baked
     assert got["lost_count"] == 0, got["lost"]
-    html = (out / "index.html").read_text(encoding="utf-8")
+    html = "\n".join(p.read_text(encoding="utf-8") for p in [out / "index.html", *sorted((out / "scenes").glob("*.html"))])   # the root and each scene
     assert "runtime/vt.js" not in html and "window.__VT__" not in html, "the baked page needs no runtime"
     for part in ("s1-", "s2-defn-term", "s3-step-num"):
         assert f'id="{part}' in html, part
@@ -47,6 +47,22 @@ def test_nothing_is_lost_and_every_part_is_in_the_source(baked):
     assert len(ids) == len(set(ids)), "ids are unique"
     assert all(f'data-hf-id="hf-{i}"' in html for i in ("s2-defn-term", "s2-defn-meaning"))
     assert len(html) < 400_000
+
+
+def test_each_scene_is_its_own_composition(baked):
+    """S4 (docs/plans/PLAN-SCENE-TOOLS.MD): a host per scene in the root page, at the scene's window; the scene and its animation in scenes/<id>.html,
+    timed from the scene's start. Nothing of a scene starts before its window."""
+    comp, out, got = baked
+    page = (out / "index.html").read_text(encoding="utf-8")
+    assert got["scenes"] == 3 and not got["early"], got["early"]
+    hosts = re.findall(r'<div id="scene-(s\d+)" data-composition-id="scene-\1" data-composition-src="scenes/\1\.html" data-start="([\d.]+)" data-duration="([\d.]+)"', page)
+    assert [h[0] for h in hosts] == ["s1", "s2", "s3"], hosts
+    assert float(hosts[0][1]) == 0 and 2.5 < float(hosts[1][1]) < 3.5 and 5.5 < float(hosts[2][1]) < 6.5
+    s2 = (out / "scenes" / "s2.html").read_text(encoding="utf-8")
+    assert 'data-composition-id="scene-s2"' in s2 and 'id="s2-defn-term"' in s2 and 'window.__timelines["scene-s2"] = ts' in s2
+    assert "s2-defn-term" not in page, "the root holds no scene parts or their animation"
+    starts = [float(x) for x in re.findall(r",\s*([\d.]+)\);", s2)]
+    assert starts and max(starts) < 4, "scene times count from the scene's start"
 
 
 def test_the_baked_page_draws_the_same_frames(baked):
@@ -67,7 +83,8 @@ def test_the_baked_page_draws_the_same_frames(baked):
 def test_captions_are_their_own_composition(baked):
     comp, out, _ = baked
     page = (out / "index.html").read_text(encoding="utf-8")
-    caps = (out / "captions.html").read_text(encoding="utf-8")
-    assert re.search(r'<div id="captions" data-composition-id="captions" data-composition-src="captions\.html"', page)
+    caps = (out / "compositions" / "captions.html").read_text(encoding="utf-8")
+    assert re.search(r'<div id="captions" data-composition-id="captions" data-composition-src="compositions/captions\.html"', page)
+    assert not (out / "captions.html").exists(), "one page at the top: HyperFrames takes every top-level page with a composition for a root"
     assert 'class="cap-layer"' not in page and 'class="cap-layer"' in caps
     assert 'data-composition-id="captions"' in caps and "window.__timelines.captions = tc" in caps

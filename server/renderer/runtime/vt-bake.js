@@ -206,13 +206,69 @@
       root.time(keep);
       return steps;
     }
+    // S4 (PLAN-SCENE-TOOLS): each scene's time window, worked out before the code is written, so a scene's animation can go into the scene's own
+    // composition (scenes/<id>.html) with its times counted from the scene's start. From its first tween (0 for the first scene) to the end of its
+    // last one (the moment it is hidden), or to the end of the video; HyperFrames shows a timed element only inside its window.
+    var rootEl = document.querySelector("[data-composition-id]");
+    var total = Number(rootEl.getAttribute("data-duration")) || root.duration();
+    var direct = root.getChildren(false, true, false);
+    var win = new Map(), sceneCode = new Map(), early = [];
+    [].slice.call(rootEl.querySelectorAll(".scene[data-scene]")).forEach(function (sc, i) {
+      if (sc.querySelector("video[data-start], audio[data-start]")) return;  // a timed clip inside takes no timing from its wrapper (HyperFrames: video_nested_in_timed_element)
+      var from = Infinity, to = -Infinity;
+      direct.forEach(function (tw) {
+        if (tw.targets().indexOf(sc) < 0) return;
+        from = Math.min(from, tw.startTime());
+        to = Math.max(to, tw.endTime());
+      });
+      if (!isFinite(from) || i === 0) from = 0;
+      var hidden = direct.some(function (tw) { return tw.targets().indexOf(sc) >= 0 && tw.vars && (tw.vars.opacity === 0 || tw.vars.autoAlpha === 0 || tw.vars.visibility === "hidden"); });
+      if (!hidden || !isFinite(to)) to = total;
+      to = Math.min(total, to + 1 / 30);                                     // one frame more: never cut the last frame of a fade
+      win.set(sc, { from: Math.round(from * 1000) / 1000, to: to, own: /^[A-Za-z0-9_-]+$/.test(sc.getAttribute("data-scene") || "") });
+    });
+    function elementsOf(x, acc) {                                            // every page element a tween or timeline moves
+      if (isTL(x)) { x.getChildren(true, true, false).forEach(function (t) { elementsOf(t, acc); }); return acc; }
+      (x.targets ? x.targets() : []).forEach(function (t) { if (isEl(t)) acc.push(t); });
+      return acc;
+    }
+    // A step at the root that moves parts of two scenes at once (a transition such as the mosaic), or a scene's part and something outside every
+    // scene, must stay in the root page with all it moves: those scenes keep living in the root page (a scene's own page is mounted after the root's
+    // code has run, so the root could not reach its parts). Repeated until nothing changes, since keeping one scene can tie another to the root.
+    var rootSteps = root.getChildren(false, true, true).map(function (ch) { var src = made.get(ch); return elementsOf(src ? src.of : ch, []); });
+    for (var changed = true; changed;) {
+      changed = false;
+      rootSteps.forEach(function (els) {
+        var inScenes = new Set(), outside = false;
+        els.forEach(function (el) {
+          var s = null;
+          win.forEach(function (w, sc) { if (!s && w.own && sc.contains(el)) s = sc; });
+          if (s) inScenes.add(s); else outside = true;
+        });
+        if (inScenes.size > 1 || (inScenes.size && outside)) inScenes.forEach(function (sc) { win.get(sc).own = false; changed = true; });
+      });
+    }
+    var ownScenes = [];
+    win.forEach(function (w, sc) { if (w.own) ownScenes.push(sc); });
+    function sceneOf(els) {                                                  // the one scene holding every element, if it has its own composition
+      if (!els.length) return null;
+      var sc = ownScenes.find(function (s) { return s.contains(els[0]); });
+      return sc && els.every(function (el) { return sc.contains(el); }) ? sc : null;
+    }
+    // A scene's own window starts at its earliest step (a part can start moving a moment before the scene's own entrance; the scene is still
+    // invisible then, .scene starts at opacity 0), so no step of the scene is moved or cut.
+    root.getChildren(false, true, true).forEach(function (ch, k) {
+      var sc = sceneOf(rootSteps[k]);
+      if (sc) win.get(sc).from = Math.min(win.get(sc).from, Math.floor(ch.startTime() * 1000) / 1000);
+    });
+    var out = code;                                                          // where the code goes: the root's, or a scene's
     function define(tl) {                                                    // writes a timeline (its children first when they are timelines) and returns its name
       if (names.has(tl)) return names.get(tl);
       var me = "t" + names.size;
       names.set(tl, me);
       var v = clean(tl.vars || {});
       if (tl !== root) v.paused = !!(tl.vars && tl.vars.paused);
-      code.push("const " + me + " = gsap.timeline(" + (tl === root ? "{ paused: true }" : js(v)) + ");");
+      out.push("const " + me + " = gsap.timeline(" + (tl === root ? "{ paused: true }" : js(v)) + ");");
       var done = new Set(), list = [], recOf = new Map();
       (calls.get(tl) || []).forEach(function (c) { if (c.child && !done.has(c.child)) { done.add(c.child); list.push(c.child); recOf.set(c.child, c); } });
       tl.getChildren(false, true, true).forEach(function (ch) { if (!done.has(ch)) { done.add(ch); list.push(ch); } });   // made some other way
@@ -220,14 +276,41 @@
       list.forEach(function (ch) {
         if (ch.parent !== tl) return;                                        // killed or moved since (settleEntrance replaces some entrances with a set)
         var start = at3(ch.startTime());                                     // where it is now (the runtime moves some tweens after making them)
-        if (isTL(ch)) { code.push(me + ".add(" + define(ch) + "," + start + ");"); return; }
         var src = made.get(ch);
-        if (src) { code.push(me + ".add(" + define(src.of) + "." + src.m + "(" + src.args.map(function (a) { return js(a); }).join(",") + ")," + start + ");"); return; }
+        // at the root, a step that moves only one scene's parts goes to that scene's composition, its time counted from the scene's start
+        var me2 = me, home = out, shift = 0;
+        if (tl === root) {
+          var sc = sceneOf(elementsOf(src ? src.of : ch, []));
+          if (sc) {
+            if (!sceneCode.has(sc)) sceneCode.set(sc, []);
+            out = sceneCode.get(sc); me2 = "ts"; shift = win.get(sc).from;
+            if (start < shift - 0.0005) early.push({ scene: sc.getAttribute("data-scene"), at: start, from: shift, set: ch.duration() === 0 });
+          }
+        }
+        var at = function (t) { return at3(Math.max(0, t - shift)); };
+        try {
+          if (isTL(ch)) { out.push(me2 + ".add(" + define(ch) + "," + at(start) + ");"); return; }
+          if (src) { out.push(me2 + ".add(" + define(src.of) + "." + src.m + "(" + src.args.map(function (a) { return js(a); }).join(",") + ")," + at(start) + ");"); return; }
+          emit(ch, tl, me2, at, start);
+        } finally { out = home; }
+      });
+      return me;
+      function emit(ch, tl, me, at, start) {
         var targets = ch.targets(), rec = recOf.get(ch);
         if (!targets.length) { lost.push({ what: "a call", keys: "callback" }); return; }
         if (!targets.every(isEl)) {                                          // a plain object: a count-up
           var steps = tl === root ? sample(ch) : [];
-          if (steps.length) steps.forEach(function (s) { touched.add(s[0]); code.push(me + ".set([" + JSON.stringify(idOf(s[0])) + "].map($)," + JSON.stringify({ textContent: s[2] }) + "," + at3(s[1]) + ");"); });
+          if (steps.length) {
+            steps.forEach(function (s) {                                     // each text step goes to the page holding its element
+              touched.add(s[0]);
+              var sc = tl === root && me !== "ts" ? sceneOf([s[0]]) : null;
+              var line = ".set([" + JSON.stringify(idOf(s[0])) + "].map($)," + JSON.stringify({ textContent: s[2] }) + ",";
+              if (sc) {
+                if (!sceneCode.has(sc)) sceneCode.set(sc, []);
+                sceneCode.get(sc).push("ts" + line + at3(Math.max(0, s[1] - win.get(sc).from)) + ");");
+              } else out.push(me + line + at(s[1]) + ");");
+            });
+          }
           else lost.push({ what: "a tween of something that is not on the page", keys: (rec && rec.fnKeys || []).join(",") });
           return;
         }
@@ -235,17 +318,15 @@
         if (rec.fn) lost.push({ what: "a callback on a tween", keys: (rec.fnKeys || []).join(","), el: targets[0].className || targets[0].tagName });
         targets.forEach(function (el) { touched.add(el); });
         var opts = rec.args.slice(1, rec.m === "fromTo" ? 3 : 2).map(noDelay);     // the options as the runtime gave them (GSAP turns eases into functions in its copy)
-        var line = "." + rec.m + "([" + targets.map(function (el) { return JSON.stringify(idOf(el)); }).join(",") + "].map($)," + opts.map(function (o) { return js(o); }).join(",") + "," + start + ");";
+        var line = "." + rec.m + "([" + targets.map(function (el) { return JSON.stringify(idOf(el)); }).join(",") + "].map($)," + opts.map(function (o) { return js(o); }).join(",") + "," + at(start) + ");";
         // a tween of caption parts only goes to the captions' own composition (same times: it starts at 0)
         if (capLayer && tl === root && targets.every(function (el) { return capLayer.contains(el); })) { capCode.push("tc" + line); return; }
-        code.push(me + line);
-      });
-      return me;
+        out.push(me + line);
+      }
     }
     define(root);
     // the page as built, before the timeline moved anything: GSAP-set styles, attributes and text go back to what the builder wrote
     // (done on a copy of the page: the live page keeps the nodes the timeline holds)
-    var rootEl = document.querySelector("[data-composition-id]");
     var copy = rootEl.cloneNode(true);
     var twin = new Map();
     (function pair(a, b) { twin.set(a, b); for (var i = 0; i < a.children.length; i++) pair(a.children[i], b.children[i]); })(rootEl, copy);
@@ -264,27 +345,11 @@
       if (a) for (var k in a) { if (a[k] == null) c.removeAttribute(k); else c.setAttribute(k, a[k]); }
       if (firstText.has(el)) c.innerHTML = firstText.get(el);
     });
-    // Each scene gets its time window (data-start / data-duration), read from the root timeline: from its first tween (0 for the first scene) to the end
-    // of its last one (the moment it is hidden), or to the end of the video. HyperFrames shows a timed element only inside its window, so the window
-    // covers every moment the scene can be seen; the Studio's timeline then shows the scene where it plays.
-    var total = Number(rootEl.getAttribute("data-duration")) || root.duration();
-    var direct = root.getChildren(false, true, false);
-    [].slice.call(rootEl.querySelectorAll(".scene[data-scene]")).forEach(function (sc, i) {
+    win.forEach(function (w, sc) {                                         // each scene copy gets its window (worked out above)
       var c = twin.get(sc);
       if (!c) return;
-      if (sc.querySelector("video[data-start], audio[data-start]")) return;  // a timed clip inside takes no timing from its wrapper (HyperFrames: video_nested_in_timed_element)
-      var from = Infinity, to = -Infinity;
-      direct.forEach(function (tw) {
-        if (tw.targets().indexOf(sc) < 0) return;
-        from = Math.min(from, tw.startTime());
-        to = Math.max(to, tw.endTime());
-      });
-      if (!isFinite(from) || i === 0) from = 0;
-      var hidden = direct.some(function (tw) { return tw.targets().indexOf(sc) >= 0 && tw.vars && (tw.vars.opacity === 0 || tw.vars.autoAlpha === 0 || tw.vars.visibility === "hidden"); });
-      if (!hidden || !isFinite(to)) to = total;
-      to = Math.min(total, to + 1 / 30);                                     // one frame more: never cut the last frame of a fade
-      c.setAttribute("data-start", String(Math.round(from * 1000) / 1000));
-      c.setAttribute("data-duration", String(Math.round((to - from) * 1000) / 1000));
+      c.setAttribute("data-start", String(w.from));
+      c.setAttribute("data-duration", String(Math.round((w.to - w.from) * 1000) / 1000));
     });
     // A shorthand holding a variable with one side overridden (border: 5px solid var(--accent); border-top-color: transparent) cannot be written back
     // as text: the browser leaves its parts empty. Those parts get the value the page actually draws.
@@ -294,7 +359,7 @@
       var cs = getComputedStyle(el);
       c.setAttribute("style", s.replace(/([a-z-]+):\s*;/g, function (_, p) { var v = cs.getPropertyValue(p); return v ? p + ": " + v + ";" : ""; }));
     });
-    // The captions become their own composition: their layer moves to captions.html and a full-frame host takes its place in the page (it stays
+    // The captions become their own composition: their layer moves to compositions/captions.html and a full-frame host takes its place in the page (it stays
     // inside the root, so the caption styles and the theme's variables still apply). Without captions the video still draws; one bake serves both.
     var captions = null;
     if (capLayer && capCode.length && twin.get(capLayer)) {
@@ -302,10 +367,11 @@
       var host = document.createElement("div");
       host.id = "captions";
       host.setAttribute("data-composition-id", "captions");
-      host.setAttribute("data-composition-src", "captions.html");
+      host.setAttribute("data-composition-src", "compositions/captions.html");
       host.setAttribute("data-start", "0");
       host.setAttribute("data-duration", String(total));
       host.setAttribute("style", "position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none");
+      host.setAttribute("data-track-kind", "captions");                     // HyperFrames groups it on its caption track
       capCopy.parentNode.replaceChild(host, capCopy);
       captions = {
         html: capCopy.outerHTML,
@@ -314,8 +380,36 @@
         width: Number(rootEl.getAttribute("data-width")), height: Number(rootEl.getAttribute("data-height")), duration: total, tweens: capCode.length,
       };
     }
+    // S4: each scene becomes its own composition (scenes/<id>.html, HyperFrames: nested_structure_needs_subcomposition). A full-frame host takes
+    // its place in the page, at the same spot (same stacking) and with the scene's window; the scene inside starts at 0 on its own timeline.
+    var scenes = [];
+    win.forEach(function (w, sc) {
+      var c = twin.get(sc);
+      if (!w.own || !c || !c.parentNode) return;
+      if (!c.id) c.id = idOf(sc);                                            // its readable id (given now if no step named it)
+      if (!c.getAttribute("data-hf-id")) c.setAttribute("data-hf-id", "hf-" + c.id);
+      var key = sc.id.replace(/-scene(?=-\d+$|$)/, ""), cid = "scene-" + key;     // "s4-scene" -> s4, "s4-scene-2" -> s4-2 (a scene's second page)
+      var host = document.createElement("div");
+      host.id = cid;
+      host.setAttribute("data-composition-id", cid);
+      host.setAttribute("data-composition-src", "scenes/" + key + ".html");
+      host.setAttribute("data-start", c.getAttribute("data-start"));
+      host.setAttribute("data-duration", c.getAttribute("data-duration"));
+      host.setAttribute("style", "position:absolute;left:0;top:0;width:100%;height:100%");
+      c.removeAttribute("data-start");
+      c.removeAttribute("data-duration");
+      c.parentNode.replaceChild(host, c);
+      var lines = sceneCode.get(sc) || [];
+      scenes.push({
+        id: cid, file: key, html: c.outerHTML, tweens: lines.length,
+        script: "{\n  const $ = (id) => document.getElementById(id);\n  const ts = gsap.timeline({ paused: true });\n  " + lines.join("\n  ") +
+          "\n  window.__timelines = window.__timelines || {};\n  window.__timelines[" + JSON.stringify(cid) + "] = ts;\n}",
+        width: Number(rootEl.getAttribute("data-width")), height: Number(rootEl.getAttribute("data-height")),
+        duration: Number(host.getAttribute("data-duration")),
+      });
+    });
     var html = copy.outerHTML;
     var script = "const $ = (id) => document.getElementById(id);\n" + code.join("\n") + "\nwindow.__timelines = window.__timelines || {};\nwindow.__timelines[" + JSON.stringify(rootEl.getAttribute("data-composition-id") || "root") + "] = t0;";
-    return { html: html, script: script, captions: captions, lost: lost, timelines: names.size, elements: touched.size };
+    return { html: html, script: script, captions: captions, scenes: scenes, early: early, lost: lost, timelines: names.size, elements: touched.size };
   };
 })();

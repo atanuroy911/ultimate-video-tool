@@ -79,7 +79,7 @@ recordings, Claude Code over ACP. Our own editor stays for those until each live
   `captions_enabled`; without captions the host is left out). A scene holding a timed video gets no window of its own (HyperFrames: a video takes no
   timing from its wrapper). The baked sample has no HyperFrames lint errors; snapshots identical at 10 moments, and a real render of the baked page
   matches the original's within encoding noise (same render time, 54 s vs 55 s).
-- **O3 left:** each scene as its own sub-composition (HyperFrames suggests it: `nested_structure_needs_subcomposition`), callbacks (count-ups), and
+- **O3 left:** ~~each scene as its own sub-composition~~ (done 2026-11-23 as S4 of PLAN-SCENE-TOOLS), callbacks (count-ups), and
   baking stick-figure, cartoon and long-talk videos.
 - **O3 (d) long talk and fidelity (2026-11-23):** the owner's 14-minute talk (Claude-directed, 16:9, 2,171 animated parts) bakes in 7 s to a 466 kB page
   with **nothing lost**, matching the original at 16 of 17 sampled moments. What it took:

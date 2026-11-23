@@ -32,7 +32,7 @@ await studio.setViewportSize({ width: 1600, height: 1000 });
 await studio.waitForLoadState("load").catch(() => {});
 await studio.waitForTimeout(6000);
 const text = await studio.locator("body").innerText();
-check("its timeline shows the scenes as clips", /S2 Scene/.test(text) && /S4 Scene/.test(text));
+check("its timeline shows each scene as a clip of its own composition", /Scene S2/.test(text) && /Scene S4/.test(text), (text.match(/Scene S\d+/g) || []).slice(0, 6).join(", "));
 check("the editor shows the Studio is open", await page.getByRole("button", { name: "HyperFrames open" }).isVisible());
 
 const at = Number(process.env.VT_AT || 15);                  // Layers opens the scene under the playhead: put it in the part's scene (ruler: 0 s at x 85, 41.7 px a second here)
@@ -61,7 +61,8 @@ if (found) {
   await studio.waitForTimeout(2500);
 }
 await studio.screenshot({ path: "e2e/out/o4-video-in-studio.png" }).catch(() => {});
-const page0 = fs.readFileSync(path.join(projects, pid, "studio-9x16", "index.html"), "utf8");
+const scenePage = path.join(projects, pid, "studio-9x16", "scenes", part.split("-")[0] + ".html");          // S4: a scene part lives in its scene's own page
+const page0 = fs.existsSync(scenePage) ? fs.readFileSync(scenePage, "utf8") : "";
 check("retyping in the Studio's Design panel writes the video's Studio copy", page0.includes(marker));
 const st = await api("GET", `/api/projects/${pid}/studio`);
 check("the server sees Studio edits that fit the current video", st.edited === true && st.current === true, JSON.stringify(st));

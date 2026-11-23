@@ -53,7 +53,8 @@ def scene_words(project, scene_id: str) -> str:
 def suggest_prompt(project, scene_id: str) -> str:
     """A plain first prompt from what is said; the person edits it (G3 adds AI-written prompts)."""
     words = scene_words(project, scene_id)
-    return f"A clear illustration of: {words[:300]}. One subject, simple background, no text." if words else "A clear illustration, one subject, simple background, no text."
+    said = words[:300].rstrip(" .!?।")                                  # "...need." + ". One subject" read as "need.."
+    return f"A clear illustration of: {said}. One subject, simple background, no text." if words else "A clear illustration, one subject, simple background, no text."
 
 
 PROMPT_RULES = (

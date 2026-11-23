@@ -99,6 +99,19 @@ try {
       await pane.getByText("Skipped extras").waitFor({ timeout: 10000 }).catch(() => {});
       check("the Checks tab shows the retention check and the skipped extras", /Will viewers stay/.test(await pane.innerText()) && /Skipped extras/.test(await pane.innerText()));
       await page.screenshot({ path: path.join(repo, "studio", "e2e", "out", "o7-outline-checks.png") });
+      // O8: the plan's scenes beside HyperFrames: picking one moves HyperFrames there, and its menu has the plan-level actions
+      await page.getByRole("tab", { name: "Scenes" }).click();
+      const card = pane.getByRole("group", { name: "Scene 3" });
+      await card.waitFor({ timeout: 10000 }).catch(() => {});
+      await card.click({ position: { x: 20, y: 12 } });
+      await page.waitForTimeout(1500);
+      const c3 = ((await frame.locator("body").innerText()).match(/(\d\d):(\d\d)\s*\/\s*\d\d:\d\d/) || []).slice(1).map(Number);
+      check("the Scenes tab beside HyperFrames moves it to the scene picked", c3.length === 2 && Math.abs(c3[0] * 60 + c3[1] - Math.floor(sc[2].start + 0.05)) <= 1, JSON.stringify([c3, sc[2].start]));
+      await pane.getByRole("button", { name: "Scene 3 actions" }).click();
+      await page.waitForTimeout(400);
+      const menuText = await page.locator("body").innerText();
+      check("the scene's plan actions are there (Director, pictures, HyperFrames)", /Pictures for this scene/.test(menuText) && /Edit this scene in HyperFrames/.test(menuText));
+      await page.keyboard.press("Escape");
     } finally { fs.rmSync(outFile, { force: true }); }
   }
   const api = (m, u, body) => page.evaluate(async ([m, u, body]) => (await fetch(u, { method: m, headers: { "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined })).json(), [m, u, body]);

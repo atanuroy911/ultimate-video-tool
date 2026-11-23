@@ -1374,6 +1374,16 @@ def watch_and_revise(p: Project, card: dict, first: Path, cb, qa: Optional[dict]
     saved = {n: read_json(p.dir / n) for n in ("scenes.json", "video_script.json", "director.json")}
     notes = "; ".join([f"at {w['t0']:.1f}-{w['t1']:.1f} s: {w['message']}" for w in card["worst"][:4]]
                       + [f"scene {s['id']} (at {s['t']:.1f} s): " + ", ".join(QA_WORDS.get(x, x) for x in s["problems"]) + (f" ({s['fix_hint']})" if s.get("fix_hint") else "") for s in seen[:5]])
+    from ..director_review import layout_faults
+
+    def faults() -> Optional[list[str]]:
+        try:
+            return layout_faults(p)
+        except Exception as e:                                   # noqa: BLE001  no measurement: decided on the viewer score alone, as before
+            log.warning("could not measure the layout of %s: %s", p.id, e)
+            return None
+
+    before = faults()                                            # the first cut's overlaps: a revision must not add to them
     cb("check", 0.3, "Fixing the slow moments")
     try:
         res = chat.talk(p, author="viewer test", message="A viewer test found moments where people would scroll away. Fix only these, keep everything else: " + notes)
@@ -1381,15 +1391,39 @@ def watch_and_revise(p: Project, card: dict, first: Path, cb, qa: Optional[dict]
         return False
     if not res["ok"]:
         return False
-    r2 = export(p, a, quality="looks", gpu=True, music="__project__", fps=30, short_side=None, captions=True, clean_voice=False,
-                progress=lambda stage, f, msg="": cb("render", f, "Rendering the improved cut"))
-    f2 = Path(r2["video"])
-    card2 = RT.scorecard(f2, a, read_json(p.comp_dir / FORMATS[a]["tag"] / "data.json"), p.cut_audio if p.cut_audio.exists() else None)
-    if card2["risk"] < card["risk"] or (seen and card2["risk"] <= card["risk"] + 2):      # better, or the flagged frames fixed without losing viewers
+
+    def cut(label: str):
+        r = export(p, a, quality="looks", gpu=True, music="__project__", fps=30, short_side=None, captions=True, clean_voice=False,
+                   progress=lambda stage, f, msg="": cb("render", f, label))
+        fv = Path(r["video"])
+        return fv, RT.scorecard(fv, a, read_json(p.comp_dir / FORMATS[a]["tag"] / "data.json"), p.cut_audio if p.cut_audio.exists() else None)
+
+    f2, card2 = cut("Rendering the improved cut")
+    after = faults() if before is not None else None
+    added = [f for f in (after or []) if f not in (before or [])]
+    layout_worse = False
+    if before is not None and after is not None and len(after) > len(before):
+        # The revision put parts on top of each other (or off the frame). The director is shown exactly what and gets one try to fix it; the AI
+        # decides how. If the cut still has more such faults than the first one, the first cut stays.
+        cb("check", 0.6, "Fixing parts the change put on top of each other")
+        try:
+            fix = chat.talk(p, author="viewer test", message="Your last change made parts cover each other or leave the frame: " + "; ".join(added[:8])
+                            + ". Move or resize only these so nothing covers anything; keep everything else.")
+        except ai.AIUnavailable:
+            fix = {"ok": False}
+        if fix.get("ok"):
+            _remove(f2)
+            f2, card2 = cut("Rendering the fixed cut")
+            after = faults()
+        if after is None or len(after) > len(before):
+            log.info("viewer-test revision of %s dropped: %d layout faults before, %s after", p.id, len(before), "?" if after is None else len(after))
+            layout_worse = True                                  # never kept: the first cut comes back below
+    layout = {"before": len(before), "after": None if after is None else len(after)} if before is not None else None
+    if not layout_worse and (card2["risk"] < card["risk"] or (seen and card2["risk"] <= card["risk"] + 2)):      # better, or the flagged frames fixed without losing viewers
         RT.save(f2.with_suffix(".retention.json"), card2)
         for f in (first, first.with_suffix(".retention.json"), first.with_suffix(".srt"), first.with_suffix(".vtt")):
             _remove(f)
-        write_json(p.dir / "revise.json", {"before": card["risk"], "after": card2["risk"], "notes": notes, "kept": True})
+        write_json(p.dir / "revise.json", {"before": card["risk"], "after": card2["risk"], "notes": notes, "kept": True, "layout_faults": layout})
         try:
             from ..director_review import remeasure
 
@@ -1403,7 +1437,8 @@ def watch_and_revise(p: Project, card: dict, first: Path, cb, qa: Optional[dict]
     compose_all(p)
     for f in (f2, f2.with_suffix(".srt"), f2.with_suffix(".vtt")):
         _remove(f)
-    write_json(p.dir / "revise.json", {"before": card["risk"], "after": card2["risk"], "notes": notes, "kept": False})
+    write_json(p.dir / "revise.json", {"before": card["risk"], "after": card2["risk"], "notes": notes, "kept": False, "layout_faults": layout,
+                                        **({"why": "the change put parts on top of each other"} if layout_worse else {})})
     return False
 
 

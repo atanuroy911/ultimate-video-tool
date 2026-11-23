@@ -30,6 +30,8 @@ const media = await page.evaluate(async (pid) => {
 }, pid);
 const genFile = path.join(projects, pid, "gen", `${sid}.json`);
 fs.mkdirSync(path.dirname(genFile), { recursive: true });
+const genBefore = fs.existsSync(genFile) ? fs.readFileSync(genFile, "utf8") : null;      // the scene's real history is put back at the end
+process.on("exit", () => { try { if (genBefore != null) fs.writeFileSync(genFile, genBefore); else fs.rmSync(genFile, { force: true }); } catch {} });   // also when the test stops half way
 fs.writeFileSync(genFile, JSON.stringify({ runs: [{ id: "e2e", prompt: "a blue card with a sun", recipe: "", model: "Test model", count: 1, made_at: Date.now() / 1000, items: [{ media, seed: 7, seconds: 9 }] }] }));
 
 // open from the scene's menu
@@ -43,20 +45,39 @@ check("the picture made for the scene is in the grid", (await panel.getByRole("l
 await panel.locator(".scene-pics-view img").waitFor({ timeout: 10000 }).catch(() => {});
 check("it shows large on the left", await panel.locator(".scene-pics-view img").isVisible());
 
-// no picture engine here: one plain sentence
-await panel.getByRole("radio", { name: "1" }).click();
-await panel.getByRole("button", { name: /Generate 1/ }).click();
+// with a picture engine on this computer a picture is really drawn; with none the panel says so in one plain sentence
+const engine = (await api("GET", "/api/comfy/status")).body?.ok === true;
+const cards = panel.getByRole("list", { name: "Pictures made for this scene" }).getByRole("listitem");
 const alert = panel.getByRole("alert");
-await alert.waitFor({ timeout: 60000 }).catch(() => {});
-check("with no picture engine it says so plainly", /picture engine|ComfyUI|not reachable/i.test(await alert.textContent().catch(() => "")), (await alert.textContent().catch(() => "")).slice(0, 120));
+await panel.getByRole("radio", { name: "1" }).click();
+const before = await cards.count();
+await panel.getByRole("button", { name: /Generate 1/ }).click();
+if (engine) {
+  await panel.getByText("Making pictures…").waitFor({ timeout: 15000 }).catch(() => {});                  // the job has started...
+  await panel.getByRole("button", { name: /Generate 1/ }).waitFor({ timeout: 400000 }).catch(() => {});      // ...and the button comes back when it ends (a model swap on a small card takes minutes)
+  await page.waitForTimeout(1500);
+  check("a picture is drawn by the engine on this computer", (await cards.count()) === before + 1 && (await alert.count()) === 0, `${before} -> ${await cards.count()}`);
+} else {
+  await alert.waitFor({ timeout: 60000 }).catch(() => {});
+  check("with no picture engine it says so plainly", /picture engine|ComfyUI|not reachable/i.test(await alert.textContent().catch(() => "")), (await alert.textContent().catch(() => "")).slice(0, 120));
+}
 await page.screenshot({ path: "e2e/out/g1-scene-pictures.png" });
 
-// G2: a picture can be made to move; with no engine it says so the same way
+// G2: a picture can be made to move (a clip takes minutes: with an engine it is started, shown as in progress, and cancelled)
 check("each picture offers Make it move, with a clip model and length", await panel.getByRole("button", { name: /Make it move/ }).first().isVisible() && await panel.getByLabel("Clip model").isVisible() && (await panel.getByRole("radiogroup", { name: "Clip length" }).getByRole("radio").count()) === 2);
 await panel.getByRole("button", { name: /Make it move/ }).first().click();
 await page.waitForTimeout(500);
-await alert.waitFor({ timeout: 60000 }).catch(() => {});
-check("Make it move with no picture engine says so plainly", /picture engine/i.test(await alert.textContent().catch(() => "")), (await alert.textContent().catch(() => "")).slice(0, 120));
+if (engine) {
+  const going = await panel.getByText("Making a clip…").isVisible().catch(() => false);
+  const jobs = (await api("GET", "/api/jobs")).body || [];
+  const clipJob = jobs.find((j) => j.project === pid && j.kind === "pictures" && ["queued", "running"].includes(j.status));
+  if (clipJob) await api("POST", `/api/jobs/${clipJob.id}/cancel`);
+  await panel.getByRole("button", { name: /Generate 1/ }).waitFor({ timeout: 60000 }).catch(() => {});
+  check("Make it move starts a clip (shown in progress; cancelled here)", going && !!clipJob);
+} else {
+  await alert.waitFor({ timeout: 60000 }).catch(() => {});
+  check("Make it move with no picture engine says so plainly", /picture engine/i.test(await alert.textContent().catch(() => "")), (await alert.textContent().catch(() => "")).slice(0, 120));
+}
 
 // G3: the AI writes different prompts for the scene (Claude through this PC's login, set on the scratch server for this call), each editable
 const settingsFile = path.join(process.env.VT_DATA || "E:/UltimateVideoTool/scratch/c2-data", "settings.json");
@@ -84,13 +105,14 @@ await panel.getByRole("button", { name: "Use for this scene" }).click();
 await page.waitForTimeout(2500);
 const sc = (await api("GET", `/api/projects/${pid}/scenes`)).body.plan.scenes.find((x) => x.id === sid);
 check("Use makes the scene show the picture", JSON.stringify(sc).includes(media));
-await panel.getByRole("button", { name: "Forget this picture" }).click();
+const left0 = await cards.count();
+await panel.getByRole("button", { name: "Forget this picture" }).first().click();
 await page.waitForTimeout(800);
-check("Forget takes it out of the list", (await panel.getByRole("list", { name: "Pictures made for this scene" }).getByRole("listitem").count()) === 0);
+check("Forget takes it out of the list", (await cards.count()) === left0 - 1, `${left0} -> ${await cards.count()}`);
 await panel.getByRole("button", { name: "Close the pictures" }).click();
 
 await api("PUT", `/api/projects/${pid}/scenes`, plan0);                  // the sample as it was
-fs.rmSync(genFile, { force: true });
+if (genBefore != null) fs.writeFileSync(genFile, genBefore); else fs.rmSync(genFile, { force: true });
 await api("DELETE", `/api/projects/${pid}/media/${media}`);
 await browser.close();
 console.log(`\n${pass} passed, ${fail} failed`);

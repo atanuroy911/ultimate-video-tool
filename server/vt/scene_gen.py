@@ -216,10 +216,10 @@ def animate(project, scene_id: str, media_id: str, prompt: str = "", *, workflow
 
 
 def forget(project, scene_id: str, media_id: str) -> dict:
-    """Take a picture out of the scene's candidates (it stays in the media bin)."""
+    """Take a picture out of the scene's candidates (it stays in the media bin). media_id "failed" clears the attempts that made nothing."""
     data = read_json(_file(project, scene_id), {"runs": []}) or {"runs": []}
     for run in data["runs"]:
-        run["items"] = [i for i in run.get("items", []) if i.get("media") != media_id]
+        run["items"] = [i for i in run.get("items", []) if (not i.get("error") if media_id == "failed" else i.get("media") != media_id)]
     data["runs"] = [r for r in data["runs"] if r.get("items")]
     _save(project, scene_id, data)
     return history(project, scene_id)

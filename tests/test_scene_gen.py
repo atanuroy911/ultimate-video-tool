@@ -180,3 +180,13 @@ def test_the_outline_beside_the_studio_says_which_examples_have_b_roll(ref):
     assert o["examples"][0]["scenes"][0] == first.id and isinstance(o["examples"][0]["broll"], bool)
     assert o["covered"] == sum(1 for e in o["examples"] if e["broll"])
     assert retention_view(ref) is None or "checked" in retention_view(ref)
+
+
+def test_failed_attempts_can_be_cleared(ref, engine):
+    from vt import scene_gen as G
+
+    sid = ref.scenes().scenes[0].id
+    G.generate(ref, sid, "fail some of these", count=2, seed=1)                     # the stand-in fails odd seeds
+    assert any(i.get("error") for r in G.history(ref, sid)["runs"] for i in r["items"])
+    h = G.forget(ref, sid, "failed")
+    assert not any(i.get("error") for r in h["runs"] for i in r["items"]) and any(i.get("media") for r in h["runs"] for i in r["items"])

@@ -2,8 +2,8 @@
  "id": "wan22_5b_i2v",
  "label": "Wan 2.2 (5B, small cards)",
  "version": 1,
- "status": "unverified",
- "notes": "Image to video for a small card: Wan 2.2 TI2V 5B at Q4 (GGUF) with the umt5 encoder at Q4, 20 steps, 24 fps, the picture as the first frame. Slow on a 6 GB laptop card (about 20 minutes for 2 s, 2026-11-22); made for cards the 14B clips do not fit.",
+ "status": "verified",
+ "notes": "Image to video for a small card: Wan 2.2 TI2V 5B at Q4 (GGUF) with the umt5 encoder at Q4, 20 steps, 24 fps, the picture as the first frame. Verified 2026-11-24 on an RTX 4050 Laptop (6 GB): a 3 s vertical clip (352x640) in 242 s with nothing else on the card. Soft colour smears can appear at the edges.",
  "frame_rule": {"fps": 24, "step": 4, "offset": 1},
  "sizes": {"9:16": [352, 640], "16:9": [640, 352]},
  "manifest": {

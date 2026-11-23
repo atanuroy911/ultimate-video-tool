@@ -64,3 +64,8 @@ Order: S1, S2, G1, G4, S3, G2, G3, S4.
 - Also fixed on the way: a bake could fail when the editor saved the composition while it was being copied (a temporary file vanished); the
   bake skips temporary files and tries again.
 - Left of this plan: reference pictures in the pictures setup, and real pictures and clips once a picture engine runs on this computer.
+- **Real pictures and clips (2026-11-24):** ComfyUI runs on this PC (the installed server's copy, E:\UltimateVideoTool\ServerData\data\engines\comfyui).
+  Four pictures for c2-mix scene s4 with FLUX.2 Klein 4B (small): 40 s for the first (the model loads), 12 s each after; all usable. Make it move:
+  the 14B clip workflow does not fit this card, so a 5B one was added (`wan22_5b_i2v`, GGUF, the picture as the first frame); a 3 s vertical clip
+  in 242 s on the 6 GB card, and it moves (screens: g1-real.png, g2-real.png, g2-real-panel.png). Failed attempts can be cleared (the bin icon on a
+  "Not made" card). e2e/scene-pictures.mjs with the engine running: 12/12 (a real picture drawn, a clip started and cancelled).

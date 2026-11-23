@@ -76,6 +76,7 @@ try {
   if (await msg.count()) await msg.fill("");
 
   // O7: the spoken words are a tab beside the Studio, and a change to the video reaches the open Studio by itself
+  await page.getByRole("tab", { name: "Video", exact: true }).click();          // O8: the video's own panels are views of one tab
   await page.getByRole("tab", { name: "Words" }).click();
   await page.waitForTimeout(800);
   check("the Words tab shows the transcript beside the Studio", (await page.locator(".wb-assistant-body").innerText()).length > 50);
@@ -112,6 +113,14 @@ try {
       const menuText = await page.locator("body").innerText();
       check("the scene's plan actions are there (Director, pictures, HyperFrames)", /Pictures for this scene/.test(menuText) && /Edit this scene in HyperFrames/.test(menuText));
       await page.keyboard.press("Escape");
+      const empty = [];
+      for (const v of ["Direction", "Script", "Sound", "Media"]) {          // every panel of the old editor has a place beside HyperFrames
+        await page.getByRole("tablist", { name: "What to see beside HyperFrames" }).getByRole("tab", { name: v }).click();
+        await page.waitForTimeout(900);
+        if ((await pane.innerText()).replace(/\s+/g, " ").length < 120) empty.push(v);
+      }
+      check("Direction, Script, Sound and Media open beside HyperFrames", !empty.length, empty.join(", "));
+      await page.screenshot({ path: path.join(repo, "studio", "e2e", "out", "o8-video-views.png") });
     } finally { fs.rmSync(outFile, { force: true }); }
   }
   const api = (m, u, body) => page.evaluate(async ([m, u, body]) => (await fetch(u, { method: m, headers: { "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined })).json(), [m, u, body]);

@@ -96,3 +96,8 @@
 .studio-show { padding-left: 52px; }
 .studio-time { font-variant-numeric: tabular-nums; min-width: 46px; justify-content: flex-start; }
 .studio-insights .row { align-items: center; gap: 6px; }
+/* O8: the video's own panels beside HyperFrames, one row of views */
+.studio-video-pane { display: flex; flex-direction: column; min-height: 100%; }
+.studio-video-views { display: flex; gap: 2px; padding: 6px 8px; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; position: sticky; top: 0; background: var(--bg-panel); z-index: 1; }
+.studio-video-views button { flex: none; border: 0; background: transparent; color: var(--text-muted); padding: 3px 8px; border-radius: 6px; font: inherit; font-size: var(--fs-12, 12px); cursor: pointer; white-space: nowrap; }
+.studio-video-views button.on { background: var(--bg-selected); color: var(--fg); }

@@ -155,3 +155,8 @@ recordings, Claude Code over ACP. Our own editor stays for those until each live
   sampled moments identical; the Studio opens stick videos and draws the figures. Tests: test_bake (a stick video's frames), e2e/studio-stick.mjs
   3/3. Screen: docs/dev/spikes/html-shot/studio-stick.png.
   Left of O8: plan-level work (the Director, shots) has no place in the Studio; then the old editor can go.
+- **O8, the video's panels beside HyperFrames (2026-11-24):** the docked pane has three tabs: Director, Claude Code and **Video**. Video has the old
+  editor's panels as views: Scenes (the plan with its scene menu), Direction (of the scene HyperFrames is on), Words (with the caption look), Script,
+  Sound, Media (the bin, pictures for the scene, picture tools), Outline and Checks. e2e desktop-studio 22/22. Screen: o8-video-views.png.
+  What the old editor still has that this does not: the Elements panel (adding a text, shape or diagram to a scene through our plan) and our own
+  inspector for a plan element; in HyperFrames parts are added and changed directly. Next: decide those two, then make HyperFrames the editor.

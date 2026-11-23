@@ -155,6 +155,7 @@ export default function ScenePictures({ projectId, sceneId, sceneLabel, onClose,
                     ? <button className="btn ghost sm" disabled={!!job || !it.from} title="Make the clip again from the same picture with a new seed" onClick={() => move(it.from!, run.prompt)}><RefreshCw size={13} /> Again</button>
                     : <button className="btn ghost sm" disabled={!!job} title="Draw this one again with the same prompt and a new seed" onClick={() => { const p = it.prompt || run.prompt; setPrompt(p); generate(p, 1); }}><RefreshCw size={13} /> Redraw</button>}
                   {it.media && it.kind !== "clip" && <button className="btn ghost sm" disabled={!!job} title={`Make a ${clipLength} s clip that starts on this picture`} onClick={() => move(it.media!, it.prompt || run.prompt)}><Clapperboard size={13} /> Make it move</button>}
+                  {!it.media && it.error && <button className="btn ghost icon sm" aria-label="Clear the attempts that failed" title={`Not made: ${it.error}`} onClick={() => forget("failed")}><Trash2 size={13} /></button>}
                   {it.media && <button className="btn ghost icon sm" aria-label="Forget this picture" title="Take it out of this list (it stays in the media bin)" onClick={() => forget(it.media!)}><Trash2 size={13} /></button>}
                 </div>
               </div>
